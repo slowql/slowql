@@ -133,7 +133,7 @@ def run(
     # 6) Render formatted report with ConsoleFormatter
     formatter = ConsoleFormatter()
     # Ensure full reveal: use animated reveal_section around key formatter sections if desired
-    formatter.format_analysis(results_df, title="SQLGuard Analysis")
+    formatter.format_analysis(results_df, title="SLOWQL Analysis")
 
     # 7) Show expandable detailed analysis with the AnimatedAnalyzer wrapper
     try:
@@ -174,7 +174,7 @@ def run(
         pass
 
 def build_argparser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="slowql", description="SQLGuard CLI — cyberpunk SQL static analyzer")
+    p = argparse.ArgumentParser(prog="slowql", description="SLOWQL CLI — cyberpunk SQL static analyzer")
     p.add_argument("--no-intro", dest="no_intro", action="store_true", help="Skip intro animation")
     p.add_argument("--fast", action="store_true", help="Fast mode: reduce animations and blocking prompts")
     p.add_argument("--input-file", type=Path, help="Read SQL from file")
@@ -231,7 +231,7 @@ def show_animated_help(fast: bool = False, non_interactive: bool = False, durati
         pass
 
     # 2) Title card
-    title = "[bold magenta]SQLGUARD[/bold magenta] — [cyan]Cinematic CLI[/cyan]"
+    title = "[bold magenta]SLOWQL[/bold magenta] — [cyan]Cinematic CLI[/cyan]"
     subtitle = "[dim white]Static SQL analysis with cyberpunk aesthetics[/dim white]"
     title_panel = Panel(Align.center(f"{title}\n\n{subtitle}", vertical="middle"),
                         border_style="bold magenta", box=box.DOUBLE, padding=(1, 4))
