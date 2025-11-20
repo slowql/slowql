@@ -235,7 +235,7 @@ class AnimatedAnalyzer:
 
 
 # Main execution flow
-def run_sqlguard():
+def run_slowql():
     """Complete SQLGuard experience with animations"""
     console = Console()
     
@@ -283,4 +283,4 @@ def run_sqlguard():
 
 
 if __name__ == "__main__":
-    run_sqlguard()
+    run_slowql()

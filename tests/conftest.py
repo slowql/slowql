@@ -1,6 +1,6 @@
 import pytest
-from sqlguard.core.detector import QueryDetector, DetectedIssue, IssueSeverity
-from sqlguard.core.analyzer import QueryAnalyzer
+from slowql.core.detector import QueryDetector, DetectedIssue, IssueSeverity
+from slowql.core.analyzer import QueryAnalyzer
 
 @pytest.fixture
 def detector():

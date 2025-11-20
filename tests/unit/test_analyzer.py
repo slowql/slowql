@@ -1,8 +1,8 @@
 # tests/unit/test_analyzer.py
 import pytest
 import pandas as pd
-from sqlguard.core.analyzer import QueryAnalyzer
-from sqlguard.core.detector import IssueSeverity, DetectedIssue
+from slowql.core.analyzer import QueryAnalyzer
+from slowql.core.detector import IssueSeverity, DetectedIssue
 
 class TestAnalyzer:
     def test_initialization(self):

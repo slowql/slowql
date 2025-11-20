@@ -1,8 +1,8 @@
-from sqlguard.core.analyzer import QueryAnalyzer
-from sqlguard.formatters.console import print_analysis
+from slowql.core.analyzer import QueryAnalyzer
+from slowql.formatters.console import print_analysis
 import importlib
-import sqlguard.formatters.console
-importlib.reload(sqlguard.formatters.console)
+import slowql.formatters.console
+importlib.reload(slowql.formatters.console)
 
 
 # Create analyzer

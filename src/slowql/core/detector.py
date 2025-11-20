@@ -5,7 +5,7 @@ Detects 50+ common SQL anti-patterns and performance issues through static analy
 No database connection required - analyzes query text only.
 
 Author: Mehdi Makroumi
-License: MIT
+license = { text = "All rights reserved. Copyright (c) 2025 El Mehdi Makroumi. All rights reserved." }
 """
 
 import re

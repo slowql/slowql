@@ -1,5 +1,5 @@
 import pytest
-from sqlguard.core.detector import QueryDetector, IssueSeverity
+from slowql.core.detector import QueryDetector, IssueSeverity
 
 
 class TestDetector:
