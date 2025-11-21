@@ -746,7 +746,7 @@ After:  [green]{after_count} issues[/green]
         
         panel = Panel(
             Align.center(content),
-            title="[bold white]◢◣ SQLGUARD SECURITY SCAN ◣◢[/]",
+            title="[bold white]◢◣ SLOWQL SECURITY SCAN ◣◢[/]",
             border_style="bold green",
             box=box.DOUBLE,
             padding=(2, 4),

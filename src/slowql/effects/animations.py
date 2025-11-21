@@ -156,7 +156,7 @@ class CyberpunkSQLEditor:
     def _show_header(self):
         header_lines = [
             "[bold cyan]╔═══════════════════════════════════════════════╗[/]",
-            "[bold cyan]║[/]  [bold magenta]◆ SQLGUARD QUERY TERMINAL v2.0 ◆[/]  [bold cyan]║[/]",
+            "[bold cyan]║[/]  [bold magenta]◆ SLOWQL QUERY TERMINAL v2.0 ◆[/]  [bold cyan]║[/]",
             "[bold cyan]╚═══════════════════════════════════════════════╝[/]"
         ]
         
@@ -236,7 +236,7 @@ class AnimatedAnalyzer:
 
 # Main execution flow
 def run_slowql():
-    """Complete SQLGuard experience with animations"""
+    """Complete SlowQL experience with animations"""
     console = Console()
     
     # 1. Matrix intro
