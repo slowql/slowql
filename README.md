@@ -127,7 +127,10 @@ Contributions are highly valued. We are looking for experienced engineers who re
  - Fork, create a feature branch, and open a PR against main.
  - Every new detector or behavior change requires tests.
  - Keep commits small, focused, and ensure all CI checks pass.
- ## 🤝 Support & License
- For technical issues, please open an issue on GitHub. For security-sensitive disclosures, use the repository security policy.All rights reserved. 
+## 🤝 Support & License
+
+For technical issues, please open an issue on GitHub. For security-sensitive disclosures, use the repository security policy.
+
+License: Apache-2.0 — see LICENSE for details.
  
- **Copyright (c) 2025 El Mehdi Makroumi.**
+**Copyright (c) 2025 El Mehdi Makroumi.**
