@@ -14,7 +14,8 @@ Designed for engineers who treat tooling as craft: beautiful, feature-rich CLI o
 
 [![PyPI Version](https://img.shields.io/pypi/v/slowql.svg)](https://pypi.org/project/slowql/)
 [![Docker Image](https://img.shields.io/docker/v/makroumi/slowql?label=Docker&sort=semver)](https://hub.docker.com/r/makroumi/slowql)
-[![License](https://img.shields.io/github/license/makroumi/slowql)](LICENSE)
+[![License](https://img.shields.io/github/license/makroumi/slowql?cacheSeconds=60)](LICENSE)
+
 
 ---
 
