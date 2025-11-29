@@ -1,13 +1,3 @@
-"""
-SQL Query Pattern Detector
-
-Detects 50+ common SQL anti-patterns and performance issues through static analysis.
-No database connection required - analyzes query text only.
-
-Author: Mehdi Makroumi
-license = { text = "All rights reserved. Copyright (c) 2025 El Mehdi Makroumi. All rights reserved." }
-"""
-
 import re
 from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass

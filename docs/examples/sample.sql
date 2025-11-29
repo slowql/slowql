@@ -1,5 +1,3 @@
-example
-
 SELECT * FROM users;
 SELECT id, name, email FROM users WHERE UPPER(email) = 'ADMIN@EXAMPLE.COM';
 UPDATE products SET price = price * 1.1;

@@ -1,12 +1,3 @@
-"""
-Console Output Formatter
-
-Beautiful terminal output for SQL analysis results using Rich.
-
-Author: Mehdi Makroumi
-license = { text = "All rights reserved. Copyright (c) 2025 El Mehdi Makroumi. All rights reserved." }
-"""
-
 from typing import List, Optional, Dict, Any
 import pandas as pd
 from rich.console import Console

@@ -4,3 +4,15 @@ __pycache__/
 *.egg-info/
 sql_analysis_*.json
 .pytest_cache/
+
+# Generated files
+htmlcov/
+dist/
+build/
+*.egg-info/
+.coverage
+.pytest_cache/
+reports/
+*.html
+*.json
+*.csv

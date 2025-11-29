@@ -1,10 +1,6 @@
-# 🔥 SLOWQL: The Performance Sentinel for SQL
+# 🔥 SlowQL - Catch Expensive SQL Before Production
 
-## 💥 Stop Shipping Bad SQL. Ship Confidence.
-
-**SLOWQL** is the cinematic, developer-first static SQL analyzer that turns your codebase into a performance fortress. Stop wasting engineering cycles debugging production issues. Start analyzing, detecting, and fixing performance anti-patterns, dangerous constructs, and maintainability issues *before* they even merge.
-
-Designed for engineers who treat tooling as craft: beautiful, feature-rich CLI output, deterministic builds, and seamless CI/CD integration.
+**Static SQL analyzer with a cyberpunk aesthetic.** Detects 50+ performance killers, security risks, and anti-patterns before they cost you money.
 
 ---
 
@@ -15,123 +11,143 @@ Designed for engineers who treat tooling as craft: beautiful, feature-rich CLI o
 [![PyPI Version](https://img.shields.io/pypi/v/slowql.svg)](https://pypi.org/project/slowql/)
 [![Docker Image](https://img.shields.io/docker/v/makroumi/slowql?label=Docker&sort=semver)](https://hub.docker.com/r/makroumi/slowql)
 [![License](https://img.shields.io/github/license/makroumi/slowql?cacheSeconds=60)](LICENSE)
+[![CI](https://github.com/makroumi/slowql/actions/workflows/ci.yml/badge.svg)](https://github.com/makroumi/slowql/actions/workflows/ci.yml)
+[![GHCR Version](https://img.shields.io/ghcr/v/makroumi/slowql?label=GHCR)](https://github.com/orgs/makroumi/packages/container/package/slowql)
+[![Coverage](https://img.shields.io/codecov/c/github/makroumi/slowql?logo=codecov)](https://codecov.io/gh/makroumi/slowql)
+[![Tests](https://github.com/makroumi/slowql/actions/workflows/ci.yml/badge.svg?event=push&job=test)](https://github.com/makroumi/slowql/actions/workflows/ci.yml)
+[![Ruff](https://img.shields.io/badge/linter-ruff-blue)](#)
+[![Mypy](https://img.shields.io/badge/type%20check-mypy-4B6CFA)](#)
+[![Dependabot Status](https://img.shields.io/badge/dependabot-enabled-brightgreen)](https://github.com/makroumi/slowql/security/dependabot)
+[![Vulnerabilities](https://img.shields.io/snyk/vulnerabilities/github/makroumi/slowql?label=vulnerabilities)](#)
+[![Docs](https://img.shields.io/readthedocs/slowql?logo=read-the-docs)](https://your-docs-url)
+[![Release](https://img.shields.io/github/v/release/makroumi/slowql?label=release)](https://github.com/makroumi/slowql/releases)
+
+[![GitHub stars](https://img.shields.io/github/stars/makroumi/slowql?style=social)](https://github.com/makroumi/slowql/stargazers)
+[![Contributors](https://img.shields.io/github/contributors/makroumi/slowql)](https://github.com/makroumi/slowql/graphs/contributors)
+[![Sponsor](https://img.shields.io/badge/sponsor-%E2%9D%A4-FE7D7D)](https://github.com/sponsors/makroumi)
+
+[![Discussions](https://img.shields.io/badge/discussions-on%20GitHub-586069?logo=github)](https://github.com/makroumi/slowql/discussions)
 
 
----
 
-## ⚡️ Quick Installation (Get Running in 60 Seconds)
-
-We recommend using `pipx` for isolated, clean installs. No dependency conflicts, just pure performance analysis.
-
-### The Recommended Path: Pipx (Isolated)
-
+## ⚡ Quick Start
 ```bash
-# 1. Install pipx (if you haven't already)
-python3 -m pip install --user pipx
-python3 -m pipx ensurepath
-
-# 2. Install SLOWQL
-pipx install slowql
-
-# 3. Verify
-slowql --help
+pip install slowql
+slowql --input-file your_queries.sql
 ```
 
-### The Fastest Path: Pip (Global)
-
-```Bash
-python3 -m pip install --user slowql
-slowql --help
-```
-
-
-### The CI/Ops Path: Docker (Zero Dependencies)
-Run the container image directly for instant execution—no Python required.
-```Bash
-docker run --rm ghcr.io/<ORG>/slowql:latest --help
-```
-## ⚙️ Why SLOWQL? 
-
-| Feature | Description | Impact |
-| :--- | :--- | :--- |
-| **Severity Detectors** | Multi-level analysis: `Critical`, `High`, `Medium`, `Low`. | Prioritize the fixes that matter most for production stability. |
-| **Cinematic CLI** | Stunning, vivid terminal output with optional ASCII effects. | Makes tooling feel like craft, not a chore. Use `--no-intro` for CI. |
-| **Pipeline Ready** | Exports in `html`, `csv`, or machine-readable `json`. | Seamless integration into dashboards, reporting, and automated alerts. |
-| **Deterministic Builds** | Reproducible results and Docker-ready, multi-arch images. | Reliable builds every time, across every architecture. |
-
-## 🔬 Practical Usage
-
- ### 1. Generate a Rich HTML Report
- Analyze a file and output a rich, standalone HTML report for easy sharing and review.
- ```Bash
- slowql --input-file examples/sample.sql --export html --out ./report
- ```
-
-### 2. CI/CD Pipeline Integration (JSON Export)
-Use non-interactive mode for speed and export clean JSON for automated parsing.
-```Bash
-slowql --non-interactive --fast --input-file examples/sample.sql --export json --out ./report
-```
-
-### 3. Interactive Code Snippet Testing
-Need to check a quick query? Use paste mode.
-```Bash
+Or analyze queries interactively:
+```bash
 slowql --mode paste
 ```
 
-### 4. Programmatic Analysis (Python)
-Integrate the core analysis engine directly into your Python scripts or custom tooling:
+## 🎯 What It Catches
 
-```Python
-from slowql.core.analyzer import Analyzer
+| Severity | Issue | Impact |
+|----------|-------|--------|
+| 🚨 **CRITICAL** | DELETE/UPDATE without WHERE | Prevents accidental table wipes |
+| 🔥 **HIGH** | Non-SARGable queries | Forces full table scans instead of index seeks |
+| 🔥 **HIGH** | Leading wildcards (LIKE '%x') | Prevents index usage |
+| 💫 **MEDIUM** | SELECT * usage | Unnecessary data transfer, prevents covering indexes |
+| 💠 **LOW** | Unnecessary DISTINCT | Adds sorting overhead |
 
-a = Analyzer()
-# Analyze a query string directly
-results = a.analyze("SELECT * FROM users WHERE id = 1")
-print(results.summary())
+**50+ detectors total** covering performance, security, and maintainability.
+
+## 📊 Example
+```bash
+$ slowql --input-file examples/nasty_queries.sql
+
+╔═══════════════════════════════════════════════╗
+║     SQL Analysis Results                      ║
+╚═══════════════════════════════════════════════╝
+
+Found 46 optimization opportunities
+Across 21 different issue types
+
+🚨 CRITICAL: 2
+🔥 HIGH    : 8  
+💫 MEDIUM  : 7
+💠 LOW     : 4
+
+🔴 CRITICAL: Missing WHERE in UPDATE/DELETE
+   Query: DELETE FROM users
+   Fix: Add WHERE clause or use TRUNCATE if intentional
+   Impact: Can delete/update entire table accidentally
 ```
 
-## 🧑‍💻 Developer's Toolkit
-### Build from SourceClone 
-the repository and build the wheel locally.
-```Bash
-git clone [https://github.com/](https://github.com/)<ORG>/slowql.git
+## 🚀 Features
+
+- **Beautiful CLI** - Cyberpunk-themed terminal output with optional Matrix intro
+- **Multiple formats** - Export to HTML, JSON, or CSV
+- **CI/CD ready** - Use `--fast --non-interactive` for pipelines
+- **Zero dependencies** on your database - analyzes SQL strings statically
+
+## 📖 Usage
+
+### Analyze a file
+```bash
+slowql --input-file queries.sql --export html
+```
+
+### Interactive mode
+```bash
+slowql
+# Paste your SQL, press Ctrl+D when done
+```
+
+### CI/CD integration
+```bash
+slowql --input-file schema.sql --export json --fast --non-interactive
+```
+
+### Python API
+```python
+from slowql.core.analyzer import QueryAnalyzer
+
+analyzer = QueryAnalyzer()
+results = analyzer.analyze("SELECT * FROM users WHERE id = 1")
+print(results)
+```
+
+## 🛠️ Installation
+
+**Recommended (isolated):**
+```bash
+pipx install slowql
+```
+
+**Standard:**
+```bash
+pip install slowql
+```
+
+**From source:**
+```bash
+git clone https://github.com/makroumi/slowql
 cd slowql
-python3 -m pip install --upgrade build
-python3 -m build
-python3 -m pip install dist/slowql-*.whl
-slowql --help
+pip install -e .
 ```
-## Run in Editable Mode
-Set up a virtual environment for making contributions and running tests locally.
-```Bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -e '.[dev]'
+
+## 🧪 Development
+```bash
+# Install dev dependencies
+pip install -e '.[dev]'
+
+# Run tests
 pytest
+
+# Run with coverage
+pytest --cov=slowql
 ```
 
-## CI / CD (The Shipping Standard)
-We enforce strict CI/CD practices using GitHub Actions.
+## 📝 License
 
-**Trigger a Release**: Update the version in 'pyproject.toml', commit, and push an annotated tag.
-```Bashgit 
-commit -am "chore(release): v1.0.2"
-git tag -a v1.0.2 -m "release slowql v1.0.2"
-git push origin main
-git push origin v1.0.2
-```
-## 💖 Contributing
-Contributions are highly valued. We are looking for experienced engineers who respect high standards of craft.
+Apache 2.0 - see [LICENSE](LICENSE)
 
- - Fork, create a feature branch, and open a PR against main.
- - Every new detector or behavior change requires tests.
- - Keep commits small, focused, and ensure all CI checks pass.
-## 🤝 Support & License
+## 🤝 Contributing
 
-For technical issues, please open an issue on GitHub. For security-sensitive disclosures, use the repository security policy.
+Issues and PRs welcome! Please run tests before submitting.
 
-License: Apache-2.0 — see LICENSE for details.
- 
-**Copyright (c) 2025 El Mehdi Makroumi.**
+---
+
+**Built by [@makroumi](https://github.com/makroumi)** | **[Report Issues](https://github.com/makroumi/slowql/issues)**

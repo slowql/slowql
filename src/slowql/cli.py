@@ -1,4 +1,3 @@
-# src/slowql/cli.py
 import argparse
 from pathlib import Path
 from typing import List, Optional
@@ -291,13 +290,32 @@ def show_animated_help(fast: bool = False, non_interactive: bool = False, durati
     console.print(Panel(tips, border_style="hot_pink", box=box.ROUNDED))
     time.sleep(reveal_delay * 8)
 
-    # 7) Exit/Prompt
+    # 7) Interactive prompt loop (single-step, non-blocking default)
     if not non_interactive:
-        console.print("\n[bold cyan]Press ENTER to return to shell[/bold cyan]", justify="center")
-        try:
-            input()
-        except Exception:
+        def _re_run_last():
+            # Re-render or re-run the same display logic you already call to show results
+            try:
+                # If you have a function that prints the last result, call it here.
+                # Example: display_last_result()
+                display_last_result()
+            except NameError:
+                # Fallback: no-op if display function not available
+                pass
+
+        def _export_to_path(path):
+            # Implement export using your existing export mechanism.
+            # Example: export_results(path)
+            try:
+                return export_results(path)
+            except NameError:
+                raise RuntimeError("No export function available")
+
+        action = interactive_loop(_re_run_last, export_fn=_export_to_path)
+        # If interactive_loop returns "new", let caller continue to accept another query
+        if action == "new":
+            # If your run() loop expects to present a prompt for a new query here, continue as needed.
             pass
+
 
     # 8) final glitch flourish
     try:

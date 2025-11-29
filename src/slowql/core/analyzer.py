@@ -1,12 +1,3 @@
-"""
-SQL Query Analyzer
-
-Main analysis orchestrator that coordinates detection and reporting of SQL issues.
-
-Author: Mehdi Makroumi
-license = { text = "All rights reserved. Copyright (c) 2025 El Mehdi Makroumi. All rights reserved." }
-"""
-
 import re
 from typing import List, Dict, Any, Union, Optional
 import pandas as pd
