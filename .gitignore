@@ -16,3 +16,12 @@ reports/
 *.html
 *.json
 *.csv
+
+# Generated
+htmlcov/
+report/
+reports/
+.coverage
+*.egg-info/
+__pycache__/
+
