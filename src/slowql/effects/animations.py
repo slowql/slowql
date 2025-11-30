@@ -15,39 +15,43 @@ from rich.layout import Layout
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 class MatrixRain:
-    """Matrix rain intro animation"""
+    """Full-window Matrix rain intro animation with auto-clear."""
     def __init__(self):
         self.console = Console()
-        self.width = min(shutil.get_terminal_size().columns, 140)
-        self.height = min(shutil.get_terminal_size().lines - 5, 40)
-        self.chars = "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ0123456789!@#$%^&*()"
-        
+        size = shutil.get_terminal_size()
+        self.width = min(size.columns, 120)
+        self.height = min(size.lines - 5, 30)
+        self.chars = "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ0123456789"
+
         self.logo = [
-        " █████   ██      █████   ██   ██  █████   ██     ",
-        "██       ██     ██   ██  ██   ██ ██   ██  ██     ",
-        " ████    ██     ██   ██  ██ █ ██ ██   ██  ██     ",
-        "     ██  ██     ██   ██  ██ █ ██ ██  ███  ██     ",
-        " █████   ██████  █████    █   █   ██████  ██████ ",
-        "",
-        "       ◆ DATABASE ANOMALY DETECTOR ◆       ",
-        "         v2.0 CYBERPUNK EDITION         "
-    ]
+            " █████   ██      █████   ██   ██  █████   ██     ",
+            "██       ██     ██   ██  ██   ██ ██   ██  ██     ",
+            " ████    ██     ██   ██  ██ █ ██ ██   ██  ██     ",
+            "     ██  ██     ██   ██  ██ █ ██ ██  ███  ██     ",
+            " █████   ██████  █████    █   █   ██████  ██████ ",
+            "",
+            "       ◆ DATABASE ANOMALY DETECTOR ◆       ",
+            "         v2.0 CYBERPUNK EDITION         "
+        ]
 
-
-        
-        self.columns = []
-        for x in range(self.width):
-            self.columns.append({
+        # Pre-generate columns
+        self.columns = [
+            {
                 'y': float(random.randint(-self.height, 0)),
-                'speed': random.uniform(0.5, 1.5),
-                'length': random.randint(5, 15),
-                'chars': [random.choice(self.chars) for _ in range(30)]
-            })
-    
+                'speed': random.uniform(0.8, 1.2),
+                'chars': [random.choice(self.chars) for _ in range(20)]
+            }
+            for _ in range(self.width)
+        ]
+
     def run(self, duration=3):
-        frames = int(duration * 30)
-        
-        with Live(console=self.console, refresh_per_second=30) as live:
+        """Run matrix rain for given duration (seconds)."""
+        if duration < 0.3:
+            self._final_reveal()
+            return
+
+        frames = max(int(duration * 20), 20)  # 20fps
+        with Live(console=self.console, refresh_per_second=20, transient=True) as live:
             for frame in range(frames):
                 lines = []
                 for y in range(self.height):
@@ -55,69 +59,58 @@ class MatrixRain:
                     for x in range(self.width):
                         col = self.columns[x]
                         char_y = int(col['y'])
-                        
                         if char_y == y:
-                            line.append(col['chars'][frame % 30], "bold green")
-                        elif char_y - 5 < y < char_y:
-                            line.append(col['chars'][(frame + y) % 30], "dim cyan")
+                            line.append(col['chars'][frame % 20], "bold green")
+                        elif char_y - 3 < y < char_y:
+                            line.append(col['chars'][(frame + y) % 20], "dim cyan")
                         else:
                             line.append(" ")
                     lines.append(line)
-                
+
+                # Update positions
                 for col in self.columns:
                     col['y'] += col['speed']
                     if col['y'] > self.height:
-                        col['y'] = float(random.randint(-20, -5))
-                
-                # Show logo in final second
-                if frame > frames - 30:
+                        col['y'] = float(random.randint(-15, -5))
+
+                # Logo in final frames
+                if frame > frames - 20:
                     logo_y = (self.height - len(self.logo)) // 2
                     for i, logo_line in enumerate(self.logo):
-                        if logo_y + i < len(lines):
+                        if 0 <= logo_y + i < len(lines):
                             lines[logo_y + i] = Text.from_markup(
-                                logo_line.center(self.width), 
+                                logo_line.center(self.width),
                                 style="bold magenta"
                             )
-                
-                full_display = "\n".join(str(line) for line in lines)
-                
-                progress = frame / frames
-                border_color = "cyan" if progress < 0.8 else "bold magenta"
-                
+
                 live.update(Panel(
-                    full_display,
-                    border_style=border_color,
-                    box=box.HEAVY if progress > 0.5 else None
+                    "\n".join(str(line) for line in lines),
+                    border_style="cyan",
+                    box=box.SIMPLE
                 ))
-                
-                time.sleep(1/30)
-        
-        # Final reveal
+                time.sleep(1/20)
+
         self._final_reveal()
-    
+
     def _final_reveal(self):
-        # Quick glitch
-        for _ in range(3):
-            self.console.print(Panel(
-                "\n".join("".join(random.choice("░▒▓█") for _ in range(60)) for _ in range(5)),
-                style=random.choice(["magenta", "cyan"]),
-                box=box.DOUBLE
-            ))
-            time.sleep(0.05)
-            self.console.clear()
-        
-        # Final logo
+        """Glitch + logo reveal, then clear terminal."""
         self.console.clear()
         self.console.print(Panel(
             Align.center("\n".join(self.logo), vertical="middle"),
             border_style="bold magenta",
             box=box.DOUBLE_EDGE,
-            padding=(2, 4),
-            title="[bold white]◢◣◢◣ SYSTEM ONLINE ◣◢◣◢[/]"
+            padding=(1, 2),
+            title="[bold white]◢ SYSTEM ONLINE ◣[/]"
         ), justify="center")
-        
-        self.console.print("\n[bold cyan blink]► PRESS ENTER TO BEGIN ANALYSIS ◄[/]", justify="center")
-        input()
+
+        self.console.print("\n[bold cyan]► PRESS ENTER TO BEGIN ◄[/]", justify="center")
+        try:
+            input()
+        except Exception:
+            pass
+
+        # Clear after intro so it doesn’t persist
+        self.console.clear()
 
 
 class CyberpunkSQLEditor:
