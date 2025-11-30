@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel", "build"]
+requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -9,23 +9,19 @@ description = "Cinematic static SQL analyzer with cyberpunk CLI"
 readme = "README.md"
 requires-python = ">=3.8"
 authors = [{ name = "El Mehdi Makroumi", email = "elmehdi.makroumi@gmail.com" }]
+license = { text = "Apache-2.0" }
 keywords = ["sql", "analysis", "cli", "performance", "database"]
 classifiers = [
   "Programming Language :: Python :: 3",
   "Operating System :: OS Independent",
 ]
+
 dependencies = [
   "pandas>=1.3.0",
   "rich>=13.0.0",
-  "sqlparse>=0.4.0",
+  "sqlparse>=0.4.0"
 ]
 
-# License metadata (PEP 621 / setuptools-compatible)
-license = "Apache-2.0"
-license-files = ["LICENSE"]
-
-
-# Optional extras
 [project.optional-dependencies]
 dev = [
   "pytest>=7.0.0",
@@ -33,16 +29,22 @@ dev = [
   "black>=23.0.0",
   "mypy>=1.0.0",
   "flake8>=6.0.0",
-  "isort>=5.0.0",
+  "isort>=5.0.0"
 ]
 docs = [
   "sphinx>=5.0.0",
-  "sphinx-rtd-theme>=1.0.0",
+  "sphinx-rtd-theme>=1.0.0"
 ]
 
-# Console script entry points
 [project.scripts]
 slowql = "slowql.cli:main"
+
+[tool.setuptools]
+packages = ["slowql"]
+package-dir = { "" = "src" }
+
+[tool.setuptools.package-data]
+slowql = ["**/*.py"]
 
 [project.urls]
 Homepage = "https://github.com/makroumi/slowql"

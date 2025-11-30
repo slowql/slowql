@@ -78,29 +78,44 @@ class QueryDetector:
     def analyze(self, queries: str | List[str]) -> List[DetectedIssue]:
         """
         Analyze SQL query/queries for issues
-        
+
         Args:
             queries: Single query string or list of queries
-            
+
         Returns:
             List of DetectedIssue objects
         """
         if isinstance(queries, str):
             queries = [queries]
-            
-        all_issues = []
-        
+
+        all_issues: List[DetectedIssue] = []
+
         for query in queries:
             # Clean query for analysis
             clean_query = self._normalize_query(query)
-            
+
             # Run all detectors
             for detector_name, detector_func in self.detectors.items():
                 result = detector_func(clean_query, query)
                 if result:
                     all_issues.append(result)
-                    
+
+            # Extra rule: detect OR conditions in WHERE clause
+            if re.search(r"\bWHERE\b.*\bOR\b", clean_query, re.IGNORECASE | re.DOTALL):
+                all_issues.append(
+                    DetectedIssue(
+                        issue_type="OR Prevents Index",
+                        query=query,
+                        description="OR conditions in WHERE can prevent index usage",
+                        fix="Rewrite query to avoid OR, use UNION or separate conditions",
+                        impact="Indexes may not be used, causing full table scans",
+                        severity=IssueSeverity.MEDIUM,
+                        line_number=None,
+                    )
+                )
+
         return all_issues
+
     
     def _normalize_query(self, query: str) -> str:
         """Normalize query for consistent pattern matching"""
