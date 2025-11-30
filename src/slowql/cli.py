@@ -4,27 +4,30 @@ from typing import List, Optional
 import sys
 import pandas as pd
 from rich.console import Console
-from slowql.effects.animations import MatrixRain, CyberpunkSQLEditor, AnimatedAnalyzer
-from slowql.core.analyzer import QueryAnalyzer
-from slowql.formatters.console import ConsoleFormatter
 from rich.panel import Panel
 from rich.align import Align
 from rich.text import Text
 from rich.table import Table
-import time
 from rich import box
+import time
 
+from slowql.effects.animations import MatrixRain, CyberpunkSQLEditor, AnimatedAnalyzer
+from slowql.core.analyzer import QueryAnalyzer
+from slowql.formatters.console import ConsoleFormatter
 
 console = Console()
 
+
+# -------------------------------
+# Utility Functions
+# -------------------------------
+
 def sql_split_statements(sql: str) -> List[str]:
+    """Split SQL payload into individual statements, respecting quotes and comments."""
     if not sql:
         return []
-    parts = []
-    cur = []
-    in_squote = False
-    in_dquote = False
-    escape = False
+    parts, cur = [], []
+    in_squote, in_dquote, escape = False, False, False
     for ch in sql:
         if ch == "\\" and not escape:
             escape = True
@@ -47,9 +50,16 @@ def sql_split_statements(sql: str) -> List[str]:
         parts.append(trailing)
     return parts
 
+
 def ensure_reports_dir(path: Path) -> Path:
+    """Ensure reports directory exists."""
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+# -------------------------------
+# Core Runner
+# -------------------------------
 
 def run(
     intro_enabled: bool = True,
@@ -60,24 +70,26 @@ def run(
     out_dir: Optional[Path] = None,
     fast: bool = False,
     verbose: bool = False,
-    non_interactive: bool = False
+    non_interactive: bool = False,
+    parallel: bool = False,
+    workers: Optional[int] = None,
 ) -> None:
-    # Decide interactive default: if TTY and mode auto -> compose (full UI)
-    is_tty = sys.stdin.isatty() and sys.stdout.isatty()
-    chosen_mode = mode
-    if mode == "auto":
-        chosen_mode = "compose" if is_tty and not non_interactive and input_file is None else "paste"
+    """Main execution pipeline for SLOWQL CLI."""
 
-    # 1) Intro (full cinematic unless fast or disabled)
+    # Decide interactive default
+    is_tty = sys.stdin.isatty() and sys.stdout.isatty()
+    chosen_mode = "compose" if mode == "auto" and is_tty and not non_interactive and input_file is None else mode
+
+    # 1) Intro animation
     try:
         if intro_enabled and not fast:
             MatrixRain().run(duration=intro_duration)
         elif intro_enabled and fast:
-            MatrixRain().run(duration=0.9)
+            MatrixRain().run(duration=0.5)
     except Exception:
         pass
 
-    # 2) Input selection
+    # 2) Input handling
     sql_payload = ""
     if input_file:
         sql_payload = input_file.read_text(encoding="utf-8")
@@ -86,7 +98,6 @@ def run(
             return
     else:
         if chosen_mode == "compose" and not non_interactive:
-            # Use your full interactive editor (keeps the UI animation and previews)
             editor = CyberpunkSQLEditor()
             sql_payload = editor.get_queries() or ""
             if not sql_payload.strip():
@@ -111,39 +122,41 @@ def run(
                 console.print("[bold yellow]No SQL provided. Exiting.[/]")
                 return
 
-    # 3) Split into statements robustly
+    # 3) Split into statements
     statements = sql_split_statements(sql_payload)
 
-    # 4) Animated analysis: particle loading (full) then glitch wipe
+    # 4) Animated analysis intro
     aa = AnimatedAnalyzer()
     try:
         if not fast:
             aa.particle_loading("ANALYZING QUERIES")
             aa.glitch_transition(duration=0.25)
         else:
-            aa.glitch_transition(duration=0.08)
+            aa.glitch_transition(duration=0.05)
     except Exception:
         pass
 
-    # 5) Run analyzer
+    # 5) Run analyzer (parallel or sequential)
     analyzer = QueryAnalyzer(verbose=verbose)
-    results_df = analyzer.analyze(statements, return_dataframe=True)
+    if parallel:
+        results_df = analyzer.analyze_parallel(statements, return_dataframe=True, workers=workers)
+    else:
+        results_df = analyzer.analyze(statements, return_dataframe=True)
 
-    # 6) Render formatted report with ConsoleFormatter
+    # 6) Render formatted report
     formatter = ConsoleFormatter()
-    # Ensure full reveal: use animated reveal_section around key formatter sections if desired
     formatter.format_analysis(results_df, title="SLOWQL Analysis")
 
-    # 7) Show expandable detailed analysis with the AnimatedAnalyzer wrapper
+    # 7) Animated summary
     try:
-        # Create brief summary and detailed text for animated expansion (leveraging existing formatter outputs)
         summary = f"[bold cyan]◆ ANALYSIS COMPLETE ◆[/]\n\n[green]✓[/] {results_df['count'].sum() if 'count' in results_df else len(results_df)} issues detected"
         details_lines = []
         if not results_df.empty:
             for _, row in results_df.iterrows():
                 details_lines.append(f"{row['issue']} [{row.get('count',1)}] - {row['impact']}")
         details = "\n".join(details_lines) or "[dim]No details available[/]"
-        aa.show_expandable_details(summary, details, expanded=False)
+        if not fast:
+            aa.show_expandable_details(summary, details, expanded=False)
     except Exception:
         pass
 
@@ -165,17 +178,24 @@ def run(
             except Exception as e:
                 console.print(f"[bold red]Failed to export {fmt}:[/] {e}")
 
-    # 9) Final flourish (full glitch)
+    # 9) Final flourish
     try:
         if not fast:
             aa.glitch_transition(duration=0.35)
     except Exception:
         pass
 
+
+# -------------------------------
+# Argument Parser
+# -------------------------------
+
 def build_argparser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="slowql", description="SLOWQL CLI — cyberpunk SQL static analyzer")
     p.add_argument("--no-intro", dest="no_intro", action="store_true", help="Skip intro animation")
     p.add_argument("--fast", action="store_true", help="Fast mode: reduce animations and blocking prompts")
+    p.add_argument("--parallel", action="store_true", help="Enable parallel query analysis across CPU cores")
+    p.add_argument("--workers", type=int, help="Number of worker processes for parallel mode")
     p.add_argument("--input-file", type=Path, help="Read SQL from file")
     p.add_argument("--mode", choices=["auto", "paste", "compose"], default="auto", help="Editor mode (auto chooses compose on TTY)")
     p.add_argument("--export", nargs="*", choices=["html", "csv", "json"], help="Export formats")
@@ -186,151 +206,18 @@ def build_argparser() -> argparse.ArgumentParser:
     p.add_argument("--help-art", "--help-visual", dest="help_art", action="store_true", help="Show animated cinematic help (TTY only)")
     return p
 
-def main(argv: Optional[List[str]] = None) -> None:
-    parser = build_argparser()
-    args = parser.parse_args(argv)
-    run(
-        intro_enabled=not args.no_intro,
-        intro_duration=args.duration,
-        mode=args.mode,
-        input_file=args.input_file,
-        export_formats=args.export,
-        out_dir=args.out,
-        fast=args.fast,
-        verbose=args.verbose,
-        non_interactive=args.non_interactive
-    )
 
-def show_animated_help(fast: bool = False, non_interactive: bool = False, duration: float = 3.0) -> None:
-    """
-    Cinematic visual help. Opt-in only: call with --help-art.
-    Uses MatrixRain, AnimatedAnalyzer and ConsoleFormatter aesthetics.
-    """
-    # Quick TTY safety
-    import sys
-    if not (sys.stdin.isatty() and sys.stdout.isatty()):
-        # Non-tty fallback: print standard argparse help
-        print("Visual help requires a TTY. Use --help for plain usage.")
-        return
-
-    m = MatrixRain()
-    aa = AnimatedAnalyzer()
-    console = Console()
-    formatter = ConsoleFormatter()
-
-    # Durations scaled down in fast mode
-    intro_dur = 0.9 if fast else min(max(duration, 1.0), 4.0)
-    reveal_delay = 0.06 if fast else 0.12
-    particle_seconds = 0.6 if fast else 1.2
-
-    # 1) quick intro (short)
-    try:
-        m.run(duration=intro_dur)
-    except Exception:
-        pass
-
-    # 2) Title card
-    title = "[bold magenta]SLOWQL[/bold magenta] — [cyan]Cinematic CLI[/cyan]"
-    subtitle = "[dim white]Static SQL analysis with cyberpunk aesthetics[/dim white]"
-    title_panel = Panel(Align.center(f"{title}\n\n{subtitle}", vertical="middle"),
-                        border_style="bold magenta", box=box.DOUBLE, padding=(1, 4))
-    console.clear()
-    console.print(title_panel)
-    time.sleep(reveal_delay * 6)
-
-    # 3) Flags table (animated reveal)
-    flags = Table.grid(expand=False)
-    flags.add_column("Flag", no_wrap=True, style="bold cyan")
-    flags.add_column("Meaning", style="white")
-
-    flags.add_row("--no-intro", "Skip the Matrix intro")
-    flags.add_row("--fast", "Shorten animations and prompts")
-    flags.add_row("--input-file <path>", "Load SQL from file")
-    flags.add_row("--mode {paste,compose}", "Interactive compose or paste mode")
-    flags.add_row("--export [html,csv,json]", "Write results to disk")
-    flags.add_row("--help-art", "Open this animated help")
-
-    console.print(Panel(flags, title="[bold white]Commands[/]", border_style="cyan", padding=(1,2)))
-    time.sleep(reveal_delay * 6)
-
-    # 4) Animated particle reveal while printing short examples
-    try:
-        with Live(console=console, refresh_per_second=20) as live:
-            for i in range(int(particle_seconds * 20)):
-                sample_lines = []
-                particles = ["◢", "◣", "◤", "◥", "◆", "▰", "▱"]
-                for _ in range(3):
-                    line = " ".join(random.choice(particles) for _ in range(12))
-                    sample_lines.append(f"[magenta]{line}[/]")
-                sample_block = "\n".join(sample_lines)
-                live.update(Panel(sample_block, title="[bold white]Experience[/]", border_style="medium_purple"))
-                time.sleep(0.05)
-    except Exception:
-        pass
-
-    # 5) Show a small sample formatted report (no analysis call) — craft a small DataFrame
-    import pandas as pd
-    sample_df = pd.DataFrame([
-        {"severity": "critical", "issue": "Missing WHERE in UPDATE/DELETE", "query": "DELETE FROM users", "fix": "Add WHERE", "impact": "Table wipe", "count": 1},
-        {"severity": "high", "issue": "Non-SARGable WHERE", "query": "WHERE YEAR(created_at)=2024", "fix": "Use range", "impact": "Full scan", "count": 2},
-        {"severity": "medium", "issue": "SELECT * Usage", "query": "SELECT * FROM orders", "fix": "Select columns", "impact": "Extra I/O", "count": 3},
-    ])
-    console.clear()
-    console.print(Panel("[bold cyan]Live Sample[/bold cyan]\n\n[white]How your report will look — staged and readable[/white]",
-                        border_style="cyan", padding=(1,2)))
-    formatter.format_analysis(sample_df, title="Sample SQL Report")
-    time.sleep(reveal_delay * 12)
-
-    # 6) Legend + quick tips
-    tips = "[bold magenta]Quick Tips[/bold magenta]\n\n" \
-           "• Use --fast for demos\n" \
-           "• Use --input-file to load many queries\n" \
-           "• Compose mode shows inline query preview\n" \
-           "• Exports: --export html,csv,json"
-    console.print(Panel(tips, border_style="hot_pink", box=box.ROUNDED))
-    time.sleep(reveal_delay * 8)
-
-    # 7) Interactive prompt loop (single-step, non-blocking default)
-    if not non_interactive:
-        def _re_run_last():
-            # Re-render or re-run the same display logic you already call to show results
-            try:
-                # If you have a function that prints the last result, call it here.
-                # Example: display_last_result()
-                display_last_result()
-            except NameError:
-                # Fallback: no-op if display function not available
-                pass
-
-        def _export_to_path(path):
-            # Implement export using your existing export mechanism.
-            # Example: export_results(path)
-            try:
-                return export_results(path)
-            except NameError:
-                raise RuntimeError("No export function available")
-
-        action = interactive_loop(_re_run_last, export_fn=_export_to_path)
-        # If interactive_loop returns "new", let caller continue to accept another query
-        if action == "new":
-            # If your run() loop expects to present a prompt for a new query here, continue as needed.
-            pass
-
-
-    # 8) final glitch flourish
-    try:
-        aa.glitch_transition(duration=0.25 if not fast else 0.08)
-    except Exception:
-        pass
-
-    console.clear()
+# -------------------------------
+# Entry Point
+# -------------------------------
 
 def main(argv: Optional[List[str]] = None) -> None:
     parser = build_argparser()
     args = parser.parse_args(argv)
 
-    # Animated visual help (TTY only) — handle and exit early
+    # Animated visual help
     if getattr(args, "help_art", False):
+        from slowql.cli_help import show_animated_help
         show_animated_help(fast=args.fast, non_interactive=args.non_interactive, duration=args.duration)
         return
 
@@ -343,7 +230,9 @@ def main(argv: Optional[List[str]] = None) -> None:
         out_dir=args.out,
         fast=args.fast,
         verbose=args.verbose,
-        non_interactive=args.non_interactive
+        non_interactive=args.non_interactive,
+        parallel=args.parallel,
+        workers=args.workers,
     )
 
 

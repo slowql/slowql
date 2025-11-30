@@ -2,7 +2,7 @@ import re
 from typing import List, Dict, Any, Union, Optional
 import pandas as pd
 from datetime import datetime
-
+from concurrent.futures import ProcessPoolExecutor
 from .detector import QueryDetector, DetectedIssue, IssueSeverity
 
 
@@ -30,9 +30,11 @@ class QueryAnalyzer:
         self.detector = QueryDetector()
         self.verbose = verbose
         self._issue_stats = {}
+
+    
         
     def analyze(self, queries: Union[str, List[str]], 
-                return_dataframe: bool = True) -> Union[pd.DataFrame, List[DetectedIssue]]:
+                return_dataframe: bool = False) -> Union[pd.DataFrame, List[DetectedIssue]]:
         """
         Analyze SQL queries for issues
         
@@ -61,6 +63,24 @@ class QueryAnalyzer:
         self._update_stats(issues)
         
         # Return appropriate format
+        if return_dataframe:
+            return self._to_dataframe(issues)
+        return issues
+    
+    def analyze_parallel(self, queries: Union[str, List[str]], 
+                     return_dataframe: bool = False, workers: int = None) -> Union[pd.DataFrame, List[DetectedIssue]]:
+        """Analyze queries in parallel across multiple cores."""
+        if isinstance(queries, str):
+            queries = [queries]
+
+        with ProcessPoolExecutor(max_workers=workers) as executor:
+            results = list(executor.map(self.detector.analyze, queries))
+
+        # Flatten list of lists
+        issues = [issue for batch in results for issue in batch]
+
+        self._update_stats(issues)
+
         if return_dataframe:
             return self._to_dataframe(issues)
         return issues

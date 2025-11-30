@@ -40,7 +40,40 @@ class QueryDetector:
     
     def __init__(self):
         """Initialize the detector with pattern definitions"""
+        self._patterns = self._compile_patterns()
         self.detectors = self._get_all_detectors()
+
+    def _compile_patterns(self) -> Dict[str, re.Pattern]:
+        """Pre-compile all regex patterns for performance."""
+        return {
+            'select_star': re.compile(r'SELECT\s+\*', re.IGNORECASE),
+            'missing_where': re.compile(r'(UPDATE|DELETE)(\s+FROM)?\s+\w+(\s+SET)?', re.IGNORECASE),
+            'non_sargable': re.compile(r'WHERE\s+(YEAR|MONTH|DAY|UPPER|LOWER)\s*\([^)]+\)\s*=', re.IGNORECASE),
+            'implicit_conversion': re.compile(r"WHERE\s+\w*(name|email|code|status)\w*\s*=\s*\d+", re.IGNORECASE),
+            'cartesian_product': re.compile(r'FROM\s+\w+\s*,\s*\w+', re.IGNORECASE),
+            'n_plus_1': re.compile(r'SELECT.*FROM.*WHERE\s+\w+_id\s*=\s*\?', re.IGNORECASE),
+            'correlated_subquery': re.compile(r'SELECT.*\(SELECT.*FROM.*WHERE.*=.*\w+\.\w+', re.IGNORECASE),
+            'or_prevents_index': re.compile(r'WHERE.*\w+\s*=.*\sOR\s+\w+\s*=', re.IGNORECASE),
+            'offset_pagination': re.compile(r'OFFSET\s+(\d+)', re.IGNORECASE),
+            'distinct_unnecessary': re.compile(r'SELECT\s+DISTINCT\s+\w*id\w*', re.IGNORECASE),
+            'huge_in_list': re.compile(r'IN\s*\(([^)]+)\)', re.IGNORECASE),
+            'leading_wildcard': re.compile(r'LIKE\s+[\'"]%', re.IGNORECASE),
+            'count_star_exists': re.compile(r'COUNT\s*\(\s*\*\s*\)\s*>\s*0', re.IGNORECASE),
+            'not_in_nullable': re.compile(r'NOT\s+IN\s*\(\s*SELECT', re.IGNORECASE),
+            'no_limit_exists': re.compile(r'EXISTS\s*\(\s*SELECT\s+(?!.*LIMIT)', re.IGNORECASE),
+            'floating_point_equals': re.compile(r'(price|amount|total|cost|value)\s*=\s*\d+\.\d+', re.IGNORECASE),
+            'null_comparison': re.compile(r'=\s*NULL|!=\s*NULL', re.IGNORECASE),
+            'function_on_column': re.compile(r'WHERE.*(LOWER|UPPER|TRIM|SUBSTRING|DATE|YEAR|MONTH)\s*\(\s*(id|email|user_id|created_at)', re.IGNORECASE),
+            'having_no_aggregates': re.compile(r'HAVING(?!\s+COUNT|\s+SUM|\s+AVG|\s+MAX|\s+MIN)', re.IGNORECASE),
+            'union_missing_all': re.compile(r'UNION(?!\s+ALL)', re.IGNORECASE),
+            'subquery_select_list': re.compile(r'SELECT.*,.*\(SELECT', re.IGNORECASE),
+            'between_timestamps': re.compile(r'BETWEEN.*\d{4}-\d{2}-\d{2}.*AND.*\d{4}-\d{2}-\d{2}', re.IGNORECASE),
+            'case_in_where': re.compile(r'WHERE.*CASE\s+WHEN', re.IGNORECASE),
+            'offset_no_order': re.compile(r'OFFSET\s+\d+(?!.*ORDER\s+BY)', re.IGNORECASE),
+            'like_no_wildcard': re.compile(r'LIKE\s+["\'][^%_]+["\']', re.IGNORECASE),
+            'order_by_ordinal': re.compile(r'ORDER\s+BY\s+\d+', re.IGNORECASE),
+        }
+
         
     def analyze(self, queries: str | List[str]) -> List[DetectedIssue]:
         """
@@ -115,7 +148,7 @@ class QueryDetector:
     
     def _detect_select_star(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect SELECT * usage"""
-        if re.search(r'SELECT\s+\*', clean_query, re.IGNORECASE):
+        if self._patterns['select_star'].search(clean_query):
             return DetectedIssue(
                 issue_type="SELECT * Usage",
                 query=original_query,
@@ -128,7 +161,7 @@ class QueryDetector:
     
     def _detect_missing_where_update_delete(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect UPDATE/DELETE without WHERE clause"""
-        if re.match(r'(UPDATE|DELETE)(\s+FROM)?\s+\w+(\s+SET)?', clean_query, re.IGNORECASE):
+        if self._patterns['missing_where'].match(clean_query):
             if 'WHERE' not in clean_query.upper():
                 return DetectedIssue(
                     issue_type="Missing WHERE in UPDATE/DELETE",
@@ -141,28 +174,24 @@ class QueryDetector:
         return None
     
     def _detect_non_sargable(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
-        """Detect non-SARGable WHERE clauses"""
-        patterns = [
-            (r'WHERE\s+YEAR\s*\([^)]+\)\s*=', 'Use WHERE date >= ? AND date < ?'),
-            (r'WHERE\s+UPPER\s*\([^)]+\)\s*=', 'Create functional index or use case-insensitive collation'),
-            (r'WHERE\s+\w+\s*\+\s*\d+\s*=', 'Move calculation to right side'),
-        ]
-        
-        for pattern, fix in patterns:
-            if re.search(pattern, clean_query, re.IGNORECASE):
-                return DetectedIssue(
-                    issue_type="Non-SARGable WHERE",
-                    query=original_query,
-                    description="WHERE clause prevents index usage",
-                    fix=fix,
-                    impact="Full table scan instead of index seek",
-                    severity=IssueSeverity.HIGH
-                )
+        """Detect non-SARGable WHERE clauses (prevents index usage)"""
+        if self._patterns['non_sargable'].search(clean_query):
+            return DetectedIssue(
+                issue_type="Non-SARGable WHERE",
+                query=original_query,
+                description="WHERE clause prevents index usage",
+                fix="Use date range or functional index",
+                impact="Full table scan instead of index seek",
+                severity=IssueSeverity.HIGH
+            )
         return None
+
+
+
     
     def _detect_implicit_conversion(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect implicit type conversions"""
-        if re.search(r"WHERE\s+\w*(name|email|code|status)\w*\s*=\s*\d+", clean_query, re.IGNORECASE):
+        if self._patterns['implicit_conversion'].search(clean_query):
             return DetectedIssue(
                 issue_type="Implicit Type Conversion",
                 query=original_query,
@@ -175,7 +204,7 @@ class QueryDetector:
     
     def _detect_cartesian_product(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect accidental cartesian products"""
-        if re.search(r'FROM\s+\w+\s*,\s*\w+', clean_query, re.IGNORECASE):
+        if self._patterns['cartesian_product'].search(clean_query):
             if not re.search(r'WHERE|JOIN', clean_query, re.IGNORECASE):
                 return DetectedIssue(
                     issue_type="Cartesian Product",
@@ -191,7 +220,7 @@ class QueryDetector:
         """Detect potential N+1 query patterns"""
         # This would need multiple queries to detect properly
         # For now, detect subqueries that look like N+1
-        if re.search(r'SELECT.*FROM.*WHERE\s+\w+_id\s*=\s*\?', clean_query, re.IGNORECASE):
+        if self._patterns['n_plus_1'].search(clean_query):
             return DetectedIssue(
                 issue_type="Potential N+1 Pattern",
                 query=original_query,
@@ -204,7 +233,7 @@ class QueryDetector:
     
     def _detect_correlated_subquery(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect correlated subqueries"""
-        if re.search(r'SELECT.*\(SELECT.*FROM.*WHERE.*=.*\w+\.\w+', clean_query, re.IGNORECASE):
+        if self._patterns['correlated_subquery'].search(clean_query):
             return DetectedIssue(
                 issue_type="Correlated Subquery",
                 query=original_query,
@@ -217,7 +246,7 @@ class QueryDetector:
     
     def _detect_or_prevents_index(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect OR conditions preventing index usage"""
-        if re.search(r'WHERE.*\w+\s*=.*\sOR\s+\w+\s*=', clean_query, re.IGNORECASE):
+        if self._patterns['or_prevents_index'].search(clean_query):
             return DetectedIssue(
                 issue_type="OR Prevents Index",
                 query=original_query,
@@ -230,7 +259,8 @@ class QueryDetector:
     
     def _detect_offset_pagination(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect large OFFSET values"""
-        match = re.search(r'OFFSET\s+(\d+)', clean_query, re.IGNORECASE)
+        match = self._patterns['offset_pagination'].search(clean_query)
+
         if match:
             offset = int(match.group(1))
             if offset > 1000:
@@ -246,7 +276,7 @@ class QueryDetector:
     
     def _detect_unnecessary_distinct(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect DISTINCT on unique columns"""
-        if re.search(r'SELECT\s+DISTINCT\s+\w*id\w*', clean_query, re.IGNORECASE):
+        if self._patterns['distinct_unnecessary'].search(clean_query):
             return DetectedIssue(
                 issue_type="Unnecessary DISTINCT",
                 query=original_query,
@@ -259,7 +289,7 @@ class QueryDetector:
     
     def _detect_huge_in_list(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect IN clauses with too many values"""
-        in_match = re.search(r'IN\s*\(([^)]+)\)', clean_query, re.IGNORECASE)
+        in_match = self._patterns['huge_in_list'].search(clean_query)
         if in_match:
             values = in_match.group(1).split(',')
             if len(values) > 50:
@@ -275,7 +305,7 @@ class QueryDetector:
     
     def _detect_leading_wildcard(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect leading wildcards in LIKE"""
-        if re.search(r'LIKE\s+[\'"]%', clean_query, re.IGNORECASE):
+        if self._patterns['leading_wildcard'].search(clean_query):
             return DetectedIssue(
                 issue_type="Leading Wildcard",
                 query=original_query,
@@ -288,7 +318,7 @@ class QueryDetector:
     
     def _detect_count_star_exists(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect COUNT(*) for existence check"""
-        if re.search(r'COUNT\s*\(\s*\*\s*\)\s*>\s*0', clean_query, re.IGNORECASE):
+        if self._patterns['count_star_exists'].search(clean_query):
             return DetectedIssue(
                 issue_type="COUNT(*) for Existence",
                 query=original_query,
@@ -301,7 +331,7 @@ class QueryDetector:
     
     def _detect_not_in_nullable(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect NOT IN with subquery (NULL trap)"""
-        if re.search(r'NOT\s+IN\s*\(\s*SELECT', clean_query, re.IGNORECASE):
+        if self._patterns['not_in_nullable'].search(clean_query):
             return DetectedIssue(
                 issue_type="NOT IN with NULLable",
                 query=original_query,
@@ -314,7 +344,7 @@ class QueryDetector:
     
     def _detect_no_limit_in_exists(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect EXISTS without LIMIT"""
-        if re.search(r'EXISTS\s*\(\s*SELECT\s+(?!.*LIMIT)', clean_query, re.IGNORECASE):
+        if self._patterns['no_limit_exists'].search(clean_query):
             return DetectedIssue(
                 issue_type="EXISTS without LIMIT",
                 query=original_query,
@@ -327,7 +357,7 @@ class QueryDetector:
     
     def _detect_floating_point_equality(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect floating point equality comparison"""
-        if re.search(r'(price|amount|total|cost|value)\s*=\s*\d+\.\d+', clean_query, re.IGNORECASE):
+        if self._patterns['floating_point_equals'].search(clean_query):
             return DetectedIssue(
                 issue_type="Floating Point Equality",
                 query=original_query,
@@ -341,7 +371,7 @@ class QueryDetector:
     def _detect_null_comparison_with_equal(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect = NULL or != NULL"""
         #print(f"DEBUG: Checking query for NULL: {clean_query}")
-        if re.search(r'=\s*NULL|!=\s*NULL', clean_query, re.IGNORECASE):
+        if self._patterns['null_comparison'].search(clean_query):
             #print("DEBUG: Found NULL comparison!")
             return DetectedIssue(
                 issue_type="NULL Comparison Error",
@@ -355,7 +385,7 @@ class QueryDetector:
     
     def _detect_function_on_indexed_column(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect functions on potentially indexed columns"""
-        if re.search(r'WHERE.*(LOWER|UPPER|TRIM|SUBSTRING|DATE|YEAR|MONTH)\s*\(\s*(id|email|user_id|created_at)', clean_query, re.IGNORECASE):
+        if self._patterns['function_on_column'].search(clean_query):
             return DetectedIssue(
                 issue_type="Function on Indexed Column",
                 query=original_query,
@@ -368,7 +398,7 @@ class QueryDetector:
     
     def _detect_having_instead_of_where(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect HAVING used for row filtering"""
-        if re.search(r'HAVING(?!\s+COUNT|\s+SUM|\s+AVG|\s+MAX|\s+MIN)', clean_query, re.IGNORECASE):
+        if self._patterns['having_no_aggregates'].search(clean_query):
             if 'WHERE' not in clean_query.upper():
                 return DetectedIssue(
                     issue_type="HAVING Instead of WHERE",
@@ -382,7 +412,7 @@ class QueryDetector:
     
     def _detect_union_missing_all(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect UNION without ALL"""
-        if re.search(r'UNION(?!\s+ALL)', clean_query, re.IGNORECASE):
+        if self._patterns['union_missing_all'].search(clean_query):
             return DetectedIssue(
                 issue_type="UNION Missing ALL",
                 query=original_query,
@@ -395,7 +425,7 @@ class QueryDetector:
     
     def _detect_subquery_in_select_list(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect subqueries in SELECT list"""
-        if re.search(r'SELECT.*,.*\(SELECT', clean_query, re.IGNORECASE):
+        if self._patterns['subquery_select_list'].search(clean_query):
             return DetectedIssue(
                 issue_type="Subquery in SELECT List",
                 query=original_query,
@@ -408,7 +438,7 @@ class QueryDetector:
     
     def _detect_between_with_timestamps(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect BETWEEN with date boundaries"""
-        if re.search(r'BETWEEN.*\d{4}-\d{2}-\d{2}.*AND.*\d{4}-\d{2}-\d{2}', clean_query, re.IGNORECASE):
+        if self._patterns['between_timestamps'].search(clean_query):
             return DetectedIssue(
                 issue_type="BETWEEN with Timestamps",
                 query=original_query,
@@ -421,7 +451,7 @@ class QueryDetector:
     
     def _detect_case_in_where(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect CASE expressions in WHERE"""
-        if re.search(r'WHERE.*CASE\s+WHEN', clean_query, re.IGNORECASE):
+        if self._patterns['case_in_where'].search(clean_query):
             return DetectedIssue(
                 issue_type="CASE in WHERE Clause",
                 query=original_query,
@@ -434,7 +464,7 @@ class QueryDetector:
     
     def _detect_offset_without_order(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect OFFSET without ORDER BY"""
-        if re.search(r'OFFSET\s+\d+(?!.*ORDER\s+BY)', clean_query, re.IGNORECASE):
+        if self._patterns['offset_no_order'].search(clean_query):
             return DetectedIssue(
                 issue_type="OFFSET without ORDER BY",
                 query=original_query,
@@ -447,7 +477,7 @@ class QueryDetector:
     
     def _detect_like_without_wildcard(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect LIKE without wildcards"""
-        if re.search(r'LIKE\s+["\'][^%_]+["\']', clean_query, re.IGNORECASE):
+        if self._patterns['like_no_wildcard'].search(clean_query):
             return DetectedIssue(
                 issue_type="LIKE without Wildcards",
                 query=original_query,
@@ -474,7 +504,7 @@ class QueryDetector:
     
     def _detect_order_by_ordinal(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect ORDER BY with ordinal positions"""
-        if re.search(r'ORDER\s+BY\s+\d+', clean_query, re.IGNORECASE):
+        if self._patterns['order_by_ordinal'].search(clean_query):
             return DetectedIssue(
                 issue_type="ORDER BY Ordinal",
                 query=original_query,
