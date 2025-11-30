@@ -27,6 +27,4 @@ jobs:
 
     - name: Run test suite
       run: |
-        pytest --maxfail=1 --disable-warnings -v
-
-    
+        pytest --maxfail=1 --disable-warnings --benchmark-disable -v
