@@ -94,9 +94,6 @@ def test_show_recommendations_panel(formatter, sample_results):
 def test_show_issues_table_legacy(formatter, sample_results):
     formatter._show_issues_table(sample_results)
 
-def test_show_recommendations_panel(formatter, sample_results):
-    formatter._show_recommendations_panel(sample_results)
-
 def test_show_frequency_viz_empty(formatter):
     empty_df = pd.DataFrame(columns=["issue", "count"])
     formatter._show_frequency_viz(empty_df)
