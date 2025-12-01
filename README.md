@@ -10,6 +10,7 @@
 
 [![PyPI Version](https://img.shields.io/pypi/v/slowql.svg)](https://pypi.org/project/slowql/)
 [![Docker Image](https://img.shields.io/docker/v/makroumi/slowql?label=Docker&sort=semver)](https://hub.docker.com/r/makroumi/slowql)
+[![Docker Pulls](https://img.shields.io/docker/pulls/makroumi/slowql?logo=docker&label=pulls)](https://hub.docker.com/r/makroumi/slowql)
 [![License](https://img.shields.io/github/license/makroumi/slowql?cacheSeconds=60)](LICENSE)
 ![Test Suite](https://github.com/makroumi/slowql/actions/workflows/tests.yml/badge.svg)
 ![Lint](https://img.shields.io/badge/linter-ruff-green)
