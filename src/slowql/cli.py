@@ -1,7 +1,16 @@
+"""
+SLOWQL CLI Entry Point
+
+This module provides the command-line interface for SLOWQL,
+including argument parsing, interactive editor, animations,
+and execution pipeline.
+"""
+
 import argparse
+import sys
 from pathlib import Path
 from typing import List, Optional
-import sys
+
 import pandas as pd
 from rich.console import Console
 
@@ -9,7 +18,7 @@ from slowql.effects.animations import MatrixRain, CyberpunkSQLEditor, AnimatedAn
 from slowql.core.analyzer import QueryAnalyzer
 from slowql.formatters.console import ConsoleFormatter
 
-console = Console()
+console: Console = Console()
 
 
 # -------------------------------
@@ -17,10 +26,19 @@ console = Console()
 # -------------------------------
 
 def sql_split_statements(sql: str) -> List[str]:
-    """Split SQL payload into individual statements, respecting quotes and comments."""
+    """
+    Split SQL payload into individual statements, respecting quotes and comments.
+
+    Args:
+        sql: Raw SQL string
+
+    Returns:
+        List of SQL statements
+    """
     if not sql:
         return []
-    parts, cur = [], []
+    parts: List[str] = []
+    cur: List[str] = []
     in_squote, in_dquote, escape = False, False, False
     for ch in sql:
         if ch == "\\" and not escape:
@@ -46,7 +64,15 @@ def sql_split_statements(sql: str) -> List[str]:
 
 
 def ensure_reports_dir(path: Path) -> Path:
-    """Ensure reports directory exists."""
+    """
+    Ensure reports directory exists.
+
+    Args:
+        path: Path to reports directory
+
+    Returns:
+        Path object (ensured to exist)
+    """
     path.mkdir(parents=True, exist_ok=True)
     return path
 
@@ -68,11 +94,29 @@ def run(
     parallel: bool = False,
     workers: Optional[int] = None,
 ) -> None:
-    """Main execution pipeline for SLOWQL CLI."""
+    """
+    Main execution pipeline for SLOWQL CLI.
 
+    Args:
+        intro_enabled: Whether to show intro animation
+        intro_duration: Duration of intro animation
+        mode: Editor mode ("auto", "paste", "compose")
+        input_file: Optional SQL input file
+        export_formats: Optional list of export formats
+        out_dir: Optional output directory
+        fast: Fast mode (reduced animations)
+        verbose: Verbose analyzer output
+        non_interactive: Non-interactive mode (CI)
+        parallel: Enable parallel analysis
+        workers: Number of worker processes
+    """
     # Decide interactive default
-    is_tty = sys.stdin.isatty() and sys.stdout.isatty()
-    chosen_mode = "compose" if mode == "auto" and is_tty and not non_interactive and input_file is None else mode
+    is_tty: bool = sys.stdin.isatty() and sys.stdout.isatty()
+    chosen_mode: str = (
+        "compose"
+        if mode == "auto" and is_tty and not non_interactive and input_file is None
+        else mode
+    )
 
     # 1) Intro animation
     try:
@@ -84,7 +128,7 @@ def run(
         pass
 
     # 2) Input handling
-    sql_payload = ""
+    sql_payload: str = ""
     if input_file:
         sql_payload = input_file.read_text(encoding="utf-8")
         if not sql_payload.strip():
@@ -99,13 +143,17 @@ def run(
                 return
         else:
             if non_interactive:
-                console.print("[bold yellow]Non-interactive mode: expecting input via --input-file or piped stdin[/]")
+                console.print(
+                    "[bold yellow]Non-interactive mode: expecting input via --input-file or piped stdin[/]"
+                )
                 return
-            console.print("[bold cyan]Paste your SQL statements. End input with Ctrl+D (EOF) or two blank lines.[/]")
-            lines = []
+            console.print(
+                "[bold cyan]Paste your SQL statements. End input with Ctrl+D (EOF) or two blank lines.[/]"
+            )
+            lines: List[str] = []
             try:
                 while True:
-                    line = input()
+                    line: str = input()
                     if not line and lines and not lines[-1]:
                         break
                     lines.append(line)
@@ -117,7 +165,7 @@ def run(
                 return
 
     # 3) Split into statements
-    statements = sql_split_statements(sql_payload)
+    statements: List[str] = sql_split_statements(sql_payload)
 
     # 4) Animated analysis intro
     aa = AnimatedAnalyzer()
@@ -132,6 +180,7 @@ def run(
 
     # 5) Run analyzer (parallel or sequential)
     analyzer = QueryAnalyzer(verbose=verbose)
+    results_df: pd.DataFrame
     if parallel:
         results_df = analyzer.analyze_parallel(statements, return_dataframe=True, workers=workers)
     else:
@@ -143,12 +192,15 @@ def run(
 
     # 7) Animated summary
     try:
-        summary = f"[bold cyan]◆ ANALYSIS COMPLETE ◆[/]\n\n[green]✓[/] {results_df['count'].sum() if 'count' in results_df else len(results_df)} issues detected"
-        details_lines = []
+        summary: str = (
+            f"[bold cyan]◆ ANALYSIS COMPLETE ◆[/]\n\n"
+            f"[green]✓[/] {results_df['count'].sum() if 'count' in results_df else len(results_df)} issues detected"
+        )
+        details_lines: List[str] = []
         if not results_df.empty:
             for _, row in results_df.iterrows():
                 details_lines.append(f"{row['issue']} [{row.get('count',1)}] - {row['impact']}")
-        details = "\n".join(details_lines) or "[dim]No details available[/]"
+        details: str = "\n".join(details_lines) or "[dim]No details available[/]"
         if not fast:
             aa.show_expandable_details(summary, details, expanded=False)
     except Exception:
@@ -159,16 +211,19 @@ def run(
         out_dir = Path(out_dir) if out_dir else Path.cwd() / "reports"
         ensure_reports_dir(out_dir)
         for fmt in export_formats:
-            fmt_lower = fmt.lower()
+            fmt_lower: str = fmt.lower()
             try:
                 if fmt_lower == "html":
-                    filename = out_dir / f"slowql_report_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.html"
-                    formatter.export_html_report(results_df, filename=str(filename))
-                    console.print(f"[bold green]Exported HTML report:[/] {filename}")
+                    out_path: Path = out_dir / f"slowql_report_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.html"
+                    formatter.export_html_report(results_df, filename=str(out_path))
+                    console.print(f"[bold green]Exported HTML report:[/] {out_path}")
                 else:
-                    filename = analyzer.export_report(results_df, format=fmt_lower,
-                                                      filename=str(out_dir / f"slowql_results_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.{fmt_lower}"))
-                    console.print(f"[bold green]Exported {fmt_lower}:[/] {filename}")
+                    exported_filename: str = analyzer.export_report(
+                        results_df,
+                        format=fmt_lower,
+                        filename=str(out_dir / f"slowql_results_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.{fmt_lower}")
+                    )
+                    console.print(f"[bold green]Exported {fmt_lower}:[/] {exported_filename}")
             except Exception as e:
                 console.print(f"[bold red]Failed to export {fmt}:[/] {e}")
 
@@ -185,7 +240,16 @@ def run(
 # -------------------------------
 
 def build_argparser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(prog="slowql", description="SLOWQL CLI — cyberpunk SQL static analyzer")
+    """
+    Build argument parser for CLI.
+
+    Returns:
+        Configured ArgumentParser
+    """
+    p = argparse.ArgumentParser(
+        prog="slowql",
+        description="SLOWQL CLI — cyberpunk SQL static analyzer"
+    )
     p.add_argument("--no-intro", dest="no_intro", action="store_true", help="Skip intro animation")
     p.add_argument("--fast", action="store_true", help="Fast mode: reduce animations and blocking prompts")
     p.add_argument("--parallel", action="store_true", help="Enable parallel query analysis across CPU cores")
@@ -197,7 +261,13 @@ def build_argparser() -> argparse.ArgumentParser:
     p.add_argument("--duration", type=float, default=3.0, help="Intro duration seconds")
     p.add_argument("--verbose", action="store_true", help="Enable analyzer verbose output")
     p.add_argument("--non-interactive", action="store_true", help="Non-interactive mode (CI)")
-    p.add_argument("--help-art", "--help-visual", dest="help_art", action="store_true", help="Show animated cinematic help (TTY only)")
+    p.add_argument(
+        "--help-art",
+        "--help-visual",
+        dest="help_art",
+        action="store_true",
+        help="Show animated cinematic help (TTY only)"
+    )
     return p
 
 
@@ -206,13 +276,23 @@ def build_argparser() -> argparse.ArgumentParser:
 # -------------------------------
 
 def main(argv: Optional[List[str]] = None) -> None:
-    parser = build_argparser()
+    """
+    CLI entry point for SLOWQL.
+
+    Args:
+        argv: Optional list of command-line arguments
+    """
+    parser: argparse.ArgumentParser = build_argparser()
     args = parser.parse_args(argv)
 
     # Animated visual help
     if getattr(args, "help_art", False):
         from slowql.cli_help import show_animated_help
-        show_animated_help(fast=args.fast, non_interactive=args.non_interactive, duration=args.duration)
+        show_animated_help(
+            fast=args.fast,
+            non_interactive=args.non_interactive,
+            duration=args.duration
+        )
         return
 
     run(

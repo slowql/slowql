@@ -1,14 +1,22 @@
-try:
-    from importlib.metadata import version as _get_version
-except Exception:
-    try:
-        from importlib_metadata import version as _get_version
-    except Exception:
-        _get_version = None
+from typing import Optional, Callable
 
-__version__ = None
-if _get_version:
+__all__ = ["__version__"]
+
+__version__: Optional[str] = None
+
+# store only the `version` function (or None) to avoid mixing module and None types
+version_func: Optional[Callable[[str], str]] = None
+try:
+    import importlib.metadata as _importlib_metadata
+    version_func = _importlib_metadata.version
+except Exception:
+    version_func = None
+
+if version_func is not None:
     try:
-        __version__ = _get_version("slowql")
+        __version__ = version_func("sqlguard")
     except Exception:
-        __version__ = None
+        try:
+            __version__ = version_func("slowql")
+        except Exception:
+            __version__ = None

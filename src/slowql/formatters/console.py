@@ -8,6 +8,8 @@ from ..core.detector import DetectedIssue, IssueSeverity
 from rich.table import Table
 from rich.align import Align
 from rich.panel import Panel
+from typing import Dict
+
 
 
 
@@ -21,7 +23,7 @@ class ConsoleFormatter:
     with tables, panels, and syntax highlighting.
     """
     
-    def __init__(self):
+    def __init__(self)-> None:
         """Initialize console with vaporwave theme"""
         self.console = Console()
         
@@ -77,17 +79,6 @@ class ConsoleFormatter:
         # Next steps
         self._show_next_steps(results)
 
-        
-    def _show_clean_report(self) -> None:
-        """Show report when no issues found"""
-        panel = Panel(
-            "[bold green]✅ Excellent! No SQL optimization issues detected.[/bold green]\n\n"
-            "Your queries are following best practices.",
-            title="[bold green]Clean SQL Report[/bold green]",
-            border_style="green",
-            padding=(1, 2)
-        )
-        self.console.print(panel)
         
     def _show_header(self, title: str, results: pd.DataFrame) -> None:
         """Display report header with summary"""
@@ -406,17 +397,17 @@ After:  [green]{after_count} issues[/green]
         return filename
     
     def _calculate_health_score(self, results: pd.DataFrame) -> int:
-        """Calculate 0-100 score based on severity and count"""
-        severity_weights = {'critical': 25, 'high': 15, 'medium': 5, 'low': 2}
-        total_penalty = 0
-        
+        """Calculate 0–100 health score based on severity and count."""
+        severity_weights: Dict[str, int] = {"critical": 25, "high": 15, "medium": 5, "low": 2}
+        total_penalty: int = 0
+
         for _, row in results.iterrows():
-            penalty = severity_weights.get(row['severity'], 0) * row.get('count', 1)
+            penalty = severity_weights.get(row["severity"], 0) * row.get("count", 1)
             total_penalty += penalty
-            
-        # Convert to 0-100 score (100 = perfect, 0 = disaster)
-        score = max(0, 100 - min(total_penalty, 100))
-        return score
+
+        return max(0, 100 - min(total_penalty, 100))
+
+
 
     def _show_health_gauge(self, score: int, results: pd.DataFrame) -> None:
         """Show visual health score gauge"""
@@ -685,7 +676,6 @@ After:  [green]{after_count} issues[/green]
             steps.append("")
         
         # Wrap in futuristic panel
-                # Continue _show_recommendations_panel
         content = "\n".join(steps) if steps else "[dim]All systems operating within normal parameters[/]"
         
         # ASCII art border
@@ -704,17 +694,8 @@ After:  [green]{after_count} issues[/green]
         )
         self.console.print(panel)
         
-    def _calculate_health_score(self, results: pd.DataFrame) -> int:
-        """Calculate 0-100 score with weighted penalties"""
-        severity_weights = {'critical': 30, 'high': 15, 'medium': 5, 'low': 2}
-        total_penalty = 0
         
-        for _, row in results.iterrows():
-            penalty = severity_weights.get(row['severity'], 0) * row.get('count', 1)
-            total_penalty += penalty
-            
-        score = max(0, 100 - min(total_penalty, 100))
-        return score
+        # end _show_recommendations_panel (no return; purely displays recommendations)
         
     def _show_clean_report(self) -> None:
         """Show clean report with celebration"""
@@ -816,4 +797,3 @@ def print_analysis(results: pd.DataFrame) -> None:
     """Quick function to print formatted results"""
     formatter = ConsoleFormatter()
     formatter.format_analysis(results)
-

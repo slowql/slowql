@@ -1,4 +1,12 @@
-from typing import List, Dict, Any, Union, Optional
+"""
+SLOWQL Query Analyzer
+
+Coordinates the analysis of SQL queries for performance issues,
+anti-patterns, and potential bugs. Provides both raw results
+and formatted output.
+"""
+
+from typing import List, Dict, Any, Union, Optional, Tuple
 import pandas as pd
 from datetime import datetime
 from concurrent.futures import ProcessPoolExecutor
@@ -9,15 +17,22 @@ class QueryAnalyzer:
     """
     SQL Query Analyzer
 
-    Coordinates the analysis of SQL queries for performance issues,
-    anti-patterns, and potential bugs. Provides both raw results
-    and formatted output.
+    Provides methods to analyze SQL queries for performance issues,
+    anti-patterns, and potential bugs. Supports sequential and parallel
+    execution, and can return results as either a pandas DataFrame or
+    a list of DetectedIssue objects.
     """
 
-    def __init__(self, verbose: bool = True):
-        self.detector = QueryDetector()
-        self.verbose = verbose
-        self._issue_stats = {}
+    def __init__(self, verbose: bool = True) -> None:
+        """
+        Initialize QueryAnalyzer.
+
+        Args:
+            verbose: Whether to print analysis progress
+        """
+        self.detector: QueryDetector = QueryDetector()
+        self.verbose: bool = verbose
+        self._issue_stats: Dict[str, int] = {}
 
     def analyze(
         self,
@@ -46,52 +61,64 @@ class QueryAnalyzer:
         issues: List[DetectedIssue] = self.detector.analyze(queries)
 
         if self.verbose and issues:
-            unique_types = len(set(i.issue_type for i in issues))
+            unique_types: int = len(set(i.issue_type for i in issues))
             print(f"Found {len(issues)} issue(s) across {unique_types} categories")
 
         # Update internal stats
         self._update_stats(issues)
 
         # Return in requested format
-        if return_dataframe:
-            return self._to_dataframe(issues)
-        else:
-            return issues
-
+        return self._to_dataframe(issues) if return_dataframe else issues
 
     def analyze_parallel(
         self,
         queries: Union[str, List[str]],
         return_dataframe: bool = True,
-        workers: int = None
+        workers: Optional[int] = None
     ) -> Union[pd.DataFrame, List[DetectedIssue]]:
-        """Analyze queries in parallel across multiple cores."""
+        """
+        Analyze queries in parallel across multiple cores.
+
+        Args:
+            queries: Single query string or list of queries
+            return_dataframe: Return pandas DataFrame (default True) or list of issues
+            workers: Number of worker processes (None = auto)
+
+        Returns:
+            DataFrame or list of DetectedIssue objects
+        """
         if isinstance(queries, str):
             queries = [queries]
 
         with ProcessPoolExecutor(max_workers=workers) as executor:
-            results = list(executor.map(self.detector.analyze, queries))
+            results: List[List[DetectedIssue]] = list(executor.map(self.detector.analyze, queries))
 
-        issues = [issue for batch in results for issue in batch]
+        issues: List[DetectedIssue] = [issue for batch in results for issue in batch]
 
         self._update_stats(issues)
 
-        if return_dataframe:
-            return self._to_dataframe(issues)
-        return issues
+        return self._to_dataframe(issues) if return_dataframe else issues
 
     def _to_dataframe(self, issues: List[DetectedIssue]) -> pd.DataFrame:
-        """Convert issues to DataFrame format."""
+        """
+        Convert issues to DataFrame format.
+
+        Args:
+            issues: List of DetectedIssue objects
+
+        Returns:
+            pandas DataFrame with normalized issue data
+        """
         if not issues:
             return pd.DataFrame(columns=[
                 "issue", "query", "description", "fix", "impact", "severity", "line_number", "count"
             ])
 
-        data = []
-        issue_groups: Dict[tuple, Dict[str, Any]] = {}
+        data: List[Dict[str, Any]] = []
+        issue_groups: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
 
         for issue in issues:
-            key = (issue.issue_type, issue.fix, issue.impact)
+            key: Tuple[str, str, str] = (issue.issue_type, issue.fix, issue.impact)
             if key not in issue_groups:
                 issue_groups[key] = {
                     "issue": issue.issue_type,
@@ -105,7 +132,7 @@ class QueryAnalyzer:
             issue_groups[key]["queries"].append(issue.query)
 
         for group in issue_groups.values():
-            example_query = group["queries"][0]
+            example_query: str = group["queries"][0]
             if len(example_query) > 60:
                 example_query = example_query[:57] + "..."
 
@@ -123,11 +150,23 @@ class QueryAnalyzer:
         return pd.DataFrame(data)
 
     def _update_stats(self, issues: List[DetectedIssue]) -> None:
+        """
+        Update internal issue statistics.
+
+        Args:
+            issues: List of DetectedIssue objects
+        """
         for issue in issues:
             self._issue_stats[issue.issue_type] = self._issue_stats.get(issue.issue_type, 0) + 1
 
     def get_summary_stats(self) -> Dict[str, Any]:
-        total_issues = sum(self._issue_stats.values())
+        """
+        Get summary statistics of analyzed issues.
+
+        Returns:
+            Dictionary with totals, breakdown, and timestamp
+        """
+        total_issues: int = sum(self._issue_stats.values())
         return {
             "total_issues_detected": total_issues,
             "unique_issue_types": len(self._issue_stats),
@@ -137,6 +176,13 @@ class QueryAnalyzer:
         }
 
     def print_report(self, results: pd.DataFrame, detailed: bool = True) -> None:
+        """
+        Print formatted report of analysis results.
+
+        Args:
+            results: DataFrame of issues
+            detailed: Whether to include detailed findings
+        """
         if results.empty:
             print("✅ No SQL issues detected!")
             return
@@ -145,10 +191,10 @@ class QueryAnalyzer:
         print("SQL ANALYSIS REPORT")
         print("=" * 80)
 
-        total_issues = results["count"].sum()
-        unique_types = len(results["issue"].unique())
-        critical_count = len(results[results["severity"] == "critical"])
-        high_count = len(results[results["severity"] == "high"])
+        total_issues: int = results["count"].sum()
+        unique_types: int = len(results["issue"].unique())
+        critical_count: int = len(results[results["severity"] == "critical"])
+        high_count: int = len(results[results["severity"] == "high"])
 
         print("\n📊 SUMMARY:")
         print(f"   Total Issues: {total_issues}")
@@ -164,7 +210,7 @@ class QueryAnalyzer:
             for severity in ["critical", "high", "medium", "low"]:
                 severity_issues = results[results["severity"] == severity]
                 if not severity_issues.empty:
-                    severity_label = {
+                    severity_label: str = {
                         "critical": "🚨 CRITICAL",
                         "high": "⚠️  HIGH",
                         "medium": "⚡ MEDIUM",
@@ -182,8 +228,19 @@ class QueryAnalyzer:
         print("\n" + "=" * 80)
 
     def export_report(self, results: pd.DataFrame, format: str = "json", filename: Optional[str] = None) -> str:
+        """
+        Export analysis results to file.
+
+        Args:
+            results: DataFrame of issues
+            format: Export format ("json", "csv", "html")
+            filename: Optional output filename
+
+        Returns:
+            Path to exported file
+        """
         if filename is None:
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            timestamp: str = datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"sql_analysis_{timestamp}.{format}"
 
         if format == "json":
@@ -197,37 +254,79 @@ class QueryAnalyzer:
 
         return filename
 
-    def suggest_indexes(self, results: pd.DataFrame) -> List[str]:
-        index_suggestions = []
-        if results.empty or "issue" not in results.columns:
-            return index_suggestions
+    def suggest_indexes(self, query: Union[str, pd.DataFrame]) -> list[str]:
+        index_patterns: list[str] = []
 
-        index_patterns = {
-            "Non-SARGable WHERE": "Consider functional index on computed column",
-            "Function on Indexed Column": "CREATE INDEX idx_name ON table(LOWER(column))",
-            "Leading Wildcard": "Consider full-text index",
-            "OR Prevents Index": "Create separate indexes for each condition"
-        }
+        # Handle DataFrame input
+        if isinstance(query, pd.DataFrame):
+            if query.empty:
+                return []
+            query = str(query.iloc[0]["query"])  # now query is str
 
-        for issue_type in results["issue"].unique():
-            if issue_type in index_patterns:
-                index_suggestions.append(f"-- For {issue_type} issues:")
-                index_suggestions.append(index_patterns[issue_type])
+        # At this point, query is guaranteed to be str
+        query_upper = query.upper()
 
-        return index_suggestions
+        if "WHERE" not in query_upper:
+            return [
+                "-- No WHERE clause found.",
+                "-- Consider adding filters to reduce result set size."
+            ]
+
+        if "UPPER(" in query_upper:
+            index_patterns.append("-- Functional index suggestion:")
+            index_patterns.append("CREATE INDEX idx_func_email ON users (UPPER(email))")
+
+        if "JOIN" in query_upper:
+            index_patterns.append("-- For JOIN operations:")
+            index_patterns.append("CREATE INDEX idx_join ON table1(column1, column2)")
+            index_patterns.append("CREATE INDEX idx_join2 ON table2(column3, column4)")
+
+        if "ORDER BY" in query_upper:
+            index_patterns.append("-- For ORDER BY clause:")
+            index_patterns.append("CREATE INDEX idx_order ON table(column1, column2)")
+
+        if "GROUP BY" in query_upper:
+            index_patterns.append("-- For GROUP BY clause:")
+            index_patterns.append("CREATE INDEX idx_group ON table(column1, column2)")
+
+        return index_patterns
+
+
 
     def compare_queries(self, query1: str, query2: str) -> Dict[str, Any]:
-        issues1 = self.detector.analyze(query1)
-        issues2 = self.detector.analyze(query2)
+        """
+        Compare two queries and report improvement metrics.
+
+        Args:
+            query1: Original query string
+            query2: Optimized query string
+
+        Returns:
+            Dictionary with counts, improvement percentage, and remaining issues
+        """
+        issues1: List[DetectedIssue] = self.detector.analyze(query1)
+        issues2: List[DetectedIssue] = self.detector.analyze(query2)
         return {
             "original_issues": len(issues1),
             "optimized_issues": len(issues2),
             "issues_resolved": len(issues1) - len(issues2),
-            "improvement_percentage": ((len(issues1) - len(issues2)) / len(issues1) * 100) if issues1 else 0,
+            "improvement_percentage": (
+                (len(issues1) - len(issues2)) / len(issues1) * 100
+            ) if issues1 else 0,
             "remaining_issues": [i.issue_type for i in issues2]
         }
 
 
 def analyze_sql(queries: Union[str, List[str]], verbose: bool = True) -> pd.DataFrame:
-    analyzer = QueryAnalyzer(verbose=verbose)
+    """
+    Convenience function to analyze SQL queries.
+
+    Args:
+        queries: Single query string or list of queries
+        verbose: Whether to print analysis progress
+
+    Returns:
+        pandas DataFrame of analysis results
+    """
+    analyzer: QueryAnalyzer = QueryAnalyzer(verbose=verbose)
     return analyzer.analyze(queries)

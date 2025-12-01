@@ -3,7 +3,7 @@ CLI Help Art Module
 Provides cinematic / visual help output for the --help-art flag.
 """
 
-def show_animated_help(fast: bool = False, non_interactive: bool = False, duration: int = 5):
+def show_animated_help(fast: bool = False, non_interactive: bool = False, duration: int = 5)-> None:
     print("\n==============================")
     print("🎨 SLOWQL Visual Help")
     print("==============================")

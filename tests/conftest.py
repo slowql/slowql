@@ -81,3 +81,13 @@ def multiple_queries() -> list[str]:
         "SELECT id FROM users WHERE email = 123",
         "SELECT * FROM users OFFSET 5000",
     ]
+
+try:
+    import pandas as pd
+except ImportError as exc:
+    raise ImportError(
+        "Missing required test dependency 'pandas'. Install it in your virtualenv:\n"
+        "  pip install pandas\n"
+        "or install all dev dependencies:\n"
+        "  pip install -r requirements-dev.txt"
+    ) from exc

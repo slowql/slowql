@@ -38,7 +38,7 @@ class QueryDetector:
         ...     print(f"{issue.issue_type}: {issue.fix}")
     """
     
-    def __init__(self):
+    def __init__(self)-> None:
         """Initialize the detector with pattern definitions"""
         self._patterns = self._compile_patterns()
         self.detectors = self._get_all_detectors()
