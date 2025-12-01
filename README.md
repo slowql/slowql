@@ -15,6 +15,9 @@
 ![Test Suite](https://github.com/makroumi/slowql/actions/workflows/tests.yml/badge.svg)
 ![Lint](https://img.shields.io/badge/linter-ruff-green)
 [![Mypy](https://img.shields.io/badge/type%20check-mypy-4B6CFA)](#)
+![Coverage](https://codecov.io/gh/makroumi/slowql/branch/main/graph/badge.svg)
+
+
 [![Dependabot Status](https://img.shields.io/badge/dependabot-enabled-brightgreen)](https://github.com/makroumi/slowql/security/dependabot)
 [![Vulnerabilities](https://img.shields.io/snyk/vulnerabilities/github/makroumi/slowql?label=vulnerabilities)](#)
 [![Docs](https://img.shields.io/readthedocs/slowql?logo=read-the-docs)](https://your-docs-url)
