@@ -11,7 +11,7 @@
 [![PyPI Version](https://img.shields.io/pypi/v/slowql.svg)](https://pypi.org/project/slowql/)
 [![Docker Image](https://img.shields.io/docker/v/makroumi/slowql?label=Docker&sort=semver)](https://hub.docker.com/r/makroumi/slowql)
 [![License](https://img.shields.io/github/license/makroumi/slowql?cacheSeconds=60)](LICENSE)
-[!Test Suite](https://github.com/makroumi/slowql/actions/workflows/tests.yml/badge.svg)
+![Test Suite](https://github.com/makroumi/slowql/actions/workflows/tests.yml/badge.svg)
 [![GHCR Version](https://img.shields.io/ghcr/v/makroumi/slowql?label=GHCR)](https://github.com/orgs/makroumi/packages/container/package/slowql)
 [![Coverage](https://img.shields.io/codecov/c/github/makroumi/slowql?logo=codecov)](https://codecov.io/gh/makroumi/slowql)
 [![Tests](https://github.com/makroumi/slowql/actions/workflows/ci.yml/badge.svg?event=push&job=test)](https://github.com/makroumi/slowql/actions/workflows/ci.yml)
