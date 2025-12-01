@@ -111,13 +111,68 @@ def test_show_issues_table_truncation(formatter):
     formatter._show_issues_table(results)
 
 def test_show_issues_table_future_truncation(formatter):
-    long_impact = "This impact description is extremely long and should be truncated for display..." * 3
     results = pd.DataFrame([{
         "severity": "high",
         "issue": "Impact Truncation",
         "query": "SELECT * FROM users",
         "fix": "Fix it",
-        "impact": long_impact,
+        "impact": "This impact description is extremely long and should be truncated for display..." * 3,
         "count": 1
     }])
     formatter._show_issues_table_future(results)
+
+def test_show_progress(formatter):
+    progress = formatter.show_progress("Analyzing queries")
+    assert progress is not None
+
+def test_print_analysis_function(sample_results):
+    from slowql.formatters.console import print_analysis
+    print_analysis(sample_results)
+
+def test_show_single_issue(formatter):
+    from slowql.core.detector import DetectedIssue, IssueSeverity
+    issue = DetectedIssue(
+        issue_type="SELECT * Usage",
+        query="SELECT * FROM users",
+        description="Using SELECT * is inefficient",
+        fix="Specify columns explicitly",
+        impact="Slower queries and harder to optimize",
+        severity=IssueSeverity.CRITICAL
+    )
+    formatter.show_single_issue(issue)
+
+def test_show_next_steps_fallback(formatter):
+    df = pd.DataFrame([{
+        "severity": "low",
+        "issue": "Minor Formatting",
+        "query": "SELECT * FROM users",
+        "fix": "Use consistent casing",
+        "impact": "Minor readability issue",
+        "count": 1
+    }])
+    formatter._show_next_steps(df)
+
+def test_show_health_gauge_red_zone(formatter):
+    df = pd.DataFrame([{
+        "severity": "critical",
+        "issue": "Massive IN List",
+        "query": "SELECT * FROM users WHERE id IN (...)",
+        "fix": "Use JOIN instead",
+        "impact": "Memory overload",
+        "count": 10
+    }])
+    score = formatter._calculate_health_score(df)
+    assert score < 40
+    formatter._show_health_gauge(score, df)
+
+
+def test_show_recommendations_panel_fallback(formatter):
+    df = pd.DataFrame([{
+        "severity": "low",
+        "issue": "Minor Formatting",
+        "query": "SELECT * FROM users",
+        "fix": "Use consistent casing",
+        "impact": "Minor readability issue",
+        "count": 1
+    }])
+    formatter._show_recommendations_panel(df)
