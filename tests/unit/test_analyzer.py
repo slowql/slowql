@@ -28,6 +28,14 @@ class TestAnalyzer:
         results = analyzer.analyze(queries)
         assert len(results) >= 2
 
+    def test_analyze_sql_function(self, analyzer):
+        from slowql.core.analyzer import analyze_sql
+        df = analyze_sql("SELECT * FROM users", verbose=False)
+        assert isinstance(df, pd.DataFrame)
+        assert not df.empty
+
+
+
     def test_return_list_format(self, analyzer):
         issues = analyzer.analyze("SELECT * FROM users", return_dataframe=False)
         assert isinstance(issues, list)
@@ -150,16 +158,17 @@ class TestAnalyzer:
         assert any("No WHERE clause" in s for s in suggestions)
 
     @pytest.mark.parametrize("query,expected", [
-    ("SELECT * FROM users", "No WHERE clause"),
-    ("SELECT * FROM users WHERE UPPER(email) = 'x'", "Functional index"),
-    ("SELECT * FROM users WHERE id = 1 JOIN orders ON users.id = orders.user_id", "JOIN operations"),
-    ("SELECT * FROM users WHERE id = 1 ORDER BY name", "ORDER BY clause"),
-    ("SELECT * FROM users WHERE id = 1 GROUP BY name", "GROUP BY clause"),
+        ("SELECT * FROM users", "No WHERE clause"),
+        ("SELECT * FROM users WHERE UPPER(email) = 'x'", "Functional index"),
+        ("SELECT * FROM users WHERE id = 1 JOIN orders ON users.id = orders.user_id", "JOIN operations"),
+        ("SELECT * FROM users WHERE id = 1 ORDER BY name", "ORDER BY clause"),
+        ("SELECT * FROM users WHERE id = 1 GROUP BY name", "GROUP BY clause"),
     ])
     def test_suggest_indexes_branches(self, analyzer, query, expected):
         results = analyzer.analyze(query)
         suggestions = analyzer.suggest_indexes(results)
         assert any(expected in s for s in suggestions)
+
 
 
 
