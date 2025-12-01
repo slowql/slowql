@@ -1,5 +1,5 @@
 import re
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 from enum import Enum
 
@@ -156,7 +156,6 @@ class QueryDetector:
             'like_no_wildcard': self._detect_like_without_wildcard,
             'multiple_wildcards': self._detect_multiple_wildcards,
             'order_by_ordinal': self._detect_order_by_ordinal,
-            'null_comparison': self._detect_null_comparison_with_equal,
         }
     
     # Core Detector Methods

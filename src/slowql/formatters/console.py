@@ -1,14 +1,11 @@
-from typing import List, Optional, Dict, Any
 import pandas as pd
 from rich.console import Console
 from rich.syntax import Syntax
 from rich.progress import Progress, SpinnerColumn, TextColumn
-from rich.layout import Layout
 from rich.text import Text
 from rich import box
 from ..core.detector import DetectedIssue, IssueSeverity
 from rich.table import Table
-from rich.console import Console
 from rich.align import Align
 from rich.panel import Panel
 
@@ -231,7 +228,7 @@ class ConsoleFormatter:
         # High severity issues
         high_count = len(results[results['severity'] == 'high'])
         if high_count > 0:
-            steps.append(f"[bold cyan]◆ PRIORITY BETA[/] [dim white]━━━━━━━━━━[/] [yellow]PERFORMANCE DEGRADATION[/]")
+            steps.append("[bold cyan]◆ PRIORITY BETA[/] [dim white]━━━━━━━━━━[/] [yellow]PERFORMANCE DEGRADATION[/]")
             steps.append(f"  [cyan]▸[/] {high_count} issues causing [yellow]significant system strain[/]")
             steps.append("  [cyan]▸[/] Impact: [yellow]50-90% slower queries[/]")
             steps.append("")
@@ -288,64 +285,6 @@ class ConsoleFormatter:
         self.console.print(panel)
 
         
-    def show_single_issue(self, issue: DetectedIssue) -> None:
-        """
-        Display a single issue with syntax highlighting
-        
-        Args:
-            issue: Single detected issue
-        """
-        severity = issue.severity
-        icon = self.severity_icons[severity]
-        color = self.severity_colors[severity]
-        
-        # Issue header
-        self.console.print(
-            Panel(
-                f"{icon} [bold]{issue.issue_type}[/bold]",
-                style=color,
-                box=box.HEAVY
-            )
-        )
-        
-        # SQL with syntax highlighting
-        syntax = Syntax(
-            issue.query,
-            "sql",
-            theme="monokai",
-            line_numbers=True,
-            word_wrap=True
-        )
-        self.console.print(Panel(syntax, title="Query", border_style="yellow"))
-        
-        # Details table
-        details = Table(show_header=False, box=box.SIMPLE)
-        details.add_column("Property", style="cyan")
-        details.add_column("Value", style="white")
-        
-        details.add_row("Description", issue.description)
-        details.add_row("Fix", f"[green]{issue.fix}[/green]")
-        details.add_row("Impact", f"[red]{issue.impact}[/red]")
-        details.add_row("Severity", severity.value.upper())
-        
-        self.console.print(details)
-        self.console.print()
-        
-    def show_progress(self, message: str) -> Progress:
-        """
-        Show progress indicator for analysis
-        
-        Args:
-            message: Progress message
-            
-        Returns:
-            Progress context manager
-        """
-        return Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=self.console
-        )
         
     def format_comparison(self, before_count: int, after_count: int) -> None:
         """
@@ -722,13 +661,13 @@ After:  [green]{after_count} issues[/green]
         
         critical_count = len(results[results['severity'] == 'critical'])
         if critical_count > 0:
-            steps.append(f"[bold magenta]◆ PRIORITY ALPHA[/] [blink hot_pink]━━━[/] [bold white]CRITICAL SYSTEM THREATS[/]")
+            steps.append("[bold magenta]◆ PRIORITY ALPHA[/] [blink hot_pink]━━━[/] [bold white]CRITICAL SYSTEM THREATS[/]")
             steps.append(f"  [hot_pink]▸[/] {critical_count} anomalies require [bold red]IMMEDIATE[/] intervention")
             steps.append("")
         
         high_count = len(results[results['severity'] == 'high'])
         if high_count > 0:
-            steps.append(f"[bold cyan]◆ PRIORITY BETA[/] [dim white]━━━[/] [bold white]PERFORMANCE DEGRADATION[/]")
+            steps.append("[bold cyan]◆ PRIORITY BETA[/] [dim white]━━━[/] [bold white]PERFORMANCE DEGRADATION[/]")
             steps.append(f"  [cyan]▸[/] {high_count} issues causing [yellow]significant[/] system strain")
             steps.append("")
         
@@ -736,13 +675,13 @@ After:  [green]{after_count} issues[/green]
         issue_types = set(results['issue'].unique())
         
         if 'SELECT * Usage' in issue_types:
-            steps.append(f"[bold deep_sky_blue1]◆ OPTIMIZATION VECTOR 1[/]")
-            steps.append(f"  [deep_sky_blue1]▸[/] Deploy column-specific retrieval protocols")
+            steps.append("[bold deep_sky_blue1]◆ OPTIMIZATION VECTOR 1[/]")
+            steps.append("  [deep_sky_blue1]▸[/] Deploy column-specific retrieval protocols")
             steps.append("")
             
         if 'Missing WHERE in UPDATE/DELETE' in issue_types:
-            steps.append(f"[bold hot_pink]◆ CRITICAL SAFETY PROTOCOL[/]")
-            steps.append(f"  [hot_pink]▸[/] [blink]ENGAGE WHERE CLAUSES[/] - Data loss prevention")
+            steps.append("[bold hot_pink]◆ CRITICAL SAFETY PROTOCOL[/]")
+            steps.append("  [hot_pink]▸[/] [blink]ENGAGE WHERE CLAUSES[/] - Data loss prevention")
             steps.append("")
         
         # Wrap in futuristic panel
@@ -807,27 +746,31 @@ After:  [green]{after_count} issues[/green]
         self.console.print(panel)
         
     def show_single_issue(self, issue: DetectedIssue) -> None:
-        """Display single issue with cyberpunk styling"""
+        """
+        Display a single detected issue with cyberpunk styling and syntax highlighting.
+        
+        Args:
+            issue: Single detected issue
+        """
         severity = issue.severity
         icon = self.severity_icons[severity]
         color = self.severity_colors[severity]
-        
+
         # Futuristic header
         header = f"""[{color}]╔{'═' * 60}╗
-║ {icon} ANOMALY DETECTED: {issue.issue_type:<35} ║
-╚{'═' * 60}╝[/]"""
-        
+    ║ {icon} ANOMALY DETECTED: {issue.issue_type:<35} ║
+    ╚{'═' * 60}╝[/]"""
         self.console.print(header)
-        
+
         # SQL with syntax highlighting
         syntax = Syntax(
             issue.query,
             "sql",
             theme="monokai",
             line_numbers=True,
+            word_wrap=True,
             background_color="rgb(20,20,40)"
         )
-        
         syntax_panel = Panel(
             syntax,
             title="[bold cyan]◢ QUERY ANALYSIS ◣[/]",
@@ -835,27 +778,37 @@ After:  [green]{after_count} issues[/green]
             box=box.HEAVY
         )
         self.console.print(syntax_panel)
-        
-        # Details grid
+
+        # Details grid (styled table)
         details = Table(show_header=False, box=None, padding=(0, 2))
         details.add_column("", style="bold magenta", width=20)
         details.add_column("", style="white")
-        
+
         details.add_row("◆ DESCRIPTION", issue.description)
         details.add_row("◆ REMEDIATION", f"[bold green]{issue.fix}[/]")
         details.add_row("◆ IMPACT", f"[bold yellow]{issue.impact}[/]")
         details.add_row("◆ SEVERITY", f"[{color}]{severity.value.upper()}[/]")
-        
+
         self.console.print(Panel(details, border_style="magenta", box=box.HEAVY))
         self.console.print()
+
         
     def show_progress(self, message: str) -> Progress:
-        """Show cyberpunk progress indicator"""
+        """
+        Show cyberpunk progress indicator for analysis.
+        
+        Args:
+            message: Progress message
+        
+        Returns:
+            Progress object
+        """
         return Progress(
             SpinnerColumn(spinner_name="dots12", style="bold cyan"),
             TextColumn("[bold white]{task.description}[/]"),
             console=self.console
         )
+
 
 
 # Convenience function

@@ -30,3 +30,9 @@ jobs:
     - name: Run test suite
       run: |
         pytest --maxfail=1 --disable-warnings --benchmark-disable -v
+
+    - name: Run Ruff linter
+      run: |
+        pip install ruff
+        ruff check src tests
+
