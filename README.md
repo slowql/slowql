@@ -8,14 +8,15 @@
 
 <!-- Replace the placeholders below with actual badge URLs -->
 
-[![PyPI Version](https://img.shields.io/pypi/v/slowql.svg)](https://pypi.org/project/slowql/)
-[![Docker Image](https://img.shields.io/docker/v/makroumi/slowql?label=Docker&sort=semver)](https://hub.docker.com/r/makroumi/slowql)
-[![Docker Pulls](https://img.shields.io/docker/pulls/makroumi/slowql?logo=docker&label=pulls)](https://hub.docker.com/r/makroumi/slowql)
-[![License](https://img.shields.io/github/license/makroumi/slowql?cacheSeconds=60)](LICENSE)
-![Test Suite](https://github.com/makroumi/slowql/actions/workflows/tests.yml/badge.svg)
-![Lint](https://img.shields.io/badge/linter-ruff-green)
-[![Mypy](https://img.shields.io/badge/type%20check-mypy-4B6CFA)](#)
+[![PyPI](https://img.shields.io/pypi/v/slowql.svg)](https://pypi.org/project/slowql/)
+[![Docker](https://img.shields.io/docker/pulls/makroumi/slowql.svg)](https://hub.docker.com/r/makroumi/slowql)
 [![Coverage](https://codecov.io/gh/makroumi/slowql/branch/main/graph/badge.svg)](https://codecov.io/gh/makroumi/slowql)
+[![License](https://img.shields.io/github/license/makroumi/slowql.svg)](https://github.com/makroumi/slowql/blob/main/LICENSE)
+[![Ruff](https://img.shields.io/badge/linter-ruff-blue)](https://github.com/charliermarsh/ruff)
+[![Mypy](https://img.shields.io/badge/type_check-mypy-blue)](http://mypy-lang.org/)
+[![Tests](https://img.shields.io/badge/test_suite-pytest-blue)](https://docs.pytest.org/)
+[![Discussions](https://img.shields.io/github/discussions/makroumi/slowql)](https://github.com/makroumi/slowql/discussions)
+[![Sponsor](https://img.shields.io/github/sponsors/makroumi)](https://github.com/sponsors/makroumi)
 
 
 
