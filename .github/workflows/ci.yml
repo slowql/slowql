@@ -45,3 +45,10 @@ jobs:
     - name: Run Mypy type checker
       run: |
         mypy src
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        files: coverage.xml
+        flags: unittests
+        name: codecov-slowql
+        fail_ci_if_error: true
