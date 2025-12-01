@@ -1,8 +1,6 @@
 # tests/integration/test_cli.py
 import subprocess
 import sys
-import pytest
-from pathlib import Path
 
 CLI_CMD = [sys.executable, "-m", "slowql.cli"]
 

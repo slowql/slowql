@@ -10,9 +10,6 @@ from rich.align import Align
 from rich import box
 from rich.syntax import Syntax
 from rich.prompt import Prompt
-from rich.table import Table
-from rich.layout import Layout
-from rich.progress import Progress, SpinnerColumn, TextColumn
 
 class MatrixRain:
     """Full-window Matrix rain intro animation with auto-clear."""

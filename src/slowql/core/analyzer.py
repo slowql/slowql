@@ -1,9 +1,8 @@
-import re
 from typing import List, Dict, Any, Union, Optional
 import pandas as pd
 from datetime import datetime
 from concurrent.futures import ProcessPoolExecutor
-from .detector import QueryDetector, DetectedIssue, IssueSeverity
+from .detector import QueryDetector, DetectedIssue
 
 
 class QueryAnalyzer:
@@ -151,7 +150,7 @@ class QueryAnalyzer:
         critical_count = len(results[results["severity"] == "critical"])
         high_count = len(results[results["severity"] == "high"])
 
-        print(f"\n📊 SUMMARY:")
+        print("\n📊 SUMMARY:")
         print(f"   Total Issues: {total_issues}")
         print(f"   Issue Types: {unique_types}")
         if critical_count > 0:
@@ -160,7 +159,7 @@ class QueryAnalyzer:
             print(f"   ⚠️  High: {high_count}")
 
         if detailed:
-            print(f"\n📋 DETAILED FINDINGS:")
+            print("\n📋 DETAILED FINDINGS:")
             print("-" * 80)
             for severity in ["critical", "high", "medium", "low"]:
                 severity_issues = results[results["severity"] == severity]

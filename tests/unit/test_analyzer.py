@@ -2,7 +2,7 @@
 import pytest
 import pandas as pd
 from slowql.core.analyzer import QueryAnalyzer
-from slowql.core.detector import DetectedIssue, IssueSeverity
+from slowql.core.detector import DetectedIssue
 
 class TestAnalyzer:
     # -------------------------------

@@ -4,12 +4,6 @@ from typing import List, Optional
 import sys
 import pandas as pd
 from rich.console import Console
-from rich.panel import Panel
-from rich.align import Align
-from rich.text import Text
-from rich.table import Table
-from rich import box
-import time
 
 from slowql.effects.animations import MatrixRain, CyberpunkSQLEditor, AnimatedAnalyzer
 from slowql.core.analyzer import QueryAnalyzer
