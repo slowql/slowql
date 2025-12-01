@@ -90,4 +90,37 @@ def test_show_frequency_viz(formatter, sample_results):
 
 def test_show_recommendations_panel(formatter, sample_results):
     formatter._show_recommendations_panel(sample_results)
-         
+
+def test_show_issues_table_legacy(formatter, sample_results):
+    formatter._show_issues_table(sample_results)
+
+def test_show_recommendations_panel(formatter, sample_results):
+    formatter._show_recommendations_panel(sample_results)
+
+def test_show_frequency_viz_empty(formatter):
+    empty_df = pd.DataFrame(columns=["issue", "count"])
+    formatter._show_frequency_viz(empty_df)
+
+def test_show_issues_table_truncation(formatter):
+    long_query = "SELECT * FROM users WHERE " + "x = 1 AND " * 20
+    results = pd.DataFrame([{
+        "severity": "high",
+        "issue": "Long Query Test",
+        "query": long_query,
+        "fix": "Shorten query",
+        "impact": "Hard to read",
+        "count": 1
+    }])
+    formatter._show_issues_table(results)
+
+def test_show_issues_table_future_truncation(formatter):
+    long_impact = "This impact description is extremely long and should be truncated for display..." * 3
+    results = pd.DataFrame([{
+        "severity": "high",
+        "issue": "Impact Truncation",
+        "query": "SELECT * FROM users",
+        "fix": "Fix it",
+        "impact": long_impact,
+        "count": 1
+    }])
+    formatter._show_issues_table_future(results)
