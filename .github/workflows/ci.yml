@@ -30,9 +30,25 @@ jobs:
     - name: Run test suite with coverage
       run: |
         pytest --maxfail=1 --disable-warnings --benchmark-disable -v \
-               --cov=src --cov-report=xml --cov-report=term-missing
+               --cov=src --cov-report=xml --cov-report=term-missing \
+               --junitxml=junit.xml -o junit_family=legacy
 
-    - name: Upload coverage report
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}   # optional for public repos
+        files: coverage.xml
+        flags: unittests
+        name: codecov-slowql
+        fail_ci_if_error: true
+
+    - name: Upload test results to Codecov
+      if: ${{ !cancelled() }}
+      uses: codecov/test-results-action@v1
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+
+    - name: Upload coverage report artifact
       uses: actions/upload-artifact@v4
       with:
         name: coverage-report
@@ -45,13 +61,3 @@ jobs:
     - name: Run Mypy type checker
       run: |
         mypy src
-
-    - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v4
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}   # optional for public
-        files: coverage.xml
-        flags: unittests
-        name: codecov-slowql
-        fail_ci_if_error: true
-
