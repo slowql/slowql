@@ -95,6 +95,14 @@ class TestAnalyzer:
         captured = capsys.readouterr()
         assert "CRITICAL" in captured.out
 
+    def test_print_report_multiple_occurrences(self, analyzer, capsys):
+        queries = ["DELETE FROM users"] * 3
+        results = analyzer.analyze(queries)
+        analyzer.print_report(results)
+        captured = capsys.readouterr()
+        assert "Occurrences: 3" in captured.out
+
+
     # -------------------------------
     # Export
     # -------------------------------
@@ -135,6 +143,26 @@ class TestAnalyzer:
         empty_df = pd.DataFrame()
         suggestions = analyzer.suggest_indexes(empty_df)
         assert suggestions == []
+
+    def test_suggest_indexes_no_where_clause(self, analyzer):
+        results = analyzer.analyze("SELECT * FROM users")
+        suggestions = analyzer.suggest_indexes(results)
+        assert any("No WHERE clause" in s for s in suggestions)
+
+    @pytest.mark.parametrize("query,expected", [
+    ("SELECT * FROM users", "No WHERE clause"),
+    ("SELECT * FROM users WHERE UPPER(email) = 'x'", "Functional index"),
+    ("SELECT * FROM users WHERE id = 1 JOIN orders ON users.id = orders.user_id", "JOIN operations"),
+    ("SELECT * FROM users WHERE id = 1 ORDER BY name", "ORDER BY clause"),
+    ("SELECT * FROM users WHERE id = 1 GROUP BY name", "GROUP BY clause"),
+    ])
+    def test_suggest_indexes_branches(self, analyzer, query, expected):
+        results = analyzer.analyze(query)
+        suggestions = analyzer.suggest_indexes(results)
+        assert any(expected in s for s in suggestions)
+
+
+
 
     # -------------------------------
     # Query Comparison

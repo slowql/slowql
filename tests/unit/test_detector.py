@@ -99,3 +99,15 @@ def test_multiple_issues_in_one_query(detector):
     types = [i.issue_type for i in issues]
     assert "Non-SARGable WHERE" in types
     assert "OR Prevents Index" in types
+
+@pytest.mark.parametrize("query,expected", [
+    ("SELECT name FROM users ORDER BY 1", "ORDER BY Ordinal"),
+    ("SELECT name FROM users ORDER BY name", None),
+])
+def test_order_by_ordinal_branch_coverage(query, expected):
+    detector = QueryDetector()
+    issue = detector._detect_order_by_ordinal(query, query)
+    if expected:
+        assert issue.issue_type == expected
+    else:
+        assert issue is None
