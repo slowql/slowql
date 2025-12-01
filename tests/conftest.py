@@ -5,6 +5,8 @@ from pathlib import Path
 from slowql.core.detector import QueryDetector, DetectedIssue, IssueSeverity
 from slowql.core.analyzer import QueryAnalyzer
 
+import importlib.util
+
 # -------------------------------
 # Core Fixtures
 # -------------------------------
@@ -82,12 +84,11 @@ def multiple_queries() -> list[str]:
         "SELECT * FROM users OFFSET 5000",
     ]
 
-try:
-    import pandas as pd
-except ImportError as exc:
+
+if importlib.util.find_spec("pandas") is None:
     raise ImportError(
         "Missing required test dependency 'pandas'. Install it in your virtualenv:\n"
         "  pip install pandas\n"
         "or install all dev dependencies:\n"
         "  pip install -r requirements-dev.txt"
-    ) from exc
+    )
