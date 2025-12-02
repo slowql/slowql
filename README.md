@@ -15,6 +15,12 @@
 
 ---
 
+### 📊 Downloads
+[![Docker Pulls](https://img.shields.io/docker/pulls/makroumi/slowql?logo=docker&label=pulls)](https://hub.docker.com/r/makroumi/slowql)
+[![PyPI Downloads](https://img.shields.io/badge/PyPI%20downloads-~1200%2Fmonth-blue?logo=pypi)](https://pypistats.org/packages/slowql)
+
+---
+
 ### 🧪 Tests & Quality
 [![CI](https://github.com/makroumi/slowql/actions/workflows/ci.yml/badge.svg?logo=github)](https://github.com/makroumi/slowql/actions)
 [![Coverage](https://codecov.io/gh/makroumi/slowql/branch/main/graph/badge.svg?logo=codecov)](https://codecov.io/gh/makroumi/slowql)
@@ -30,7 +36,7 @@
 
 ---
 
-### 📊 Containers & Downloads
+### 📊 Downloads
 [![Docker Pulls](https://img.shields.io/docker/pulls/makroumi/slowql?logo=docker&label=pulls)](https://hub.docker.com/r/makroumi/slowql)
 [![PyPI Downloads](https://img.shields.io/badge/PyPI%20downloads-~1200%2Fmonth-blue?logo=pypi)](https://pypistats.org/packages/slowql)
 
