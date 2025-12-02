@@ -23,9 +23,8 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("slowql")
 
-def init_cli():
+def init_cli() -> None:
     logger.info("SlowQL CLI started")
-
 
 console: Console = Console()
 
