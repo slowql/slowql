@@ -34,6 +34,8 @@
 ### 🔒 Security & Dependencies
 [![Dependabot](https://img.shields.io/badge/dependabot-enabled-brightgreen?logo=dependabot)](https://github.com/makroumi/slowql/security/dependabot)
 [![Vulnerabilities](https://img.shields.io/snyk/vulnerabilities/github/makroumi/slowql?logo=snyk)](#)
+[![Snyk](https://img.shields.io/snyk/vulnerabilities/github/makroumi/slowql?logo=snyk)](https://snyk.io/test/github/makroumi/slowql)
+
 
 ---
 

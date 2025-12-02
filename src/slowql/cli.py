@@ -18,6 +18,15 @@ from slowql.effects.animations import MatrixRain, CyberpunkSQLEditor, AnimatedAn
 from slowql.core.analyzer import QueryAnalyzer
 from slowql.formatters.console import ConsoleFormatter
 
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("slowql")
+
+def main():
+    logger.info("SlowQL CLI started")
+
+
 console: Console = Console()
 
 
