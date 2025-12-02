@@ -23,7 +23,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("slowql")
 
-def main():
+def init_cli():
     logger.info("SlowQL CLI started")
 
 
@@ -291,6 +291,7 @@ def main(argv: Optional[List[str]] = None) -> None:
     Args:
         argv: Optional list of command-line arguments
     """
+    init_cli()
     parser: argparse.ArgumentParser = build_argparser()
     args = parser.parse_args(argv)
 
