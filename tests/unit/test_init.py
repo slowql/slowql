@@ -1,5 +1,3 @@
-import types
-import pytest
 import importlib
 
 def reload_slowql(monkeypatch, fake_version_func):
