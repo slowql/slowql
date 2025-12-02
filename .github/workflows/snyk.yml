@@ -1,12 +1,23 @@
-# .github/workflows/snyk.yml
 name: Snyk Scan
-on: [push]
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
 jobs:
   security:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Run Snyk
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Run Snyk scan
         uses: snyk/actions/python@master
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
