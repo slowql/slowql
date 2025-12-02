@@ -7,9 +7,11 @@
 ## 🔗 Badges
 
 ### 📦 Package & Release
+[![Release](https://img.shields.io/github/v/release/makroumi/slowql?logo=github&label=v1.0.3)](https://github.com/makroumi/slowql/releases)
 [![PyPI](https://img.shields.io/pypi/v/slowql?logo=pypi)](https://pypi.org/project/slowql/)
-[![Release](https://img.shields.io/github/v/release/makroumi/slowql?logo=github&label=latest)](https://github.com/makroumi/slowql/releases)
 [![License](https://img.shields.io/github/license/makroumi/slowql?logo=open-source-initiative)](https://github.com/makroumi/slowql/blob/main/LICENSE)
+[![Docker](https://img.shields.io/docker/v/makroumi/slowql?logo=docker&label=docker)](https://hub.docker.com/r/makroumi/slowql)
+[![GHCR](https://img.shields.io/badge/GHCR-slowql-blue?logo=github)](https://github.com/makroumi/slowql/pkgs/container/slowql)
 
 ---
 
@@ -22,15 +24,15 @@
 
 ---
 
-### 🐳 Containers & Downloads
-[![Docker Pulls](https://img.shields.io/docker/pulls/makroumi/slowql?logo=docker)](https://hub.docker.com/r/makroumi/slowql)
-[![GHCR](https://img.shields.io/badge/GHCR-slowql-blue?logo=github)](https://github.com/makroumi/slowql/pkgs/container/slowql)
-
----
-
 ### 🔒 Security & Dependencies
 [![Dependabot](https://img.shields.io/badge/dependabot-enabled-brightgreen?logo=dependabot)](https://github.com/makroumi/slowql/security/dependabot)
 [![Vulnerabilities](https://img.shields.io/snyk/vulnerabilities/github/makroumi/slowql?logo=snyk)](#)
+
+---
+
+### 📊 Containers & Downloads
+[![Docker Pulls](https://img.shields.io/docker/pulls/makroumi/slowql?logo=docker&label=pulls)](https://hub.docker.com/r/makroumi/slowql)
+[![PyPI Downloads](https://img.shields.io/badge/PyPI%20downloads-~1200%2Fmonth-blue?logo=pypi)](https://pypistats.org/packages/slowql)
 
 ---
 
@@ -39,6 +41,7 @@
 [![GitHub stars](https://img.shields.io/github/stars/makroumi/slowql?style=social&logo=github)](https://github.com/makroumi/slowql/stargazers)
 [![Contributors](https://img.shields.io/github/contributors/makroumi/slowql?logo=github)](https://github.com/makroumi/slowql/graphs/contributors)
 [![Sponsor](https://img.shields.io/github/sponsors/makroumi?logo=github)](https://github.com/sponsors/makroumi)
+
 
 
 ## ⚡ Quick Start
