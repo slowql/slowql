@@ -4,33 +4,41 @@
 
 ---
 
-## 🔗 Badges 
+## 🔗 Badges
 
-<!-- Replace the placeholders below with actual badge URLs -->
+### 📦 Package & Release
+[![PyPI](https://img.shields.io/pypi/v/slowql?logo=pypi)](https://pypi.org/project/slowql/)
+[![Release](https://img.shields.io/github/v/release/makroumi/slowql?logo=github&label=latest)](https://github.com/makroumi/slowql/releases)
+[![License](https://img.shields.io/github/license/makroumi/slowql?logo=open-source-initiative)](https://github.com/makroumi/slowql/blob/main/LICENSE)
 
-[![PyPI](https://img.shields.io/pypi/v/slowql.svg)](https://pypi.org/project/slowql/)
-[![Docker](https://img.shields.io/docker/pulls/makroumi/slowql.svg)](https://hub.docker.com/r/makroumi/slowql)
-[![Coverage](https://codecov.io/gh/makroumi/slowql/branch/main/graph/badge.svg)](https://codecov.io/gh/makroumi/slowql)
-[![License](https://img.shields.io/github/license/makroumi/slowql.svg)](https://github.com/makroumi/slowql/blob/main/LICENSE)
-[![Ruff](https://img.shields.io/badge/linter-ruff-blue)](https://github.com/charliermarsh/ruff)
-[![Mypy](https://img.shields.io/badge/type_check-mypy-blue)](http://mypy-lang.org/)
-[![Tests](https://img.shields.io/badge/test_suite-pytest-blue)](https://docs.pytest.org/)
-[![Discussions](https://img.shields.io/github/discussions/makroumi/slowql)](https://github.com/makroumi/slowql/discussions)
-[![Sponsor](https://img.shields.io/github/sponsors/makroumi)](https://github.com/sponsors/makroumi)
+---
 
+### 🧪 Tests & Quality
+[![CI](https://github.com/makroumi/slowql/actions/workflows/ci.yml/badge.svg?logo=github)](https://github.com/makroumi/slowql/actions)
+[![Coverage](https://codecov.io/gh/makroumi/slowql/branch/main/graph/badge.svg?logo=codecov)](https://codecov.io/gh/makroumi/slowql)
+[![Ruff](https://img.shields.io/badge/linter-ruff-blue?logo=python)](https://github.com/charliermarsh/ruff)
+[![Mypy](https://img.shields.io/badge/type_check-mypy-blue?logo=python)](http://mypy-lang.org/)
+[![Tests](https://img.shields.io/badge/test_suite-pytest-blue?logo=pytest)](https://docs.pytest.org/)
 
+---
 
-[![Dependabot Status](https://img.shields.io/badge/dependabot-enabled-brightgreen)](https://github.com/makroumi/slowql/security/dependabot)
-[![Vulnerabilities](https://img.shields.io/snyk/vulnerabilities/github/makroumi/slowql?label=vulnerabilities)](#)
-[![Docs](https://img.shields.io/readthedocs/slowql?logo=read-the-docs)](https://your-docs-url)
-[![Release](https://img.shields.io/github/v/release/makroumi/slowql?label=release)](https://github.com/makroumi/slowql/releases)
+### 🐳 Containers & Downloads
+[![Docker Pulls](https://img.shields.io/docker/pulls/makroumi/slowql?logo=docker)](https://hub.docker.com/r/makroumi/slowql)
+[![GHCR](https://img.shields.io/badge/GHCR-slowql-blue?logo=github)](https://github.com/makroumi/slowql/pkgs/container/slowql)
 
-[![GitHub stars](https://img.shields.io/github/stars/makroumi/slowql?style=social)](https://github.com/makroumi/slowql/stargazers)
-[![Contributors](https://img.shields.io/github/contributors/makroumi/slowql)](https://github.com/makroumi/slowql/graphs/contributors)
-[![Sponsor](https://img.shields.io/badge/sponsor-%E2%9D%A4-FE7D7D)](https://github.com/sponsors/makroumi)
+---
 
-[![Discussions](https://img.shields.io/badge/discussions-on%20GitHub-586069?logo=github)](https://github.com/makroumi/slowql/discussions)
+### 🔒 Security & Dependencies
+[![Dependabot](https://img.shields.io/badge/dependabot-enabled-brightgreen?logo=dependabot)](https://github.com/makroumi/slowql/security/dependabot)
+[![Vulnerabilities](https://img.shields.io/snyk/vulnerabilities/github/makroumi/slowql?logo=snyk)](#)
 
+---
+
+### 📣 Community & Communication
+[![Discussions](https://img.shields.io/github/discussions/makroumi/slowql?logo=github)](https://github.com/makroumi/slowql/discussions)
+[![GitHub stars](https://img.shields.io/github/stars/makroumi/slowql?style=social&logo=github)](https://github.com/makroumi/slowql/stargazers)
+[![Contributors](https://img.shields.io/github/contributors/makroumi/slowql?logo=github)](https://github.com/makroumi/slowql/graphs/contributors)
+[![Sponsor](https://img.shields.io/github/sponsors/makroumi?logo=github)](https://github.com/sponsors/makroumi)
 
 
 ## ⚡ Quick Start
