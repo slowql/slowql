@@ -23,9 +23,10 @@ RUN apt-get update \
 # Install pip tooling used to build wheel
 RUN python -m pip install --upgrade pip build setuptools wheel
 
-# Copy source (use .dockerignore to exclude large irrelevant files
-COPY pyproject.toml src/ /src/
-
+# Copy project metadata and source code
+# Include README.md and LICENSE so setuptools can find them
+COPY pyproject.toml README.md LICENSE /src/
+COPY src/ /src/src/
 
 # Build wheel into /out
 RUN python -m build --wheel --outdir /out
@@ -42,8 +43,7 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# Runtime system deps (pandas binary wheels usually cover many platforms,
-# but keep ca-certificates for HTTPS)
+# Runtime system deps (keep ca-certificates for HTTPS)
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
     ca-certificates \

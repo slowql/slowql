@@ -24,6 +24,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("slowql")
 
 def init_cli() -> None:
+    """Initialize CLI logging."""
     logger.info("SlowQL CLI started")
 
 console: Console = Console()
@@ -36,12 +37,6 @@ console: Console = Console()
 def sql_split_statements(sql: str) -> List[str]:
     """
     Split SQL payload into individual statements, respecting quotes and comments.
-
-    Args:
-        sql: Raw SQL string
-
-    Returns:
-        List of SQL statements
     """
     if not sql:
         return []
@@ -74,15 +69,32 @@ def sql_split_statements(sql: str) -> List[str]:
 def ensure_reports_dir(path: Path) -> Path:
     """
     Ensure reports directory exists.
-
-    Args:
-        path: Path to reports directory
-
-    Returns:
-        Path object (ensured to exist)
     """
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+# -------------------------------
+# Path Sanitization
+# -------------------------------
+
+def safe_path(path: Optional[Path]) -> Path:
+    """
+    Sanitize and validate output directory path to prevent path traversal.
+    Allows absolute paths but rejects traversal attempts (..).
+    """
+    if path is None:
+        return Path.cwd() / "reports"
+
+    resolved = path.resolve()
+
+    # Reject paths containing '..' segments
+    if any(part == ".." for part in resolved.parts):
+        console.print(f"[bold red]Invalid path traversal attempt: {resolved}[/]")
+        sys.exit(1)
+
+    return resolved
+
 
 
 # -------------------------------
@@ -104,21 +116,7 @@ def run(
 ) -> None:
     """
     Main execution pipeline for SLOWQL CLI.
-
-    Args:
-        intro_enabled: Whether to show intro animation
-        intro_duration: Duration of intro animation
-        mode: Editor mode ("auto", "paste", "compose")
-        input_file: Optional SQL input file
-        export_formats: Optional list of export formats
-        out_dir: Optional output directory
-        fast: Fast mode (reduced animations)
-        verbose: Verbose analyzer output
-        non_interactive: Non-interactive mode (CI)
-        parallel: Enable parallel analysis
-        workers: Number of worker processes
     """
-    # Decide interactive default
     is_tty: bool = sys.stdin.isatty() and sys.stdout.isatty()
     chosen_mode: str = (
         "compose"
@@ -186,7 +184,7 @@ def run(
     except Exception:
         pass
 
-    # 5) Run analyzer (parallel or sequential)
+    # 5) Run analyzer
     analyzer = QueryAnalyzer(verbose=verbose)
     results_df: pd.DataFrame
     if parallel:
@@ -202,7 +200,7 @@ def run(
     try:
         summary: str = (
             f"[bold cyan]◆ ANALYSIS COMPLETE ◆[/]\n\n"
-            f"[green]✓[/] {results_df['count'].sum() if 'count' in results_df else len(results_df)} issues detected"
+            f"[green]✓[/] {results_df['count'].sum() if 'count' in results_df.columns else len(results_df)} issues detected"
         )
         details_lines: List[str] = []
         if not results_df.empty:
@@ -216,7 +214,7 @@ def run(
 
     # 8) Export if requested
     if export_formats:
-        out_dir = Path(out_dir) if out_dir else Path.cwd() / "reports"
+        out_dir = safe_path(out_dir)
         ensure_reports_dir(out_dir)
         for fmt in export_formats:
             fmt_lower: str = fmt.lower()
@@ -250,9 +248,6 @@ def run(
 def build_argparser() -> argparse.ArgumentParser:
     """
     Build argument parser for CLI.
-
-    Returns:
-        Configured ArgumentParser
     """
     p = argparse.ArgumentParser(
         prog="slowql",
@@ -321,3 +316,4 @@ def main(argv: Optional[List[str]] = None) -> None:
 
 if __name__ == "__main__":
     main()
+

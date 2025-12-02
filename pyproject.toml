@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "slowql"
-version = "1.0.2"
+version = "1.0.3"
 description = "Cinematic static SQL analyzer with cyberpunk CLI"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -28,7 +28,7 @@ dev = [
   "pytest-cov>=4.0.0",
   "black>=23.0.0",
   "mypy>=1.0.0",
-  "flake8>=6.0.0",
+  "flake8>=6.0.0,<6.1.0",
   "isort>=5.0.0"
 ]
 docs = [
