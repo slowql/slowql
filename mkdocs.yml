@@ -1,0 +1,49 @@
+site_name: SlowQL
+site_description: Cyberpunk SQL analyzer catching expensive queries before production
+site_url: https://slowql.readthedocs.io
+
+theme:
+  name: material
+  palette:
+    - scheme: slate
+      primary: purple
+      accent: teal
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+
+repo_url: https://github.com/makroumi/slowql
+repo_name: GitHub
+edit_uri: edit/main/docs/
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Architecture:
+      - Overview: architecture/ARCHITECTURE.md
+      - Design Decisions: architecture/DESIGN_DECISIONS.md
+      - Detector System: architecture/detector-system.md
+  - Development:
+      - Contributing: development/contributing.md
+      - Adding Detectors: development/ADDING_DETECTORS.md
+  - Security: security.md
+  - Changelog: ../CHANGELOG.md
+
+plugins:
+  - search
+  - mkdocs-material
+  - mkdocstrings:
+      handlers:
+        python:
+          setup_commands:
+            - pip install .[dev]
+
+markdown_extensions:
+  - admonition
+  - codehilite
+  - footnotes
+  - toc:
+      permalink: true
