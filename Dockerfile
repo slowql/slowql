@@ -10,7 +10,9 @@ ARG VERSION=""
 WORKDIR /src
 
 # Install build-time system deps. Keep small and explicit.
+# Upgrade base packages to latest security patch level
 RUN apt-get update \
+ && apt-get upgrade -y \
  && apt-get install -y --no-install-recommends \
     build-essential \
     ca-certificates \
@@ -18,8 +20,8 @@ RUN apt-get update \
     git \
  && rm -rf /var/lib/apt/lists/*
 
-# Install pip tooling used to build wheel
-RUN python -m pip install --upgrade pip build setuptools wheel
+# Install pip tooling used to build wheel (upgrade pip to patched version)
+RUN python -m pip install --upgrade pip==25.3 build setuptools wheel
 
 # Copy project metadata and source code
 COPY pyproject.toml README.md LICENSE /src/
@@ -45,8 +47,9 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
-# Runtime system deps (keep ca-certificates for HTTPS)
+# Upgrade base packages to latest security patch level
 RUN apt-get update \
+ && apt-get upgrade -y \
  && apt-get install -y --no-install-recommends \
     ca-certificates \
  && rm -rf /var/lib/apt/lists/*
