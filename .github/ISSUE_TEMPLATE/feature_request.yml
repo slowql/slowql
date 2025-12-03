@@ -1,0 +1,24 @@
+name: ✨ Feature Request
+description: Suggest a new feature or enhancement
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a feature! Please describe your idea clearly.
+  - type: textarea
+    id: description
+    attributes:
+      label: Feature Description
+      description: What should SlowQL do?
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: Why is this feature useful?
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: Other ways you considered solving this?

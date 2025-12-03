@@ -1,0 +1,24 @@
+name: 🔍 Detector Request
+description: Propose a new SQL detector
+title: "[Detector]: "
+labels: ["detector"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Help us expand SlowQL’s detector library!
+  - type: input
+    id: name
+    attributes:
+      label: Detector Name
+      placeholder: "Missing WHERE clause detector"
+  - type: textarea
+    id: description
+    attributes:
+      label: Detector Description
+      description: What issue does this detector catch?
+  - type: textarea
+    id: example
+    attributes:
+      label: Example SQL
+      description: Provide sample queries that should trigger this detector.

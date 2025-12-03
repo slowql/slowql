@@ -1,0 +1,34 @@
+name: 🐛 Bug Report
+description: Report a reproducible bug in SlowQL
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug! Please fill out the details below.
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Python version, SlowQL version
+      placeholder: "Ubuntu 22.04, Python 3.11, SlowQL 1.0.4"
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: What commands or inputs caused the bug?
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs/Output
+      render: shell
+      description: Please format logs/output as code for readability.
