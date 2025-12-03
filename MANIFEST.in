@@ -1,12 +1,20 @@
 include README.md
 include LICENSE
+include NOTICE
 
-# create or ensure entries exist
-if [ -f MANIFEST.in ]; then
-  grep -q "^include LICENSE$" MANIFEST.in || echo "include LICENSE" >> MANIFEST.in
-  grep -q "^include NOTICE$" MANIFEST.in || echo "include NOTICE" >> MANIFEST.in
-  git add MANIFEST.in && git commit -m "Ensure LICENSE and NOTICE are included in source distribution" || true
-else
-  printf "include LICENSE\ninclude NOTICE\n" > MANIFEST.in
-  git add MANIFEST.in && git commit -m "Add MANIFEST.in to include LICENSE and NOTICE"
-fi
+# Include documentation
+recursive-include docs *.md *.sql
+
+# Include source code
+recursive-include src *.py
+
+# Include tests
+recursive-include tests *.py
+
+# Include configuration and metadata
+include pyproject.toml
+include requirements.txt
+include mkdocs.yml
+include mypy.ini
+include pytest.ini
+include codecov.yml
