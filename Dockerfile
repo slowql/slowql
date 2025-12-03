@@ -1,17 +1,12 @@
 # syntax=docker/dockerfile:1.5
+
 ####################################
 # Builder: create wheel from source
 ####################################
 FROM python:3.12-slim AS builder
 
-# Build args allow CI to inject the version (e.g. v1.0.11)
-ARG VERSION
-ENV PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    LC_ALL=C.UTF-8 \
-    LANG=C.UTF-8 \
-    SETUPTOOLS_SCM_PRETEND_VERSION_FOR_SLOWQL=$VERSION
-
+# Build args allow CI to inject the version (e.g. v1.0.14)
+ARG VERSION=""
 WORKDIR /src
 
 # Install build-time system deps. Keep small and explicit.
@@ -26,12 +21,17 @@ RUN apt-get update \
 # Install pip tooling used to build wheel
 RUN python -m pip install --upgrade pip build setuptools wheel
 
-# Copy project metadata and source code
+# Copy project metadata, source code, and git history
 COPY pyproject.toml README.md LICENSE /src/
 COPY src/ /src/src/
+COPY .git /src/.git
 
-# Build wheel into /out with explicit SCM version injection
-RUN python -m build --wheel --outdir /out
+# Build wheel into /out with SCM version injection only if VERSION is set
+RUN if [ -n "$VERSION" ]; then \
+      SETUPTOOLS_SCM_PRETEND_VERSION_FOR_SLOWQL=$VERSION python -m build --wheel --outdir /out; \
+    else \
+      python -m build --wheel --outdir /out; \
+    fi
 
 
 ####################################
