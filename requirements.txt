@@ -1,5 +1,5 @@
 rich>=13.0.0
-sqlparse>=0.5.0
+sqlparse>=0.5.4
 pytest>=7.0.0
 build>=0.10.0
 twine>=4.0.0
