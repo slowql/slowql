@@ -1,32 +1,29 @@
+
+
 import pandas as pd
-from rich.console import Console
-from rich.syntax import Syntax
-from rich.progress import Progress, SpinnerColumn, TextColumn
-from rich.text import Text
 from rich import box
-from ..core.detector import DetectedIssue, IssueSeverity
-from rich.table import Table
 from rich.align import Align
+from rich.console import Console
 from rich.panel import Panel
-from typing import Dict
+from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.syntax import Syntax
+from rich.table import Table
+from rich.text import Text
 
-
-
-
+from ..core.detector import DetectedIssue, IssueSeverity
 
 
 class ConsoleFormatter:
     """
     Rich console formatter for beautiful SQL analysis output
-    
     Provides colorful, structured output for analysis results
     with tables, panels, and syntax highlighting.
     """
-    
+
     def __init__(self)-> None:
         """Initialize console with vaporwave theme"""
         self.console = Console()
-        
+
         # Update to vaporwave palette
         self.severity_colors = {
             IssueSeverity.CRITICAL: "bold magenta",
@@ -34,22 +31,21 @@ class ConsoleFormatter:
             IssueSeverity.MEDIUM: "bold cyan",
             IssueSeverity.LOW: "bold deep_sky_blue1"
         }
-        
+
         self.severity_icons = {
             IssueSeverity.CRITICAL: "⚡",
             IssueSeverity.HIGH: "🔥",
             IssueSeverity.MEDIUM: "💫",
             IssueSeverity.LOW: "💠"
         }
-        
+
         # ADD THIS
         self.gradient_colors = ["magenta", "hot_pink", "deep_pink4", "medium_purple", "slate_blue1", "cyan", "deep_sky_blue1"]
 
-        
+
     def format_analysis(self, results: pd.DataFrame, title: str = "SQL Analysis Results") -> None:
         """
         Format and display analysis results
-        
         Args:
             results: DataFrame with analysis results
             title: Report title
@@ -57,50 +53,50 @@ class ConsoleFormatter:
         if results.empty:
             self._show_clean_report()
             return
-        
+
         # Calculate health score
         health_score = self._calculate_health_score(results)
-        
+
         # Header
         self._show_header(title, results)
-        
+
         # Health gauge - NEW
         self._show_health_gauge(health_score, results)
-        
+
         # Severity distribution chart - NEW
         self._show_severity_distribution(results)
-        
+
         # Issues table v2 (symmetric version) - UPDATED
         self._show_issues_table_v2(results)
-        
+
         # Summary stats
         self._show_summary_stats(results)
-        
+
         # Next steps
         self._show_next_steps(results)
 
-        
+
     def _show_header(self, title: str, results: pd.DataFrame) -> None:
         """Display report header with summary"""
         total_issues = results['count'].sum() if 'count' in results else len(results)
         unique_issues = len(results['issue'].unique())
-        
+
         severity_counts = results.groupby('severity').size().to_dict()
-        
+
         # Build header content with proper alignment
         lines = [
             f"[bold white]Found {total_issues} optimization opportunities[/]",
             f"[dim]Across {unique_issues} different issue types[/]",
             ""  # Empty line for spacing
         ]
-        
+
         # Add severity counts with consistent formatting
         for severity in ['critical', 'high', 'medium', 'low']:
             if severity in severity_counts:
                 icon = self.severity_icons.get(IssueSeverity(severity), "")
                 color = self.severity_colors.get(IssueSeverity(severity), "white")
                 lines.append(f"[{color}]{icon} {severity.upper():<8}: {severity_counts[severity]:>2}[/]")
-        
+
         panel = Panel(
             "\n".join(lines),
             title=f"[bold white]{title}[/]",
@@ -110,7 +106,7 @@ class ConsoleFormatter:
         )
         self.console.print(panel)
         self.console.print()
-        
+
     def _show_issues_table(self, results: pd.DataFrame) -> None:
         """Display issues in a formatted table"""
         table = Table(
@@ -122,7 +118,7 @@ class ConsoleFormatter:
             caption="Each issue includes actionable fixes and performance impact",
             caption_style="italic dim"
         )
-        
+
         # Add columns
         table.add_column("Severity", style="bold", width=10)
         table.add_column("Issue Type", style="cyan", width=28)
@@ -130,14 +126,14 @@ class ConsoleFormatter:
         table.add_column("Fix", style="green", width=40)
         table.add_column("Impact", style="red", width=35)
         table.add_column("Count", justify="right", style="bold", width=8)
-        
+
         # Sort by severity
         severity_order = {'critical': 0, 'high': 1, 'medium': 2, 'low': 3}
         sorted_results = results.sort_values(
             by='severity',
             key=lambda x: x.map(severity_order)
         )
-        
+
         # Add rows
         for _, row in sorted_results.iterrows():
             severity = IssueSeverity(row['severity'])
@@ -145,12 +141,12 @@ class ConsoleFormatter:
                 f"{self.severity_icons[severity]} {row['severity'].upper()}",
                 style=self.severity_colors[severity]
             )
-            
+
             # Truncate query if needed
             query = row['query']
             if len(query) > 45:
                 query = query[:42] + "..."
-                
+
             table.add_row(
                 severity_display,
                 row['issue'],
@@ -159,14 +155,14 @@ class ConsoleFormatter:
                 row['impact'],
                 str(row.get('count', 1))
             )
-            
+
         self.console.print(table)
         self.console.print()
-        
+
     def _show_summary_stats(self, results: pd.DataFrame) -> None:
         """Show analysis summary statistics - VAPORWAVE EDITION"""
         issue_counts = results.groupby('issue')['count'].sum().sort_values(ascending=False)
-        
+
         table = Table(
             show_header=True,
             header_style="bold white on rgb(75,0,130)",
@@ -176,38 +172,38 @@ class ConsoleFormatter:
             expand=True,
             border_style="bright_blue"
         )
-        
+
         table.add_column("◆ Issue Type", style="cyan", width=40)
         table.add_column("◈ Count", justify="center", style="bold magenta", width=10)
         table.add_column("▶ Frequency Visualization", width=40)
-        
+
         max_count = issue_counts.max()
         for idx, (issue, count) in enumerate(issue_counts.items()):
             # Gradient bar with different colors per row
             bar_length = int((count / max_count) * 30)
             color = self.gradient_colors[idx % len(self.gradient_colors)]
             bar = f"[{color}]{'█' * bar_length}[/][dim rgb(40,40,40)]{'░' * (30 - bar_length)}[/]"
-            
+
             table.add_row(
                 f"[bold cyan]{issue}[/]",
                 f"[bold magenta]{count}×[/]",
                 bar
             )
-            
+
         self.console.print(table)
         self.console.print()
-        
+
     def _show_next_steps(self, results: pd.DataFrame) -> None:
         """Show recommended next steps - CYBERPUNK EDITION"""
         # Futuristic header
         header = """[magenta]╔═══════════════════════════════════════════════════════════╗
     ║  [bold white]◢ RECOMMENDED ACTION PROTOCOLS ◣[/]  [magenta]║
     ╚═══════════════════════════════════════════════════════════╝[/]"""
-        
+
         self.console.print(Align.center(header))
-        
+
         steps = []
-        
+
         # Check for critical issues
         critical_count = len(results[results['severity'] == 'critical'])
         if critical_count > 0:
@@ -215,7 +211,7 @@ class ConsoleFormatter:
             steps.append(f"  [hot_pink]▸[/] {critical_count} anomalies require [bold red]IMMEDIATE[/] intervention")
             steps.append("  [hot_pink]▸[/] Risk Level: [bold red on white] DATA LOSS [/] | [bold red on white] SYSTEM FAILURE [/]")
             steps.append("")
-        
+
         # High severity issues
         high_count = len(results[results['severity'] == 'high'])
         if high_count > 0:
@@ -223,39 +219,39 @@ class ConsoleFormatter:
             steps.append(f"  [cyan]▸[/] {high_count} issues causing [yellow]significant system strain[/]")
             steps.append("  [cyan]▸[/] Impact: [yellow]50-90% slower queries[/]")
             steps.append("")
-        
+
         # Specific action items with futuristic styling
         issue_types = set(results['issue'].unique())
         action_num = 1
-        
+
         if 'SELECT * Usage' in issue_types:
             steps.append(f"[bold deep_sky_blue1]◆ OPTIMIZATION VECTOR {action_num}[/] → Column Specificity Protocol")
             steps.append("  [deep_sky_blue1]▸[/] Replace SELECT * with explicit column lists")
             steps.append("  [dim]└─ Efficiency gain: [green]+40-60%[/] | Difficulty: [green]LOW[/][/]")
             steps.append("")
             action_num += 1
-        
+
         if 'Missing WHERE in UPDATE/DELETE' in issue_types:
             steps.append(f"[bold hot_pink]◆ CRITICAL PROTOCOL {action_num}[/] → [blink]SAFETY LOCKDOWN[/]")
             steps.append("  [hot_pink]▸[/] [bold]ENGAGE WHERE CLAUSES ON ALL MUTATIONS![/]")
             steps.append("  [dim]└─ Risk mitigation: [red]PREVENT TABLE WIPES[/][/]")
             steps.append("")
             action_num += 1
-        
+
         if 'Non-SARGable WHERE' in issue_types or 'Function on Indexed Column' in issue_types:
             steps.append(f"[bold medium_purple]◆ INDEX OPTIMIZATION {action_num}[/] → Query Rewrite Protocol")
             steps.append("  [medium_purple]▸[/] Restructure WHERE clauses for index utilization")
             steps.append("  [dim]└─ Performance boost: [yellow]+70-95%[/] on large datasets[/]")
             steps.append("")
             action_num += 1
-        
+
         if 'Massive IN List' in issue_types:
             steps.append(f"[bold slate_blue1]◆ MEMORY OPTIMIZATION {action_num}[/] → Batch Processing Mode")
             steps.append("  [slate_blue1]▸[/] Convert IN lists to temporary table JOINs")
             steps.append("  [dim]└─ Cache efficiency: [green]+80%[/] | Parse time: [green]-90%[/][/]")
             steps.append("")
             action_num += 1
-        
+
         # If no specific issues, show general optimization
         if not steps:
             steps = [
@@ -264,7 +260,7 @@ class ConsoleFormatter:
                 "  [green]▸[/] Implement proactive index strategy",
                 "  [green]▸[/] Schedule periodic performance audits"
             ]
-        
+
         # Final panel with gradient border
         panel = Panel(
             "\n".join(steps),
@@ -275,19 +271,18 @@ class ConsoleFormatter:
         )
         self.console.print(panel)
 
-        
-        
+
+
     def format_comparison(self, before_count: int, after_count: int) -> None:
         """
         Show before/after comparison
-        
         Args:
             before_count: Issues before optimization
             after_count: Issues after optimization
         """
         improvement = before_count - after_count
         percentage = (improvement / before_count * 100) if before_count > 0 else 0
-        
+
         comparison_text = f"""
 [bold]Query Optimization Results[/bold]
 
@@ -296,7 +291,7 @@ After:  [green]{after_count} issues[/green]
 
 ✨ [bold green]Improved by {improvement} issues ({percentage:.1f}%)[/bold green]
         """
-        
+
         style = "green" if improvement > 0 else "yellow"
         panel = Panel(
             comparison_text.strip(),
@@ -304,22 +299,20 @@ After:  [green]{after_count} issues[/green]
             border_style=style,
             padding=(1, 2)
         )
-        
+
         self.console.print(panel)
-        
+
     def export_html_report(self, results: pd.DataFrame, filename: str = "sql_analysis.html") -> str:
         """
         Export results as HTML report
-        
         Args:
             results: Analysis results
             filename: Output filename
-            
         Returns:
             Path to HTML file
         """
         from datetime import datetime
-        
+
         # Generate HTML manually since Rich's export is failing
         html = f"""<!DOCTYPE html>
     <html>
@@ -349,7 +342,6 @@ After:  [green]{after_count} issues[/green]
             <p><strong>Issue Types:</strong> {len(results['issue'].unique())}</p>
             <p><strong>Generated:</strong> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
         </div>
-        
         <table>
             <thead>
                 <tr>
@@ -363,7 +355,7 @@ After:  [green]{after_count} issues[/green]
             </thead>
             <tbody>
     """
-        
+
         # Add rows
         for _, row in results.iterrows():
             severity_class = row['severity']
@@ -377,11 +369,10 @@ After:  [green]{after_count} issues[/green]
                     <td>{row.get('count', 1)}</td>
                 </tr>
             """
-        
+
         html += """
             </tbody>
         </table>
-        
         <div class="footer">
             <p>Generated by <strong>SlowQL</strong> - Cyberpunk SQL Analyzer</p>
             <p><a href="https://github.com/makroumi/slowql" style="color: #4cc9f0;">github.com/makroumi/slowql</a></p>
@@ -389,16 +380,16 @@ After:  [green]{after_count} issues[/green]
     </body>
     </html>
     """
-        
+
         # Write to file
         with open(filename, 'w', encoding='utf-8') as f:
             f.write(html)
-        
+
         return filename
-    
+
     def _calculate_health_score(self, results: pd.DataFrame) -> int:
         """Calculate 0–100 health score based on severity and count."""
-        severity_weights: Dict[str, int] = {"critical": 25, "high": 15, "medium": 5, "low": 2}
+        severity_weights: dict[str, int] = {"critical": 25, "high": 15, "medium": 5, "low": 2}
         total_penalty: int = 0
 
         for _, row in results.iterrows():
@@ -419,11 +410,11 @@ After:  [green]{after_count} issues[/green]
             color, status = "orange1", "⚠️  Poor Health"
         else:
             color, status = "red", "🚨 Critical Issues!"
-        
+
         # Create proportional gauge
         filled = int(score / 4)  # 25 blocks total
         gauge = f"[{color}]{'█' * filled}[/][dim white]{'░' * (25 - filled)}[/]"
-        
+
         content = [
             f"[bold white]SQL Health Score: {score}/100[/]",
             "",
@@ -431,7 +422,7 @@ After:  [green]{after_count} issues[/green]
             "",
             f"[dim]Analyzing {len(results)} unique issues across your queries[/]"
         ]
-        
+
         panel = Panel(
             "\n".join(content),
             title="[bold white]📊 Database Query Health[/]",
@@ -446,27 +437,27 @@ After:  [green]{after_count} issues[/green]
         """Visual severity breakdown with proportional bars"""
         severity_counts = results.groupby('severity')['count'].sum()
         total = severity_counts.sum()
-        
+
         lines = []
         max_bar_width = 30
-        
+
         for severity in ['critical', 'high', 'medium', 'low']:
             if severity in severity_counts:
                 count = severity_counts[severity]
                 pct = (count / total) * 100
                 bar_width = max(1, int((pct / 100) * max_bar_width))
-                
+
                 icon = self.severity_icons[IssueSeverity(severity)]
                 color = self.severity_colors[IssueSeverity(severity)]
-                
+
                 # Format: Icon Severity    ████████░░░░  3 (21.4%)
                 severity_text = f"{icon} {severity.capitalize()}"
                 bar = f"[{color}]{'█' * bar_width}[/][dim white]{'░' * (max_bar_width - bar_width)}[/]"
                 stats = f"{count:>2} ({pct:>5.1f}%)"
-                
+
                 # Use proper spacing
                 lines.append(f"{severity_text:<15} {bar} {stats}")
-        
+
         panel = Panel(
             "\n".join(lines),
             title="[bold white]Severity Distribution[/]",
@@ -489,40 +480,40 @@ After:  [green]{after_count} issues[/green]
             show_lines=False,
             padding=(0, 1)
         )
-        
+
         table.add_column("Severity", width=15, no_wrap=True, style="bold")
         table.add_column("Issue Type", width=36)
         table.add_column("Count", width=8, justify="center", style="cyan")
         table.add_column("Impact", width=56)
-        
+
         sorted_results = results.sort_values(
-            by=['severity', 'count'], 
+            by=['severity', 'count'],
             ascending=[True, False]
         )
-        
+
         severity_order = {'critical': 0, 'high': 1, 'medium': 2, 'low': 3}
         sorted_results['severity_order'] = sorted_results['severity'].map(severity_order)
         sorted_results = sorted_results.sort_values(['severity_order', 'count'], ascending=[True, False])
-        
+
         for _, row in sorted_results.iterrows():
             severity = IssueSeverity(row['severity'])
             icon = self.severity_icons[severity]
             color = self.severity_colors[severity]
-            
+
             severity_display = f"[{color}]{icon} {row['severity'].upper()}[/]"
             count_display = f"[bold cyan]{row.get('count', 1)}×[/]"
-            
+
             impact = row['impact']
             if len(impact) > 53:
                 impact = impact[:50] + "..."
-            
+
             table.add_row(
                 severity_display,
                 row['issue'],
                 count_display,
                 f"[dim]{impact}[/]"
             )
-        
+
         self.console.print(table)
         self.console.print()
 
@@ -531,19 +522,19 @@ After:  [green]{after_count} issues[/green]
         total_issues = results['count'].sum()
         unique_types = len(results['issue'].unique())
         critical_count = len(results[results['severity'] == 'critical'])
-        
+
         # ASCII art gauge
-        gauge = """[cyan]╭─────╮[/]
-[cyan]│[/][bold white]{:^5}[/][cyan]│[/]
-[cyan]╰─────╯[/]""".format(total_issues)
-        
+        gauge = f"""[cyan]╭─────╮[/]
+[cyan]│[/][bold white]{total_issues:^5}[/][cyan]│[/]
+[cyan]╰─────╯[/]"""
+
         content = f"""{gauge}
 [dim]ISSUES DETECTED[/]
 
 [magenta]►[/] [bold]{unique_types}[/] [dim]types[/]
 [hot_pink]►[/] [bold red]{critical_count}[/] [dim]critical[/]
 [cyan]►[/] [bold white]{total_issues}[/] [dim]total[/]"""
-        
+
         return Panel(
             Align.center(content, vertical="middle"),
             border_style="bold deep_sky_blue1",
@@ -551,7 +542,7 @@ After:  [green]{after_count} issues[/green]
             title="[bold white]◢ SCAN RESULTS ◣[/]",
             height=9
         )
-        
+
     def _show_issues_table_future(self, results: pd.DataFrame) -> None:
         """Futuristic issues table with neon styling"""
         table = Table(
@@ -565,66 +556,66 @@ After:  [green]{after_count} issues[/green]
             show_lines=True,
             border_style="bright_blue"
         )
-        
+
         # Futuristic column headers
         table.add_column("⚡ SEVERITY", width=16, style="bold", no_wrap=True)
         table.add_column("◆ ANOMALY TYPE", width=38, style="cyan")
         table.add_column("◈ FREQ", width=8, justify="center", style="bold magenta")
         table.add_column("▶ SYSTEM IMPACT", width=58, style="yellow")
-        
+
         # Sort by severity
         severity_order = {'critical': 0, 'high': 1, 'medium': 2, 'low': 3}
         sorted_results = results.copy()
         sorted_results['severity_order'] = sorted_results['severity'].map(severity_order)
         sorted_results = sorted_results.sort_values(['severity_order', 'count'], ascending=[True, False])
-        
-        for idx, row in sorted_results.iterrows():
+
+        for _idx, row in sorted_results.iterrows():
             severity = IssueSeverity(row['severity'])
             icon = self.severity_icons[severity]
             color = self.severity_colors[severity]
-            
+
             # Glowing severity indicator
             severity_text = f"[{color}]{icon} {row['severity'].upper()}[/]"
-            
+
             # Frequency with neon effect
             count_text = f"[bold magenta]×{row.get('count', 1)}[/]"
-            
+
             # Impact with warning levels
             impact = row['impact']
             if len(impact) > 55:
                 impact = impact[:52] + "..."
-            
+
             impact_text = f"[dim yellow]▸[/] {impact}"
-            
+
             table.add_row(
                 severity_text,
                 f"[bold cyan]{row['issue']}[/]",
                 count_text,
                 impact_text
             )
-        
+
         self.console.print(table)
         self.console.print()
-        
+
     def _show_frequency_viz(self, results: pd.DataFrame) -> None:
         """Show frequency visualization with cyberpunk bars"""
         issue_counts = results.groupby('issue')['count'].sum().sort_values(ascending=False).head(8)
-        
+
         if issue_counts.empty:
             return
-            
+
         max_count = issue_counts.max()
-        
+
         lines = ["[bold white]◢ FREQUENCY SPECTRUM ◣[/]", ""]
-        
+
         for idx, (issue, count) in enumerate(issue_counts.items()):
             # Truncate long issue names
             issue_display = issue[:35] + "..." if len(issue) > 38 else issue
-            
+
             # Create gradient bar
             bar_width = int((count / max_count) * 25)
             bar_chars = []
-            
+
             for i in range(25):
                 if i < bar_width:
                     # Gradient effect
@@ -632,11 +623,11 @@ After:  [green]{after_count} issues[/green]
                     bar_chars.append(f"[{self.gradient_colors[color_idx]}]▰[/]")
                 else:
                     bar_chars.append("[dim rgb(40,40,40)]▱[/]")
-            
+
             bar = "".join(bar_chars)
-            
+
             lines.append(f"[cyan]{issue_display:<38}[/] {bar} [bold magenta]{count:>2}[/]")
-        
+
         panel = Panel(
             "\n".join(lines),
             border_style="bold medium_purple",
@@ -645,46 +636,46 @@ After:  [green]{after_count} issues[/green]
         )
         self.console.print(panel)
         self.console.print()
-        
+
     def _show_recommendations_panel(self, results: pd.DataFrame) -> None:
         """Show recommendations with futuristic styling"""
         steps = []
-        
+
         critical_count = len(results[results['severity'] == 'critical'])
         if critical_count > 0:
             steps.append("[bold magenta]◆ PRIORITY ALPHA[/] [blink hot_pink]━━━[/] [bold white]CRITICAL SYSTEM THREATS[/]")
             steps.append(f"  [hot_pink]▸[/] {critical_count} anomalies require [bold red]IMMEDIATE[/] intervention")
             steps.append("")
-        
+
         high_count = len(results[results['severity'] == 'high'])
         if high_count > 0:
             steps.append("[bold cyan]◆ PRIORITY BETA[/] [dim white]━━━[/] [bold white]PERFORMANCE DEGRADATION[/]")
             steps.append(f"  [cyan]▸[/] {high_count} issues causing [yellow]significant[/] system strain")
             steps.append("")
-        
+
         # Specific action items
         issue_types = set(results['issue'].unique())
-        
+
         if 'SELECT * Usage' in issue_types:
             steps.append("[bold deep_sky_blue1]◆ OPTIMIZATION VECTOR 1[/]")
             steps.append("  [deep_sky_blue1]▸[/] Deploy column-specific retrieval protocols")
             steps.append("")
-            
+
         if 'Missing WHERE in UPDATE/DELETE' in issue_types:
             steps.append("[bold hot_pink]◆ CRITICAL SAFETY PROTOCOL[/]")
             steps.append("  [hot_pink]▸[/] [blink]ENGAGE WHERE CLAUSES[/] - Data loss prevention")
             steps.append("")
-        
+
         # Wrap in futuristic panel
         content = "\n".join(steps) if steps else "[dim]All systems operating within normal parameters[/]"
-        
+
         # ASCII art border
         border_art = """[magenta]╔═══════════════════════════════════════════════════════╗
 ║  [bold white]◢ RECOMMENDED ACTION PROTOCOLS ◣[/]  [magenta]║
 ╚═══════════════════════════════════════════════════════╝[/]"""
-        
+
         self.console.print(Align.center(border_art))
-        
+
         panel = Panel(
             content,
             border_style="bold magenta",
@@ -693,17 +684,17 @@ After:  [green]{after_count} issues[/green]
             style="on rgb(20,0,40)"
         )
         self.console.print(panel)
-        
-        
+
+
         # end _show_recommendations_panel (no return; purely displays recommendations)
-        
+
     def _show_clean_report(self) -> None:
         """Show clean report with celebration"""
         ascii_art = """[bold cyan]
     ╭─────────────╮
     │  ✨ 100% ✨  │
     ╰─────────────╯[/]"""
-        
+
         content = f"""{ascii_art}
 
 [bold green]◆ SYSTEM STATUS: OPTIMAL[/]
@@ -715,7 +706,7 @@ After:  [green]{after_count} issues[/green]
 [green]▸[/] Risk assessment: [bold]NONE[/]
 
 [dim magenta]Continue monitoring for peak performance[/]"""
-        
+
         panel = Panel(
             Align.center(content),
             title="[bold white]◢◣ SLOWQL SECURITY SCAN ◣◢[/]",
@@ -725,11 +716,10 @@ After:  [green]{after_count} issues[/green]
             style="on rgb(0,20,0)"
         )
         self.console.print(panel)
-        
+
     def show_single_issue(self, issue: DetectedIssue) -> None:
         """
         Display a single detected issue with cyberpunk styling and syntax highlighting.
-        
         Args:
             issue: Single detected issue
         """
@@ -773,14 +763,12 @@ After:  [green]{after_count} issues[/green]
         self.console.print(Panel(details, border_style="magenta", box=box.HEAVY))
         self.console.print()
 
-        
+
     def show_progress(self, message: str) -> Progress:
         """
         Show cyberpunk progress indicator for analysis.
-        
         Args:
             message: Progress message
-        
         Returns:
             Progress object
         """

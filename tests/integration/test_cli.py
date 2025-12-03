@@ -1,7 +1,9 @@
 # tests/integration/test_cli.py
-from slowql import cli
 import subprocess
 import sys
+
+from slowql import cli
+
 
 # -------------------------------
 # Helpers

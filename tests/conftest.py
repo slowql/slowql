@@ -1,11 +1,11 @@
 # tests/conftest.py
-import pytest
+import importlib.util
 from pathlib import Path
 
-from slowql.core.detector import QueryDetector, DetectedIssue, IssueSeverity
-from slowql.core.analyzer import QueryAnalyzer
+import pytest
 
-import importlib.util
+from slowql.core.analyzer import QueryAnalyzer
+from slowql.core.detector import DetectedIssue, IssueSeverity, QueryDetector
 
 # -------------------------------
 # Core Fixtures

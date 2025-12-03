@@ -1,7 +1,10 @@
-import pytest
 import time
-from slowql.effects import animations
+
+import pytest
 from rich import panel
+
+from slowql.effects import animations
+
 
 # -------------------------------
 # Global patch for time.sleep

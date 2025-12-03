@@ -1,6 +1,5 @@
-import time
 from dataclasses import dataclass, field
-from typing import Dict, List
+
 
 @dataclass
 class AnalysisMetrics:
@@ -10,15 +9,15 @@ class AnalysisMetrics:
     high_issues: int = 0
     medium_issues: int = 0
     low_issues: int = 0
-    
-    detector_timings: Dict[str, float] = field(default_factory=dict)
+
+    detector_timings: dict[str, float] = field(default_factory=dict)
     parse_time: float = 0.0
     total_time: float = 0.0
-    
-    def add_timing(self, detector_name: str, duration: float):
+
+    def add_timing(self, detector_name: str, duration: float) -> None:
         """Record timing for a detector run."""
         self.detector_timings[detector_name] = duration
-    
+
     def to_dict(self) -> dict:
         """Convert metrics to dictionary for reporting/export."""
         return {
@@ -36,7 +35,7 @@ class AnalysisMetrics:
                 "parse_time_ms": round(self.parse_time * 1000, 2),
                 "total_time_ms": round(self.total_time * 1000, 2),
                 "detector_timings_ms": {
-                    k: round(v * 1000, 2) 
+                    k: round(v * 1000, 2)
                     for k, v in self.detector_timings.items()
                 }
             }

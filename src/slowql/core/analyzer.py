@@ -6,16 +6,17 @@ anti-patterns, and potential bugs. Provides both raw results
 and formatted output.
 """
 
-from typing import List, Dict, Any, Union, Optional, Tuple
-import pandas as pd
-from datetime import datetime
-from concurrent.futures import ProcessPoolExecutor
-from .detector import QueryDetector, DetectedIssue
-
 import time
+from concurrent.futures import ProcessPoolExecutor
+from datetime import datetime
+from typing import Any, NamedTuple, Optional, Union
+
+import pandas as pd
+
 from slowql.metrics import AnalysisMetrics
 
-from typing import NamedTuple
+from .detector import DetectedIssue, QueryDetector
+
 
 class AnalysisResult(NamedTuple):
     df: pd.DataFrame
@@ -44,11 +45,11 @@ class QueryAnalyzer:
         """
         self.detector: QueryDetector = QueryDetector()
         self.verbose: bool = verbose
-        self._issue_stats: Dict[str, int] = {}
+        self._issue_stats: dict[str, int] = {}
 
     def analyze(
         self,
-        queries: Union[str, List[str]],
+        queries: Union[str, list[str]],
         return_dataframe: bool = True
     ) -> AnalysisResult:
         """
@@ -73,7 +74,7 @@ class QueryAnalyzer:
         metrics = AnalysisMetrics()
         start = time.time()
 
-        issues: List[DetectedIssue] = self.detector.analyze(queries)
+        issues: list[DetectedIssue] = self.detector.analyze(queries)
 
         # Update metrics counts
         metrics.total_queries = len(queries)
@@ -92,7 +93,7 @@ class QueryAnalyzer:
         metrics.total_time = time.time() - start
 
         if self.verbose and issues:
-            unique_types: int = len(set(i.issue_type for i in issues))
+            unique_types: int = len({i.issue_type for i in issues})
             print(f"Found {len(issues)} issue(s) across {unique_types} categories")
 
         # Update internal stats
@@ -108,7 +109,7 @@ class QueryAnalyzer:
 
     def analyze_parallel(
         self,
-        queries: Union[str, List[str]],
+        queries: Union[str, list[str]],
         return_dataframe: bool = True,
         workers: Optional[int] = None
     ) -> AnalysisResult:
@@ -130,9 +131,9 @@ class QueryAnalyzer:
 
         start = time.time()
         with ProcessPoolExecutor(max_workers=workers) as executor:
-            results: List[List[DetectedIssue]] = list(executor.map(self.detector.analyze, queries))
+            results: list[list[DetectedIssue]] = list(executor.map(self.detector.analyze, queries))
 
-        issues: List[DetectedIssue] = [issue for batch in results for issue in batch]
+        issues: list[DetectedIssue] = [issue for batch in results for issue in batch]
 
         metrics = AnalysisMetrics()
         metrics.total_queries = len(queries)
@@ -155,7 +156,7 @@ class QueryAnalyzer:
         return AnalysisResult(df=df_or_issues, metrics=metrics)
 
 
-    def _to_dataframe(self, issues: List[DetectedIssue]) -> pd.DataFrame:
+    def _to_dataframe(self, issues: list[DetectedIssue]) -> pd.DataFrame:
         """
         Convert issues to DataFrame format.
 
@@ -170,11 +171,11 @@ class QueryAnalyzer:
                 "issue", "query", "description", "fix", "impact", "severity", "line_number", "count"
             ])
 
-        data: List[Dict[str, Any]] = []
-        issue_groups: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
+        data: list[dict[str, Any]] = []
+        issue_groups: dict[tuple[str, str, str], dict[str, Any]] = {}
 
         for issue in issues:
-            key: Tuple[str, str, str] = (issue.issue_type, issue.fix, issue.impact)
+            key: tuple[str, str, str] = (issue.issue_type, issue.fix, issue.impact)
             if key not in issue_groups:
                 issue_groups[key] = {
                     "issue": issue.issue_type,
@@ -205,7 +206,7 @@ class QueryAnalyzer:
 
         return pd.DataFrame(data)
 
-    def _update_stats(self, issues: List[DetectedIssue]) -> None:
+    def _update_stats(self, issues: list[DetectedIssue]) -> None:
         """
         Update internal issue statistics.
 
@@ -215,7 +216,7 @@ class QueryAnalyzer:
         for issue in issues:
             self._issue_stats[issue.issue_type] = self._issue_stats.get(issue.issue_type, 0) + 1
 
-    def get_summary_stats(self) -> Dict[str, Any]:
+    def get_summary_stats(self) -> dict[str, Any]:
         """
         Get summary statistics of analyzed issues.
 
@@ -349,7 +350,7 @@ class QueryAnalyzer:
 
 
 
-    def compare_queries(self, query1: str, query2: str) -> Dict[str, Any]:
+    def compare_queries(self, query1: str, query2: str) -> dict[str, Any]:
         """
         Compare two queries and report improvement metrics.
 
@@ -360,8 +361,8 @@ class QueryAnalyzer:
         Returns:
             Dictionary with counts, improvement percentage, and remaining issues
         """
-        issues1: List[DetectedIssue] = self.detector.analyze(query1)
-        issues2: List[DetectedIssue] = self.detector.analyze(query2)
+        issues1: list[DetectedIssue] = self.detector.analyze(query1)
+        issues2: list[DetectedIssue] = self.detector.analyze(query2)
         return {
             "original_issues": len(issues1),
             "optimized_issues": len(issues2),
@@ -373,7 +374,7 @@ class QueryAnalyzer:
         }
 
 
-def analyze_sql(queries: Union[str, List[str]], verbose: bool = True) -> pd.DataFrame:
+def analyze_sql(queries: Union[str, list[str]], verbose: bool = True) -> pd.DataFrame:
     """
     Convenience function to analyze SQL queries.
 

@@ -1,6 +1,8 @@
 import pandas as pd
 import pytest
+
 from slowql.formatters.console import ConsoleFormatter
+
 
 @pytest.fixture
 def formatter():

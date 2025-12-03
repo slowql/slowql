@@ -7,20 +7,20 @@ Provides cinematic cyberpunk animations for CLI experience:
 - AnimatedAnalyzer effects
 """
 
+import contextlib
 import random
-import time
 import shutil
-from typing import List, Optional
+import time
+from typing import Optional
 
-from rich.console import Console
-from rich.live import Live
-from rich.text import Text
-from rich.panel import Panel
-from rich.align import Align
 from rich import box
-from rich.syntax import Syntax
+from rich.align import Align
+from rich.console import Console, Group
+from rich.live import Live
+from rich.panel import Panel
 from rich.prompt import Prompt
-from rich.console import Group
+from rich.syntax import Syntax
+from rich.text import Text
 
 
 class MatrixRain:
@@ -36,7 +36,7 @@ class MatrixRain:
             "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ0123456789"
         )
 
-        self.logo: List[str] = [
+        self.logo: list[str] = [
             " █████   ██      █████   ██   ██  █████   ██     ",
             "██       ██     ██   ██  ██   ██ ██   ██  ██     ",
             " ████    ██     ██   ██  ██ █ ██ ██   ██  ██     ",
@@ -49,7 +49,7 @@ class MatrixRain:
         ]
 
         # Pre-generate columns sized to full width
-        self.columns: List[dict] = [
+        self.columns: list[dict] = [
             {
                 "y": float(random.randint(-self.height, 0)),
                 "speed": random.uniform(0.8, 1.2),
@@ -81,7 +81,7 @@ class MatrixRain:
         frames: int = max(int(duration * 20), 20)  # 20fps
         with Live(console=self.console, refresh_per_second=20, transient=True) as live:
             for frame in range(frames):
-                lines: List[Text] = []
+                lines: list[Text] = []
                 for y in range(self.height):
                     line = Text()
                     for x in range(self.width):
@@ -112,7 +112,7 @@ class MatrixRain:
 
                 live.update(
                     Panel(
-                        Group(*lines), 
+                        Group(*lines),
                         border_style="cyan",
                         box=box.SIMPLE,
                     )
@@ -121,7 +121,7 @@ class MatrixRain:
 
         self._final_reveal()
 
-        
+
 
     def _final_reveal(self) -> None:
         """Glitch + logo reveal, then clear terminal."""
@@ -136,22 +136,10 @@ class MatrixRain:
 
 
         self.console.print("\n[bold cyan]► PRESS ENTER TO BEGIN ◄[/]", justify="center")
-        try:
+        with contextlib.suppress(Exception):
             input()
-        except Exception:
-            pass
 
         self.console.clear()
-
-
-
-
-
-
-
-
-
-
 
 
 class CyberpunkSQLEditor:
@@ -170,7 +158,7 @@ class CyberpunkSQLEditor:
         self.console.clear()
         self._show_header()
 
-        queries: List[str] = []
+        queries: list[str] = []
         self.console.print(
             "\n[bold magenta]╔══ QUERY COMPOSITION ═════════════════════════╗[/]"
         )
@@ -202,7 +190,7 @@ class CyberpunkSQLEditor:
         return "\n".join(queries)
 
     def _show_header(self) -> None:
-        header_lines: List[str] = [
+        header_lines: list[str] = [
             "[bold cyan]╔═══════════════════════════════════════════════╗[/]",
             "[bold cyan]║[/]  [bold magenta]◆ SLOWQL QUERY TERMINAL v2.0 ◆[/]  [bold cyan]║[/]",
             "[bold cyan]╚═══════════════════════════════════════════════╝[/]",
@@ -216,8 +204,8 @@ class CyberpunkSQLEditor:
         syntax = Syntax(query, "sql", theme="monokai", line_numbers=False)
         self.console.print(Panel(syntax, border_style="dim cyan", box=box.MINIMAL))
 
-    def _show_query_summary(self, queries: List[str]) -> None:
-        valid_queries: List[str] = [q for q in queries if q.strip()]
+    def _show_query_summary(self, queries: list[str]) -> None:
+        valid_queries: list[str] = [q for q in queries if q.strip()]
         if valid_queries:
             self.console.print(
                 f"\n[bold green]◆ QUERIES CAPTURED: {len(valid_queries)}[/]"
@@ -230,7 +218,7 @@ class AnimatedAnalyzer:
 
     def __init__(self) -> None:
         self.console: Console = Console()
-        self.gradient_colors: List[str] = [
+        self.gradient_colors: list[str] = [
             "magenta",
             "hot_pink",
             "deep_pink4",
@@ -251,10 +239,10 @@ class AnimatedAnalyzer:
 
     def particle_loading(self, message: str = "PROCESSING") -> None:
         """Particle effect loading animation."""
-        particles: List[str] = ["◢", "◣", "◤", "◥", "◆", "◈", "▰", "▱"]
+        particles: list[str] = ["◢", "◣", "◤", "◥", "◆", "◈", "▰", "▱"]
         with Live(console=self.console, refresh_per_second=30) as live:
             for _ in range(30):
-                particle_field: List[str] = []
+                particle_field: list[str] = []
                 for _ in range(5):
                     line: str = " ".join(random.choice(particles) for _ in range(20))
                     particle_field.append(
@@ -307,10 +295,8 @@ class AnimatedAnalyzer:
                     border_style="cyan",
                 )
             )
-            try:
+            with contextlib.suppress(Exception):
                 input()
-            except Exception:
-                pass
             self.glitch_transition()
 
         # Show expanded details with animation

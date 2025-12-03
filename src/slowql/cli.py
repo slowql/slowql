@@ -7,19 +7,17 @@ and execution pipeline.
 """
 
 import argparse
+import logging
 import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 import pandas as pd
 from rich.console import Console
 
-
-from slowql.effects.animations import MatrixRain, CyberpunkSQLEditor, AnimatedAnalyzer
 from slowql.core.analyzer import QueryAnalyzer
+from slowql.effects.animations import AnimatedAnalyzer, CyberpunkSQLEditor, MatrixRain
 from slowql.formatters.console import ConsoleFormatter
-
-import logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("slowql")
@@ -35,14 +33,14 @@ console: Console = Console()
 # Utility Functions
 # -------------------------------
 
-def sql_split_statements(sql: str) -> List[str]:
+def sql_split_statements(sql: str) -> list[str]:
     """
     Split SQL payload into individual statements, respecting quotes and comments.
     """
     if not sql:
         return []
-    parts: List[str] = []
-    cur: List[str] = []
+    parts: list[str] = []
+    cur: list[str] = []
     in_squote, in_dquote, escape = False, False, False
     for ch in sql:
         if ch == "\\" and not escape:
@@ -107,7 +105,7 @@ def run(
     intro_duration: float = 3.0,
     mode: str = "auto",
     input_file: Optional[Path] = None,
-    export_formats: Optional[List[str]] = None,
+    export_formats: Optional[list[str]] = None,
     out_dir: Optional[Path] = None,
     fast: bool = False,
     verbose: bool = False,
@@ -157,7 +155,7 @@ def run(
             console.print(
                 "[bold cyan]Paste your SQL statements. End input with Ctrl+D (EOF) or two blank lines.[/]"
             )
-            lines: List[str] = []
+            lines: list[str] = []
             try:
                 while True:
                     line: str = input()
@@ -172,7 +170,7 @@ def run(
                 return
 
     # 3) Split into statements
-    statements: List[str] = sql_split_statements(sql_payload)
+    statements: list[str] = sql_split_statements(sql_payload)
 
     # 4) Animated analysis intro
     aa = AnimatedAnalyzer()
@@ -203,7 +201,7 @@ def run(
             f"[bold cyan]◆ ANALYSIS COMPLETE ◆[/]\n\n"
             f"[green]✓[/] {result.df['count'].sum() if 'count' in result.df.columns else len(result.df)} issues detected"
         )
-        details_lines: List[str] = []
+        details_lines: list[str] = []
         if not result.df.empty:
             for _, row in result.df.iterrows():
                 details_lines.append(f"{row['issue']} [{row.get('count',1)}] - {row['impact']}")
@@ -279,7 +277,7 @@ def build_argparser() -> argparse.ArgumentParser:
 # Entry Point
 # -------------------------------
 
-def main(argv: Optional[List[str]] = None) -> None:
+def main(argv: Optional[list[str]] = None) -> None:
     """
     CLI entry point for SLOWQL.
 

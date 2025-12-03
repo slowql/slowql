@@ -1,8 +1,10 @@
 # tests/unit/test_analyzer.py
-import pytest
 import pandas as pd
+import pytest
+
 from slowql.core.analyzer import QueryAnalyzer
 from slowql.core.detector import DetectedIssue
+
 
 class TestAnalyzer:
     # -------------------------------

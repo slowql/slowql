@@ -1,7 +1,7 @@
 import re
-from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any, Optional
 
 
 class IssueSeverity(Enum):
@@ -27,23 +27,21 @@ class DetectedIssue:
 class QueryDetector:
     """
     SQL Query Pattern Detector
-    
     Analyzes SQL queries for common anti-patterns, performance issues,
     and potential bugs without executing them.
-    
     Example:
         >>> detector = QueryDetector()
         >>> issues = detector.analyze("SELECT * FROM users WHERE name LIKE '%john%'")
         >>> for issue in issues:
         ...     print(f"{issue.issue_type}: {issue.fix}")
     """
-    
+
     def __init__(self)-> None:
         """Initialize the detector with pattern definitions"""
         self._patterns = self._compile_patterns()
         self.detectors = self._get_all_detectors()
 
-    def _compile_patterns(self) -> Dict[str, re.Pattern]:
+    def _compile_patterns(self) -> dict[str, re.Pattern]:
         """Pre-compile all regex patterns for performance."""
         return {
             'select_star': re.compile(r'SELECT\s+\*', re.IGNORECASE),
@@ -74,8 +72,8 @@ class QueryDetector:
             'order_by_ordinal': re.compile(r'ORDER\s+BY\s+\d+', re.IGNORECASE),
         }
 
-        
-    def analyze(self, queries: str | List[str]) -> List[DetectedIssue]:
+
+    def analyze(self, queries: str | list[str]) -> list[DetectedIssue]:
         """
         Analyze SQL query/queries for issues
 
@@ -88,14 +86,14 @@ class QueryDetector:
         if isinstance(queries, str):
             queries = [queries]
 
-        all_issues: List[DetectedIssue] = []
+        all_issues: list[DetectedIssue] = []
 
         for query in queries:
             # Clean query for analysis
             clean_query = self._normalize_query(query)
 
             # Run all detectors
-            for detector_name, detector_func in self.detectors.items():
+            for _detector_name, detector_func in self.detectors.items():
                 result = detector_func(clean_query, query)
                 if result:
                     all_issues.append(result)
@@ -116,7 +114,7 @@ class QueryDetector:
 
         return all_issues
 
-    
+
     def _normalize_query(self, query: str) -> str:
         """Normalize query for consistent pattern matching"""
         # Remove extra whitespace
@@ -125,8 +123,8 @@ class QueryDetector:
         query = re.sub(r'--.*$', '', query, flags=re.MULTILINE)
         query = re.sub(r'/\*.*?\*/', '', query, flags=re.DOTALL)
         return query.strip()
-    
-    def _get_all_detectors(self) -> Dict[str, Any]:
+
+    def _get_all_detectors(self) -> dict[str, Any]:
         """Map all detector methods"""
         return {
             'select_star': self._detect_select_star,
@@ -157,9 +155,9 @@ class QueryDetector:
             'multiple_wildcards': self._detect_multiple_wildcards,
             'order_by_ordinal': self._detect_order_by_ordinal,
         }
-    
+
     # Core Detector Methods
-    
+
     def _detect_select_star(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect SELECT * usage"""
         if self._patterns['select_star'].search(clean_query):
@@ -172,11 +170,10 @@ class QueryDetector:
                 severity=IssueSeverity.MEDIUM
             )
         return None
-    
+
     def _detect_missing_where_update_delete(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect UPDATE/DELETE without WHERE clause"""
-        if self._patterns['missing_where'].match(clean_query):
-            if 'WHERE' not in clean_query.upper():
+        if self._patterns['missing_where'].match(clean_query) and 'WHERE' not in clean_query.upper():
                 return DetectedIssue(
                     issue_type="Missing WHERE in UPDATE/DELETE",
                     query=original_query,
@@ -186,7 +183,7 @@ class QueryDetector:
                     severity=IssueSeverity.CRITICAL
                 )
         return None
-    
+
     def _detect_non_sargable(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect non-SARGable WHERE clauses (prevents index usage)"""
         if self._patterns['non_sargable'].search(clean_query):
@@ -202,7 +199,7 @@ class QueryDetector:
 
 
 
-    
+
     def _detect_implicit_conversion(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect implicit type conversions"""
         if self._patterns['implicit_conversion'].search(clean_query):
@@ -215,11 +212,10 @@ class QueryDetector:
                 severity=IssueSeverity.HIGH
             )
         return None
-    
+
     def _detect_cartesian_product(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect accidental cartesian products"""
-        if self._patterns['cartesian_product'].search(clean_query):
-            if not re.search(r'WHERE|JOIN', clean_query, re.IGNORECASE):
+        if self._patterns['cartesian_product'].search(clean_query) and not re.search(r'WHERE|JOIN', clean_query, re.IGNORECASE):
                 return DetectedIssue(
                     issue_type="Cartesian Product",
                     query=original_query,
@@ -229,7 +225,7 @@ class QueryDetector:
                     severity=IssueSeverity.CRITICAL
                 )
         return None
-    
+
     def _detect_n_plus_1_pattern(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect potential N+1 query patterns"""
         # This would need multiple queries to detect properly
@@ -244,7 +240,7 @@ class QueryDetector:
                 severity=IssueSeverity.HIGH
             )
         return None
-    
+
     def _detect_correlated_subquery(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect correlated subqueries"""
         if self._patterns['correlated_subquery'].search(clean_query):
@@ -257,7 +253,7 @@ class QueryDetector:
                 severity=IssueSeverity.HIGH
             )
         return None
-    
+
     def _detect_or_prevents_index(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect OR conditions preventing index usage"""
         if self._patterns['or_prevents_index'].search(clean_query):
@@ -270,7 +266,7 @@ class QueryDetector:
                 severity=IssueSeverity.MEDIUM
             )
         return None
-    
+
     def _detect_offset_pagination(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect large OFFSET values"""
         match = self._patterns['offset_pagination'].search(clean_query)
@@ -287,7 +283,7 @@ class QueryDetector:
                     severity=IssueSeverity.HIGH
                 )
         return None
-    
+
     def _detect_unnecessary_distinct(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect DISTINCT on unique columns"""
         if self._patterns['distinct_unnecessary'].search(clean_query):
@@ -300,7 +296,7 @@ class QueryDetector:
                 severity=IssueSeverity.LOW
             )
         return None
-    
+
     def _detect_huge_in_list(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect IN clauses with too many values"""
         in_match = self._patterns['huge_in_list'].search(clean_query)
@@ -316,7 +312,7 @@ class QueryDetector:
                     severity=IssueSeverity.HIGH
                 )
         return None
-    
+
     def _detect_leading_wildcard(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect leading wildcards in LIKE"""
         if self._patterns['leading_wildcard'].search(clean_query):
@@ -329,7 +325,7 @@ class QueryDetector:
                 severity=IssueSeverity.HIGH
             )
         return None
-    
+
     def _detect_count_star_exists(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect COUNT(*) for existence check"""
         if self._patterns['count_star_exists'].search(clean_query):
@@ -342,7 +338,7 @@ class QueryDetector:
                 severity=IssueSeverity.MEDIUM
             )
         return None
-    
+
     def _detect_not_in_nullable(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect NOT IN with subquery (NULL trap)"""
         if self._patterns['not_in_nullable'].search(clean_query):
@@ -355,7 +351,7 @@ class QueryDetector:
                 severity=IssueSeverity.HIGH
             )
         return None
-    
+
     def _detect_no_limit_in_exists(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect EXISTS without LIMIT"""
         if self._patterns['no_limit_exists'].search(clean_query):
@@ -368,7 +364,7 @@ class QueryDetector:
                 severity=IssueSeverity.LOW
             )
         return None
-    
+
     def _detect_floating_point_equality(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect floating point equality comparison"""
         if self._patterns['floating_point_equals'].search(clean_query):
@@ -381,7 +377,7 @@ class QueryDetector:
                 severity=IssueSeverity.MEDIUM
             )
         return None
-    
+
     def _detect_null_comparison_with_equal(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect = NULL or != NULL"""
         #print(f"DEBUG: Checking query for NULL: {clean_query}")
@@ -396,7 +392,7 @@ class QueryDetector:
                 severity=IssueSeverity.CRITICAL
             )
         return None
-    
+
     def _detect_function_on_indexed_column(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect functions on potentially indexed columns"""
         if self._patterns['function_on_column'].search(clean_query):
@@ -409,11 +405,10 @@ class QueryDetector:
                 severity=IssueSeverity.HIGH
             )
         return None
-    
+
     def _detect_having_instead_of_where(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect HAVING used for row filtering"""
-        if self._patterns['having_no_aggregates'].search(clean_query):
-            if 'WHERE' not in clean_query.upper():
+        if self._patterns['having_no_aggregates'].search(clean_query) and 'WHERE' not in clean_query.upper():
                 return DetectedIssue(
                     issue_type="HAVING Instead of WHERE",
                     query=original_query,
@@ -423,7 +418,7 @@ class QueryDetector:
                     severity=IssueSeverity.MEDIUM
                 )
         return None
-    
+
     def _detect_union_missing_all(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect UNION without ALL"""
         if self._patterns['union_missing_all'].search(clean_query):
@@ -436,7 +431,7 @@ class QueryDetector:
                 severity=IssueSeverity.MEDIUM
             )
         return None
-    
+
     def _detect_subquery_in_select_list(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect subqueries in SELECT list"""
         if self._patterns['subquery_select_list'].search(clean_query):
@@ -449,7 +444,7 @@ class QueryDetector:
                 severity=IssueSeverity.HIGH
             )
         return None
-    
+
     def _detect_between_with_timestamps(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect BETWEEN with date boundaries"""
         if self._patterns['between_timestamps'].search(clean_query):
@@ -462,7 +457,7 @@ class QueryDetector:
                 severity=IssueSeverity.MEDIUM
             )
         return None
-    
+
     def _detect_case_in_where(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect CASE expressions in WHERE"""
         if self._patterns['case_in_where'].search(clean_query):
@@ -475,7 +470,7 @@ class QueryDetector:
                 severity=IssueSeverity.MEDIUM
             )
         return None
-    
+
     def _detect_offset_without_order(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect OFFSET without ORDER BY"""
         if self._patterns['offset_no_order'].search(clean_query):
@@ -488,7 +483,7 @@ class QueryDetector:
                 severity=IssueSeverity.HIGH
             )
         return None
-    
+
     def _detect_like_without_wildcard(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect LIKE without wildcards"""
         if self._patterns['like_no_wildcard'].search(clean_query):
@@ -501,7 +496,7 @@ class QueryDetector:
                 severity=IssueSeverity.LOW
             )
         return None
-    
+
     def _detect_multiple_wildcards(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect multiple wildcards"""
         wildcard_count = len(re.findall(r'%', clean_query))
@@ -515,7 +510,7 @@ class QueryDetector:
                 severity=IssueSeverity.HIGH
             )
         return None
-    
+
     def _detect_order_by_ordinal(self, clean_query: str, original_query: str) -> Optional[DetectedIssue]:
         """Detect ORDER BY with ordinal positions"""
         if self._patterns['order_by_ordinal'].search(clean_query):
@@ -531,13 +526,11 @@ class QueryDetector:
 
 
 # Helper function for batch analysis
-def analyze_queries(queries: List[str]) -> List[DetectedIssue]:
+def analyze_queries(queries: list[str]) -> list[DetectedIssue]:
     """
     Convenience function to analyze multiple queries
-    
     Args:
         queries: List of SQL queries to analyze
-        
     Returns:
         List of all detected issues
     """

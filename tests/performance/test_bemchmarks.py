@@ -1,7 +1,9 @@
 # tests/performance/test_benchmarks.py
-import pytest
 import subprocess
 import sys
+
+import pytest
+
 from slowql.core.analyzer import QueryAnalyzer
 
 CLI_CMD = [sys.executable, "-m", "slowql.cli"]

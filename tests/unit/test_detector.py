@@ -1,6 +1,8 @@
 # tests/unit/test_detector.py
 import pytest
-from slowql.core.detector import QueryDetector, IssueSeverity
+
+from slowql.core.detector import IssueSeverity, QueryDetector
+
 
 @pytest.fixture
 def detector():

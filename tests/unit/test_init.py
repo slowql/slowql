@@ -1,5 +1,6 @@
 import importlib
 
+
 def reload_slowql(monkeypatch, fake_version_func):
     # Patch importlib.metadata.version
     monkeypatch.setattr("importlib.metadata.version", fake_version_func)
