@@ -21,7 +21,6 @@ SlowQL isn’t just another linter. It’s a **billion‑dollar safeguard** for 
 ### 📦 Package & Release
 [![Release](https://img.shields.io/github/v/release/makroumi/slowql?logo=github&label=v1.0.3)](https://github.com/makroumi/slowql/releases)
 [![PyPI](https://img.shields.io/pypi/v/slowql?logo=pypi)](https://pypi.org/project/slowql/)
-[![License](https://img.shields.io/github/license/makroumi/slowql?logo=open-source-initiative)](LICENSE)
 [![Docker](https://img.shields.io/docker/v/makroumi/slowql?logo=docker&label=docker)](https://hub.docker.com/r/makroumi/slowql)
 [![GHCR](https://img.shields.io/badge/GHCR-slowql-blue?logo=github)](https://github.com/makroumi/slowql/pkgs/container/slowql)
 
