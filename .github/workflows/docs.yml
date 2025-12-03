@@ -4,17 +4,23 @@ on:
   push:
     branches: [ "main" ]
 
+permissions:
+  contents: write   # <-- critical: allows github-actions[bot] to push to gh-pages
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # <-- ensures full history for git-revision-date-localized plugin
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install mkdocs-material mkdocstrings[python] mkdocs-git-revision-date-localized-plugin
+      - run: pip install mkdocs mkdocs-material mkdocstrings[python] mkdocs-git-revision-date-localized-plugin
       - run: mkdocs build --strict
-      - uses: peaceiris/actions-gh-pages@v4
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./site
