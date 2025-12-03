@@ -2,8 +2,6 @@
 
 **Static SQL analyzer with a cyberpunk aesthetic.** Detects 50+ performance killers, security risks, and anti-patterns before they cost you money.
 
-
-![SlowQL Demo](assets/demo.gif)
 ---
 
 ## 🔗 Badges
@@ -46,6 +44,9 @@
 [![Contributors](https://img.shields.io/github/contributors/makroumi/slowql?logo=github)](https://github.com/makroumi/slowql/graphs/contributors)
 [![Sponsor](https://img.shields.io/github/sponsors/makroumi?logo=github)](https://github.com/sponsors/makroumi)
 
+
+
+![SlowQL Demo](assets/demo.gif)
 
 
 ## ⚡ Quick Start
