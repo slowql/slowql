@@ -27,11 +27,11 @@ nav:
   - Getting Started: getting-started.md
   - Architecture:
       - Overview: architecture/ARCHITECTURE.md
-      - Design Decisions: architecture/DESIGN_DECISION.md
+      - Design Decisions: architecture/DESIGN_DECISIONS.md
       - Detector System: architecture/detector-system.md
   - Development:
       - Contributing: development/contributing.md
-      - Adding Detectors: development/ADDING_DETECTOR.md
+      - Adding Detectors: development/ADDING_DETECTORS.md
   - Security: security.md
   - API Reference: reference.md
   - Changelog: CHANGELOG.md
