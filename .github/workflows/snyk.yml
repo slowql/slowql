@@ -18,6 +18,6 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Run Snyk scan
-        uses: snyk/actions/python@master
+        uses: snyk/actions/python@main
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
