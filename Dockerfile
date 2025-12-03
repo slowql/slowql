@@ -5,7 +5,7 @@
 ####################################
 FROM python:3.12-slim AS builder
 
-# Build args allow CI to inject the version (e.g. v1.0.14)
+# Build args allow CI to inject the version (e.g. v1.0.15)
 ARG VERSION=""
 WORKDIR /src
 
@@ -21,12 +21,12 @@ RUN apt-get update \
 # Install pip tooling used to build wheel
 RUN python -m pip install --upgrade pip build setuptools wheel
 
-# Copy project metadata, source code, and git history
+# Copy project metadata and source code
 COPY pyproject.toml README.md LICENSE /src/
 COPY src/ /src/src/
 
-# Build wheel into /out with SCM version injection only if VERSION is set
-RUN if [ -n "$VERSION" ]; then \
+# Build wheel into /out with SCM version injection only if VERSION is a valid PEP 440 version
+RUN if [ -n "$VERSION" ] && python -c "from packaging.version import Version; Version('$VERSION')" 2>/dev/null; then \
       SETUPTOOLS_SCM_PRETEND_VERSION_FOR_SLOWQL=$VERSION python -m build --wheel --outdir /out; \
     else \
       python -m build --wheel --outdir /out; \
