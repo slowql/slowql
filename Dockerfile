@@ -24,7 +24,6 @@ RUN python -m pip install --upgrade pip build setuptools wheel
 # Copy project metadata, source code, and git history
 COPY pyproject.toml README.md LICENSE /src/
 COPY src/ /src/src/
-COPY .git /src/.git
 
 # Build wheel into /out with SCM version injection only if VERSION is set
 RUN if [ -n "$VERSION" ]; then \
