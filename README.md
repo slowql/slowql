@@ -1,4 +1,5 @@
-# 🔥 SlowQL — Catch Expensive SQL Before Production
+# 🔥 SlowQL 
+## Catch Expensive SQL Before Production
 
 **Static SQL analyzer with a cyberpunk aesthetic.**  
 Detects 50+ performance killers, security risks, and anti‑patterns before they cost you money.
