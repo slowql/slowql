@@ -31,7 +31,9 @@ def test_demo_analysis(analyzer, demo_queries, capsys):
     results = analyzer.analyze(demo_queries)
 
     # Convert list of issues into DataFrame if needed
-    if isinstance(results, list):
+    if hasattr(results, 'df'):
+        results = results.df
+    elif isinstance(results, list):
         results = pd.DataFrame(results)
 
     # Ensure we got a DataFrame with content

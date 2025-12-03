@@ -3,3 +3,4 @@
 ## Installation
 ```bash
 pip install slowql
+```

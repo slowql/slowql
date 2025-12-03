@@ -187,25 +187,25 @@ def run(
 
     # 5) Run analyzer
     analyzer = QueryAnalyzer(verbose=verbose)
-    results_df: pd.DataFrame
     if parallel:
-        results_df = analyzer.analyze_parallel(statements, return_dataframe=True, workers=workers)
+        result = analyzer.analyze_parallel(statements, return_dataframe=True, workers=workers)
     else:
-        results_df = analyzer.analyze(statements, return_dataframe=True)
+        result = analyzer.analyze(statements, return_dataframe=True)
 
     # 6) Render formatted report
     formatter = ConsoleFormatter()
-    formatter.format_analysis(results_df, title="SLOWQL Analysis")
+    formatter.format_analysis(result.df, title="SLOWQL Analysis")
+
 
     # 7) Animated summary
     try:
         summary: str = (
             f"[bold cyan]◆ ANALYSIS COMPLETE ◆[/]\n\n"
-            f"[green]✓[/] {results_df['count'].sum() if 'count' in results_df.columns else len(results_df)} issues detected"
+            f"[green]✓[/] {result.df['count'].sum() if 'count' in result.df.columns else len(result.df)} issues detected"
         )
         details_lines: List[str] = []
-        if not results_df.empty:
-            for _, row in results_df.iterrows():
+        if not result.df.empty:
+            for _, row in result.df.iterrows():
                 details_lines.append(f"{row['issue']} [{row.get('count',1)}] - {row['impact']}")
         details: str = "\n".join(details_lines) or "[dim]No details available[/]"
         if not fast:
@@ -222,11 +222,11 @@ def run(
             try:
                 if fmt_lower == "html":
                     out_path: Path = out_dir / f"slowql_report_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.html"
-                    formatter.export_html_report(results_df, filename=str(out_path))
+                    formatter.export_html_report(result.df, filename=str(out_path))
                     console.print(f"[bold green]Exported HTML report:[/] {out_path}")
                 else:
                     exported_filename: str = analyzer.export_report(
-                        results_df,
+                        result.df,
                         format=fmt_lower,
                         filename=str(out_dir / f"slowql_results_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.{fmt_lower}")
                     )

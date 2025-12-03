@@ -15,6 +15,13 @@ from .detector import QueryDetector, DetectedIssue
 import time
 from slowql.metrics import AnalysisMetrics
 
+from typing import NamedTuple
+
+class AnalysisResult(NamedTuple):
+    df: pd.DataFrame
+    metrics: AnalysisMetrics
+
+
 
 
 class QueryAnalyzer:
@@ -43,7 +50,7 @@ class QueryAnalyzer:
         self,
         queries: Union[str, List[str]],
         return_dataframe: bool = True
-    ) -> Union[pd.DataFrame, List[DetectedIssue]]:
+    ) -> AnalysisResult:
         """
         Analyze SQL queries for issues.
 
@@ -52,8 +59,9 @@ class QueryAnalyzer:
             return_dataframe: Return pandas DataFrame (default True) or list of issues
 
         Returns:
-            DataFrame with columns [issue, query, description, fix, impact, severity, line_number, count]
-            or List[DetectedIssue] if return_dataframe=False
+            AnalysisResult containing:
+            - df: DataFrame with columns [issue, query, description, fix, impact, severity, line_number, count]
+            - metrics: AnalysisMetrics object with totals and severity breakdown
         """
         if self.verbose:
             print("Analyzing SQL queries...")
@@ -90,8 +98,12 @@ class QueryAnalyzer:
         # Update internal stats
         self._update_stats(issues)
 
-        # Return both issues and metrics
-        return (self._to_dataframe(issues) if return_dataframe else issues, metrics)
+        # Build DataFrame or raw issues list
+        df_or_issues = self._to_dataframe(issues) if return_dataframe else issues
+
+        # Return unified AnalysisResult
+        return AnalysisResult(df=df_or_issues, metrics=metrics)
+
 
 
     def analyze_parallel(
@@ -99,7 +111,7 @@ class QueryAnalyzer:
         queries: Union[str, List[str]],
         return_dataframe: bool = True,
         workers: Optional[int] = None
-    ) -> Union[pd.DataFrame, List[DetectedIssue]]:
+    ) -> AnalysisResult:
         """
         Analyze queries in parallel across multiple cores.
 
@@ -109,19 +121,39 @@ class QueryAnalyzer:
             workers: Number of worker processes (None = auto)
 
         Returns:
-            DataFrame or list of DetectedIssue objects
+            AnalysisResult containing:
+            - df: DataFrame or list of DetectedIssue objects
+            - metrics: AnalysisMetrics object with totals and severity breakdown
         """
         if isinstance(queries, str):
             queries = [queries]
 
+        start = time.time()
         with ProcessPoolExecutor(max_workers=workers) as executor:
             results: List[List[DetectedIssue]] = list(executor.map(self.detector.analyze, queries))
 
         issues: List[DetectedIssue] = [issue for batch in results for issue in batch]
 
+        metrics = AnalysisMetrics()
+        metrics.total_queries = len(queries)
+        metrics.total_issues = len(issues)
+        for issue in issues:
+            sev = issue.severity.value
+            if sev == "critical":
+                metrics.critical_issues += 1
+            elif sev == "high":
+                metrics.high_issues += 1
+            elif sev == "medium":
+                metrics.medium_issues += 1
+            elif sev == "low":
+                metrics.low_issues += 1
+        metrics.total_time = time.time() - start
+
         self._update_stats(issues)
 
-        return self._to_dataframe(issues) if return_dataframe else issues
+        df_or_issues = self._to_dataframe(issues) if return_dataframe else issues
+        return AnalysisResult(df=df_or_issues, metrics=metrics)
+
 
     def _to_dataframe(self, issues: List[DetectedIssue]) -> pd.DataFrame:
         """

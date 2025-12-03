@@ -4,6 +4,7 @@ site_url: https://slowql.readthedocs.io
 
 theme:
   name: material
+  language: en
   palette:
     - scheme: slate
       primary: purple
@@ -14,6 +15,8 @@ theme:
     - content.code.copy
     - content.code.annotate
     - content.tabs.link
+    - search.suggest
+    - search.highlight
 
 repo_url: https://github.com/makroumi/slowql
 repo_name: GitHub
@@ -30,16 +33,22 @@ nav:
       - Contributing: development/contributing.md
       - Adding Detectors: development/ADDING_DETECTORS.md
   - Security: security.md
+  - API Reference: reference.md
   - Changelog: ../CHANGELOG.md
 
 plugins:
   - search
-  - mkdocs-material
   - mkdocstrings:
       handlers:
         python:
-          setup_commands:
-            - pip install .[dev]
+          options:
+            show_source: true
+            docstring_style: google
+            docstring_options:
+              ignore_init_summary: true
+  - git-revision-date-localized:
+      fallback_to_build_date: true
+      enable_creation_date: true
 
 markdown_extensions:
   - admonition
@@ -47,3 +56,9 @@ markdown_extensions:
   - footnotes
   - toc:
       permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed

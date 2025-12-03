@@ -16,9 +16,9 @@ def test_analyzer_fast_benchmark(benchmark, sample_queries):
     queries = list(sample_queries.values())
 
     def run_analysis():
-        df = analyzer.analyze(queries, return_dataframe=True)
+        result = analyzer.analyze(queries, return_dataframe=True)
         # Assert inside the benchmarked function
-        assert not df.empty
+        assert not result.df.empty
 
     benchmark(run_analysis)
 
@@ -29,8 +29,8 @@ def test_analyzer_parallel_benchmark(benchmark, sample_queries):
     queries = list(sample_queries.values()) * 50  # scale up for parallel benefit
 
     def run_parallel():
-        df = analyzer.analyze_parallel(queries, return_dataframe=True)
-        assert not df.empty
+        result = analyzer.analyze_parallel(queries, return_dataframe=True)
+        assert not result.df.empty
 
     benchmark(run_parallel)
 
