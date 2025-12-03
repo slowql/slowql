@@ -4,15 +4,19 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "slowql"
-version = "1.0.3"
+version = "1.0.4"
 description = "Cinematic static SQL analyzer with cyberpunk CLI"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.8.1"
 authors = [{ name = "El Mehdi Makroumi", email = "elmehdi.makroumi@gmail.com" }]
 license = { text = "Apache-2.0" }
-keywords = ["sql", "analysis", "cli", "performance", "database"]
+keywords = ["sql", "analysis", "cli", "performance", "database", "cyberpunk"]
 classifiers = [
   "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
   "Operating System :: OS Independent",
 ]
 
@@ -28,7 +32,7 @@ dev = [
   "pytest-cov>=4.0.0",
   "black>=23.0.0",
   "mypy>=1.0.0",
-  "flake8>=6.0.0,<6.1.0",
+  "flake8>=6.0.0,<6.1.0; python_version >= '3.8.1'",
   "isort>=5.0.0"
 ]
 docs = [
@@ -49,3 +53,4 @@ slowql = ["**/*.py"]
 [project.urls]
 Homepage = "https://github.com/makroumi/slowql"
 Repository = "https://github.com/makroumi/slowql"
+Issues = "https://github.com/makroumi/slowql/issues"
