@@ -1,68 +1,64 @@
-site_name: SlowQL
-site_description: Cyberpunk SQL analyzer catching expensive queries before production
-site_url: https://slowql.readthedocs.io
-
+site_name: SlowQL Documentation
 theme:
   name: material
-  language: en
-  palette:
-    - scheme: slate
-      primary: purple
-      accent: teal
-  features:
-    - navigation.tabs
-    - navigation.sections
-    - content.code.copy
-    - content.code.annotate
-    - content.tabs.link
-    - search.suggest
-    - search.highlight
-
-repo_url: https://github.com/makroumi/slowql
-repo_name: GitHub
-edit_uri: edit/main/docs/
-
-nav:
-  - Home: index.md
-  - Getting Started: getting-started.md
-  - Architecture:
-      - Overview: architecture/ARCHITECTURE.md
-      - Design Decisions: architecture/DESIGN_DECISIONS.md
-      - Detector System: architecture/detector-system.md
-  - Development:
-      - Contributing: development/contributing.md
-      - Adding Detectors: development/ADDING_DETECTORS.md
-  - Security: security.md
-  - API Reference: reference.md
-  - Changelog: CHANGELOG.md
-  - Tests: tests/test.md
-  - Examples:
-      - Sample SQL: examples/sample.sql
-      - Nasty Queries: examples/nasty_queries.sql
-
 plugins:
   - search
-  - mkdocstrings:
-      handlers:
-        python:
-          options:
-            show_source: true
-            docstring_style: google
-            docstring_options:
-              ignore_init_summary: true
-  - git-revision-date-localized:
-      fallback_to_build_date: true
-      enable_creation_date: true
-
-markdown_extensions:
-  - admonition
-  - codehilite
-  - footnotes
-  - toc:
-      permalink: true
-  - pymdownx.details
-  - pymdownx.superfences
-  - pymdownx.highlight
-  - pymdownx.inlinehilite
-  - pymdownx.snippets
-  - pymdownx.tabbed
+nav:
+  - Home: index.md
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Quick Start: getting-started/quick-start.md
+      - First Analysis: getting-started/first-analysis.md
+      - Configuration: getting-started/configuration.md
+  - Examples:
+      - Basic Usage: examples/basic-usage.md
+      - GitHub Actions: examples/github-actions.md
+      - GitLab CI: examples/gitlab-ci.md
+      - Jenkins: examples/jenkins.md
+      - Pre-Commit Hook: examples/pre-commit-hook.md
+  - Tutorials:
+      - End-to-End Pipeline: tutorials/end-to-end-pipeline.md
+      - Custom Detector Walkthrough: tutorials/custom-detector-walkthrough.md
+      - Team Onboarding Guide: tutorials/team-onboarding-guide.md
+      - Dashboard Integration: tutorials/dashboard-integration.md
+  - Architecture:
+      - System Design: architecture/system-design.md
+      - Parser Engine: architecture/parser-engine.md
+      - Detector System: architecture/detector-system.md
+      - Export System: architecture/export-system.md
+  - Detectors:
+      - Overview: detectors/overview.md
+      - Critical: detectors/critical-detectors.md
+      - High Severity: detectors/high-severity.md
+      - Medium Severity: detectors/medium-severity.md
+      - Low Severity: detectors/low-severity.md
+      - Custom: detectors/custom-detectors.md
+  - User Guide:
+      - CLI Reference: user-guide/cli-reference.md
+      - CI/CD Integration: user-guide/ci-cd-integration.md
+      - File Analysis: user-guide/file-analysis.md
+      - Export Formats: user-guide/export-formats.md
+      - Interactive Mode: user-guide/interactive-mode.md
+  - Enterprise:
+      - Overview: enterprise/overview.md
+      - Deployment: enterprise/deployment.md
+      - Team Features: enterprise/team-features.md
+      - Support: enterprise/support.md
+  - Troubleshooting:
+      - Common Issues: troubleshooting/common-issues.md
+      - FAQ: troubleshooting/faq.md
+      - Performance: troubleshooting/performance.md
+  - Security:
+      - Best Practices: security/best-practices.md
+      - Security Policy: security/security-policy.md
+      - Vulnerability Reporting: security/vulnerability-reporting.md
+  - Development:
+      - Setup: development/setup.md
+      - Testing: development/testing.md
+      - Adding Detectors: development/adding-detectors.md
+      - Contributing: development/contributing.md
+      - Release Process: development/release-process.md
+  - Changelog: CHANGELOG.md
+  - License: license.md
