@@ -28,10 +28,11 @@ COPY pyproject.toml README.md LICENSE /src/
 COPY src/ /src/src/
 
 # Build wheel into /out with SCM version injection only if VERSION is a valid PEP 440 version
+# Fallback to safe dev version if SCM metadata is missing
 RUN if [ -n "$VERSION" ] && python -c "from packaging.version import Version; Version('$VERSION')" 2>/dev/null; then \
       SETUPTOOLS_SCM_PRETEND_VERSION_FOR_SLOWQL=$VERSION python -m build --wheel --outdir /out; \
     else \
-      python -m build --wheel --outdir /out; \
+      SETUPTOOLS_SCM_PRETEND_VERSION_FOR_SLOWQL=0.0.0.dev0 python -m build --wheel --outdir /out; \
     fi
 
 
