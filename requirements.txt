@@ -1,5 +1,5 @@
 rich>=13.0.0
-sqlparse>=0.4.0
+sqlparse>=0.5.0
 pytest>=7.0.0
 build>=0.10.0
 twine>=4.0.0
@@ -8,3 +8,6 @@ mypy>=1.0.0
 coverage>=7.0
 pandas>=2.0
 flake8>=6.0.0,<6.1.0
+zipp>=3.19.1 # not directly required, pinned by Snyk to avoid a vulnerability
+urllib3>=1.26.19 # not directly required, pinned by Snyk to avoid a vulnerability
+requests>=2.32.2 # not directly required, pinned by Snyk to avoid a vulnerability
