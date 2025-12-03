@@ -14,6 +14,7 @@ from typing import List, Optional
 import pandas as pd
 from rich.console import Console
 
+
 from slowql.effects.animations import MatrixRain, CyberpunkSQLEditor, AnimatedAnalyzer
 from slowql.core.analyzer import QueryAnalyzer
 from slowql.formatters.console import ConsoleFormatter

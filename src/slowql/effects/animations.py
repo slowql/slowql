@@ -20,6 +20,7 @@ from rich.align import Align
 from rich import box
 from rich.syntax import Syntax
 from rich.prompt import Prompt
+from rich.console import Group
 
 
 class MatrixRain:
@@ -28,8 +29,9 @@ class MatrixRain:
     def __init__(self) -> None:
         self.console: Console = Console()
         size = shutil.get_terminal_size()
-        self.width: int = min(size.columns, 120)
-        self.height: int = min(size.lines - 5, 30)
+        # use full terminal size, no artificial caps
+        self.width: int = size.columns
+        self.height: int = size.lines
         self.chars: str = (
             "ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ0123456789"
         )
@@ -45,7 +47,7 @@ class MatrixRain:
             "         v2.0 CYBERPUNK EDITION         ",
         ]
 
-        # Pre-generate columns
+        # Pre-generate columns sized to full width
         self.columns: List[dict] = [
             {
                 "y": float(random.randint(-self.height, 0)),
@@ -61,6 +63,20 @@ class MatrixRain:
             self._final_reveal()
             return
 
+        # refresh size at start of run, rebuild columns if needed
+        size = shutil.get_terminal_size()
+        if size.columns != self.width or size.lines != self.height:
+            self.width = size.columns
+            self.height = size.lines
+            self.columns = [
+                {
+                    "y": float(random.randint(-self.height, 0)),
+                    "speed": random.uniform(0.8, 1.2),
+                    "chars": [random.choice(self.chars) for _ in range(20)],
+                }
+                for _ in range(self.width)
+            ]
+
         frames: int = max(int(duration * 20), 20)  # 20fps
         with Live(console=self.console, refresh_per_second=20, transient=True) as live:
             for frame in range(frames):
@@ -71,9 +87,9 @@ class MatrixRain:
                         col = self.columns[x]
                         char_y = int(col["y"])
                         if char_y == y:
-                            line.append(col["chars"][frame % 20], "bold green")
+                            line.append(col["chars"][frame % 20], "bold magenta")
                         elif char_y - 3 < y < char_y:
-                            line.append(col["chars"][(frame + y) % 20], "dim cyan")
+                            line.append(col["chars"][(frame + y) % 20], "bold cyan")
                         else:
                             line.append(" ")
                     lines.append(line)
@@ -95,7 +111,7 @@ class MatrixRain:
 
                 live.update(
                     Panel(
-                        "\n".join(str(line) for line in lines),
+                        Group(*lines), 
                         border_style="cyan",
                         box=box.SIMPLE,
                     )
@@ -104,19 +120,19 @@ class MatrixRain:
 
         self._final_reveal()
 
+        
+
     def _final_reveal(self) -> None:
         """Glitch + logo reveal, then clear terminal."""
         self.console.clear()
-        self.console.print(
-            Panel(
-                Align.center("\n".join(self.logo), vertical="middle"),
-                border_style="bold magenta",
-                box=box.DOUBLE_EDGE,
-                padding=(1, 2),
-                title="[bold white]◢ SYSTEM ONLINE ◣[/]",
-            ),
-            justify="center",
-        )
+
+        import shutil
+        self.width = shutil.get_terminal_size().columns
+
+        # Render logo line-by-line, preserving spacing and fidelity
+        for line in self.logo:
+            self.console.print(Text(line.center(self.width), style="bold magenta"))
+
 
         self.console.print("\n[bold cyan]► PRESS ENTER TO BEGIN ◄[/]", justify="center")
         try:
@@ -124,8 +140,17 @@ class MatrixRain:
         except Exception:
             pass
 
-        # Clear after intro so it doesn’t persist
         self.console.clear()
+
+
+
+
+
+
+
+
+
+
 
 
 class CyberpunkSQLEditor:

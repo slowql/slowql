@@ -1,110 +1,155 @@
+-- select_star
 SELECT * FROM users;
-SELECT id, name, email FROM users WHERE UPPER(email) = 'ADMIN@EXAMPLE.COM';
-UPDATE products SET price = price * 1.1;
-DELETE FROM logs;
-SELECT * FROM orders o, customers c WHERE o.customer_id = c.id;
-SELECT * FROM transactions WHERE amount = NULL;
-SELECT * FROM employees WHERE id IN (1,2,3,4,5,6,7,8,9,10);
-SELECT name, email FROM customers WHERE phone LIKE '%555%';
-SELECT * FROM inventory WHERE quantity < 10;
-UPDATE users SET last_login = NOW() WHERE id = 1001;
-SELECT COUNT(*) FROM orders WHERE status = 'pending';
-DELETE FROM temp_data WHERE created_at < '2023-01-01';
-SELECT * FROM products WHERE name LIKE '%phone%';
-SELECT id FROM users WHERE status != NULL;
-UPDATE inventory SET quantity = 0;
-SELECT email FROM subscribers WHERE active = 1;
-SELECT * FROM transactions t, accounts a;
-SELECT name FROM employees WHERE YEAR(hire_date) = 2024;
-DELETE FROM sessions;
-SELECT * FROM metrics WHERE value > 100.0;
-SELECT id, username FROM users WHERE id > 1000 ORDER BY id;
-SELECT * FROM products p JOIN categories c ON p.category_id = c.id;
-UPDATE prices SET amount = amount * 0.9;
-SELECT COUNT(DISTINCT customer_id) FROM orders;
-SELECT * FROM logs WHERE message LIKE '%error%';
-DELETE FROM temporary_table;
-SELECT id FROM products WHERE SUBSTRING(sku, 1, 3) = 'ABC';
-SELECT * FROM users WHERE email IS NULL;
-SELECT name, price FROM items WHERE price BETWEEN 10 AND 50;
-UPDATE users SET password = 'newpass123';
-SELECT * FROM data WHERE id IN (SELECT id FROM temp);
-DELETE FROM old_records;
-SELECT customer_name FROM customers WHERE LENGTH(phone) = 10;
-SELECT * FROM orders WHERE total_amount = 99.99;
-SELECT id, name FROM products WHERE active = true LIMIT 100;
-UPDATE stats SET views = views + 1;
-SELECT * FROM events e, venues v;
-SELECT username FROM users WHERE LOWER(username) = 'admin';
-DELETE FROM expired_tokens;
-SELECT * FROM inventory WHERE sku IN ('A001','A002','A003','A004','A005','A006','A007','A008','A009','A010');
-SELECT order_id, order_date FROM orders WHERE customer_id = 789;
-UPDATE products SET featured = false;
-SELECT * FROM analytics WHERE timestamp > NOW() - INTERVAL '1 day';
-DELETE FROM audit_log;
-SELECT id FROM users WHERE age >= 18 AND age <= 65;
-SELECT * FROM reports WHERE generated_date = NULL;
-UPDATE configurations SET enabled = 1;
-SELECT product_id, COUNT(*) as sales FROM order_items GROUP BY product_id;
-DELETE FROM temp_calculations;
-SELECT * FROM measurements WHERE temperature = 98.6;
-SELECT * FROM customers WHERE email LIKE '%@gmail.com' AND created_at < '2022-01-01';
-SELECT * FROM orders WHERE created_at BETWEEN '2024-01-01' AND '2024-06-30';
-UPDATE orders SET status='cancelled' WHERE status='pending';
-SELECT * FROM users WHERE last_login < NOW() - INTERVAL '90 days';
-INSERT INTO audit_log (user_id, action) VALUES (123, 'login');
-SELECT * FROM big_table WHERE some_json->>'key' = 'value';
-SELECT * FROM products WHERE price = '19.99';
-SELECT COUNT(*) FROM visits WHERE path = '/home';
-SELECT user_id, SUM(amount) FROM payments GROUP BY user_id HAVING SUM(amount) > 1000;
-SELECT * FROM sessions WHERE expires_at < NOW();
-DELETE FROM cache WHERE key LIKE 'tmp_%';
-SELECT * FROM orders WHERE customer_id IN (SELECT id FROM customers WHERE vip = 1);
-SELECT id FROM users WHERE phone ~ '^[0-9]{10}$';
-SELECT * FROM sales WHERE region = 'EU' ORDER BY total DESC LIMIT 5;
-UPDATE profiles SET bio = NULL WHERE bio = '';
-SELECT * FROM messages WHERE body ILIKE '%urgent%';
-SELECT COUNT(*) FROM logs WHERE level = 'ERROR' AND created_at > NOW() - INTERVAL '7 days';
-SELECT * FROM products WHERE tags @> ARRAY['electronics','sale'];
-SELECT * FROM items WHERE metadata->>'flag' = 'true';
-SELECT DISTINCT user_id FROM visits WHERE created_at > '2024-01-01';
-UPDATE users SET settings = jsonb_set(settings, '{theme}', '"dark"') WHERE id = 42;
-SELECT * FROM orders WHERE promo_code IS NOT NULL;
-SELECT * FROM table_without_index WHERE random() < 0.01;
-SELECT * FROM addresses WHERE city = 'San Francisco' OR city = 'San Jose';
-SELECT * FROM logs WHERE message ~ 'timeout|failed|exception';
-SELECT * FROM inventory WHERE (quantity - reserved) < 0;
-UPDATE payments SET status = 'refunded' WHERE refunded = true;
-SELECT * FROM customers WHERE notes LIKE '%do not contact%';
-SELECT * FROM huge_table WHERE id IN (SELECT id FROM huge_temp_table);
-SELECT * FROM t1 JOIN t2 ON t1.x = t2.x JOIN t3 ON t2.y = t3.y;
-SELECT MAX(created_at) FROM events;
-SELECT MIN(price) FROM products WHERE category_id = 7;
-SELECT AVG(rating) FROM reviews WHERE product_id = 123;
-SELECT * FROM orders WHERE details->>'gift' = 'true';
-DELETE FROM orders WHERE status = 'test';
-UPDATE users SET role = 'admin' WHERE email = 'founder@example.com';
-SELECT * FROM logs WHERE created_at::date = '2024-03-15';
-SELECT * FROM customers WHERE country IS NULL;
-SELECT * FROM transactions WHERE amount > 10000 ORDER BY amount DESC;
-SELECT * FROM emails WHERE subject LIKE '%Invoice%';
-INSERT INTO backups (created_at) VALUES (NOW());
-SELECT * FROM products WHERE description ~* 'battery|charger|adapter';
-SELECT sku, count(*) FROM order_items GROUP BY sku ORDER BY count DESC;
-SELECT * FROM employees WHERE manager_id IS NULL;
-SELECT name FROM categories WHERE parent_id = 0;
-SELECT * FROM temp WHERE stale = true LIMIT 1000;
-SELECT * FROM users WHERE metadata->'preferences'->>'lang' = 'en';
-SELECT * FROM connections WHERE status IN ('active','pending','blocked');
-SELECT * FROM orders WHERE total_amount IS NULL;
-SELECT * FROM reviews WHERE comment ~* '\\bexcellent\\b';
-SELECT * FROM payments WHERE card_last4 = '4242';
-SELECT * FROM access_logs WHERE ip = '192.168.1.1';
-SELECT * FROM sessions WHERE user_agent LIKE '%bot%';
-SELECT * FROM products WHERE discontinued = true;
-SELECT * FROM catalog WHERE price <> 0;
-SELECT * FROM audit WHERE action = 'password_reset';
-SELECT * FROM notifications WHERE sent = false;
-SELECT * FROM queue WHERE retries > 5;
-SELECT * FROM shipping WHERE eta < NOW() + INTERVAL '2 days';
+SELECT * FROM orders;
+SELECT * FROM products;
+SELECT * FROM logs;
 
+-- missing_where
+UPDATE accounts SET status = 'inactive';
+DELETE FROM sessions;
+UPDATE employees SET salary = salary * 1.1;
+DELETE FROM audit_log;
+
+-- non_sargable
+SELECT * FROM orders WHERE YEAR(created_at) = 2025;
+SELECT * FROM logs WHERE MONTH(event_date) = 12;
+SELECT * FROM invoices WHERE DAY(issue_date) = 15;
+SELECT * FROM users WHERE UPPER(name) = 'ALICE';
+
+-- implicit_conversion
+SELECT * FROM customers WHERE email = 12345;
+SELECT * FROM users WHERE status = 0;
+SELECT * FROM accounts WHERE code = 999;
+SELECT * FROM employees WHERE name = 42;
+
+-- cartesian_product
+SELECT * FROM users, orders;
+SELECT * FROM products, categories;
+SELECT * FROM employees, departments;
+SELECT * FROM logs, errors;
+
+-- n_plus_1
+SELECT * FROM comments WHERE post_id = ?;
+SELECT * FROM likes WHERE user_id = ?;
+SELECT * FROM orders WHERE customer_id = ?;
+SELECT * FROM messages WHERE thread_id = ?;
+
+-- correlated_subquery
+SELECT * FROM users WHERE EXISTS (SELECT * FROM orders WHERE orders.user_id = users.id);
+SELECT * FROM products WHERE price > (SELECT AVG(price) FROM orders WHERE orders.product_id = products.id);
+SELECT * FROM employees WHERE salary < (SELECT AVG(salary) FROM employees e WHERE e.department_id = employees.department_id);
+SELECT * FROM accounts WHERE EXISTS (SELECT * FROM transactions WHERE transactions.account_id = accounts.id);
+
+-- or_prevents_index
+SELECT * FROM products WHERE category = 'books' OR category = 'electronics';
+SELECT * FROM users WHERE role = 'admin' OR role = 'editor';
+SELECT * FROM orders WHERE status = 'pending' OR status = 'failed';
+SELECT * FROM logs WHERE severity = 'high' OR severity = 'critical';
+
+-- offset_pagination
+SELECT * FROM logs OFFSET 100;
+SELECT * FROM users OFFSET 50;
+SELECT * FROM products OFFSET 200;
+SELECT * FROM orders OFFSET 300;
+
+-- distinct_unnecessary
+SELECT DISTINCT user_id FROM sessions;
+SELECT DISTINCT account_id FROM transactions;
+SELECT DISTINCT product_id FROM orders;
+SELECT DISTINCT employee_id FROM payroll;
+
+-- huge_in_list
+SELECT * FROM items WHERE id IN (1,2,3,4,5,6,7,8,9,10);
+SELECT * FROM users WHERE id IN (11,12,13,14,15,16,17,18,19,20);
+SELECT * FROM orders WHERE id IN (21,22,23,24,25,26,27,28,29,30);
+SELECT * FROM products WHERE id IN (31,32,33,34,35,36,37,38,39,40);
+
+-- leading_wildcard
+SELECT * FROM users WHERE name LIKE '%smith';
+SELECT * FROM products WHERE description LIKE '%discount';
+SELECT * FROM logs WHERE message LIKE '%error';
+SELECT * FROM employees WHERE title LIKE '%manager';
+
+-- count_star_exists
+SELECT * FROM users WHERE (SELECT COUNT(*) FROM orders) > 0;
+SELECT * FROM products WHERE (SELECT COUNT(*) FROM reviews) > 0;
+SELECT * FROM accounts WHERE (SELECT COUNT(*) FROM transactions) > 0;
+SELECT * FROM employees WHERE (SELECT COUNT(*) FROM payroll) > 0;
+
+-- not_in_nullable
+SELECT * FROM users WHERE id NOT IN (SELECT user_id FROM orders);
+SELECT * FROM products WHERE id NOT IN (SELECT product_id FROM reviews);
+SELECT * FROM accounts WHERE id NOT IN (SELECT account_id FROM transactions);
+SELECT * FROM employees WHERE id NOT IN (SELECT employee_id FROM payroll);
+
+-- no_limit_exists
+SELECT * FROM users WHERE EXISTS (SELECT * FROM orders);
+SELECT * FROM products WHERE EXISTS (SELECT * FROM reviews);
+SELECT * FROM accounts WHERE EXISTS (SELECT * FROM transactions);
+SELECT * FROM employees WHERE EXISTS (SELECT * FROM payroll);
+
+-- floating_point_equals
+SELECT * FROM products WHERE price = 19.99;
+SELECT * FROM invoices WHERE amount = 123.45;
+SELECT * FROM accounts WHERE balance = 1000.50;
+SELECT * FROM payroll WHERE total = 2500.75;
+
+-- null_comparison
+SELECT * FROM users WHERE email = NULL;
+SELECT * FROM products WHERE description != NULL;
+SELECT * FROM accounts WHERE status = NULL;
+SELECT * FROM employees WHERE department != NULL;
+
+-- function_on_column
+SELECT * FROM accounts WHERE LOWER(email) = 'test@example.com';
+SELECT * FROM users WHERE UPPER(name) = 'ALICE';
+SELECT * FROM orders WHERE YEAR(created_at) = 2025;
+SELECT * FROM logs WHERE MONTH(event_date) = 12;
+
+-- having_no_aggregates
+SELECT department FROM employees HAVING department = 'HR';
+SELECT role FROM users HAVING role = 'admin';
+SELECT status FROM orders HAVING status = 'pending';
+SELECT category FROM products HAVING category = 'books';
+
+-- union_missing_all
+SELECT id FROM users UNION SELECT id FROM admins;
+SELECT name FROM employees UNION SELECT name FROM contractors;
+SELECT product_id FROM orders UNION SELECT product_id FROM returns;
+SELECT account_id FROM accounts UNION SELECT account_id FROM archives;
+
+-- subquery_select_list
+SELECT id, (SELECT COUNT(*) FROM orders) FROM users;
+SELECT name, (SELECT AVG(price) FROM products) FROM categories;
+SELECT department, (SELECT SUM(salary) FROM employees) FROM departments;
+SELECT account_id, (SELECT MAX(amount) FROM transactions) FROM accounts;
+
+-- between_timestamps
+SELECT * FROM logs WHERE created_at BETWEEN '2025-01-01' AND '2025-12-31';
+SELECT * FROM orders WHERE shipped_at BETWEEN '2025-02-01' AND '2025-03-01';
+SELECT * FROM invoices WHERE issue_date BETWEEN '2025-04-01' AND '2025-04-30';
+SELECT * FROM sessions WHERE login_time BETWEEN '2025-05-01' AND '2025-05-15';
+
+-- case_in_where
+SELECT * FROM orders WHERE CASE WHEN status = 'pending' THEN 1 ELSE 0 END = 1;
+SELECT * FROM users WHERE CASE WHEN role = 'admin' THEN 1 ELSE 0 END = 1;
+SELECT * FROM products WHERE CASE WHEN category = 'books' THEN 1 ELSE 0 END = 1;
+SELECT * FROM accounts WHERE CASE WHEN status = 'active' THEN 1 ELSE 0 END = 1;
+
+-- offset_no_order
+SELECT * FROM users OFFSET 50;
+SELECT * FROM products OFFSET 100;
+SELECT * FROM orders OFFSET 200;
+SELECT * FROM logs OFFSET 300;
+
+-- like_no_wildcard
+SELECT * FROM users WHERE name LIKE 'Alice';
+SELECT * FROM products WHERE category LIKE 'Books';
+SELECT * FROM orders WHERE status LIKE 'Pending';
+SELECT * FROM employees WHERE role LIKE 'Manager';
+
+-- order_by_ordinal
+SELECT * FROM users ORDER BY 2;
+SELECT * FROM products ORDER BY 3;
+SELECT * FROM orders ORDER BY 1;
+SELECT * FROM employees ORDER BY 4;
