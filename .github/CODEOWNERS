@@ -1,0 +1,11 @@
+# Global owner
+* @makroumi
+
+# Detectors require specialized review
+/slowql/detectors/ @makroumi @security-team
+
+# CI/CD changes
+/.github/workflows/ @makroumi @devops-team
+
+# Documentation
+/docs/ @makroumi @docs-team
