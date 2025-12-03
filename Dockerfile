@@ -24,12 +24,11 @@ RUN apt-get update \
 RUN python -m pip install --upgrade pip build setuptools wheel
 
 # Copy project metadata and source code
-# Include README.md and LICENSE so setuptools can find them
 COPY pyproject.toml README.md LICENSE /src/
 COPY src/ /src/src/
 
-# Build wheel into /out
-RUN python -m build --wheel --outdir /out
+# Build wheel into /out with explicit SCM version injection
+RUN SETUPTOOLS_SCM_PRETEND_VERSION_FOR_SLOWQL=1.0.6 python -m build --wheel --outdir /out
 
 ####################################
 # Runtime image: minimal, only runtime deps
