@@ -12,6 +12,10 @@ from datetime import datetime
 from concurrent.futures import ProcessPoolExecutor
 from .detector import QueryDetector, DetectedIssue
 
+import time
+from slowql.metrics import AnalysisMetrics
+
+
 
 class QueryAnalyzer:
     """
@@ -22,6 +26,7 @@ class QueryAnalyzer:
     execution, and can return results as either a pandas DataFrame or
     a list of DetectedIssue objects.
     """
+
 
     def __init__(self, verbose: bool = True) -> None:
         """
@@ -57,8 +62,26 @@ class QueryAnalyzer:
         if isinstance(queries, str):
             queries = [queries]
 
-        # Run detector
+        metrics = AnalysisMetrics()
+        start = time.time()
+
         issues: List[DetectedIssue] = self.detector.analyze(queries)
+
+        # Update metrics counts
+        metrics.total_queries = len(queries)
+        metrics.total_issues = len(issues)
+        for issue in issues:
+            sev = issue.severity.value
+            if sev == "critical":
+                metrics.critical_issues += 1
+            elif sev == "high":
+                metrics.high_issues += 1
+            elif sev == "medium":
+                metrics.medium_issues += 1
+            elif sev == "low":
+                metrics.low_issues += 1
+
+        metrics.total_time = time.time() - start
 
         if self.verbose and issues:
             unique_types: int = len(set(i.issue_type for i in issues))
@@ -67,8 +90,9 @@ class QueryAnalyzer:
         # Update internal stats
         self._update_stats(issues)
 
-        # Return in requested format
-        return self._to_dataframe(issues) if return_dataframe else issues
+        # Return both issues and metrics
+        return (self._to_dataframe(issues) if return_dataframe else issues, metrics)
+
 
     def analyze_parallel(
         self,
