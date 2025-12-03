@@ -48,7 +48,12 @@ Repository = "https://github.com/makroumi/slowql"
 Issues = "https://github.com/makroumi/slowql/issues"
 Changelog = "https://github.com/makroumi/slowql/blob/main/CHANGELOG.md"
 
+# --- Critical fix for src layout ---
+[tool.setuptools]
+package-dir = {"" = "src"}
+
 [tool.setuptools.packages.find]
+where = ["src"]
 include = ["slowql*"]
 exclude = ["tests*"]
 
