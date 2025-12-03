@@ -1,43 +1,19 @@
-name: Snyk Security Scan
+name: Security Scan
 
 on:
   push:
-    branches: [main, develop]
-  pull_request:
     branches: [main]
+  pull_request:
 
 jobs:
   security:
     runs-on: ubuntu-latest
-    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          # Install your package in development mode
-          pip install -e .
-          # Or if you have requirements.txt:
-          # pip install -r requirements.txt
-
-      - name: Run Snyk to check for vulnerabilities
-        uses: snyk/actions/python@main  # Use masin instead of version tag
-        continue-on-error: true  # Don't fail the build on vulnerabilities (optional)
+      - run: pip install -e .
+      - uses: snyk/actions/python@main
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          command: test
-          args: --severity-threshold=high
-
-      - name: Upload Snyk results to GitHub Code Scanning
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()  # Upload even if Snyk finds issues
-        with:
-          sarif_file: snyk.sarif
