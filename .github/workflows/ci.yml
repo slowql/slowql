@@ -156,8 +156,9 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ghcr.io/makroumi/slowql:latest
-            ghcr.io/makroumi/slowql:${{ github.ref_name }}
+            ghcr.io/${{ github.actor }}/slowql:latest
+            ghcr.io/${{ github.actor }}/slowql:${{ github.ref_name }}
+
 
   # -------------------------------
   # Publish to PyPI

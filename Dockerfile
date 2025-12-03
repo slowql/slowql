@@ -28,7 +28,8 @@ COPY pyproject.toml README.md LICENSE /src/
 COPY src/ /src/src/
 
 # Build wheel into /out with explicit SCM version injection
-RUN SETUPTOOLS_SCM_PRETEND_VERSION_FOR_SLOWQL=1.0.6 python -m build --wheel --outdir /out
+RUN SETUPTOOLS_SCM_PRETEND_VERSION_FOR_SLOWQL=1.0.7 python -m build --wheel --outdir /out
+
 
 ####################################
 # Runtime image: minimal, only runtime deps
