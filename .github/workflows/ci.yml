@@ -143,7 +143,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
+          username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Docker Buildx
@@ -156,8 +156,9 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ghcr.io/${{ github.actor }}/slowql:latest
-            ghcr.io/${{ github.actor }}/slowql:${{ github.ref_name }}
+            ghcr.io/${{ github.repository_owner }}/slowql:latest
+            ghcr.io/${{ github.repository_owner }}/slowql:${{ github.ref_name }}
+
 
 
   # -------------------------------
