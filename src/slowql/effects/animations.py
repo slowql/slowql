@@ -44,7 +44,8 @@ class MatrixRain:
             " █████   ██████  █████    █   █   ██████  ██████ ",
             "",
             "       ◆ DATABASE ANOMALY DETECTOR ◆       ",
-            "         v2.0 CYBERPUNK EDITION         ",
+            "         v1.0.4 CYBERPUNK EDITION         ",
+            "          SYSTEM ONLINE         ",
         ]
 
         # Pre-generate columns sized to full width
