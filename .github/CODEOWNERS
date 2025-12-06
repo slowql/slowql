@@ -2,10 +2,11 @@
 * @makroumi
 
 # Detectors require specialized review
-/slowql/detectors/ @makroumi @security-team
+/slowql/detectors/ @makroumi 
 
 # CI/CD changes
-/.github/workflows/ @makroumi @devops-team
+/.github/workflows/ @makroumi 
 
 # Documentation
-/docs/ @makroumi @docs-team
+/docs/ @makroumi 
+
