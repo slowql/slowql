@@ -48,7 +48,7 @@ Sample detector output (JSON):
 
 - [Critical Detectors](critical-detectors.md)  
 - [High Severity](high-severity.md)  
-- [Meduim Severity](medium-severity.md)  
+- [Medium Severity](medium-severity.md)  
 - [Low Severity](low-severity.md)
 - [Custom Detectors](custom-detectors.md)
 
@@ -58,3 +58,4 @@ Sample detector output (JSON):
 
 - [CLI Reference](../user-guide/cli-reference.md)  
 - [File Analysis](../user-guide/file-analysis.md)  
+
