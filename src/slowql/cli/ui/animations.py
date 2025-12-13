@@ -215,9 +215,24 @@ class MatrixRain:
         # 2. Begin Slow Scroll of Features
         self._show_feature_overview_slow()
 
-        # 3. Final Prompt
+        # 3. Final Prompt: block here until user presses Enter
         self.console.print()
         self.console.print(Align.center("[bold green blink]► PRESS ENTER TO ACTIVATE CONSOLE ◄[/]"))
+
+        # Wait for a real Enter press
+        try:
+            import readchar  # type: ignore
+            while True:
+                key = readchar.readkey()
+                if key in (readchar.key.ENTER, "\r", "\n"):
+                    break
+                # ignore other keys
+        except Exception:
+            # Fallback: regular input() if readchar isn't available
+            try:
+                input()
+            except EOFError:
+                pass
 
     def _show_feature_overview_slow(self) -> None:
         """

@@ -16,6 +16,7 @@ import argparse
 import logging
 import sys
 import json
+import readchar
 from pathlib import Path
 from typing import Optional, Any, List, Dict, Callable, Tuple
 from datetime import datetime
@@ -196,7 +197,6 @@ def _run_exports(result: AnalysisResult, formats: list[str], out_dir: Path) -> N
 
         except Exception as e:  # noqa: BLE001
             console.print(f"[red]✗ Failed to export {fmt}:[/red] {e}")
-
 
 
 def show_quick_actions_menu(result: AnalysisResult, export_formats: Optional[list[str]], out_dir: Path) -> bool:
