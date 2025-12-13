@@ -1,22 +1,55 @@
-from typing import Callable, Optional
+"""
+SlowQL Top-level package
+"""
+from __future__ import annotations
 
-__all__ = ["__version__"]
+from typing import TYPE_CHECKING
 
-__version__: Optional[str] = None
+# Define version FIRST to avoid import errors
+__version__ = "2.0.0"
+__author__ = "makroumi"
+__license__ = "Apache-2.0"
 
-# store only the `version` function (or None) to avoid mixing module and None types
-version_func: Optional[Callable[[str], str]] = None
-try:
-    import importlib.metadata as _importlib_metadata
-    version_func = _importlib_metadata.version
-except Exception:
-    version_func = None
+from slowql.core.config import Config
+from slowql.core.engine import SlowQL
+from slowql.core.models import (
+    AnalysisResult,
+    Dimension,
+    Issue,
+    Location,
+    Severity,
+)
 
-if version_func is not None:
-    try:
-        __version__ = version_func("sqlguard")
-    except Exception:
-        try:
-            __version__ = version_func("slowql")
-        except Exception:
-            __version__ = None
+if TYPE_CHECKING:
+    from pathlib import Path
+
+__all__ = [
+    "SlowQL",
+    "analyze",
+    "analyze_file",
+    "AnalysisResult",
+    "Issue",
+    "Severity",
+    "Dimension",
+    "Location",
+    "Config",
+    "__version__",
+]
+
+def analyze(
+    sql: str,
+    *,
+    dialect: str | None = None,
+    config: Config | None = None,
+) -> AnalysisResult:
+    engine = SlowQL(config=config)
+    return engine.analyze(sql, dialect=dialect)
+
+def analyze_file(
+    path: str | Path,
+    *,
+    dialect: str | None = None,
+    config: Config | None = None,
+) -> AnalysisResult:
+    engine = SlowQL(config=config)
+    return engine.analyze_file(path, dialect=dialect)
