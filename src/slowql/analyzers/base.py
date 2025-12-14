@@ -398,7 +398,7 @@ class PatternAnalyzer(RuleBasedAnalyzer):
         ...     name = "simple-security"
         ...     dimension = Dimension.SECURITY
         ...     patterns = [
-        ...         (r"password\s*=\s*'[^']+'", "SEC-001", "Hardcoded password"),
+        ...         (r"password\s*=\s*'[^']+'", "SEC-001", "Hardcoded password", Severity.HIGH),
         ...     ]
     """
 

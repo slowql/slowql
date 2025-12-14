@@ -573,11 +573,15 @@ def run_analysis_loop(
             console.print("\n")
             formatter.report(result)
             
+            # Auto-export if configured
+            if export_formats:
+                _run_exports(result, export_formats, out_dir)
+            
             # Interactive prompt
             if not non_interactive:
                 continue_analysis = show_quick_actions_menu(
                     result,
-                    export_formats,
+                    None,  # export_formats taken care of or used for menu default?
                     out_dir
                 )
                 if not continue_analysis:

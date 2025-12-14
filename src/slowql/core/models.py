@@ -84,6 +84,18 @@ class Severity(str, Enum):
             return NotImplemented
         return self.weight <= other.weight
 
+    def __gt__(self, other: object) -> bool:
+        """Compare severities for sorting."""
+        if not isinstance(other, Severity):
+            return NotImplemented
+        return self.weight > other.weight
+
+    def __ge__(self, other: object) -> bool:
+        """Compare severities for sorting."""
+        if not isinstance(other, Severity):
+            return NotImplemented
+        return self.weight >= other.weight
+
 
 class Dimension(str, Enum):
     """

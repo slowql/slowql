@@ -6,7 +6,16 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 # Define version FIRST to avoid import errors
-__version__ = "2.0.0"
+try:
+    from importlib.metadata import version
+    try:
+        __version__ = version("slowql")
+    except Exception:
+        # Fallback to sqlguard for backwards compatibility
+        __version__ = version("sqlguard")
+except Exception:
+    __version__ = None
+
 __author__ = "makroumi"
 __license__ = "Apache-2.0"
 

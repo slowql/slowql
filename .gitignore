@@ -27,3 +27,8 @@ reports/
 *.egg-info/
 __pycache__/
 
+.coverage
+.pytest_cache/
+htmlcov/
+__pycache__/
+*.xml

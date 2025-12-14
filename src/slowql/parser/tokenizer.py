@@ -295,12 +295,13 @@ class Tokenizer:
                     # Check if identifier is actually a keyword
                     actual_type = token_type
                     if token_type == TokenType.IDENTIFIER:
-                        if value.upper() in SQL_KEYWORDS:
-                            actual_type = TokenType.KEYWORD
-                        elif value.upper() in ("TRUE", "FALSE"):
+                        upper_val = value.upper()
+                        if upper_val in ("TRUE", "FALSE"):
                             actual_type = TokenType.BOOLEAN
-                        elif value.upper() == "NULL":
+                        elif upper_val == "NULL":
                             actual_type = TokenType.NULL
+                        elif upper_val in SQL_KEYWORDS:
+                            actual_type = TokenType.KEYWORD
 
                     # Skip if configured
                     should_skip = False

@@ -4,22 +4,17 @@ from pathlib import Path
 
 import pytest
 
-from slowql.core.analyzer import QueryAnalyzer
-from slowql.core.detector import DetectedIssue, IssueSeverity, QueryDetector
+from slowql.core.engine import SlowQL
+from slowql.core.models import Issue, Severity, Location, Dimension
 
 # -------------------------------
 # Core Fixtures
 # -------------------------------
 
 @pytest.fixture(scope="session")
-def detector() -> QueryDetector:
-    """Shared QueryDetector instance for all tests."""
-    return QueryDetector()
-
-@pytest.fixture(scope="session")
-def analyzer() -> QueryAnalyzer:
-    """Shared QueryAnalyzer instance (non-verbose by default)."""
-    return QueryAnalyzer(verbose=False)
+def analyzer() -> SlowQL:
+    """Shared SlowQL instance for all tests."""
+    return SlowQL()
 
 @pytest.fixture
 def sample_queries() -> dict:
@@ -62,16 +57,17 @@ def empty_sql_file(tmp_path: Path) -> Path:
 # -------------------------------
 
 @pytest.fixture
-def detected_issue_example() -> DetectedIssue:
-    """Provide a sample DetectedIssue object for structural tests."""
-    return DetectedIssue(
-        issue_type="SELECT * Usage",
-        query="SELECT * FROM users",
-        description="Query retrieves all columns unnecessarily",
-        fix="Specify only needed columns",
+def detected_issue_example() -> Issue:
+    """Provide a sample Issue object for structural tests."""
+    return Issue(
+        rule_id="QUAL-001",
+        message="Query retrieves all columns unnecessarily",
+        severity=Severity.MEDIUM,
+        dimension=Dimension.QUALITY,
+        location=Location(line=1, column=1),
+        snippet="SELECT * FROM users",
+        fix=None,
         impact="50-90% less data transfer, enables covering indexes",
-        severity=IssueSeverity.MEDIUM,
-        line_number=None,
     )
 
 @pytest.fixture
