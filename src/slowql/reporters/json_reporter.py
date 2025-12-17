@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import csv
 from html import escape
-from typing import Any
+from typing import Any, Dict
 
 from slowql.core.models import AnalysisResult, Issue
 from slowql.reporters.base import BaseReporter
@@ -84,27 +84,35 @@ class HTMLReporter(BaseReporter):
       - Location (if available)
     """
 
+    def _calculate_health_score(self, result: AnalysisResult) -> int:
+        """Calculate 0–100 health score based on severity of all issues."""
+        from slowql.core.models import Severity
+
+        weights: Dict[Severity, int] = {
+            Severity.CRITICAL: 25,
+            Severity.HIGH: 15,
+            Severity.MEDIUM: 5,
+            Severity.LOW: 2,
+            Severity.INFO: 0,
+        }
+        penalty = sum(weights.get(issue.severity, 0) for issue in result.issues)
+        return max(0, 100 - min(penalty, 100))
+
     def report(self, result: AnalysisResult) -> None:
         rows: list[dict[str, str]] = []
 
         for issue in result.issues:
             sev = getattr(issue.severity, "name", str(issue.severity))
-            rule_id = issue.rule_id or ""
-            dim = getattr(issue.dimension, "name", "") if getattr(issue, "dimension", None) else ""
-            msg = issue.message or ""
-            impact = issue.impact or ""
-            fix_txt = _normalize_fix_text(getattr(issue, "fix", None))
-            loc = f"{getattr(issue, 'location', '') or ''}"
 
             rows.append(
                 {
                     "severity": sev,
-                    "rule_id": rule_id,
-                    "dimension": dim,
-                    "message": msg,
-                    "impact": impact,
-                    "fix": fix_txt,
-                    "location": loc,
+                    "rule_id": issue.rule_id or "",
+                    "dimension": getattr(issue.dimension, "name", "") if getattr(issue, "dimension", None) else "",
+                    "message": issue.message or "",
+                    "impact": issue.impact or "",
+                    "fix": _normalize_fix_text(getattr(issue, "fix", None)),
+                    "location": f"{getattr(issue, 'location', '') or ''}",
                 }
             )
 
@@ -126,9 +134,9 @@ class HTMLReporter(BaseReporter):
 
         # Safe meta values
         total_issues = getattr(result.statistics, "total_issues", len(result.issues))
-        score_val = getattr(result, "score", None) or getattr(result, "health_score", None)
-        if score_val is not None:
-            health_html = f"<div>Health score: {score_val}/100</div>"
+        health_score = self._calculate_health_score(result)
+        if health_score is not None:
+            health_html = f'<h2>Health Score: <span class="health-score-value">{health_score}</span>/100</h2>'
         else:
             health_html = ""
 
@@ -148,6 +156,10 @@ class HTMLReporter(BaseReporter):
       color: #f97316;
       text-align: center;
       margin-bottom: 0.25rem;
+    }}
+    h2.health-score {{
+        text-align: center;
+        margin-top: 0;
     }}
     h2 {{
       color: #a855f7;
@@ -194,8 +206,8 @@ class HTMLReporter(BaseReporter):
 <body>
   <h1>SlowQL Analysis Report</h1>
   <div class="meta">
-    <div>Total issues: {total_issues}</div>
-    {health_html}
+    <div>Total Issues: {total_issues}</div>
+    <h2 class="health-score">Health Score: <span class="health-score-value">{health_score}</span>/100</h2>
   </div>
 
   <h2>Detected Issues</h2>

@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch, mock_open
 from pathlib import Path
 from slowql.core.config import Config, AnalysisConfig, SeverityThresholds, OutputConfig
 from slowql.core.exceptions import ConfigurationError
+import sys
 
 class TestConfigCoverage:
     
@@ -25,9 +26,13 @@ class TestConfigCoverage:
         # YAML
         yaml_path = tmp_path / "config.yaml"
         yaml_path.write_text('analysis:\n  dialect: sqlite')
-        cfg = Config.from_file(yaml_path)
-        assert cfg.analysis.dialect == "sqlite"
 
+        # Mock the yaml import to avoid ModuleNotFoundError in test env
+        with patch.dict('sys.modules', {'yaml': MagicMock()}):
+            sys.modules['yaml'].safe_load.return_value = {'analysis': {'dialect': 'sqlite'}}
+            cfg = Config.from_file(yaml_path)
+            assert cfg.analysis.dialect == "sqlite"
+            sys.modules['yaml'].safe_load.assert_called_once_with('analysis:\n  dialect: sqlite')
     def test_from_file_errors(self, tmp_path):
         # Missing
         with pytest.raises(ConfigurationError) as exc:

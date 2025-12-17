@@ -82,15 +82,15 @@ class ParseError(SlowQLError):
 
     def __str__(self) -> str:
         """Return string representation with location info."""
-        parts = [self.message]
+        base_str = super().__str__()
+        parts = [base_str]
         if self.location:
             parts.append(f"at line {self.location.line}, column {self.location.column}")
         if self.sql:
             # Show first 100 chars of SQL
             preview = self.sql[:100] + "..." if len(self.sql) > 100 else self.sql
             parts.append(f"SQL: {preview}")
-        if self.details:
-            parts.append(f"Details: {self.details}")
+        
         return "\n".join(parts)
 
 

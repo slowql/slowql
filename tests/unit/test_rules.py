@@ -174,7 +174,7 @@ def test_get_all_rules():
 
 
 # Test rule classes for registry testing
-class TestSecurityRule(PatternRule):
+class SecurityRuleHelper(PatternRule):
     id = "TEST-SEC-001"
     name = "Test Security Rule"
     description = "A test security rule"
@@ -185,7 +185,7 @@ class TestSecurityRule(PatternRule):
     message_template = "Test security issue found"
 
 
-class TestPerformanceRule(PatternRule):
+class PerformanceRuleHelper(PatternRule):
     id = "TEST-PERF-001"
     name = "Test Performance Rule"
     description = "A test performance rule"
@@ -195,7 +195,7 @@ class TestPerformanceRule(PatternRule):
     message_template = "Test performance issue found"
 
 
-class TestDisabledRule(PatternRule):
+class DisabledRuleHelper(PatternRule):
     id = "TEST-DISABLED-001"
     name = "Test Disabled Rule"
     description = "A test disabled rule"
@@ -224,7 +224,7 @@ class TestRuleRegistry:
         from slowql.rules.registry import RuleRegistry
 
         registry = RuleRegistry()
-        rule = TestSecurityRule()
+        rule = SecurityRuleHelper()
 
         registry.register(rule)
 
@@ -251,8 +251,8 @@ class TestRuleRegistry:
         from slowql.rules.registry import RuleRegistry
 
         registry = RuleRegistry()
-        rule1 = TestSecurityRule()
-        rule2 = TestSecurityRule()  # Same ID
+        rule1 = SecurityRuleHelper()
+        rule2 = SecurityRuleHelper()  # Same ID
 
         registry.register(rule1)
         with pytest.raises(ValueError, match="Rule 'TEST-SEC-001' is already registered"):
@@ -273,7 +273,7 @@ class TestRuleRegistry:
             message_template = "Test security issue found 2"
 
         registry = RuleRegistry()
-        rule1 = TestSecurityRule()
+        rule1 = SecurityRuleHelper()
         rule2 = TestSecurityRule2()
 
         registry.register(rule1)
@@ -287,7 +287,7 @@ class TestRuleRegistry:
         from slowql.rules.registry import RuleRegistry
 
         registry = RuleRegistry()
-        rule = TestSecurityRule()
+        rule = SecurityRuleHelper()
 
         registry.register(rule)
         assert len(registry) == 1
@@ -310,7 +310,7 @@ class TestRuleRegistry:
         from slowql.rules.registry import RuleRegistry
 
         registry = RuleRegistry()
-        rule = TestSecurityRule()
+        rule = SecurityRuleHelper()
 
         registry.register(rule)
         info = registry.get_rule_info("TEST-SEC-001")
@@ -332,8 +332,8 @@ class TestRuleRegistry:
         from slowql.rules.registry import RuleRegistry
 
         registry = RuleRegistry()
-        rule1 = TestSecurityRule()
-        rule2 = TestPerformanceRule()
+        rule1 = SecurityRuleHelper()
+        rule2 = PerformanceRuleHelper()
 
         registry.register(rule1)
         registry.register(rule2)
@@ -348,8 +348,8 @@ class TestRuleRegistry:
         from slowql.rules.registry import RuleRegistry
 
         registry = RuleRegistry()
-        rule1 = TestSecurityRule()
-        rule2 = TestPerformanceRule()
+        rule1 = SecurityRuleHelper()
+        rule2 = PerformanceRuleHelper()
 
         registry.register(rule1)
         registry.register(rule2)
@@ -367,8 +367,8 @@ class TestRuleRegistry:
         from slowql.rules.registry import RuleRegistry
 
         registry = RuleRegistry()
-        rule1 = TestSecurityRule()
-        rule2 = TestPerformanceRule()
+        rule1 = SecurityRuleHelper()
+        rule2 = PerformanceRuleHelper()
 
         registry.register(rule1)
         registry.register(rule2)
@@ -382,8 +382,8 @@ class TestRuleRegistry:
         from slowql.rules.registry import RuleRegistry
 
         registry = RuleRegistry()
-        rule1 = TestSecurityRule()
-        rule2 = TestPerformanceRule()
+        rule1 = SecurityRuleHelper()
+        rule2 = PerformanceRuleHelper()
 
         registry.register(rule1)
         registry.register(rule2)
@@ -435,8 +435,8 @@ class TestRuleRegistry:
         from slowql.rules.registry import RuleRegistry
 
         registry = RuleRegistry()
-        rule1 = TestSecurityRule()
-        rule2 = TestDisabledRule()  # This rule is disabled by default
+        rule1 = SecurityRuleHelper()
+        rule2 = DisabledRuleHelper()  # This rule is disabled by default
 
         registry.register(rule1)
         registry.register(rule2)
@@ -450,7 +450,7 @@ class TestRuleRegistry:
         from slowql.rules.registry import RuleRegistry
 
         registry = RuleRegistry()
-        rule = TestSecurityRule()
+        rule = SecurityRuleHelper()
 
         registry.register(rule)
         rule_list = registry.list_all()
@@ -505,7 +505,7 @@ class TestRuleRegistry:
         assert results[0].id == "SEC-INJ-001"
 
         # Search enabled only
-        registry.register(TestDisabledRule())  # Add a disabled rule
+        registry.register(DisabledRuleHelper())  # Add a disabled rule
         results = registry.search("", enabled_only=True)
         assert len(results) == 2  # Both InjectionRule and IndexRule are enabled
         rule_ids = [r.id for r in results]
@@ -517,8 +517,8 @@ class TestRuleRegistry:
         from slowql.rules.registry import RuleRegistry
 
         registry = RuleRegistry()
-        rule1 = TestSecurityRule()
-        rule2 = TestDisabledRule()  # This rule is disabled
+        rule1 = SecurityRuleHelper()
+        rule2 = DisabledRuleHelper()  # This rule is disabled
 
         registry.register(rule1)
         registry.register(rule2)
@@ -538,7 +538,7 @@ class TestRuleRegistry:
         from slowql.rules.registry import RuleRegistry
 
         registry = RuleRegistry()
-        rule = TestSecurityRule()
+        rule = SecurityRuleHelper()
 
         registry.register(rule)
         assert len(registry) == 1
@@ -551,7 +551,7 @@ class TestRuleRegistry:
         from slowql.rules.registry import RuleRegistry
 
         registry = RuleRegistry()
-        rule = TestSecurityRule()
+        rule = SecurityRuleHelper()
 
         registry.register(rule)
 
@@ -563,8 +563,8 @@ class TestRuleRegistry:
         from slowql.rules.registry import RuleRegistry
 
         registry = RuleRegistry()
-        rule1 = TestSecurityRule()
-        rule2 = TestPerformanceRule()
+        rule1 = SecurityRuleHelper()
+        rule2 = PerformanceRuleHelper()
 
         registry.register(rule1)
         registry.register(rule2)

@@ -41,7 +41,7 @@ class TestReportersCoverage:
         issues = [
             Issue(
                 rule_id="RULE-1", message="Msg", severity=Severity.HIGH, 
-                dimension=Dimension.SECURITY, location=Location(1,1),
+                dimension=Dimension.SECURITY, location=Location(1,1), snippet="SELECT 1",
                 impact="Bad", fix=Fix("Fix it", "Code")
             )
         ]
@@ -50,17 +50,17 @@ class TestReportersCoverage:
             statistics=Statistics(total_issues=1),
             version="1.0"
         )
-        # Mock score/health_score if accessed
-        result.health_score = 80
         
         # Test file output
         with io.StringIO() as buf:
             reporter = HTMLReporter()
-            reporter.output_file = buf
-            reporter.report(result)
-            out = buf.getvalue()
-            assert "RULE-1" in out
-            assert "Health score: 80" in out
+            with patch.object(reporter, "_calculate_health_score", return_value=85):
+                reporter.output_file = buf
+                reporter.report(result)
+                out = buf.getvalue()
+                assert "RULE-1" in out
+                assert "Health Score: <span" in out
+                assert ">85</span>/100" in out
             
         # Test stdout
         with patch("builtins.print") as mock_print:
@@ -72,7 +72,7 @@ class TestReportersCoverage:
         issues = [
              Issue(
                 rule_id="RULE-1", message="Msg", severity=Severity.HIGH, 
-                dimension=Dimension.SECURITY, location=Location(1,1),
+                dimension=Dimension.SECURITY, location=Location(1,1), snippet="SELECT 1",
                 impact="Bad", fix="FixStr"
             )
         ]

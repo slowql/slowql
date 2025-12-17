@@ -339,7 +339,8 @@ class TestCompareMode:
     def test_compare_mode_success(self, mock_progress, mock_console, mock_input):
         """Test successful query comparison."""
         # Mock input for two queries (each followed by two empty lines to finish)
-        mock_input.side_effect = ["SELECT * FROM test1", "", "", "SELECT * FROM test2", "", ""]
+        # Added EOFError to ensure the loop terminates
+        mock_input.side_effect = ["SELECT * FROM test1", "", "", "SELECT * FROM test2", "", "", EOFError()]
 
         engine = MagicMock()
         result1 = MagicMock()
@@ -359,7 +360,8 @@ class TestCompareMode:
     @patch("slowql.cli.app.console")
     def test_compare_mode_empty_queries(self, mock_console, mock_input):
         """Test compare mode with empty queries."""
-        mock_input.side_effect = ["", "", "", ""]
+        # Added EOFError to ensure the loop terminates
+        mock_input.side_effect = ["", "", "", "", EOFError()]
 
         engine = MagicMock()
         compare_mode(engine)
@@ -431,7 +433,6 @@ class TestRunAnalysisLoop:
     @patch("slowql.cli.app.Config")
     @patch("slowql.cli.app.ConsoleReporter")
     @patch("slowql.cli.app.show_quick_actions_menu")
-
     @patch("slowql.cli.app.CyberpunkSQLEditor")
     @patch("slowql.cli.app.Confirm")
     @patch("builtins.input")
@@ -468,7 +469,6 @@ class TestRunAnalysisLoop:
     @patch("slowql.cli.app.Config")
     @patch("slowql.cli.app.ConsoleReporter")
     @patch("slowql.cli.app.show_quick_actions_menu")
-
     @patch("slowql.cli.app.Confirm")
     @patch("builtins.input")
     def test_run_analysis_loop_with_file_input(self, mock_input, mock_confirm, mock_menu, mock_reporter, mock_config, mock_slowql, mock_matrix, mock_console, mock_sys):

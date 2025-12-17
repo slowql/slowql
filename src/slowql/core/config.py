@@ -17,7 +17,7 @@ import os
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class SeverityThresholds(BaseModel):
@@ -29,8 +29,7 @@ class SeverityThresholds(BaseModel):
     warn_on: Literal["critical", "high", "medium", "low", "info", "never"] = "medium"
     """Minimum severity level that triggers warnings."""
 
-    class Config:
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class OutputConfig(BaseModel):
@@ -60,8 +59,7 @@ class OutputConfig(BaseModel):
     group_by: Literal["severity", "dimension", "file", "rule", "none"] = "severity"
     """How to group issues in output."""
 
-    class Config:
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class AnalysisConfig(BaseModel):
@@ -100,8 +98,7 @@ class AnalysisConfig(BaseModel):
     max_workers: int = 0
     """Number of parallel workers (0 = auto based on CPU count)."""
 
-    class Config:
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
     @field_validator("enabled_dimensions", mode="before")
     @classmethod
@@ -129,8 +126,7 @@ class ComplianceConfig(BaseModel):
     strict_mode: bool = False
     """Enable strict compliance checking."""
 
-    class Config:
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class CostConfig(BaseModel):
@@ -148,8 +144,7 @@ class CostConfig(BaseModel):
     data_transfer_cost_per_gb: float = 0.0
     """Cost per GB of data transfer in USD."""
 
-    class Config:
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class Config(BaseModel):
@@ -180,9 +175,10 @@ class Config(BaseModel):
     cost: CostConfig = Field(default_factory=CostConfig)
     """Cost estimation configuration."""
 
-    class Config:
-        frozen = True
-        extra = "forbid"
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+    )
 
     @classmethod
     def from_file(cls, path: str | Path) -> "Config":

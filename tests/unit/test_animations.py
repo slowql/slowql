@@ -40,12 +40,13 @@ class TestMatrixRain:
         assert "magenta" in rain._get_logo_color(30, 50)  # Q area
         assert "hot_pink" in rain._get_logo_color(40, 50)  # L area
 
+    @patch("readchar.readkey", return_value='\n')
     @patch("slowql.cli.ui.animations.shutil.get_terminal_size")
     @patch("slowql.cli.ui.animations.Console")
     @patch("slowql.cli.ui.animations.Live")
     @patch("slowql.cli.ui.animations.time.sleep")
     @patch("builtins.input")
-    def test_run_short_duration(self, mock_input, mock_sleep, mock_live, mock_console, mock_get_terminal_size):
+    def test_run_short_duration(self, mock_input, mock_sleep, mock_live, mock_console, mock_get_terminal_size, mock_readkey):
         """Test MatrixRain run with short duration."""
         mock_get_terminal_size.return_value = MagicMock(columns=80, lines=24)
         mock_input.return_value = ""  # Simulate enter press
@@ -57,13 +58,14 @@ class TestMatrixRain:
         mock_live.assert_called_once()
         mock_sleep.assert_called()
 
+    @patch("readchar.readkey", return_value='\n')
     @patch("slowql.cli.ui.animations.shutil.get_terminal_size")
     @patch("slowql.cli.ui.animations.Console")
     @patch("slowql.cli.ui.animations.Align")
     @patch("slowql.cli.ui.animations.Text")
     @patch("slowql.cli.ui.animations.time.sleep")
     @patch("builtins.input")
-    def test_slow_scroll_reveal(self, mock_input, mock_sleep, mock_text, mock_align, mock_console, mock_get_terminal_size):
+    def test_slow_scroll_reveal(self, mock_input, mock_sleep, mock_text, mock_align, mock_console, mock_get_terminal_size, mock_readkey):
         """Test slow scroll reveal functionality."""
         mock_get_terminal_size.return_value = MagicMock(columns=80, lines=24)
         mock_input.return_value = ""  # Simulate enter press
@@ -172,7 +174,8 @@ class TestAnimatedAnalyzer:
     def test_glitch_transition(self, mock_sleep, mock_console):
         """Test glitch transition effect."""
         analyzer = AnimatedAnalyzer()
-        analyzer.glitch_transition(duration=0.1)
+        # Reduced duration from 0.1 to 0.001 to prevent high CPU usage during mock loop
+        analyzer.glitch_transition(duration=0.001)
 
         # Should have printed multiple glitch lines
         assert mock_console.return_value.print.call_count > 0

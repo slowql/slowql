@@ -12,7 +12,7 @@ from slowql.core.models import Query, Location, Issue, Severity, Dimension
 
 
 # Test analyzer classes
-class TestAnalyzer(RuleBasedAnalyzer):
+class AnalyzerHelper(RuleBasedAnalyzer):
     name = "test-analyzer"
     dimension = Dimension.SECURITY
     priority = 100
@@ -21,7 +21,7 @@ class TestAnalyzer(RuleBasedAnalyzer):
         return []
 
 
-class TestAnalyzerHighPriority(RuleBasedAnalyzer):
+class AnalyzerHighPriorityHelper(RuleBasedAnalyzer):
     name = "test-analyzer-high"
     dimension = Dimension.SECURITY
     priority = 50
@@ -30,7 +30,7 @@ class TestAnalyzerHighPriority(RuleBasedAnalyzer):
         return []
 
 
-class TestAnalyzerDisabled(RuleBasedAnalyzer):
+class AnalyzerDisabledHelper(RuleBasedAnalyzer):
     name = "test-analyzer-disabled"
     dimension = Dimension.SECURITY
     enabled = False
@@ -39,7 +39,7 @@ class TestAnalyzerDisabled(RuleBasedAnalyzer):
         return []
 
 
-class TestAnalyzerPerformance(RuleBasedAnalyzer):
+class AnalyzerPerformanceHelper(RuleBasedAnalyzer):
     name = "test-analyzer-performance"
     dimension = Dimension.PERFORMANCE
 
@@ -47,7 +47,7 @@ class TestAnalyzerPerformance(RuleBasedAnalyzer):
         return []
 
 
-class TestGlobalAnalyzer(RuleBasedAnalyzer):
+class GlobalAnalyzerHelper(RuleBasedAnalyzer):
     name = "global-test-analyzer"
     dimension = Dimension.SECURITY
 
@@ -385,7 +385,7 @@ class TestAnalyzerRegistry:
 
     def test_register_analyzer(self):
         registry = AnalyzerRegistry()
-        analyzer = TestAnalyzer()
+        analyzer = AnalyzerHelper()
 
         registry.register(analyzer)
         assert len(registry) == 1
@@ -394,8 +394,8 @@ class TestAnalyzerRegistry:
 
     def test_register_duplicate_analyzer(self):
         registry = AnalyzerRegistry()
-        analyzer1 = TestAnalyzer()
-        analyzer2 = TestAnalyzer()  # Same name
+        analyzer1 = AnalyzerHelper()
+        analyzer2 = AnalyzerHelper()  # Same name
 
         registry.register(analyzer1)
         with pytest.raises(ValueError, match="Analyzer 'test-analyzer' is already registered"):
@@ -403,7 +403,7 @@ class TestAnalyzerRegistry:
 
     def test_register_analyzer_with_replace(self):
         registry = AnalyzerRegistry()
-        analyzer1 = TestAnalyzer()
+        analyzer1 = AnalyzerHelper()
 
         # Create another analyzer with same name but different priority
         class TestAnalyzerReplaced(RuleBasedAnalyzer):
@@ -422,7 +422,7 @@ class TestAnalyzerRegistry:
 
     def test_unregister_analyzer(self):
         registry = AnalyzerRegistry()
-        analyzer = TestAnalyzer()
+        analyzer = AnalyzerHelper()
 
         registry.register(analyzer)
         assert len(registry) == 1
@@ -444,8 +444,8 @@ class TestAnalyzerRegistry:
 
     def test_get_all(self):
         registry = AnalyzerRegistry()
-        analyzer1 = TestAnalyzer()  # priority 100
-        analyzer2 = TestAnalyzerHighPriority()  # priority 50
+        analyzer1 = AnalyzerHelper()  # priority 100
+        analyzer2 = AnalyzerHighPriorityHelper()  # priority 50
 
         registry.register(analyzer1)
         registry.register(analyzer2)
@@ -458,8 +458,8 @@ class TestAnalyzerRegistry:
 
     def test_get_by_dimension(self):
         registry = AnalyzerRegistry()
-        analyzer1 = TestAnalyzer()  # SECURITY
-        analyzer2 = TestAnalyzerPerformance()  # PERFORMANCE
+        analyzer1 = AnalyzerHelper()  # SECURITY
+        analyzer2 = AnalyzerPerformanceHelper()  # PERFORMANCE
 
         registry.register(analyzer1)
         registry.register(analyzer2)
@@ -470,8 +470,8 @@ class TestAnalyzerRegistry:
 
     def test_get_enabled(self):
         registry = AnalyzerRegistry()
-        analyzer1 = TestAnalyzer()  # enabled by default
-        analyzer2 = TestAnalyzerDisabled()  # disabled
+        analyzer1 = AnalyzerHelper()  # enabled by default
+        analyzer2 = AnalyzerDisabledHelper()  # disabled
 
         registry.register(analyzer1)
         registry.register(analyzer2)
@@ -496,7 +496,7 @@ class TestAnalyzerRegistry:
 
     def test_contains(self):
         registry = AnalyzerRegistry()
-        analyzer = TestAnalyzer()
+        analyzer = AnalyzerHelper()
 
         registry.register(analyzer)
 
@@ -505,7 +505,7 @@ class TestAnalyzerRegistry:
 
     def test_iter(self):
         registry = AnalyzerRegistry()
-        analyzer = TestAnalyzer()
+        analyzer = AnalyzerHelper()
 
         registry.register(analyzer)
 
@@ -515,7 +515,7 @@ class TestAnalyzerRegistry:
 
     def test_list_names(self):
         registry = AnalyzerRegistry()
-        analyzer = TestAnalyzer()
+        analyzer = AnalyzerHelper()
 
         registry.register(analyzer)
 
@@ -524,8 +524,8 @@ class TestAnalyzerRegistry:
 
     def test_list_dimensions(self):
         registry = AnalyzerRegistry()
-        analyzer1 = TestAnalyzer()  # SECURITY
-        analyzer2 = TestAnalyzerPerformance()  # PERFORMANCE
+        analyzer1 = AnalyzerHelper()  # SECURITY
+        analyzer2 = AnalyzerPerformanceHelper()  # PERFORMANCE
 
         registry.register(analyzer1)
         registry.register(analyzer2)
@@ -536,7 +536,7 @@ class TestAnalyzerRegistry:
 
     def test_clear(self):
         registry = AnalyzerRegistry()
-        analyzer = TestAnalyzer()
+        analyzer = AnalyzerHelper()
 
         registry.register(analyzer)
         registry._discovered = True  # Simulate discovery
@@ -548,8 +548,8 @@ class TestAnalyzerRegistry:
 
     def test_stats(self):
         registry = AnalyzerRegistry()
-        analyzer1 = TestAnalyzer()  # enabled
-        analyzer2 = TestAnalyzerDisabled()  # disabled
+        analyzer1 = AnalyzerHelper()  # enabled
+        analyzer2 = AnalyzerDisabledHelper()  # disabled
 
         registry.register(analyzer1)
         registry.register(analyzer2)
@@ -580,7 +580,7 @@ class TestGlobalRegistry:
         registry = get_registry()
         initial_count = len(registry)
 
-        analyzer = TestGlobalAnalyzer()
+        analyzer = GlobalAnalyzerHelper()
 
         register_analyzer(analyzer)
         assert len(registry) == initial_count + 1
