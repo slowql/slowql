@@ -1,174 +1,412 @@
-name: CI Pipeline
+name: CI/CD Pipeline
 
 on:
   push:
     branches: [ main ]
-    tags:
-      - 'v*'
+    tags: [ 'v*' ]
   pull_request:
     branches: [ main ]
+  schedule:
+    # Weekly security scan
+    - cron: '0 2 * * 1'
+
+env:
+  PYTHON_VERSION: "3.12"
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  # -------------------------------
-  # Linting
-  # -------------------------------
-  lint:
+  # ========================================
+  # Code Quality & Security
+  # ========================================
+  code-quality:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
-          python-version: "3.12"
-      - name: Install dependencies
-        run: pip install ruff
-      - name: Run Ruff
-      - run: ruff check src tests
+          fetch-depth: 0
 
-  # -------------------------------
-  # Type Checking
-  # -------------------------------
-  type-check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
-      - name: Install dependencies
-        run: pip install mypy
-      - name: Run Mypy
-      - run: mypy src
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
 
-  # -------------------------------
-  # Tests + Coverage
-  # -------------------------------
-  tests:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: "pip" # Caches pip dependencies
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e .[test] -r requirements.txt
-      - name: Run test suite
+          pip install ruff mypy pytest pytest-cov
+
+      # Ruff Linting
+      - name: Run Ruff linting
+        run: ruff check src tests --output-format=github
+
+      # Ruff Formatting Check
+      - name: Check code formatting
+        run: ruff format --check src tests
+
+      # MyPy Type Checking
+      - name: Run MyPy type checking
+        run: mypy src --show-error-codes --pretty
+
+      # Security Scan with Bandit
+      - name: Run Bandit security scan
+        run: |
+          pip install bandit[toml]
+          bandit -r src/ -f json -o bandit-report.json || true
+          bandit -r src/ || true
+
+      - name: Upload Bandit report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bandit-report-${{ matrix.python-version }}
+          path: bandit-report.json
+          retention-days: 30
+
+  # ========================================
+  # Tests & Coverage
+  # ========================================
+  test:
+    runs-on: ubuntu-latest
+    needs: code-quality
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+          pip install pytest pytest-cov pytest-xdist
+
+      - name: Run tests
         run: |
           pytest --maxfail=1 --disable-warnings --benchmark-disable -v \
                  --cov=src --cov-report=xml --cov-report=term-missing \
-                 --junitxml=junit.xml -o junit_family=legacy
-      - uses: codecov/codecov-action@v4
+                 --cov-config=pyproject.toml \
+                 --junitxml=junit-${{ matrix.python-version }}.xml \
+                 -o junit_family=legacy \
+                 --numprocesses=auto
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        if: matrix.python-version == env.PYTHON_VERSION
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.xml
           flags: unittests
           name: codecov-slowql
           fail_ci_if_error: true
-      - if: ${{ !cancelled() }}
-        uses: codecov/test-results-action@v1
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-      - uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: coverage.xml
 
-  # -------------------------------
-  # Docker Build & Push (DockerHub)
-  # -------------------------------
-  docker-build-and-push:
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-${{ matrix.python-version }}
+          path: |
+            junit-${{ matrix.python-version }}.xml
+            coverage.xml
+          retention-days: 30
+
+  # ========================================
+  # Security & Dependency Analysis
+  # ========================================
+  security:
     runs-on: ubuntu-latest
-    needs: [lint, type-check, tests]
-    if: github.event_name == 'push'
+    needs: code-quality
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install safety pip-audit
+
+      # Safety - Check for known security vulnerabilities
+      - name: Run Safety check
+        run: |
+          safety check --json --output safety-report.json || true
+          safety check || true
+
+      # pip-audit - Check for vulnerabilities in dependencies
+      - name: Run pip-audit
+        run: |
+          pip-audit --format=json --output=pip-audit-report.json || true
+          pip-audit || true
+
+      # Upload security reports
+      - name: Upload safety report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: safety-report
+          path: safety-report.json
+          retention-days: 30
+
+      - name: Upload pip-audit report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pip-audit-report
+          path: pip-audit-report.json
+          retention-days: 30
+
+      # Snyk Security Scan
+      - name: Run Snyk security scan
+        uses: snyk/actions/python@main
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+
+      # Upload Snyk results
+      - name: Upload Snyk report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: snyk-report
+          path: snyk_report.json
+          retention-days: 30
+
+  # ========================================
+  # Build Docker Images
+  # ========================================
+  build-images:
+    runs-on: ubuntu-latest
+    needs: [test, security]
+    if: github.event_name != 'pull_request'
+    outputs:
+      docker-tags: ${{ steps.meta.outputs.tags }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Extract version for Docker tags
+      - name: Extract version
+        id: version
+        run: |
+          if [[ $GITHUB_REF == refs/tags/v* ]]; then
+            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=0.0.0-dev" >> $GITHUB_OUTPUT
+          fi
+
+      # Docker metadata
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: makroumi/slowql
+          images: |
+            makroumi/slowql
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=schedule
             type=ref,event=branch
             type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-      - uses: docker/login-action@v3
+            type=semver,pattern={{major}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      # Login to registries
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/build-push-action@v5
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-
-  # -------------------------------
-  # Docker Build & Push (GHCR)
-  # -------------------------------
-  docker-build-and-push-ghcr:
-    runs-on: ubuntu-latest
-    needs: [lint, type-check, tests]
-    if: github.event_name == 'push'
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - uses: actions/checkout@v4
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Docker meta
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=schedule
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+      # Set up BuildKit
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - uses: docker/setup-buildx-action@v3
-
-      - name: Build and push GHCR image
+      # Build and push Docker images
+      - name: Build and push Docker images
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: ${{ github.event_name != 'pull_request' }}
+          platforms: linux/amd64,linux/arm64
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ steps.version.outputs.VERSION }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-  # -------------------------------
+  # ========================================
   # Publish to PyPI
-  # -------------------------------
+  # ========================================
   publish-pypi:
-    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
-    needs: [lint, type-check, tests]
+    needs: [build-images]
+    if: startsWith(github.ref, 'refs/tags/v')
     permissions:
-      id-token: write   # Required for OIDC
+      id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
-      - run: |
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install build dependencies
+        run: |
           python -m pip install --upgrade pip
-          pip install build
-      - run: python -m build
-      - uses: pypa/gh-action-pypi-publish@release/v1
+          pip install build hatchling
+
+      # Extract version for PyPI
+      - name: Extract version
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      # Build package
+      - name: Build package
+        run: |
+          SETUPTOOLS_SCM_PRETEND_VERSION_FOR_SLOWQL=${{ steps.version.outputs.VERSION }} \
+          python -m build
+
+      # Publish to PyPI
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
         with:
           skip-existing: true
+          verbose: true
+
+      # Upload build artifacts
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7
+
+  # ========================================
+  # Generate SBOM
+  # ========================================
+  sbom:
+    runs-on: ubuntu-latest
+    needs: [test]
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          format: spdx-json
+          output-file: slowql-sbom.spdx.json
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: slowql-sbom.spdx.json
+          retention-days: 365
+
+  # ========================================
+  # Release Notes (for tagged releases)
+  # ========================================
+  release:
+    runs-on: ubuntu-latest
+    needs: [publish-pypi, build-images]
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          # Extract version from tag
+          VERSION=${GITHUB_REF#refs/tags/}
+          
+          # Generate release notes from changelog
+          if [ -f CHANGELOG.md ]; then
+            echo "## Changes in $VERSION" > release_notes.md
+            echo "" >> release_notes.md
+            awk "/^## \[$VERSION\]/,/^## \[.*\]/ { if (!/^## \[.*\]/) print }" CHANGELOG.md >> release_notes.md 2>/dev/null || echo "See CHANGELOG.md for details." >> release_notes.md
+          else
+            echo "Release $VERSION" > release_notes.md
+          fi
+          
+          cat release_notes.md
+
+      - name: Create GitHub release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          release_name: Release ${{ github.ref_name }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: false
+
+  # ========================================
+  # Update Statistics
+  # ========================================
+  update-stats:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Update repository statistics
+        run: |
+          # This could include things like:
+          # - PyPI download statistics
+          # - Docker pull counts
+          # - GitHub repository insights
+          echo "Repository statistics update would go here"
+          echo "Current time: $(date)"
