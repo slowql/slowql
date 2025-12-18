@@ -12,39 +12,31 @@ on:
 
 env:
   PYTHON_VERSION: "3.12"
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   # ========================================
   # Code Quality & Security
   # ========================================
-  code-quality:
+  lint:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.11", "3.12", "3.13"]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install ruff mypy pytest pytest-cov
+          pip install ruff mypy
 
       # Ruff Linting
       - name: Run Ruff linting
-        run: ruff check src tests --output-format=github
+        run: ruff check src tests
 
       # Ruff Formatting Check
       - name: Check code formatting
@@ -52,43 +44,22 @@ jobs:
 
       # MyPy Type Checking
       - name: Run MyPy type checking
-        run: mypy src --show-error-codes --pretty
-
-      # Security Scan with Bandit
-      - name: Run Bandit security scan
-        run: |
-          pip install bandit[toml]
-          bandit -r src/ -f json -o bandit-report.json || true
-          bandit -r src/ || true
-
-      - name: Upload Bandit report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: bandit-report-${{ matrix.python-version }}
-          path: bandit-report.json
-          retention-days: 30
+        run: mypy src
 
   # ========================================
   # Tests & Coverage
   # ========================================
   test:
     runs-on: ubuntu-latest
-    needs: code-quality
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.11", "3.12", "3.13"]
+    needs: lint
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
 
       - name: Install dependencies
@@ -99,43 +70,25 @@ jobs:
 
       - name: Run tests
         run: |
-          pytest --maxfail=1 --disable-warnings --benchmark-disable -v \
+          pytest --maxfail=1 --disable-warnings -v \
                  --cov=src --cov-report=xml --cov-report=term-missing \
-                 --cov-config=pyproject.toml \
-                 --junitxml=junit-${{ matrix.python-version }}.xml \
-                 -o junit_family=legacy \
-                 --numprocesses=auto
+                 --junitxml=junit.xml -o junit_family=legacy
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
-        if: matrix.python-version == env.PYTHON_VERSION
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.xml
           flags: unittests
           name: codecov-slowql
-          fail_ci_if_error: true
-
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: test-results-${{ matrix.python-version }}
-          path: |
-            junit-${{ matrix.python-version }}.xml
-            coverage.xml
-          retention-days: 30
+          fail_ci_if_error: false
 
   # ========================================
-  # Security & Dependency Analysis
+  # Security Scan
   # ========================================
   security:
     runs-on: ubuntu-latest
-    needs: code-quality
-    permissions:
-      security-events: write
-      actions: read
-      contents: read
+    needs: lint
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -150,68 +103,29 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e .
-          pip install safety pip-audit
+          pip install bandit[toml]
 
-      # Safety - Check for known security vulnerabilities
-      - name: Run Safety check
-        run: |
-          safety check --json --output safety-report.json || true
-          safety check || true
-
-      # pip-audit - Check for vulnerabilities in dependencies
-      - name: Run pip-audit
-        run: |
-          pip-audit --format=json --output=pip-audit-report.json || true
-          pip-audit || true
-
-      # Upload security reports
-      - name: Upload safety report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: safety-report
-          path: safety-report.json
-          retention-days: 30
-
-      - name: Upload pip-audit report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: pip-audit-report
-          path: pip-audit-report.json
-          retention-days: 30
+      # Security Scan with Bandit
+      - name: Run Bandit security scan
+        run: bandit -r src/ -ll || true
 
       # Snyk Security Scan
       - name: Run Snyk security scan
         uses: snyk/actions/python@main
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          args: --severity-threshold=high
-
-      # Upload Snyk results
-      - name: Upload Snyk report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: snyk-report
-          path: snyk_report.json
-          retention-days: 30
+        continue-on-error: true
 
   # ========================================
   # Build Docker Images
   # ========================================
-  build-images:
+  docker:
     runs-on: ubuntu-latest
-    needs: [test, security]
+    needs: [test]
     if: github.event_name != 'pull_request'
-    outputs:
-      docker-tags: ${{ steps.meta.outputs.tags }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       # Extract version for Docker tags
       - name: Extract version
@@ -223,60 +137,79 @@ jobs:
             echo "VERSION=0.0.0-dev" >> $GITHUB_OUTPUT
           fi
 
-      # Docker metadata
-      - name: Docker meta
-        id: meta
+      # Docker metadata for DockerHub
+      - name: Docker meta (DockerHub)
+        id: meta-dockerhub
         uses: docker/metadata-action@v5
         with:
-          images: |
-            makroumi/slowql
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: makroumi/slowql
           tags: |
             type=ref,event=branch
             type=ref,event=pr
             type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
             type=raw,value=latest,enable={{is_default_branch}}
 
-      # Login to registries
-      - name: Log in to Docker Hub
+      # Docker metadata for GHCR
+      - name: Docker meta (GHCR)
+        id: meta-ghcr
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      # Login to DockerHub
+      - name: Log in to DockerHub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # Login to GHCR
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ secrets.GHCR_USERNAME }}
+          password: ${{ secrets.GHCR_TOKEN }}
 
-      # Set up BuildKit
+      # Set up Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Build and push Docker images
-      - name: Build and push Docker images
+      # Build and push to DockerHub
+      - name: Build and push to DockerHub
         uses: docker/build-push-action@v5
         with:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta-dockerhub.outputs.tags }}
+          labels: ${{ steps.meta-dockerhub.outputs.labels }}
           build-args: |
             VERSION=${{ steps.version.outputs.VERSION }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+
+      # Build and push to GHCR
+      - name: Build and push to GHCR
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta-ghcr.outputs.tags }}
+          labels: ${{ steps.meta-ghcr.outputs.labels }}
+          build-args: |
+            VERSION=${{ steps.version.outputs.VERSION }}
 
   # ========================================
   # Publish to PyPI
   # ========================================
   publish-pypi:
     runs-on: ubuntu-latest
-    needs: [build-images]
+    needs: [docker]
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       id-token: write
@@ -293,7 +226,7 @@ jobs:
       - name: Install build dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install build hatchling
+          pip install build
 
       # Extract version for PyPI
       - name: Extract version
@@ -313,48 +246,13 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           skip-existing: true
-          verbose: true
-
-      # Upload build artifacts
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: dist
-          path: dist/
-          retention-days: 7
-
-  # ========================================
-  # Generate SBOM
-  # ========================================
-  sbom:
-    runs-on: ubuntu-latest
-    needs: [test]
-    if: github.event_name == 'push'
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Generate SBOM
-        uses: anchore/sbom-action@v0
-        with:
-          format: spdx-json
-          output-file: slowql-sbom.spdx.json
-
-      - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: sbom
-          path: slowql-sbom.spdx.json
-          retention-days: 365
 
   # ========================================
   # Release Notes (for tagged releases)
   # ========================================
   release:
     runs-on: ubuntu-latest
-    needs: [publish-pypi, build-images]
+    needs: [publish-pypi]
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
@@ -365,7 +263,6 @@ jobs:
           fetch-depth: 0
 
       - name: Generate release notes
-        id: release_notes
         run: |
           # Extract version from tag
           VERSION=${GITHUB_REF#refs/tags/}
@@ -382,31 +279,8 @@ jobs:
           cat release_notes.md
 
       - name: Create GitHub release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.ref_name }}
-          release_name: Release ${{ github.ref_name }}
           body_path: release_notes.md
           draft: false
           prerelease: false
-
-  # ========================================
-  # Update Statistics
-  # ========================================
-  update-stats:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Update repository statistics
-        run: |
-          # This could include things like:
-          # - PyPI download statistics
-          # - Docker pull counts
-          # - GitHub repository insights
-          echo "Repository statistics update would go here"
-          echo "Current time: $(date)"
