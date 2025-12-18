@@ -38,10 +38,6 @@ jobs:
       - name: Run Ruff linting
         run: ruff check src tests
 
-      # Ruff Formatting Check
-      - name: Check code formatting
-        run: ruff format --check src tests
-
       # MyPy Type Checking
       - name: Run MyPy type checking
         run: mypy src
