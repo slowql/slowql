@@ -56,23 +56,37 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Used by CI (your workflow does: pip install -e .[test])
+test = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.1.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-xdist>=3.5.0",
+    "pandas>=2.0.0",
+]
+
+# Local development convenience (superset of test + tooling)
 dev = [
     "pytest>=8.0.0",
     "pytest-cov>=4.1.0",
     "pytest-asyncio>=0.23.0",
+    "pytest-xdist>=3.5.0",
+    "pandas>=2.0.0",
     "mypy>=1.8.0",
     "ruff>=0.3.0",
     "pre-commit>=3.6.0",
-    "pandas>=2.0.0",
 ]
+
 docs = [
     "mkdocs>=1.5.0",
     "mkdocs-material>=9.5.0",
     "mkdocstrings[python]>=0.24.0",
 ]
+
 interactive = [
     "readchar>=4.0.0",
 ]
+
 all = ["slowql[dev,docs,interactive]"]
 
 [project.urls]
@@ -141,10 +155,6 @@ plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
 module = ["sqlglot.*"]
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = ["yaml"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
