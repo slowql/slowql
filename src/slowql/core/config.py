@@ -17,20 +17,23 @@ import hashlib
 import json
 import os
 from pathlib import Path
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import tomli
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from slowql.core.exceptions import ConfigurationError
 
-try:
+if TYPE_CHECKING:
     import yaml as _yaml
-except ImportError:
-    _yaml = None  # type: ignore[assignment]
+else:
+    try:
+        import yaml as _yaml
+    except ImportError:
+        _yaml = None
 
 # Type annotation for yaml variable - can be either the yaml module or None
-yaml: Any = _yaml
+yaml: Any | None = _yaml
 
 
 class SeverityThresholds(BaseModel):
