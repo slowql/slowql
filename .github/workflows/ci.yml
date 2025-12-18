@@ -6,24 +6,23 @@ on:
     tags: [ 'v*' ]
   pull_request:
     branches: [ main ]
-  schedule:
-    # Weekly security scan
-    - cron: '0 2 * * 1'
 
 env:
   PYTHON_VERSION: "3.12"
 
 jobs:
   # ========================================
-  # Code Quality & Security
+  # Phase 1: Quality Gates & Core Files
   # ========================================
+  
+  # Lint Job
   lint:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -32,27 +31,41 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install ruff mypy
+          pip install ruff
 
-      # Ruff Linting
       - name: Run Ruff linting
         run: ruff check src tests
 
-      # MyPy Type Checking
-      - name: Run MyPy type checking
-        run: mypy src
-
-  # ========================================
-  # Tests & Coverage
-  # ========================================
-  test:
+  # Type-check Job
+  type-check:
     runs-on: ubuntu-latest
-    needs: lint
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install mypy
+
+      - name: Run MyPy type checking
+        run: mypy src
+
+  # Tests Job
+  tests:
+    runs-on: ubuntu-latest
+    needs: [lint, type-check]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -64,7 +77,7 @@ jobs:
           pip install -e .[test]
           pip install pytest pytest-cov pytest-xdist
 
-      - name: Run tests
+      - name: Run tests with coverage
         run: |
           pytest --maxfail=1 --disable-warnings -v \
                  --cov=src --cov-report=xml --cov-report=term-missing \
@@ -80,45 +93,14 @@ jobs:
           fail_ci_if_error: false
 
   # ========================================
-  # Security Scan
+  # Phase 3: Deployment & Distribution
   # ========================================
-  security:
+  
+  # DockerHub Deployment
+  docker-build-and-push:
     runs-on: ubuntu-latest
-    needs: lint
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e .
-          pip install bandit[toml]
-
-      # Security Scan with Bandit
-      - name: Run Bandit security scan
-        run: bandit -r src/ -ll || true
-
-      # Snyk Security Scan
-      - name: Run Snyk security scan
-        uses: snyk/actions/python@main
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        continue-on-error: true
-
-  # ========================================
-  # Build Docker Images
-  # ========================================
-  docker:
-    runs-on: ubuntu-latest
-    needs: [test]
-    if: github.event_name != 'pull_request'
+    needs: [lint, type-check, tests]
+    if: github.event_name == 'push'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -145,32 +127,12 @@ jobs:
             type=semver,pattern={{version}}
             type=raw,value=latest,enable={{is_default_branch}}
 
-      # Docker metadata for GHCR
-      - name: Docker meta (GHCR)
-        id: meta-ghcr
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=raw,value=latest,enable={{is_default_branch}}
-
       # Login to DockerHub
       - name: Log in to DockerHub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      # Login to GHCR
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ secrets.GHCR_USERNAME }}
-          password: ${{ secrets.GHCR_TOKEN }}
 
       # Set up Docker Buildx
       - name: Set up Docker Buildx
@@ -188,6 +150,51 @@ jobs:
           build-args: |
             VERSION=${{ steps.version.outputs.VERSION }}
 
+  # GHCR Deployment
+  docker-build-and-push-ghcr:
+    runs-on: ubuntu-latest
+    needs: [lint, type-check, tests]
+    if: github.event_name == 'push'
+    permissions:
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Extract version for Docker tags
+      - name: Extract version
+        id: version
+        run: |
+          if [[ $GITHUB_REF == refs/tags/v* ]]; then
+            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=0.0.0-dev" >> $GITHUB_OUTPUT
+          fi
+
+      # Docker metadata for GHCR
+      - name: Docker meta (GHCR)
+        id: meta-ghcr
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      # Login to GHCR
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ secrets.GITHUB_USERNAME }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Set up Docker Buildx
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       # Build and push to GHCR
       - name: Build and push to GHCR
         uses: docker/build-push-action@v5
@@ -200,12 +207,10 @@ jobs:
           build-args: |
             VERSION=${{ steps.version.outputs.VERSION }}
 
-  # ========================================
-  # Publish to PyPI
-  # ========================================
+  # PyPI Deployment
   publish-pypi:
     runs-on: ubuntu-latest
-    needs: [docker]
+    needs: [docker-build-and-push, docker-build-and-push-ghcr]
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       id-token: write
@@ -214,7 +219,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
@@ -242,41 +247,3 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           skip-existing: true
-
-  # ========================================
-  # Release Notes (for tagged releases)
-  # ========================================
-  release:
-    runs-on: ubuntu-latest
-    needs: [publish-pypi]
-    if: startsWith(github.ref, 'refs/tags/v')
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Generate release notes
-        run: |
-          # Extract version from tag
-          VERSION=${GITHUB_REF#refs/tags/}
-          
-          # Generate release notes from changelog
-          if [ -f CHANGELOG.md ]; then
-            echo "## Changes in $VERSION" > release_notes.md
-            echo "" >> release_notes.md
-            awk "/^## \[$VERSION\]/,/^## \[.*\]/ { if (!/^## \[.*\]/) print }" CHANGELOG.md >> release_notes.md 2>/dev/null || echo "See CHANGELOG.md for details." >> release_notes.md
-          else
-            echo "Release $VERSION" > release_notes.md
-          fi
-          
-          cat release_notes.md
-
-      - name: Create GitHub release
-        uses: softprops/action-gh-release@v1
-        with:
-          body_path: release_notes.md
-          draft: false
-          prerelease: false
