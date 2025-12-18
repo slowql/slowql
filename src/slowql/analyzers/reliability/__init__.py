@@ -8,15 +8,23 @@ and preventing catastrophic data loss events.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from slowql.analyzers.base import RuleBasedAnalyzer
 from slowql.core.models import Dimension
-from slowql.rules.base import Rule
+from slowql.rules.catalog import (
+    DropTableRule,
+    UnsafeWriteRule,
+)
+
+if TYPE_CHECKING:
+    from slowql.rules.base import Rule
 
 
 class ReliabilityAnalyzer(RuleBasedAnalyzer):
     """
     Analyzer for database reliability and safety.
-    
+
     Checks for:
     - Destructive operations without safeguards
     - Schema integrity risks
@@ -31,15 +39,10 @@ class ReliabilityAnalyzer(RuleBasedAnalyzer):
     def get_rules(self) -> list[Rule]:
         """
         Get reliability rules from the catalog.
-        
+
         Returns:
             List of reliability rules.
         """
-        from slowql.rules.catalog import (
-            DropTableRule,
-            UnsafeWriteRule,
-        )
-
         return [
             UnsafeWriteRule(),
             DropTableRule(),

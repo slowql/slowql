@@ -8,14 +8,17 @@ Useful for CI/CD integration and machine consumption.
 
 from __future__ import annotations
 
-import json
 import csv
+import json
+import sys
 from html import escape
-from typing import Any, Dict
+from typing import TYPE_CHECKING, Any
 
-from slowql.core.models import AnalysisResult, Issue
+from slowql.core.models import Severity
 from slowql.reporters.base import BaseReporter
 
+if TYPE_CHECKING:
+    from slowql.core.models import AnalysisResult
 
 class JSONReporter(BaseReporter):
     """
@@ -27,14 +30,14 @@ class JSONReporter(BaseReporter):
         Convert result to JSON and write to output.
         """
         data = result.to_dict()
-        
+
         json_output = json.dumps(
             data,
             indent=2,
             ensure_ascii=False,
-            default=str  # Handle datetimes etc.
+            default=str,  # Handle datetimes etc.
         )
-        
+
         if self.output_file:
             self.output_file.write(json_output)
         else:
@@ -85,10 +88,8 @@ class HTMLReporter(BaseReporter):
     """
 
     def _calculate_health_score(self, result: AnalysisResult) -> int:
-        """Calculate 0–100 health score based on severity of all issues."""
-        from slowql.core.models import Severity
-
-        weights: Dict[Severity, int] = {
+        """Calculate 0-100 health score based on severity of all issues."""
+        weights: dict[Severity, int] = {
             Severity.CRITICAL: 25,
             Severity.HIGH: 15,
             Severity.MEDIUM: 5,
@@ -108,7 +109,9 @@ class HTMLReporter(BaseReporter):
                 {
                     "severity": sev,
                     "rule_id": issue.rule_id or "",
-                    "dimension": getattr(issue.dimension, "name", "") if getattr(issue, "dimension", None) else "",
+                    "dimension": getattr(issue.dimension, "name", "")
+                    if getattr(issue, "dimension", None)
+                    else "",
                     "message": issue.message or "",
                     "impact": issue.impact or "",
                     "fix": _normalize_fix_text(getattr(issue, "fix", None)),
@@ -122,23 +125,19 @@ class HTMLReporter(BaseReporter):
             html_rows.append(
                 f"""
         <tr>
-          <td class="sev sev-{escape(r['severity'].lower())}">{escape(r['severity'])}</td>
-          <td>{escape(r['rule_id'])}</td>
-          <td>{escape(r['dimension'])}</td>
-          <td>{escape(r['message'])}</td>
-          <td>{escape(r['impact'])}</td>
-          <td>{escape(r['fix'])}</td>
-          <td>{escape(r['location'])}</td>
+          <td class="sev sev-{escape(r["severity"].lower())}">{escape(r["severity"])}</td>
+          <td>{escape(r["rule_id"])}</td>
+          <td>{escape(r["dimension"])}</td>
+          <td>{escape(r["message"])}</td>
+          <td>{escape(r["impact"])}</td>
+          <td>{escape(r["fix"])}</td>
+          <td>{escape(r["location"])}</td>
         </tr>"""
             )
 
         # Safe meta values
         total_issues = getattr(result.statistics, "total_issues", len(result.issues))
         health_score = self._calculate_health_score(result)
-        if health_score is not None:
-            health_html = f'<h2>Health Score: <span class="health-score-value">{health_score}</span>/100</h2>'
-        else:
-            health_html = ""
 
         html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -207,7 +206,9 @@ class HTMLReporter(BaseReporter):
   <h1>SlowQL Analysis Report</h1>
   <div class="meta">
     <div>Total Issues: {total_issues}</div>
-    <h2 class="health-score">Health Score: <span class="health-score-value">{health_score}</span>/100</h2>
+    <h2 class="health-score">
+      Health Score: <span class="health-score-value">{health_score}</span>/100
+    </h2>
   </div>
 
   <h2>Detected Issues</h2>
@@ -224,7 +225,7 @@ class HTMLReporter(BaseReporter):
       </tr>
     </thead>
     <tbody>
-      {''.join(html_rows)}
+      {"".join(html_rows)}
     </tbody>
   </table>
 </body>
@@ -235,6 +236,7 @@ class HTMLReporter(BaseReporter):
         else:
             print(html)
 
+
 class CSVReporter(BaseReporter):
     """
     Renders analysis results as CSV.
@@ -244,7 +246,7 @@ class CSVReporter(BaseReporter):
     """
 
     def report(self, result: AnalysisResult) -> None:
-        writer = csv.writer(self.output_file or sys.stdout)  # type: ignore[arg-type]
+        writer = csv.writer(self.output_file or sys.stdout)
 
         # Header
         writer.writerow(

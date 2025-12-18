@@ -6,17 +6,18 @@ Provides a Cyberpunk/Vaporwave TUI experience for SQL analysis results.
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Tuple, Optional
+from typing import Any
 
 from rich import box
 from rich.align import Align
 from rich.console import Console
 from rich.panel import Panel
+from rich.rule import Rule
 from rich.table import Table
-from rich.text import Text
 
-from slowql.core.models import AnalysisResult, Severity, Issue, Dimension
+from slowql.core.models import AnalysisResult, Dimension, Severity
 from slowql.reporters.base import BaseReporter
+from slowql.rules.catalog import get_all_rules
 
 
 class ConsoleReporter(BaseReporter):
@@ -28,7 +29,7 @@ class ConsoleReporter(BaseReporter):
       - Health gauge
       - Severity matrix
       - Impact zones (dimensions)
-      - Severity × Dimension heat matrix
+      - Severity x Dimension heat matrix
       - Issue frequency spectrum (top rules)
       - Detailed issues table
       - Summary statistics frequency spectrum
@@ -43,7 +44,7 @@ class ConsoleReporter(BaseReporter):
         self.console = Console()
 
         # Vaporwave / Cyberpunk Palette
-        self.severity_colors: Dict[Severity, str] = {
+        self.severity_colors: dict[Severity, str] = {
             Severity.CRITICAL: "bold magenta",
             Severity.HIGH: "bold hot_pink",
             Severity.MEDIUM: "bold cyan",
@@ -51,15 +52,15 @@ class ConsoleReporter(BaseReporter):
             Severity.INFO: "bold white",
         }
 
-        self.severity_icons: Dict[Severity, str] = {
+        self.severity_icons: dict[Severity, str] = {
             Severity.CRITICAL: "💀",
             Severity.HIGH: "🔥",
             Severity.MEDIUM: "⚡",
             Severity.LOW: "💫",
-            Severity.INFO: "ℹ️",
+            Severity.INFO: "(i)",
         }
 
-        self.gradient_colors: List[str] = [
+        self.gradient_colors: list[str] = [
             "magenta",
             "hot_pink",
             "deep_pink4",
@@ -87,7 +88,7 @@ class ConsoleReporter(BaseReporter):
         # 2. Dashboard sections (health, severity matrix, impact zones)
         self._show_dashboard_sections(result)
 
-        # 3. Cross‑dimension severity heat matrix (data-science style)
+        # 3. Cross-dimension severity heat matrix (data-science style)
         self._show_heatmap_section(result)
 
         # 4. Analyzer coverage
@@ -183,9 +184,7 @@ class ConsoleReporter(BaseReporter):
         grid.add_row(f"[bold white]HEALTH SCORE: {score}/100[/]")
         grid.add_row(gauge)
         grid.add_row(f"[bold {color}]{status}[/]")
-        grid.add_row(
-            f"[dim]Total issues (occurrences): {result.statistics.total_issues}[/dim]"
-        )
+        grid.add_row(f"[dim]Total issues (occurrences): {result.statistics.total_issues}[/dim]")
 
         return Panel(
             grid,
@@ -252,7 +251,7 @@ class ConsoleReporter(BaseReporter):
 
     def _create_dimension_panel(self, result: AnalysisResult) -> Panel:
         """Create the Impact Zones panel with clean, aligned distribution bars."""
-        dim_counts: Dict[Dimension, int] = {}
+        dim_counts: dict[Dimension, int] = {}
         for issue in result.issues:
             dim_counts[issue.dimension] = dim_counts.get(issue.dimension, 0) + 1
 
@@ -328,21 +327,45 @@ class ConsoleReporter(BaseReporter):
         )
 
     # ------------------------------------------------------------------ #
-    # Advanced analytics: severity × dimension
+    # Advanced analytics: severity by dimension
     # ------------------------------------------------------------------ #
+
+    def _get_dimension_style(self, dim: Dimension) -> tuple[str, str]:
+        """Get the icon and color for a given dimension."""
+        style_map = {
+            Dimension.SECURITY: ("🔒", "red"),
+            Dimension.PERFORMANCE: ("⚡", "yellow"),
+            Dimension.RELIABILITY: ("💠", "blue"),
+            Dimension.COST: ("💰", "green"),
+            Dimension.COMPLIANCE: ("📋", "magenta"),
+            Dimension.QUALITY: ("📝", "cyan"),
+        }
+        return style_map.get(dim, ("📝", "white"))
+
+    def _get_heatmap_cell_style(self, count: int, max_count: int, sev: Severity) -> str:
+        """Determine the style for a heatmap cell based on count and severity."""
+        if count == 0:
+            return "[dim text]·[/]"
+
+        ratio = count / max_count
+        sev_color = self.severity_colors[sev].split()[-1]
+
+        if ratio > 0.6:
+            return f"[bold {sev_color}]{count}[/]"
+        if ratio > 0.3:
+            return f"[{sev_color}]{count}[/]"
+        return f"[dim {sev_color}]{count}[/]"
 
     def _show_heatmap_section(self, result: AnalysisResult) -> None:
         """
-        Render the Severity × Dimension Heat Map full width, centered, and modern.
+        Render the Severity x Dimension Heat Map full width, centered, and modern.
         Matches style of System Detection Capabilities (Vertical borders, Dim Blue lines).
         """
-        from rich.rule import Rule
-        
         if not result.issues:
             return
 
         # 1. Build Matrix Logic
-        matrix: Dict[Dimension, Dict[Severity, int]] = {}
+        matrix: dict[Dimension, dict[Severity, int]] = {}
         for issue in result.issues:
             dim_map = matrix.setdefault(issue.dimension, {})
             dim_map[issue.severity] = dim_map.get(issue.severity, 0) + 1
@@ -351,12 +374,12 @@ class ConsoleReporter(BaseReporter):
         max_count = 0
         for dim_counts in matrix.values():
             for count in dim_counts.values():
-                if count > max_count: max_count = count
+                max_count = max(max_count, count)
         max_count = max_count or 1
 
         # 3. Render Title Separately
         self.console.print()
-        self.console.print(Rule("🔥 SEVERITY × DIMENSION HEAT MAP", style="bold italic white"))
+        self.console.print(Rule("🔥 SEVERITY x DIMENSION HEAT MAP", style="bold italic white"))
         self.console.print()
 
         # 4. Create Modern Table with Borders
@@ -366,7 +389,7 @@ class ConsoleReporter(BaseReporter):
             expand=True,
             padding=(0, 1),
             header_style="bold cyan",
-            border_style="dim blue"
+            border_style="dim blue",
         )
 
         # 5. Define Columns
@@ -376,51 +399,37 @@ class ConsoleReporter(BaseReporter):
 
         # 6. Define Row Order
         dim_order = [
-            Dimension.SECURITY, Dimension.PERFORMANCE, Dimension.RELIABILITY, 
-            Dimension.COST, Dimension.COMPLIANCE, Dimension.QUALITY
+            Dimension.SECURITY,
+            Dimension.PERFORMANCE,
+            Dimension.RELIABILITY,
+            Dimension.COST,
+            Dimension.COMPLIANCE,
+            Dimension.QUALITY,
         ]
         # Add extras
-        dim_order += [d for d in matrix.keys() if d not in dim_order]
+        dim_order += [d for d in matrix if d not in dim_order]
 
         # 7. Populate Rows
         for dim in dim_order:
-            if dim not in matrix: continue
+            if dim not in matrix:
+                continue
 
-            # Unified Styling Logic (Same as Detection Capabilities)
-            if dim == Dimension.SECURITY: icon, color = "🔒", "red"
-            elif dim == Dimension.PERFORMANCE: icon, color = "⚡", "yellow"
-            elif dim == Dimension.RELIABILITY: icon, color = "💠", "blue"
-            elif dim == Dimension.COST: icon, color = "💰", "green"
-            elif dim == Dimension.COMPLIANCE: icon, color = "📋", "magenta"
-            elif dim == Dimension.QUALITY: icon, color = "📝", "cyan"
-            else: icon, color = "📝", "white"
-
+            icon, color = self._get_dimension_style(dim)
             dim_label = f"[{color}]{icon} {dim.name}[/]"
             row_cells = [dim_label]
 
             # Fill Severity Cells
             for sev in [Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM, Severity.LOW]:
                 count = matrix.get(dim, {}).get(sev, 0)
-                
-                if count == 0:
-                    cell = "[dim text]·[/]"
-                else:
-                    ratio = count / max_count
-                    # Use predefined severity colors
-                    sev_color = self.severity_colors[sev].split()[-1] 
-                    
-                    if ratio > 0.6: style = f"bold {sev_color}"
-                    elif ratio > 0.3: style = f"{sev_color}"
-                    else: style = f"dim {sev_color}"
-                    
-                    cell = f"[{style}]{count}[/]"
-                
+
+                cell = self._get_heatmap_cell_style(count, max_count, sev)
                 row_cells.append(cell)
 
             table.add_row(*row_cells)
 
         self.console.print(table)
         self.console.print()
+
     # ------------------------------------------------------------------ #
     # Issue frequency & detailed tables
     # ------------------------------------------------------------------ #
@@ -434,7 +443,7 @@ class ConsoleReporter(BaseReporter):
             return
 
         # 1. Aggregation Logic
-        counts: Dict[str, Dict[str, Any]] = {}
+        counts: dict[str, dict[str, Any]] = {}
         for issue in result.issues:
             key = issue.rule_id if issue.rule_id else issue.message
             if key not in counts:
@@ -442,16 +451,15 @@ class ConsoleReporter(BaseReporter):
                     "rule_id": issue.rule_id or "N/A",
                     "dimension": issue.dimension,
                     "message": issue.message,
-                    "count": 0
+                    "count": 0,
                 }
             counts[key]["count"] += 1
 
         # 2. Sorting and Totals
         sorted_issues = sorted(counts.values(), key=lambda x: x["count"], reverse=True)
         total_issues = result.statistics.total_issues or sum(x["count"] for x in sorted_issues) or 1
-        
+
         # 3. Print Title Separately
-        from rich.rule import Rule
         self.console.print()
         self.console.print(Rule("▲ ISSUE FREQUENCY SPECTRUM ▲", style="bold cyan"))
         self.console.print()
@@ -463,19 +471,19 @@ class ConsoleReporter(BaseReporter):
             expand=True,
             padding=(0, 1),
             header_style="bold white on rgb(20,20,30)",
-            border_style="dim blue"
+            border_style="dim blue",
         )
 
         # 5. Define Columns
-        BAR_WIDTH = 40 
+        BAR_WIDTH = 40
 
         table.add_column("Rule", style="bold cyan", width=14, no_wrap=True)
         # FIX: Increased width to 16 and added no_wrap=True to keep emoji + text together
         table.add_column("Dimension", width=16, no_wrap=True)
-        table.add_column("Issue Type", overflow="fold", ratio=1) 
+        table.add_column("Issue Type", overflow="fold", ratio=1)
         table.add_column("Count", justify="right", width=6)
         table.add_column("Share", justify="right", width=8)
-        table.add_column("Distribution", width=BAR_WIDTH) 
+        table.add_column("Distribution", width=BAR_WIDTH)
 
         # 6. Populate Rows
         for idx, entry in enumerate(sorted_issues):
@@ -483,39 +491,27 @@ class ConsoleReporter(BaseReporter):
             dim = entry["dimension"]
             msg = entry["message"]
             count = entry["count"]
-            
-            # Styling based on Dimension
-            if dim == Dimension.SECURITY: icon, color = "🔒", "red"
-            elif dim == Dimension.PERFORMANCE: icon, color = "⚡", "yellow"
-            elif dim == Dimension.RELIABILITY: icon, color = "🛡", "blue"
-            elif dim == Dimension.COST: icon, color = "💰", "green"
-            elif dim == Dimension.COMPLIANCE: icon, color = "📋", "magenta"
-            else: icon, color = "📝", "white"
 
+            # Styling based on Dimension
+            icon, color = self._get_dimension_style(dim)
             dim_label = f"[{color}]{icon} {dim.name.title()}[/]"
 
             # Share calculation
             share_pct = (count / total_issues) * 100
-            
+
             # Bar Visualization
             ratio = count / total_issues
             filled_len = int(ratio * BAR_WIDTH)
-            
-            if count > 0 and filled_len == 0: filled_len = 1
+
+            if count > 0 and filled_len == 0:
+                filled_len = 1
             empty_len = BAR_WIDTH - filled_len
-            
+
             bar_color = self.gradient_colors[idx % len(self.gradient_colors)]
-            
+
             bar_viz = f"[{bar_color}]{'█' * filled_len}[/][dim rgb(40,40,40)]{'░' * empty_len}[/]"
-            
-            table.add_row(
-                rule_id,
-                dim_label,
-                msg,
-                str(count),
-                f"{share_pct:.1f}%",
-                bar_viz
-            )
+
+            table.add_row(rule_id, dim_label, msg, str(count), f"{share_pct:.1f}%", bar_viz)
 
         self.console.print(table)
         self.console.print()
@@ -525,8 +521,6 @@ class ConsoleReporter(BaseReporter):
         Detailed table of findings with Modern styling.
         Full width, vertical + horizontal borders, optimized column sizing.
         """
-        from rich.rule import Rule
-
         # 1. Render Title Separately
         self.console.print()
         self.console.print(Rule("🔍 DETECTED SQL ISSUES", style="bold white"))
@@ -536,12 +530,12 @@ class ConsoleReporter(BaseReporter):
         table = Table(
             box=box.SQUARE,
             show_edge=False,
-            show_lines=True,              # <-- row borders between issues
+            show_lines=True,  # <-- row borders between issues
             expand=True,
             padding=(0, 1),
             header_style="bold white on rgb(24,24,40)",
             border_style="dim blue",
-            row_styles=["", "dim"],       # alternating rows
+            row_styles=["", "dim"],  # alternating rows
         )
 
         # 3. Define Columns
@@ -602,20 +596,13 @@ class ConsoleReporter(BaseReporter):
         Display a unified view of detection capabilities with strict alignment
         and no wrapping to prevent layout breakage.
         """
-        from slowql.rules.catalog import get_all_rules
-        from rich.rule import Rule
-        
-        # 1. Gather Statistics
-        try:
-            all_rules = get_all_rules()
-        except ImportError:
-            all_rules = []
-        
-        rules_by_dim: Dict[Dimension, int] = {}
+
+        all_rules = get_all_rules()
+        rules_by_dim: dict[Dimension, int] = {}
         for r in all_rules:
             rules_by_dim[r.dimension] = rules_by_dim.get(r.dimension, 0) + 1
-            
-        issues_by_dim: Dict[Dimension, int] = {}
+
+        issues_by_dim: dict[Dimension, int] = {}
         for issue in result.issues:
             issues_by_dim[issue.dimension] = issues_by_dim.get(issue.dimension, 0) + 1
 
@@ -631,13 +618,15 @@ class ConsoleReporter(BaseReporter):
             expand=True,
             padding=(0, 1),
             header_style="bold white on rgb(24,24,40)",
-            border_style="dim blue"
+            border_style="dim blue",
         )
-        
+
         # KEY FIX: no_wrap=True prevents rows from breaking into multiple lines
         table.add_column("Dimension", style="bold", ratio=2, no_wrap=True)
         table.add_column("Rules Available", justify="center", style="cyan", ratio=1, no_wrap=True)
-        table.add_column("Anomalies Detected", justify="center", style="bold white", ratio=1, no_wrap=True)
+        table.add_column(
+            "Anomalies Detected", justify="center", style="bold white", ratio=1, no_wrap=True
+        )
         table.add_column("Analyzer Status", justify="center", ratio=1, no_wrap=True)
 
         # Updated Icons for Terminal Stability
@@ -656,27 +645,23 @@ class ConsoleReporter(BaseReporter):
         # 4. Populate Rows
         for dim, icon, color in dim_meta:
             rule_count = rules_by_dim.get(dim, 0)
-            if dim == Dimension.COST and rule_count == 0: rule_count = 1 
+            if dim == Dimension.COST and rule_count == 0:
+                rule_count = 1
 
             issue_count = issues_by_dim.get(dim, 0)
             total_rules += rule_count
             total_issues += issue_count
 
             if issue_count > 0:
-                status = f"[bold green]● ACTIVE[/]"
+                status = "[bold green]● ACTIVE[/]"
                 issues_display = f"[{color}]{issue_count}[/]"
             else:
-                status = f"[dim white]○ MONITORING[/]"
+                status = "[dim white]○ MONITORING[/]"
                 issues_display = "[dim]-[/]"
 
             dim_label = f"[{color}]{icon} {dim.name}[/]"
 
-            table.add_row(
-                dim_label,
-                str(rule_count),
-                issues_display,
-                status
-            )
+            table.add_row(dim_label, str(rule_count), issues_display, status)
 
         # 5. Footer Row
         table.add_section()
@@ -684,7 +669,7 @@ class ConsoleReporter(BaseReporter):
             "[bold white]SYSTEM TOTAL[/]",
             f"[bold cyan]{total_rules}[/]",
             f"[bold white]{total_issues}[/]",
-            "[bold green]✔ COMPREHENSIVE[/]"
+            "[bold green]✔ COMPREHENSIVE[/]",
         )
 
         self.console.print(table)
@@ -694,13 +679,7 @@ class ConsoleReporter(BaseReporter):
     # Recommendations & clean report
     # ------------------------------------------------------------------ #
 
-    def _show_next_steps(self, result: AnalysisResult) -> None:
-        """
-        Show recommended next steps with cyberpunk styling,
-        but driven by the actual fixes from the analyzed issues.
-        """
-        from rich.rule import Rule
-
+    def _render_next_steps_header(self) -> None:
         # Header banner (unchanged UI)
         header = (
             "[magenta]╔═══════════════════════════════════════════════════════════╗\n"
@@ -709,12 +688,11 @@ class ConsoleReporter(BaseReporter):
         )
         self.console.print(Align.center(header))
 
-        steps: List[str] = []
-        stats = result.statistics.by_severity
-
-        # ------------------------------------------------------------------ #
+    def _build_priority_overview_steps(self, stats: dict[Severity, int]) -> list[str]:
         # 1. PRIORITY OVERVIEW (same UI, but counts from real analysis)
         # ------------------------------------------------------------------ #
+
+        steps: list[str] = []
 
         crit_count = stats.get(Severity.CRITICAL, 0)
         if crit_count > 0:
@@ -739,62 +717,50 @@ class ConsoleReporter(BaseReporter):
                 "[yellow]PERFORMANCE DEGRADATION[/]"
             )
             steps.append(
-                f"  [cyan]▸[/] {high_count} issues causing "
-                "[yellow]significant system strain[/]"
+                f"  [cyan]▸[/] {high_count} issues causing [yellow]significant system strain[/]"
             )
             steps.append("")
 
-        # ------------------------------------------------------------------ #
-        # 2. BUILD DYNAMIC PROTOCOLS FROM REAL FIXES
-        # ------------------------------------------------------------------ #
+        return steps
+
+    def _aggregate_fixes(self, result: AnalysisResult) -> dict[str, dict[str, Any]]:
+        """Aggregate unique fixes from analysis results."""
 
         def _extract_fix_text(fix_obj: Any) -> str:
-            """
-            Normalize the fix object to a human-readable text string.
-
-            Supports:
-              - None          -> ""
-              - str           -> stripped string
-              - objects with .description / .replacement attributes
-            """
             if fix_obj is None:
                 return ""
             if isinstance(fix_obj, str):
                 return fix_obj.strip()
-
-            # Try to pull fields from a structured Fix object
             desc = getattr(fix_obj, "description", None)
             repl = getattr(fix_obj, "replacement", None)
-
-            parts: List[str] = []
+            parts: list[str] = []
             if desc:
                 parts.append(str(desc).strip())
             if repl:
                 parts.append(f"Suggested: {str(repl).strip()}")
-
             return " ".join(parts).strip()
 
-        # Collect distinct fixes per rule/message
-        fix_map: Dict[str, Dict[str, Any]] = {}
+        fix_map: dict[str, dict[str, Any]] = {}
         for issue in result.issues:
             raw_fix = _extract_fix_text(issue.fix)
             if not raw_fix or raw_fix.lower() == "none":
-                continue  # skip meaningless fixes
+                continue
 
             key = issue.rule_id or issue.message or raw_fix
             entry = fix_map.get(key)
-
             if entry is None:
                 fix_map[key] = {
-                    "rule_id": issue.rule_id,
-                    "message": issue.message,
-                    "fix": raw_fix,
-                    "dimension": issue.dimension,
-                    "severity": issue.severity,
-                    "count": 1,
+                    "rule_id": issue.rule_id, "message": issue.message, "fix": raw_fix,
+                    "dimension": issue.dimension, "severity": issue.severity, "count": 1,
                 }
             else:
                 entry["count"] += 1
+        return fix_map
+
+    def _build_dynamic_protocol_steps(self, result: AnalysisResult) -> list[str]:
+        fix_map = self._aggregate_fixes(result)
+
+        steps: list[str] = []
 
         if fix_map:
             # Severity ordering for protocols
@@ -820,7 +786,7 @@ class ConsoleReporter(BaseReporter):
                 msg: str = p["message"]
                 fix: str = p["fix"]
                 count: int = p["count"]
-                rule_id: Optional[str] = p["rule_id"]
+                rule_id: str | None = p["rule_id"]
 
                 # Label/Prefix based on severity
                 if sev == Severity.CRITICAL:
@@ -837,32 +803,16 @@ class ConsoleReporter(BaseReporter):
                     adv_index += 1
 
                 # Dimension label
-                if dim == Dimension.SECURITY:
-                    dim_label = "[red]SECURITY[/]"
-                elif dim == Dimension.PERFORMANCE:
-                    dim_label = "[yellow]PERFORMANCE[/]"
-                elif dim == Dimension.RELIABILITY:
-                    dim_label = "[blue]RELIABILITY[/]"
-                elif dim == Dimension.COST:
-                    dim_label = "[green]COST[/]"
-                elif dim == Dimension.COMPLIANCE:
-                    dim_label = "[magenta]COMPLIANCE[/]"
-                else:
-                    dim_label = "[cyan]GENERAL[/]"
-
+                _, color_dim = self._get_dimension_style(dim)
+                dim_label = f"[{color_dim}]{dim.name}[/]"
                 # Shorten the "title" to first sentence or 80 chars
                 title = msg.strip()
-                if "." in title:
-                    title_short = title.split(".", 1)[0] + "."
-                else:
-                    title_short = title
+                title_short = title.split(".", 1)[0] + "." if "." in title else title
                 if len(title_short) > 80:
                     title_short = title_short[:77] + "..."
 
                 # Header line for this protocol
-                steps.append(
-                    f"{label} → {dim_label} [white]{title_short}[/]"
-                )
+                steps.append(f"{label} → {dim_label} [white]{title_short}[/]")
 
                 # Actual fix content
                 steps.append(f"  [{color}]▸[/] {fix}")
@@ -875,10 +825,22 @@ class ConsoleReporter(BaseReporter):
                 meta_line = "  [dim]" + " | ".join(meta_bits) + "[/]"
                 steps.append(meta_line)
                 steps.append("")
+        return steps
 
-        # ------------------------------------------------------------------ #
+    def _show_next_steps(self, result: AnalysisResult) -> None:
+        """
+        Show recommended next steps with cyberpunk styling,
+        but driven by the actual fixes from the analyzed issues.
+        """
+        self._render_next_steps_header()
+
+        steps: list[str] = []
+        stats = result.statistics.by_severity
+
+        steps.extend(self._build_priority_overview_steps(stats))
+        steps.extend(self._build_dynamic_protocol_steps(result))
+
         # 3. Fallback when no issues or no fixes
-        # ------------------------------------------------------------------ #
         if not steps:
             steps = [
                 "[bold cyan]◆ SYSTEM STATUS[/] → [green]NOMINAL[/]",
@@ -897,12 +859,7 @@ class ConsoleReporter(BaseReporter):
 
     def _show_clean_report(self) -> None:
         """Show clean report when no issues are detected."""
-        ascii_art = (
-            "[bold cyan]\n"
-            "╭─────────────╮\n"
-            "│  ✨ 100% ✨  │\n"
-            "╰─────────────╯[/]"
-        )
+        ascii_art = "[bold cyan]\n╭─────────────╮\n│  ✨ 100% ✨  │\n╰─────────────╯[/]"
 
         content = (
             f"{ascii_art}\n\n"
@@ -928,8 +885,8 @@ class ConsoleReporter(BaseReporter):
     # ------------------------------------------------------------------ #
 
     def _calculate_health_score(self, result: AnalysisResult) -> int:
-        """Calculate 0–100 health score based on severity of all issues."""
-        weights: Dict[Severity, int] = {
+        """Calculate 0-100 health score based on severity of all issues."""
+        weights: dict[Severity, int] = {
             Severity.CRITICAL: 25,
             Severity.HIGH: 15,
             Severity.MEDIUM: 5,

@@ -13,8 +13,8 @@ This module defines the fundamental data structures used throughout SlowQL:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from enum import Enum, auto
+from datetime import UTC, datetime
+from enum import Enum
 from typing import Any
 
 
@@ -406,7 +406,7 @@ class Query:
     def is_delete(self) -> bool:
         """Check if query is a DELETE statement."""
         return self._check_type("DELETE")
-        
+
     def _check_type(self, type_name: str) -> bool:
         """Helper to check query type safely."""
         return str(self.query_type or "").upper() == type_name
@@ -440,9 +440,9 @@ class Statistics:
     def __post_init__(self) -> None:
         """Initialize severity and dimension counts."""
         if not self.by_severity:
-            self.by_severity = {s: 0 for s in Severity}
+            self.by_severity = dict.fromkeys(Severity, 0)
         if not self.by_dimension:
-            self.by_dimension = {d: 0 for d in Dimension}
+            self.by_dimension = dict.fromkeys(Dimension, 0)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
@@ -478,7 +478,7 @@ class AnalysisResult:
     statistics: Statistics = field(default_factory=Statistics)
     dialect: str | None = None
     queries: list[Query] = field(default_factory=list)
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
     version: str = "2.0.0"
     config_hash: str | None = None
 

@@ -13,5 +13,5 @@ def test_cli_app_import():
 
 def test_cli_main_function():
     """Test that main function exists."""
-    assert hasattr(app, 'main')
+    assert hasattr(app, "main")
     assert callable(app.main)

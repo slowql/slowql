@@ -8,15 +8,24 @@ performance, high resource usage, or scalability issues.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from slowql.analyzers.base import RuleBasedAnalyzer
 from slowql.core.models import Dimension
-from slowql.rules.base import Rule
+from slowql.rules.catalog import (
+    DistinctOnLargeSetRule,
+    LeadingWildcardRule,
+    MissingWhereRule,
+    SelectStarRule,
+)
 
+if TYPE_CHECKING:
+    from slowql.rules.base import Rule
 
 class PerformanceAnalyzer(RuleBasedAnalyzer):
     """
     Analyzer for performance optimization.
-    
+
     Checks for:
     - Index usage inhibitors (SARGability)
     - Full table scan indicators
@@ -31,17 +40,10 @@ class PerformanceAnalyzer(RuleBasedAnalyzer):
     def get_rules(self) -> list[Rule]:
         """
         Get performance rules from the catalog.
-        
+
         Returns:
             List of performance rules.
         """
-        from slowql.rules.catalog import (
-            DistinctOnLargeSetRule,
-            LeadingWildcardRule,
-            MissingWhereRule,
-            SelectStarRule,
-        )
-
         return [
             SelectStarRule(),
             LeadingWildcardRule(),

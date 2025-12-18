@@ -30,21 +30,17 @@ from slowql.core.models import (
 )
 
 __all__ = [
-    # Engine
-    "SlowQL",
-    # Config
-    "Config",
-    # Models
-    "AnalysisResult",
-    "Issue",
-    "Severity",
-    "Dimension",
-    "Location",
-    "Query",
-    "Fix",
-    # Exceptions
-    "SlowQLError",
-    "ParseError",
     "AnalysisError",
+    "AnalysisResult",
+    "Config",
     "ConfigurationError",
+    "Dimension",
+    "Fix",
+    "Issue",
+    "Location",
+    "ParseError",
+    "Query",
+    "Severity",
+    "SlowQL",
+    "SlowQLError",
 ]

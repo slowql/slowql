@@ -3,10 +3,10 @@
 Test parser classes.
 """
 
+from slowql.core.models import Query
 from slowql.parser.base import BaseParser
 from slowql.parser.tokenizer import Tokenizer
 from slowql.parser.universal import UniversalParser
-from slowql.core.models import Query, Location
 
 
 class TestBaseParser:
@@ -14,7 +14,7 @@ class TestBaseParser:
         # BaseParser is abstract
         try:
             BaseParser()
-            assert False, "Should not be able to instantiate abstract class"
+            raise AssertionError("Should not be able to instantiate abstract class")
         except TypeError:
             pass
 
@@ -28,7 +28,7 @@ class TestTokenizer:
         tokenizer = Tokenizer()
         sql = "SELECT * FROM users"
         tokens = tokenizer.tokenize(sql)
-        assert hasattr(tokens, '__iter__')  # It's a generator
+        assert hasattr(tokens, "__iter__")  # It's a generator
         tokens_list = list(tokens)
         assert len(tokens_list) > 0
 

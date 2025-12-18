@@ -1,38 +1,40 @@
+import os
+from unittest.mock import MagicMock, patch
 
 import pytest
-import os
-import json
-from unittest.mock import MagicMock, patch, mock_open
-from pathlib import Path
-from slowql.core.config import Config, AnalysisConfig, SeverityThresholds, OutputConfig
+
+from slowql.core.config import AnalysisConfig, Config
 from slowql.core.exceptions import ConfigurationError
-import sys
+
 
 class TestConfigCoverage:
-    
     def test_from_file_formats(self, tmp_path):
         # TOML
         toml_path = tmp_path / "config.toml"
         toml_path.write_text('[analysis]\ndialect = "postgres"')
         cfg = Config.from_file(toml_path)
         assert cfg.analysis.dialect == "postgres"
-        
+
         # JSON
         json_path = tmp_path / "config.json"
         json_path.write_text('{"analysis": {"dialect": "mysql"}}')
         cfg = Config.from_file(json_path)
         assert cfg.analysis.dialect == "mysql"
-        
+
         # YAML
         yaml_path = tmp_path / "config.yaml"
-        yaml_path.write_text('analysis:\n  dialect: sqlite')
+        yaml_path.write_text("analysis:\n  dialect: sqlite")
 
         # Mock the yaml import to avoid ModuleNotFoundError in test env
-        with patch.dict('sys.modules', {'yaml': MagicMock()}):
-            sys.modules['yaml'].safe_load.return_value = {'analysis': {'dialect': 'sqlite'}}
+        mock_yaml = MagicMock()
+        mock_yaml.safe_load.return_value = {"analysis": {"dialect": "sqlite"}}
+        with patch("slowql.core.config.yaml", mock_yaml):
             cfg = Config.from_file(yaml_path)
             assert cfg.analysis.dialect == "sqlite"
-            sys.modules['yaml'].safe_load.assert_called_once_with('analysis:\n  dialect: sqlite')
+            mock_yaml.safe_load.assert_called_once_with(
+                "analysis:\n  dialect: sqlite"
+            )
+
     def test_from_file_errors(self, tmp_path):
         # Missing
         with pytest.raises(ConfigurationError) as exc:
@@ -59,7 +61,7 @@ class TestConfigCoverage:
             "SLOWQL_OUTPUT__COLOR": "false",
             "SLOWQL_ANALYSIS__MAX_QUERY_LENGTH": "500",
             "SLOWQL_ANALYSIS__TIMEOUT_SECONDS": "1.5",
-            "SLOWQL_ANALYSIS__ENABLED_DIMENSIONS": "security,performance"
+            "SLOWQL_ANALYSIS__ENABLED_DIMENSIONS": "security,performance",
         }
         with patch.dict(os.environ, env, clear=True):
             cfg = Config.from_env()
@@ -87,17 +89,17 @@ class TestConfigCoverage:
         root = tmp_path / "root"
         subdir = root / "subdir"
         subdir.mkdir(parents=True)
-        
+
         # Scenario 1: Config in root, called from subdir
         (root / "slowql.toml").write_text('[analysis]\ndialect = "root"')
         cfg = Config.find_and_load(start_path=subdir)
         assert cfg.analysis.dialect == "root"
-        
+
         # Scenario 2: Config in subdir
         (subdir / "slowql.json").write_text('{"analysis": {"dialect": "subdir"}}')
         cfg = Config.find_and_load(start_path=subdir)
-        assert cfg.analysis.dialect == "subdir" # Subdir takes precedence
-        
+        assert cfg.analysis.dialect == "subdir"  # Subdir takes precedence
+
         # Scenario 3: pyproject.toml
         (subdir / "slowql.json").unlink()
         (root / "slowql.toml").unlink()
@@ -109,14 +111,11 @@ class TestConfigCoverage:
         (root / "pyproject.toml").unlink()
         cfg = Config.find_and_load(start_path=subdir)
         # Should return defaults/env
-        assert cfg.analysis.dialect is None # Default
+        assert cfg.analysis.dialect is None  # Default
 
     def test_with_overrides(self):
         cfg = Config()
-        new_cfg = cfg.with_overrides(
-            output={"format": "json"},
-            analysis={"dialect": "mysql"}
-        )
+        new_cfg = cfg.with_overrides(output={"format": "json"}, analysis={"dialect": "mysql"})
         assert new_cfg.output.format == "json"
         assert new_cfg.analysis.dialect == "mysql"
         # Original unchanged
@@ -126,7 +125,7 @@ class TestConfigCoverage:
         cfg1 = Config()
         cfg2 = Config()
         assert cfg1.hash() == cfg2.hash()
-        
+
         cfg3 = cfg1.with_overrides(analysis={"dialect": "postgres"})
         assert cfg1.hash() != cfg3.hash()
 

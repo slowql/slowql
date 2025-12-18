@@ -1,8 +1,9 @@
-import pytest
-from unittest.mock import MagicMock, patch
 import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 # Mock readchar before importing app to avoid ImportError details
 # We create a mock object that mimics the structure of the readchar library
@@ -15,12 +16,19 @@ mock_readchar.key.CTRL_C = "CTRL_C_KEY"
 sys.modules["readchar"] = mock_readchar
 sys.modules["readchar.key"] = mock_readchar.key
 
-from slowql.cli.app import (
-    SessionManager, QueryCache, init_cli, ensure_reports_dir, safe_path,
-    _run_exports, show_quick_actions_menu, export_interactive, compare_mode,
-    run_analysis_loop, main
+from slowql.cli.app import (  # noqa: E402
+    QueryCache,
+    SessionManager,
+    _run_exports,
+    compare_mode,
+    ensure_reports_dir,
+    export_interactive,
+    init_cli,
+    run_analysis_loop,
+    safe_path,
+    show_quick_actions_menu,
 )
-from slowql.core.models import Severity
+from slowql.core.models import Severity  # noqa: E402
 
 
 def _create_input_side_effect(values, exhaust_action="eof"):
@@ -32,21 +40,20 @@ def _create_input_side_effect(values, exhaust_action="eof"):
     iterator = iter(values)
     call_count = [0]
     max_calls = len(values) + 100  # Safety limit
-    
-    def side_effect(*args, **kwargs):
+
+    def side_effect(*_args, **_kwargs):
         call_count[0] += 1
         if call_count[0] > max_calls:
             raise RuntimeError(f"Input called {call_count[0]} times - possible infinite loop!")
         try:
             return next(iterator)
-        except StopIteration:
+        except StopIteration as e:
             if exhaust_action == "eof":
-                raise EOFError("End of mock input")
+                raise EOFError("End of mock input") from e
             elif exhaust_action == "empty":
                 return ""
-            else:
-                raise
-    
+            raise e
+
     return side_effect
 
 
@@ -58,8 +65,8 @@ def _create_readkey_side_effect(values, default=mock_readchar.key.ENTER):
     iterator = iter(values)
     call_count = [0]
     max_calls = len(values) + 50
-    
-    def side_effect(*args, **kwargs):
+
+    def side_effect(*_args, **_kwargs):
         call_count[0] += 1
         if call_count[0] > max_calls:
             raise RuntimeError(f"readkey called {call_count[0]} times - possible infinite loop!")
@@ -67,7 +74,7 @@ def _create_readkey_side_effect(values, default=mock_readchar.key.ENTER):
             return next(iterator)
         except StopIteration:
             return default
-    
+
     return side_effect
 
 
@@ -84,11 +91,12 @@ def mock_ui_components():
     We patch time.sleep globally here to avoid AttributeErrors if modules
     import it differently.
     """
-    with patch("slowql.cli.app.Progress") as m_prog, \
-         patch("slowql.cli.app.Live") as m_live_app, \
-         patch("slowql.cli.ui.animations.Live") as m_live_anim, \
-         patch("time.sleep", return_value=None):  # Patch global time.sleep
-        
+    with (
+        patch("slowql.cli.app.Progress") as m_prog,
+        patch("slowql.cli.app.Live") as m_live_app,
+        patch("slowql.cli.ui.animations.Live") as m_live_anim,
+        patch("time.sleep", return_value=None),
+    ):  # Patch global time.sleep
         m_prog.return_value.__enter__.return_value = MagicMock()
         m_live_app.return_value.__enter__.return_value = MagicMock()
         m_live_anim.return_value.__enter__.return_value = MagicMock()
@@ -110,7 +118,7 @@ def mock_analysis_result():
         Severity.CRITICAL: 0,
         Severity.MEDIUM: 0,
         Severity.LOW: 0,
-        Severity.INFO: 0
+        Severity.INFO: 0,
     }
     return result
 
@@ -122,7 +130,7 @@ class TestSessionManager:
         sm.display_summary()
         path = sm.export_session(tmp_path / "session.json")
         assert path.exists()
-        
+
     def test_session_duration(self):
         sm = SessionManager()
         # Mock session start to check formatting
@@ -136,89 +144,91 @@ class TestCompareMode:
         result = MagicMock()
         result.issues = []
         mock_engine.analyze.return_value = result
-        
+
         # compare_mode reads lines until TWO consecutive empty lines for each query
         inputs = [
-            "SELECT 1", "", "",  # First query + 2 empty lines
-            "SELECT 2", "", "",  # Second query + 2 empty lines
+            "SELECT 1",
+            "",
+            "",  # First query + 2 empty lines
+            "SELECT 2",
+            "",
+            "",  # Second query + 2 empty lines
         ]
-        
+
         # Use callable side_effect to properly raise EOFError at end
-        with patch("builtins.input", side_effect=_create_input_side_effect(inputs, exhaust_action="eof")):
+        with patch(
+            "builtins.input", side_effect=_create_input_side_effect(inputs, exhaust_action="eof")
+        ):
             compare_mode(mock_engine)
-            
+
         assert mock_engine.analyze.call_count == 2
         assert mock_console.print.call_count >= 1
 
-    def test_compare_mode_empty_queries(self, mock_console):
+    def test_compare_mode_empty_queries(self, mock_console):  # noqa: ARG002
         mock_engine = MagicMock()
-        inputs = ["", ""] # Empty query input (just two empty lines)
-        
-        with patch("builtins.input", side_effect=_create_input_side_effect(inputs, exhaust_action="eof")):
+        inputs = ["", ""]  # Empty query input (just two empty lines)
+
+        with patch(
+            "builtins.input", side_effect=_create_input_side_effect(inputs, exhaust_action="eof")
+        ):
             compare_mode(mock_engine)
-            
+
         mock_engine.analyze.assert_not_called()
 
-    def test_compare_mode_eof(self, mock_console):
+    def test_compare_mode_eof(self):
         mock_engine = MagicMock()
-        
-        def raise_eof(*args, **kwargs):
-            raise EOFError()
-            
+
+        def raise_eof(*_args, **_kwargs):
+            raise EOFError
+
         with patch("builtins.input", side_effect=raise_eof):
             compare_mode(mock_engine)
-            
+
         mock_engine.analyze.assert_not_called()
 
 
 class TestQuickActions:
     def test_menu_interactive_flow(self, mock_analysis_result, tmp_path):
-        # Select "Continue" (index 1): DOWN, ENTER
-        mock_readchar.readkey = MagicMock(
-            side_effect=_create_readkey_side_effect([
-                mock_readchar.key.DOWN, mock_readchar.key.ENTER
-            ])
-        )
-        assert show_quick_actions_menu(mock_analysis_result, MagicMock(), tmp_path) is True
+        # Select "Continue" (index 1) -> "2"
+        with patch("slowql.cli.app.Prompt.ask", return_value="2"):
+            assert (
+                show_quick_actions_menu(mock_analysis_result, MagicMock(), tmp_path) is True
+            )
 
     def test_menu_exit(self, mock_analysis_result, tmp_path):
-        # Select "Exit" (wrap around up): UP, ENTER
-        mock_readchar.readkey = MagicMock(
-            side_effect=_create_readkey_side_effect([
-                mock_readchar.key.UP, mock_readchar.key.ENTER
-            ])
-        )
-        
-        assert show_quick_actions_menu(mock_analysis_result, MagicMock(), tmp_path) is False
+        # Select "Exit" -> "3"
+        with patch("slowql.cli.app.Prompt.ask", return_value="3"):
+            assert (
+                show_quick_actions_menu(mock_analysis_result, MagicMock(), tmp_path)
+                is False
+            )
 
 
 class TestExportInteractive:
     def test_export_interactive_flow(self, mock_analysis_result, tmp_path):
-        # Select JSON (default): ENTER
-        with patch("slowql.cli.app.readchar") as mock_rc:
-            mock_rc.readkey = MagicMock(
-                side_effect=_create_readkey_side_effect([mock_rc.key.ENTER])
-            )
-        
-        with patch("slowql.cli.app._run_exports") as mock_run:
+        # Select JSON (default) -> "1"
+        with patch("slowql.cli.app.Prompt.ask", return_value="1"), \
+             patch("slowql.cli.app._run_exports") as mock_run:
             export_interactive(mock_analysis_result, tmp_path)
             mock_run.assert_called_with(mock_analysis_result, ["json"], tmp_path)
-            
+
+
 class TestAnalysisLoop:
     def test_loop_exception_handling(self, mock_console):
-        with patch("slowql.cli.app.SlowQL") as MockEngine, \
-             patch("slowql.cli.app.Config") as MockConfig, \
-             patch("slowql.cli.app.ConsoleReporter") as MockReporter, \
-             patch("slowql.cli.app.CyberpunkSQLEditor") as MockEditor:
-            
+        with (
+            patch("slowql.cli.app.SlowQL") as MockEngine,
+            patch("slowql.cli.app.Config") as MockConfig,
+            patch("slowql.cli.app.ConsoleReporter"),
+            patch("slowql.cli.app.CyberpunkSQLEditor") as MockEditor,
+        ):
             MockConfig.find_and_load.return_value = MagicMock()
             MockEngine.return_value.analyze.side_effect = Exception("TestCrash")
-            
+
             # Editor returns one query then None to exit
             mock_editor_instance = MagicMock()
             mock_editor_instance.get_queries.side_effect = ["SELECT 1", None]
             MockEditor.return_value = mock_editor_instance
-            
+
             # Don't continue after error
             with patch("slowql.cli.app.Confirm.ask", return_value=False):
                 run_analysis_loop(mode="paste", intro_enabled=False, non_interactive=False)
@@ -229,10 +239,11 @@ class TestAnalysisLoop:
 
 class TestExports:
     def test_run_exports_all(self, mock_analysis_result, tmp_path):
-        with patch("slowql.cli.app.JSONReporter") as m_json, \
-             patch("slowql.cli.app.HTMLReporter") as m_html, \
-             patch("slowql.cli.app.CSVReporter") as m_csv:
-                 
+        with (
+            patch("slowql.cli.app.JSONReporter") as m_json,
+            patch("slowql.cli.app.HTMLReporter") as m_html,
+            patch("slowql.cli.app.CSVReporter") as m_csv,
+        ):
             _run_exports(mock_analysis_result, ["json", "html", "csv"], tmp_path)
             assert m_json.called
             assert m_html.called

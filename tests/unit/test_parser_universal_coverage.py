@@ -1,13 +1,12 @@
+from unittest.mock import patch
 
 import pytest
-import re
-from unittest.mock import MagicMock, patch
-import sqlglot
 from sqlglot import exp
 from sqlglot.errors import ParseError as SqlglotParseError
 
-from slowql.parser.universal import UniversalParser
 from slowql.core.exceptions import ParseError, UnsupportedDialectError
+from slowql.parser.universal import UniversalParser
+
 
 class TestUniversalParserCoverage:
     def test_unsupported_dialect_init(self):
@@ -18,10 +17,10 @@ class TestUniversalParserCoverage:
         parser = UniversalParser()
         with pytest.raises(ParseError, match="No SQL statement found"):
             parser.parse_single("")
-            
+
         with pytest.raises(ParseError, match="No SQL statement found"):
             parser.parse_single("   ")
-            
+
         with pytest.raises(ParseError, match="No SQL statement found"):
             parser.parse_single("-- just a comment")
 
@@ -33,36 +32,39 @@ class TestUniversalParserCoverage:
     def test_parse_error_handling(self):
         parser = UniversalParser()
         # Mock sqlglot.parse_one to raise SqlglotParseError
-        with patch("sqlglot.parse_one", side_effect=SqlglotParseError("test error")):
-            with pytest.raises(ParseError, match="Failed to parse SQL"):
-                parser.parse("SELECT * FROM t")
+        with patch("sqlglot.parse_one", side_effect=SqlglotParseError("test error")), pytest.raises(
+            ParseError, match="Failed to parse SQL"
+        ):
+            parser.parse("SELECT * FROM t")
 
     def test_detect_dialect(self):
         parser = UniversalParser()
-        
+
         # Test postgres detection
         assert parser.detect_dialect("SELECT $1") == "postgres"
         assert parser.detect_dialect("SELECT col::text") == "postgres"
-        
+
         # Test mysql detection
         assert parser.detect_dialect("SELECT `col`") == "mysql"
-        
+
         # Test tsql detection
         assert parser.detect_dialect("SELECT TOP 10 *") == "tsql"
         assert parser.detect_dialect("SELECT [col]") == "tsql"
-        
+
         # Test oracle detection
         assert parser.detect_dialect("SELECT * FROM t WHERE ROWNUM <= 1") == "oracle"
-        
+
         # Test bigquery detection
         assert parser.detect_dialect("SELECT * FROM `p.d.t`") == "bigquery"
-        
+
         # Test snowflake detection
-        assert parser.detect_dialect("SELECT * FROM t, LATERAL FLATTEN(input => col)") == "snowflake"
-        
+        assert (
+            parser.detect_dialect("SELECT * FROM t, LATERAL FLATTEN(input => col)") == "snowflake"
+        )
+
         # Test multiple matches (should pick highest score)
         # "TOP 10" is tsql (1 match), "::" is postgres (1 match).
-        # This specific test case might be ambiguous depending on exact impl, 
+        # This specific test case might be ambiguous depending on exact impl,
         # but let's try to bias it.
         # "SELECT TOP 10 [col]" -> 2 matches for tsql
         assert parser.detect_dialect("SELECT TOP 10 [col]") == "tsql"
@@ -73,8 +75,8 @@ class TestUniversalParserCoverage:
     def test_normalize_error(self):
         parser = UniversalParser()
         with patch("sqlglot.parse_one", side_effect=SqlglotParseError("err")):
-             # Should fallback to basic whitespace normalization
-             assert parser.normalize("SELECT  *   FROM   t") == "SELECT * FROM t"
+            # Should fallback to basic whitespace normalization
+            assert parser.normalize("SELECT  *   FROM   t") == "SELECT * FROM t"
 
     def test_extract_tables_error(self):
         parser = UniversalParser()
@@ -105,7 +107,7 @@ class TestUniversalParserCoverage:
 
     def test_get_query_type_from_ast_coverage(self):
         parser = UniversalParser()
-        
+
         # We can construct sqlglot expressions purely for testing logic mapping
         assert parser._get_query_type_from_ast(exp.Select()) == "SELECT"
         assert parser._get_query_type_from_ast(exp.Insert()) == "INSERT"
@@ -119,14 +121,14 @@ class TestUniversalParserCoverage:
         # Grant might not be in all versions, checking safely or assuming it exists if imported
         if hasattr(exp, "Grant"):
             assert parser._get_query_type_from_ast(exp.Grant()) == "GRANT"
-        
+
         # Test Command fallback
         cmd = exp.Command()
         cmd.set("this", "VACUUM ANALYZE")
         assert parser._get_query_type_from_ast(cmd) == "VACUUM"
-        
+
         # Test Default fallback
         class UnknownExp(exp.Expression):
             pass
-        assert parser._get_query_type_from_ast(UnknownExp()) == "UNKNOWNEXP"
 
+        assert parser._get_query_type_from_ast(UnknownExp()) == "UNKNOWNEXP"

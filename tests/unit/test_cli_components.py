@@ -6,12 +6,12 @@ Test CLI components.
 from slowql.cli import app
 from slowql.core.config import Config
 from slowql.core.engine import SlowQL
-from slowql.core.models import AnalysisResult, Issue, Severity, Dimension, Location
+from slowql.core.models import AnalysisResult, Dimension, Issue, Location, Severity
 
 
 def test_cli_app_structure():
     """Test that CLI app has expected structure."""
-    assert hasattr(app, 'main')
+    assert hasattr(app, "main")
     assert callable(app.main)
 
 
@@ -41,7 +41,7 @@ def test_result_formatting():
         severity=Severity.MEDIUM,
         dimension=Dimension.QUALITY,
         location=loc,
-        snippet="SELECT *"
+        snippet="SELECT *",
     )
     result = AnalysisResult()
     result.add_issue(issue)
@@ -95,7 +95,7 @@ def test_issue_formatting():
         severity=Severity.MEDIUM,
         dimension=Dimension.QUALITY,
         location=loc,
-        snippet="SELECT *"
+        snippet="SELECT *",
     )
 
     assert issue.rule_id == "TEST-001"
@@ -113,12 +113,30 @@ def test_statistics_calculation():
     # Add issues of different severities
     loc = Location(line=1, column=1)
     issues = [
-        Issue(rule_id="CRIT-001", message="Critical", severity=Severity.CRITICAL,
-              dimension=Dimension.SECURITY, location=loc, snippet="code"),
-        Issue(rule_id="HIGH-001", message="High", severity=Severity.HIGH,
-              dimension=Dimension.SECURITY, location=loc, snippet="code"),
-        Issue(rule_id="MED-001", message="Medium", severity=Severity.MEDIUM,
-              dimension=Dimension.PERFORMANCE, location=loc, snippet="code"),
+        Issue(
+            rule_id="CRIT-001",
+            message="Critical",
+            severity=Severity.CRITICAL,
+            dimension=Dimension.SECURITY,
+            location=loc,
+            snippet="code",
+        ),
+        Issue(
+            rule_id="HIGH-001",
+            message="High",
+            severity=Severity.HIGH,
+            dimension=Dimension.SECURITY,
+            location=loc,
+            snippet="code",
+        ),
+        Issue(
+            rule_id="MED-001",
+            message="Medium",
+            severity=Severity.MEDIUM,
+            dimension=Dimension.PERFORMANCE,
+            location=loc,
+            snippet="code",
+        ),
     ]
 
     for issue in issues:
@@ -139,12 +157,30 @@ def test_result_filtering():
     """Test result filtering methods."""
     loc = Location(line=1, column=1)
     issues = [
-        Issue(rule_id="SEC-001", message="Security", severity=Severity.HIGH,
-              dimension=Dimension.SECURITY, location=loc, snippet="code"),
-        Issue(rule_id="PERF-001", message="Performance", severity=Severity.MEDIUM,
-              dimension=Dimension.PERFORMANCE, location=loc, snippet="code"),
-        Issue(rule_id="QUAL-001", message="Quality", severity=Severity.LOW,
-              dimension=Dimension.QUALITY, location=loc, snippet="code"),
+        Issue(
+            rule_id="SEC-001",
+            message="Security",
+            severity=Severity.HIGH,
+            dimension=Dimension.SECURITY,
+            location=loc,
+            snippet="code",
+        ),
+        Issue(
+            rule_id="PERF-001",
+            message="Performance",
+            severity=Severity.MEDIUM,
+            dimension=Dimension.PERFORMANCE,
+            location=loc,
+            snippet="code",
+        ),
+        Issue(
+            rule_id="QUAL-001",
+            message="Quality",
+            severity=Severity.LOW,
+            dimension=Dimension.QUALITY,
+            location=loc,
+            snippet="code",
+        ),
     ]
 
     result = AnalysisResult()
@@ -169,12 +205,30 @@ def test_result_grouping():
     loc3 = Location(line=1, column=1)  # No file
 
     issues = [
-        Issue(rule_id="TEST-001", message="Issue 1", severity=Severity.MEDIUM,
-              dimension=Dimension.QUALITY, location=loc1, snippet="code"),
-        Issue(rule_id="TEST-002", message="Issue 2", severity=Severity.MEDIUM,
-              dimension=Dimension.SECURITY, location=loc2, snippet="code"),
-        Issue(rule_id="TEST-003", message="Issue 3", severity=Severity.MEDIUM,
-              dimension=Dimension.PERFORMANCE, location=loc3, snippet="code"),
+        Issue(
+            rule_id="TEST-001",
+            message="Issue 1",
+            severity=Severity.MEDIUM,
+            dimension=Dimension.QUALITY,
+            location=loc1,
+            snippet="code",
+        ),
+        Issue(
+            rule_id="TEST-002",
+            message="Issue 2",
+            severity=Severity.MEDIUM,
+            dimension=Dimension.SECURITY,
+            location=loc2,
+            snippet="code",
+        ),
+        Issue(
+            rule_id="TEST-003",
+            message="Issue 3",
+            severity=Severity.MEDIUM,
+            dimension=Dimension.PERFORMANCE,
+            location=loc3,
+            snippet="code",
+        ),
     ]
 
     result = AnalysisResult()

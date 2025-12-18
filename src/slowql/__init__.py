@@ -1,13 +1,16 @@
 """
 SlowQL Top-level package
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
 # Define version FIRST to avoid import errors
+__version__: str | None
 try:
     from importlib.metadata import version
+
     try:
         __version__ = version("slowql")
     except Exception:
@@ -33,17 +36,18 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 __all__ = [
+    "AnalysisResult",
+    "Config",
+    "Dimension",
+    "Issue",
+    "Location",
+    "Severity",
     "SlowQL",
+    "__version__",
     "analyze",
     "analyze_file",
-    "AnalysisResult",
-    "Issue",
-    "Severity",
-    "Dimension",
-    "Location",
-    "Config",
-    "__version__",
 ]
+
 
 def analyze(
     sql: str,
@@ -53,6 +57,7 @@ def analyze(
 ) -> AnalysisResult:
     engine = SlowQL(config=config)
     return engine.analyze(sql, dialect=dialect)
+
 
 def analyze_file(
     path: str | Path,

@@ -9,11 +9,14 @@ Analyzers can be registered programmatically or discovered via entry points.
 from __future__ import annotations
 
 import sys
-from typing import TYPE_CHECKING, Any, Callable, Iterator
+from importlib.metadata import entry_points
+from typing import TYPE_CHECKING, Any
 
 from slowql.core.models import Dimension
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Iterator
+
     from slowql.analyzers.base import BaseAnalyzer
 
 
@@ -48,7 +51,7 @@ class AnalyzerRegistry:
     def __init__(self) -> None:
         """Initialize the registry."""
         self._analyzers: dict[str, BaseAnalyzer] = {}
-        self._discovered = False
+        self._discovered: bool = False
 
     def register(
         self,
@@ -70,8 +73,7 @@ class AnalyzerRegistry:
 
         if name in self._analyzers and not replace:
             raise ValueError(
-                f"Analyzer '{name}' is already registered. "
-                f"Use replace=True to override."
+                f"Analyzer '{name}' is already registered. Use replace=True to override."
             )
 
         self._analyzers[name] = analyzer
@@ -157,31 +159,21 @@ class AnalyzerRegistry:
         if self._discovered:
             return len(self._analyzers)
 
-        count = 0
+        # Also load built-in analyzers first, so they can be overridden by entry points
+        count = self._load_builtin_analyzers()
 
-        # Use importlib.metadata for entry point discovery
-        # sys.version_info is safe to use here as sys is imported at module level
-        if sys.version_info >= (3, 10):
-            from importlib.metadata import entry_points
-            # Python 3.10+ returns EntryPoints object which is selectable
-            eps = entry_points(group=self.ENTRY_POINT_GROUP)
-        else:
-            from importlib.metadata import entry_points
-            # Python < 3.10 returns dict
-            all_eps = entry_points()
-            eps = all_eps.get(self.ENTRY_POINT_GROUP, [])
+        eps = entry_points(group=self.ENTRY_POINT_GROUP)
 
         for ep in eps:
             try:
                 analyzer_class = ep.load()
 
                 # Instantiate if it's a class
-                if isinstance(analyzer_class, type):
-                    analyzer = analyzer_class()
-                else:
-                    analyzer = analyzer_class
+                analyzer = (
+                    analyzer_class() if isinstance(analyzer_class, type) else analyzer_class
+                )
 
-                self.register(analyzer)
+                self.register(analyzer, replace=True)  # Allow entry points to override built-ins
                 count += 1
 
             except Exception as e:
@@ -191,11 +183,8 @@ class AnalyzerRegistry:
                     file=sys.stderr,
                 )
 
-        # Also load built-in analyzers
-        count += self._load_builtin_analyzers()
-
         self._discovered = True
-        return count
+        return len(self._analyzers)
 
     def _load_builtin_analyzers(self) -> int:
         """Load built-in analyzers."""
@@ -230,8 +219,7 @@ class AnalyzerRegistry:
                 pass
             except Exception as e:
                 print(
-                    f"Warning: Failed to load built-in analyzer "
-                    f"'{module_name}.{class_name}': {e}",
+                    f"Warning: Failed to load built-in analyzer '{module_name}.{class_name}': {e}",
                     file=sys.stderr,
                 )
 
@@ -255,7 +243,7 @@ class AnalyzerRegistry:
 
     def list_dimensions(self) -> list[Dimension]:
         """Get list of dimensions with registered analyzers."""
-        return list(set(a.dimension for a in self._analyzers.values()))
+        return list({a.dimension for a in self._analyzers.values()})
 
     def clear(self) -> None:
         """Clear all registered analyzers."""
@@ -287,7 +275,7 @@ class AnalyzerRegistry:
 
 
 # Global registry instance
-_global_registry: AnalyzerRegistry | None = None
+_global_registry: list[AnalyzerRegistry] = []
 
 
 def get_registry() -> AnalyzerRegistry:
@@ -297,12 +285,9 @@ def get_registry() -> AnalyzerRegistry:
     Returns:
         The global AnalyzerRegistry instance.
     """
-    global _global_registry
-
-    if _global_registry is None:
-        _global_registry = AnalyzerRegistry()
-
-    return _global_registry
+    if not _global_registry:
+        _global_registry.append(AnalyzerRegistry())
+    return _global_registry[0]
 
 
 def register_analyzer(analyzer: BaseAnalyzer) -> None:
@@ -337,6 +322,7 @@ def analyzer(
     Returns:
         Decorator function.
     """
+
     def decorator(cls: type) -> type:
         # Set class attributes
         if name:

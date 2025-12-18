@@ -11,7 +11,10 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Iterator
+from typing import TYPE_CHECKING, ClassVar
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 class TokenType(Enum):
@@ -59,59 +62,247 @@ class TokenType(Enum):
 
 
 # SQL keywords (ANSI SQL + common extensions)
-SQL_KEYWORDS: frozenset[str] = frozenset({
-    # Data Query
-    "SELECT", "FROM", "WHERE", "JOIN", "INNER", "LEFT", "RIGHT", "FULL",
-    "OUTER", "CROSS", "ON", "USING", "GROUP", "BY", "HAVING", "ORDER",
-    "ASC", "DESC", "NULLS", "FIRST", "LAST", "LIMIT", "OFFSET", "FETCH",
-    "NEXT", "ROWS", "ONLY", "TOP", "PERCENT", "WITH", "TIES", "DISTINCT",
-    "ALL", "AS", "UNION", "INTERSECT", "EXCEPT", "MINUS",
-    # Subqueries
-    "IN", "NOT", "EXISTS", "ANY", "SOME",
-    # Data Manipulation
-    "INSERT", "INTO", "VALUES", "UPDATE", "SET", "DELETE", "TRUNCATE",
-    "MERGE", "UPSERT", "RETURNING",
-    # Data Definition
-    "CREATE", "ALTER", "DROP", "TABLE", "VIEW", "INDEX", "SCHEMA",
-    "DATABASE", "SEQUENCE", "TRIGGER", "FUNCTION", "PROCEDURE",
-    "PRIMARY", "KEY", "FOREIGN", "REFERENCES", "UNIQUE", "CHECK",
-    "DEFAULT", "CONSTRAINT", "CASCADE", "RESTRICT", "NULL",
-    "AUTO_INCREMENT", "IDENTITY", "SERIAL", "BIGSERIAL",
-    # Data Types
-    "INT", "INTEGER", "BIGINT", "SMALLINT", "TINYINT", "FLOAT", "DOUBLE",
-    "DECIMAL", "NUMERIC", "REAL", "BOOLEAN", "BOOL", "CHAR", "VARCHAR",
-    "TEXT", "CLOB", "BLOB", "BINARY", "VARBINARY", "DATE", "TIME",
-    "TIMESTAMP", "DATETIME", "INTERVAL", "JSON", "JSONB", "XML", "UUID",
-    "ARRAY", "ENUM", "GEOMETRY", "GEOGRAPHY",
-    # Logical
-    "AND", "OR", "NOT", "TRUE", "FALSE", "UNKNOWN",
-    "IS", "LIKE", "ILIKE", "SIMILAR", "BETWEEN", "CASE", "WHEN", "THEN",
-    "ELSE", "END", "COALESCE", "NULLIF", "GREATEST", "LEAST",
-    # Aggregate
-    "COUNT", "SUM", "AVG", "MIN", "MAX", "ARRAY_AGG", "STRING_AGG",
-    "GROUP_CONCAT", "LISTAGG",
-    # Window
-    "OVER", "PARTITION", "WINDOW", "ROWS", "RANGE", "UNBOUNDED",
-    "PRECEDING", "FOLLOWING", "CURRENT", "ROW",
-    "ROW_NUMBER", "RANK", "DENSE_RANK", "NTILE", "LAG", "LEAD",
-    "FIRST_VALUE", "LAST_VALUE", "NTH_VALUE",
-    # Transaction
-    "BEGIN", "START", "TRANSACTION", "COMMIT", "ROLLBACK", "SAVEPOINT",
-    "RELEASE", "ISOLATION", "LEVEL", "READ", "WRITE", "COMMITTED",
-    "UNCOMMITTED", "REPEATABLE", "SERIALIZABLE",
-    # Access Control
-    "GRANT", "REVOKE", "PRIVILEGES", "TO", "PUBLIC", "ROLE", "USER",
-    # Common Functions
-    "CAST", "CONVERT", "EXTRACT", "SUBSTRING", "TRIM", "UPPER", "LOWER",
-    "LENGTH", "CONCAT", "REPLACE", "NOW", "CURRENT_DATE", "CURRENT_TIME",
-    "CURRENT_TIMESTAMP", "CURRENT_USER",
-    # Misc
-    "EXPLAIN", "ANALYZE", "VERBOSE", "FORMAT", "PLAN", "SHOW", "DESCRIBE",
-    "USE", "IF", "ELSE", "ELSEIF", "LOOP", "WHILE", "FOR", "RETURN",
-    "DECLARE", "CURSOR", "OPEN", "CLOSE", "FETCH",
-    "TEMPORARY", "TEMP", "GLOBAL", "LOCAL", "MATERIALIZED", "RECURSIVE",
-    "LATERAL", "NATURAL", "PIVOT", "UNPIVOT", "QUALIFY", "SAMPLE",
-})
+SQL_KEYWORDS: frozenset[str] = frozenset(
+    {
+        # Data Query
+        "SELECT",
+        "FROM",
+        "WHERE",
+        "JOIN",
+        "INNER",
+        "LEFT",
+        "RIGHT",
+        "FULL",
+        "OUTER",
+        "CROSS",
+        "ON",
+        "USING",
+        "GROUP",
+        "BY",
+        "HAVING",
+        "ORDER",
+        "ASC",
+        "DESC",
+        "NULLS",
+        "FIRST",
+        "LAST",
+        "LIMIT",
+        "OFFSET",
+        "FETCH",
+        "NEXT",
+        "ROWS",
+        "ONLY",
+        "TOP",
+        "PERCENT",
+        "WITH",
+        "TIES",
+        "DISTINCT",
+        "ALL",
+        "AS",
+        "UNION",
+        "INTERSECT",
+        "EXCEPT",
+        "MINUS",
+        # Subqueries
+        "IN",
+        "NOT",
+        "EXISTS",
+        "ANY",
+        "SOME",
+        # Data Manipulation
+        "INSERT",
+        "INTO",
+        "VALUES",
+        "UPDATE",
+        "SET",
+        "DELETE",
+        "TRUNCATE",
+        "MERGE",
+        "UPSERT",
+        "RETURNING",
+        # Data Definition
+        "CREATE",
+        "ALTER",
+        "DROP",
+        "TABLE",
+        "VIEW",
+        "INDEX",
+        "SCHEMA",
+        "DATABASE",
+        "SEQUENCE",
+        "TRIGGER",
+        "FUNCTION",
+        "PROCEDURE",
+        "PRIMARY",
+        "KEY",
+        "FOREIGN",
+        "REFERENCES",
+        "UNIQUE",
+        "CHECK",
+        "DEFAULT",
+        "CONSTRAINT",
+        "CASCADE",
+        "RESTRICT",
+        "NULL",
+        "AUTO_INCREMENT",
+        "IDENTITY",
+        "SERIAL",
+        "BIGSERIAL",
+        # Data Types
+        "INT",
+        "INTEGER",
+        "BIGINT",
+        "SMALLINT",
+        "TINYINT",
+        "FLOAT",
+        "DOUBLE",
+        "DECIMAL",
+        "NUMERIC",
+        "REAL",
+        "BOOLEAN",
+        "BOOL",
+        "CHAR",
+        "VARCHAR",
+        "TEXT",
+        "CLOB",
+        "BLOB",
+        "BINARY",
+        "VARBINARY",
+        "DATE",
+        "TIME",
+        "TIMESTAMP",
+        "DATETIME",
+        "INTERVAL",
+        "JSON",
+        "JSONB",
+        "XML",
+        "UUID",
+        "ARRAY",
+        "ENUM",
+        "GEOMETRY",
+        "GEOGRAPHY",
+        # Logical
+        "AND",
+        "OR",
+        "TRUE",
+        "FALSE",
+        "UNKNOWN",
+        "IS",
+        "LIKE",
+        "ILIKE",
+        "SIMILAR",
+        "BETWEEN",
+        "CASE",
+        "WHEN",
+        "THEN",
+        "ELSE",
+        "END",
+        "COALESCE",
+        "NULLIF",
+        "GREATEST",
+        "LEAST",
+        # Aggregate
+        "COUNT",
+        "SUM",
+        "AVG",
+        "MIN",
+        "MAX",
+        "ARRAY_AGG",
+        "STRING_AGG",
+        "GROUP_CONCAT",
+        "LISTAGG",
+        # Window
+        "OVER",
+        "PARTITION",
+        "WINDOW",
+        "RANGE",
+        "UNBOUNDED",
+        "PRECEDING",
+        "FOLLOWING",
+        "CURRENT",
+        "ROW",
+        "ROW_NUMBER",
+        "RANK",
+        "DENSE_RANK",
+        "NTILE",
+        "LAG",
+        "LEAD",
+        "FIRST_VALUE",
+        "LAST_VALUE",
+        "NTH_VALUE",
+        # Transaction
+        "BEGIN",
+        "START",
+        "TRANSACTION",
+        "COMMIT",
+        "ROLLBACK",
+        "SAVEPOINT",
+        "RELEASE",
+        "ISOLATION",
+        "LEVEL",
+        "READ",
+        "WRITE",
+        "COMMITTED",
+        "UNCOMMITTED",
+        "REPEATABLE",
+        "SERIALIZABLE",
+        # Access Control
+        "GRANT",
+        "REVOKE",
+        "PRIVILEGES",
+        "TO",
+        "PUBLIC",
+        "ROLE",
+        "USER",
+        # Common Functions
+        "CAST",
+        "CONVERT",
+        "EXTRACT",
+        "SUBSTRING",
+        "TRIM",
+        "UPPER",
+        "LOWER",
+        "LENGTH",
+        "CONCAT",
+        "REPLACE",
+        "NOW",
+        "CURRENT_DATE",
+        "CURRENT_TIME",
+        "CURRENT_TIMESTAMP",
+        "CURRENT_USER",
+        # Misc
+        "EXPLAIN",
+        "ANALYZE",
+        "VERBOSE",
+        "FORMAT",
+        "PLAN",
+        "SHOW",
+        "DESCRIBE",
+        "USE",
+        "IF",
+        "ELSEIF",
+        "LOOP",
+        "WHILE",
+        "FOR",
+        "RETURN",
+        "DECLARE",
+        "CURSOR",
+        "OPEN",
+        "CLOSE",
+        "TEMPORARY",
+        "TEMP",
+        "GLOBAL",
+        "LOCAL",
+        "MATERIALIZED",
+        "RECURSIVE",
+        "LATERAL",
+        "NATURAL",
+        "PIVOT",
+        "UNPIVOT",
+        "QUALIFY",
+        "SAMPLE",
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -198,25 +389,27 @@ class Tokenizer:
     """
 
     # Token patterns (order matters - more specific patterns first)
-    _PATTERNS: list[tuple[TokenType, re.Pattern[str]]] = [
+    _PATTERNS: ClassVar[list[tuple[TokenType, re.Pattern[str]]]] = [
         # Comments
         (TokenType.COMMENT, re.compile(r"--[^\n]*")),
         (TokenType.BLOCK_COMMENT, re.compile(r"/\*[\s\S]*?\*/")),
-
         # Strings
         (TokenType.STRING, re.compile(r"'(?:''|[^'])*'")),  # Single quotes with escape
-        (TokenType.STRING, re.compile(r"E'(?:\\'|[^'])*'", re.IGNORECASE)),  # PostgreSQL escape string
+        (
+            TokenType.STRING,
+            re.compile(r"E'(?:\\'|[^'])*'", re.IGNORECASE),
+        ),  # PostgreSQL escape string
         (TokenType.STRING, re.compile(r"\$\$[\s\S]*?\$\$")),  # Dollar quoting
-
         # Quoted identifiers
         (TokenType.QUOTED_IDENTIFIER, re.compile(r'"(?:""|[^"])*"')),  # Double quotes
         (TokenType.QUOTED_IDENTIFIER, re.compile(r"`(?:``|[^`])*`")),  # Backticks (MySQL)
-        (TokenType.QUOTED_IDENTIFIER, re.compile(r"\[(?:\]\]|[^\]])*\]")),  # Square brackets (SQL Server)
-
+        (
+            TokenType.QUOTED_IDENTIFIER,
+            re.compile(r"\[(?:\]\]|[^\]])*\]"),
+        ),  # Square brackets (SQL Server)
         # Numbers
         (TokenType.NUMBER, re.compile(r"\d+\.?\d*(?:[eE][+-]?\d+)?")),  # Integer, float, scientific
         (TokenType.NUMBER, re.compile(r"\.\d+(?:[eE][+-]?\d+)?")),  # .5, .5e10
-
         # Placeholders
         (TokenType.PLACEHOLDER, re.compile(r"\$\d+")),  # PostgreSQL $1, $2
         (TokenType.PLACEHOLDER, re.compile(r":\w+")),  # Named :param
@@ -224,13 +417,11 @@ class Tokenizer:
         (TokenType.PLACEHOLDER, re.compile(r"@\w+")),  # SQL Server @param
         (TokenType.PLACEHOLDER, re.compile(r"%\(\w+\)s")),  # Python %(name)s
         (TokenType.PLACEHOLDER, re.compile(r"%s")),  # Python %s
-
         # Double-character operators
         (TokenType.DOUBLE_COLON, re.compile(r"::")),  # PostgreSQL cast
         (TokenType.COMPARISON, re.compile(r"<>|!=|>=|<=|<=>|!<|!>")),
         (TokenType.LOGICAL, re.compile(r"\|\||&&")),
         (TokenType.ARITHMETIC, re.compile(r"\*\*|<<|>>")),
-
         # Single-character tokens
         (TokenType.LPAREN, re.compile(r"\(")),
         (TokenType.RPAREN, re.compile(r"\)")),
@@ -241,11 +432,9 @@ class Tokenizer:
         (TokenType.STAR, re.compile(r"\*")),
         (TokenType.COMPARISON, re.compile(r"[<>=]")),
         (TokenType.ARITHMETIC, re.compile(r"[+\-/%^&|~]")),
-
         # Whitespace
         (TokenType.NEWLINE, re.compile(r"\n")),
         (TokenType.WHITESPACE, re.compile(r"[ \t\r]+")),
-
         # Identifiers (must be after keywords check)
         (TokenType.IDENTIFIER, re.compile(r"[a-zA-Z_][a-zA-Z0-9_]*")),
     ]
@@ -260,6 +449,61 @@ class Tokenizer:
         """
         self.skip_whitespace = skip_whitespace
         self.skip_comments = skip_comments
+
+    def _get_actual_token_type(self, token_type: TokenType, value: str) -> TokenType:
+        """Re-classify an IDENTIFIER token if it's a keyword, boolean, or null."""
+        if token_type == TokenType.IDENTIFIER:
+            upper_val = value.upper()
+            if upper_val in ("TRUE", "FALSE"):
+                return TokenType.BOOLEAN
+            if upper_val == "NULL":
+                return TokenType.NULL
+            if upper_val in SQL_KEYWORDS:
+                return TokenType.KEYWORD
+        return token_type
+
+    def _should_skip_token(self, token_type: TokenType) -> bool:
+        """Check if a token should be skipped based on tokenizer configuration."""
+        return (self.skip_whitespace and token_type in (
+            TokenType.WHITESPACE,
+            TokenType.NEWLINE,
+        )) or (self.skip_comments and token_type in (
+            TokenType.COMMENT,
+            TokenType.BLOCK_COMMENT,
+        ))
+
+    def _process_match(
+        self, match: re.Match[str], token_type: TokenType, line: int, col: int
+    ) -> tuple[Token | None, int, int, int]:
+        """Process a successful regex match to produce a token and new position."""
+        value = match.group(0)
+        end_pos = match.end()
+
+        # Calculate end position
+        end_line = line + value.count("\n")
+        end_col = len(value) - value.rfind("\n") if "\n" in value else col + len(value)
+
+        # Check if identifier is actually a keyword
+        actual_type = self._get_actual_token_type(token_type, value)
+
+        token = None
+        if not self._should_skip_token(actual_type):
+            token = Token(
+                type=actual_type,
+                value=value,
+                line=line,
+                column=col,
+                end_line=end_line,
+                end_column=end_col,
+            )
+
+        # Determine new line and column for the next token
+        new_line = end_line
+        new_col = end_col
+        if "\n" in value:
+            new_col = len(value) - value.rfind("\n")
+
+        return token, end_pos, new_line, new_col
 
     def tokenize(self, sql: str) -> Iterator[Token]:
         """
@@ -282,55 +526,9 @@ class Tokenizer:
             for token_type, pattern in self._PATTERNS:
                 match = pattern.match(sql, pos)
                 if match:
-                    value = match.group(0)
-                    end_pos = match.end()
-
-                    # Calculate end position
-                    end_line = line + value.count("\n")
-                    if "\n" in value:
-                        end_col = len(value) - value.rfind("\n")
-                    else:
-                        end_col = col + len(value)
-
-                    # Check if identifier is actually a keyword
-                    actual_type = token_type
-                    if token_type == TokenType.IDENTIFIER:
-                        upper_val = value.upper()
-                        if upper_val in ("TRUE", "FALSE"):
-                            actual_type = TokenType.BOOLEAN
-                        elif upper_val == "NULL":
-                            actual_type = TokenType.NULL
-                        elif upper_val in SQL_KEYWORDS:
-                            actual_type = TokenType.KEYWORD
-
-                    # Skip if configured
-                    should_skip = False
-                    if self.skip_whitespace and actual_type in (
-                        TokenType.WHITESPACE,
-                        TokenType.NEWLINE,
-                    ):
-                        should_skip = True
-                    if self.skip_comments and actual_type in (
-                        TokenType.COMMENT,
-                        TokenType.BLOCK_COMMENT,
-                    ):
-                        should_skip = True
-
-                    if not should_skip:
-                        yield Token(
-                            type=actual_type,
-                            value=value,
-                            line=line,
-                            column=col,
-                            end_line=end_line,
-                            end_column=end_col,
-                        )
-
-                    # Update position
-                    pos = end_pos
-                    line = end_line
-                    col = end_col if "\n" not in value else end_col
-
+                    token, pos, line, col = self._process_match(match, token_type, line, col)
+                    if token:
+                        yield token
                     matched = True
                     break
 
@@ -381,7 +579,8 @@ class Tokenizer:
             List of significant tokens only.
         """
         return [
-            t for t in self.tokenize(sql)
+            t
+            for t in self.tokenize(sql)
             if not t.is_whitespace and not t.is_comment and t.type != TokenType.EOF
         ]
 

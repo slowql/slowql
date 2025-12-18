@@ -1,11 +1,8 @@
 """Tests for CLI UI animations."""
 
-import time
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-import pytest
-
-from slowql.cli.ui.animations import MatrixRain, CyberpunkSQLEditor, AnimatedAnalyzer
+from slowql.cli.ui.animations import AnimatedAnalyzer, CyberpunkSQLEditor, MatrixRain
 
 
 class TestMatrixRain:
@@ -13,7 +10,7 @@ class TestMatrixRain:
 
     @patch("slowql.cli.ui.animations.shutil.get_terminal_size")
     @patch("slowql.cli.ui.animations.Console")
-    def test_init(self, mock_console, mock_get_terminal_size):
+    def test_init(self, _mock_console, mock_get_terminal_size):
         """Test MatrixRain initialization."""
         mock_get_terminal_size.return_value = MagicMock(columns=80, lines=24)
 
@@ -27,7 +24,7 @@ class TestMatrixRain:
 
     @patch("slowql.cli.ui.animations.shutil.get_terminal_size")
     @patch("slowql.cli.ui.animations.Console")
-    def test_get_logo_color(self, mock_console, mock_get_terminal_size):
+    def test_get_logo_color(self, _mock_console, mock_get_terminal_size):
         """Test logo color generation."""
         mock_get_terminal_size.return_value = MagicMock(columns=80, lines=24)
 
@@ -40,13 +37,21 @@ class TestMatrixRain:
         assert "magenta" in rain._get_logo_color(30, 50)  # Q area
         assert "hot_pink" in rain._get_logo_color(40, 50)  # L area
 
-    @patch("readchar.readkey", return_value='\n')
+    @patch("readchar.readkey", return_value="\n")
     @patch("slowql.cli.ui.animations.shutil.get_terminal_size")
     @patch("slowql.cli.ui.animations.Console")
     @patch("slowql.cli.ui.animations.Live")
     @patch("slowql.cli.ui.animations.time.sleep")
     @patch("builtins.input")
-    def test_run_short_duration(self, mock_input, mock_sleep, mock_live, mock_console, mock_get_terminal_size, mock_readkey):
+    def test_run_short_duration(
+        self,
+        mock_input,
+        mock_sleep,
+        mock_live,
+        _mock_console,
+        mock_get_terminal_size,
+        _mock_readkey,
+    ):
         """Test MatrixRain run with short duration."""
         mock_get_terminal_size.return_value = MagicMock(columns=80, lines=24)
         mock_input.return_value = ""  # Simulate enter press
@@ -58,17 +63,25 @@ class TestMatrixRain:
         mock_live.assert_called_once()
         mock_sleep.assert_called()
 
-    @patch("readchar.readkey", return_value='\n')
+    @patch("readchar.readkey", return_value="\n")
     @patch("slowql.cli.ui.animations.shutil.get_terminal_size")
     @patch("slowql.cli.ui.animations.Console")
     @patch("slowql.cli.ui.animations.Align")
     @patch("slowql.cli.ui.animations.Text")
     @patch("slowql.cli.ui.animations.time.sleep")
     @patch("builtins.input")
-    def test_slow_scroll_reveal(self, mock_input, mock_sleep, mock_text, mock_align, mock_console, mock_get_terminal_size, mock_readkey):
+    def test_slow_scroll_reveal(
+        self,
+        _mock_input,
+        _mock_sleep,
+        _mock_text,
+        _mock_align,
+        mock_console,
+        mock_get_terminal_size,
+        _mock_readkey,
+    ):
         """Test slow scroll reveal functionality."""
         mock_get_terminal_size.return_value = MagicMock(columns=80, lines=24)
-        mock_input.return_value = ""  # Simulate enter press
 
         rain = MatrixRain()
         rain._slow_scroll_reveal()
@@ -82,7 +95,7 @@ class TestCyberpunkSQLEditor:
     """Test CyberpunkSQLEditor class."""
 
     @patch("slowql.cli.ui.animations.Console")
-    def test_init(self, mock_console):
+    def test_init(self, _mock_console):
         """Test CyberpunkSQLEditor initialization."""
         editor = CyberpunkSQLEditor()
         assert editor.console is not None
@@ -91,7 +104,7 @@ class TestCyberpunkSQLEditor:
     @patch("slowql.cli.ui.animations.Prompt")
     @patch("slowql.cli.ui.animations.Align")
     @patch("slowql.cli.ui.animations.Panel")
-    def test_get_queries_empty(self, mock_panel, mock_align, mock_prompt, mock_console):
+    def test_get_queries_empty(self, _mock_panel, _mock_align, mock_prompt, _mock_console):
         """Test get_queries with empty input."""
         mock_prompt.ask.side_effect = ["", ""]  # Two empty lines to finish
 
@@ -105,7 +118,9 @@ class TestCyberpunkSQLEditor:
     @patch("slowql.cli.ui.animations.Align")
     @patch("slowql.cli.ui.animations.Panel")
     @patch("slowql.cli.ui.animations.Syntax")
-    def test_get_queries_with_content(self, mock_syntax, mock_panel, mock_align, mock_prompt, mock_console):
+    def test_get_queries_with_content(
+        self, _mock_syntax, _mock_panel, _mock_align, mock_prompt, _mock_console
+    ):
         """Test get_queries with actual SQL content."""
         mock_prompt.ask.side_effect = ["SELECT * FROM test", "", ""]  # Query then two empties
 
@@ -116,7 +131,7 @@ class TestCyberpunkSQLEditor:
 
     @patch("slowql.cli.ui.animations.Console")
     @patch("slowql.cli.ui.animations.Prompt")
-    def test_get_queries_keyboard_interrupt(self, mock_prompt, mock_console):
+    def test_get_queries_keyboard_interrupt(self, mock_prompt, _mock_console):
         """Test get_queries with keyboard interrupt."""
         mock_prompt.ask.side_effect = KeyboardInterrupt()
 
@@ -128,7 +143,7 @@ class TestCyberpunkSQLEditor:
     @patch("slowql.cli.ui.animations.Console")
     @patch("slowql.cli.ui.animations.Align")
     @patch("slowql.cli.ui.animations.Panel")
-    def test_show_header(self, mock_panel, mock_align, mock_console):
+    def test_show_header(self, _mock_panel, _mock_align, mock_console):
         """Test header display."""
         editor = CyberpunkSQLEditor()
         editor._show_header()
@@ -138,7 +153,7 @@ class TestCyberpunkSQLEditor:
     @patch("slowql.cli.ui.animations.Console")
     @patch("slowql.cli.ui.animations.Panel")
     @patch("slowql.cli.ui.animations.Syntax")
-    def test_show_query_preview(self, mock_syntax, mock_panel, mock_console):
+    def test_show_query_preview(self, _mock_syntax, _mock_panel, mock_console):
         """Test query preview display."""
         editor = CyberpunkSQLEditor()
         editor._show_query_preview("SELECT * FROM test")
@@ -150,7 +165,9 @@ class TestCyberpunkSQLEditor:
     @patch("slowql.cli.ui.animations.Panel")
     @patch("rich.rule.Rule")
     @patch("slowql.cli.ui.animations.time.sleep")
-    def test_show_query_summary(self, mock_sleep, mock_rule, mock_panel, mock_align, mock_console):
+    def test_show_query_summary(
+        self, _mock_sleep, _mock_rule, _mock_panel, _mock_align, mock_console
+    ):
         """Test query summary display."""
         editor = CyberpunkSQLEditor()
         editor._show_query_summary(["SELECT * FROM test", ""])
@@ -163,7 +180,7 @@ class TestAnimatedAnalyzer:
     """Test AnimatedAnalyzer class."""
 
     @patch("slowql.cli.ui.animations.Console")
-    def test_init(self, mock_console):
+    def test_init(self, _mock_console):
         """Test AnimatedAnalyzer initialization."""
         analyzer = AnimatedAnalyzer()
         assert analyzer.console is not None
@@ -171,7 +188,7 @@ class TestAnimatedAnalyzer:
 
     @patch("slowql.cli.ui.animations.Console")
     @patch("slowql.cli.ui.animations.time.sleep")
-    def test_glitch_transition(self, mock_sleep, mock_console):
+    def test_glitch_transition(self, _mock_sleep, mock_console):
         """Test glitch transition effect."""
         analyzer = AnimatedAnalyzer()
         # Reduced duration from 0.1 to 0.001 to prevent high CPU usage during mock loop
@@ -185,7 +202,9 @@ class TestAnimatedAnalyzer:
     @patch("slowql.cli.ui.animations.Live")
     @patch("slowql.cli.ui.animations.Panel")
     @patch("slowql.cli.ui.animations.time.sleep")
-    def test_particle_loading(self, mock_sleep, mock_panel, mock_live, mock_console, mock_get_terminal_size):
+    def test_particle_loading(
+        self, _mock_sleep, _mock_panel, mock_live, _mock_console, mock_get_terminal_size
+    ):
         """Test particle loading animation."""
         mock_get_terminal_size.return_value = MagicMock(columns=80, lines=24)
 
@@ -197,7 +216,7 @@ class TestAnimatedAnalyzer:
     @patch("slowql.cli.ui.animations.Console")
     @patch("slowql.cli.ui.animations.Panel")
     @patch("slowql.cli.ui.animations.time.sleep")
-    def test_reveal_section(self, mock_sleep, mock_panel, mock_console):
+    def test_reveal_section(self, _mock_sleep, _mock_panel, mock_console):
         """Test section reveal animation."""
         analyzer = AnimatedAnalyzer()
         analyzer.reveal_section("test content", "Test Title", "cyan")
@@ -209,7 +228,9 @@ class TestAnimatedAnalyzer:
     @patch("slowql.cli.ui.animations.Panel")
     @patch("builtins.input")
     @patch("slowql.cli.ui.animations.contextlib.suppress")
-    def test_show_expandable_details_not_expanded(self, mock_suppress, mock_input, mock_panel, mock_console):
+    def test_show_expandable_details_not_expanded(
+        self, _mock_suppress, _mock_input, _mock_panel, mock_console
+    ):
         """Test expandable details when not expanded."""
         analyzer = AnimatedAnalyzer()
         analyzer.show_expandable_details("summary", "details", expanded=False)
@@ -219,7 +240,7 @@ class TestAnimatedAnalyzer:
 
     @patch("slowql.cli.ui.animations.Console")
     @patch("slowql.cli.ui.animations.Panel")
-    def test_show_expandable_details_expanded(self, mock_panel, mock_console):
+    def test_show_expandable_details_expanded(self, _mock_panel, mock_console):
         """Test expandable details when already expanded."""
         analyzer = AnimatedAnalyzer()
         analyzer.show_expandable_details("summary", "details", expanded=True)

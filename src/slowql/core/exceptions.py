@@ -90,7 +90,7 @@ class ParseError(SlowQLError):
             # Show first 100 chars of SQL
             preview = self.sql[:100] + "..." if len(self.sql) > 100 else self.sql
             parts.append(f"SQL: {preview}")
-        
+
         return "\n".join(parts)
 
 
@@ -284,7 +284,4 @@ class UnsupportedDialectError(SlowQLError):
 
     def __str__(self) -> str:
         """Return string representation with supported dialects."""
-        return (
-            f"{self.message}\n"
-            f"Supported dialects: {', '.join(self.supported_dialects)}"
-        )
+        return f"{self.message}\nSupported dialects: {', '.join(self.supported_dialects)}"

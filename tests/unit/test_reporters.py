@@ -3,10 +3,10 @@
 Test reporter classes.
 """
 
+from slowql.core.models import AnalysisResult, Dimension, Issue, Location, Severity
 from slowql.reporters.base import BaseReporter
 from slowql.reporters.console import ConsoleReporter
 from slowql.reporters.json_reporter import JSONReporter
-from slowql.core.models import AnalysisResult, Issue, Severity, Dimension, Location
 
 
 class TestBaseReporter:
@@ -14,7 +14,7 @@ class TestBaseReporter:
         # BaseReporter is abstract and cannot be instantiated directly
         try:
             BaseReporter()
-            assert False, "Should not be able to instantiate abstract class"
+            raise AssertionError("Should not be able to instantiate abstract class")
         except TypeError:
             pass
 
@@ -40,7 +40,7 @@ class TestConsoleReporter:
             severity=Severity.MEDIUM,
             dimension=Dimension.QUALITY,
             location=loc,
-            snippet="SELECT *"
+            snippet="SELECT *",
         )
         result = AnalysisResult()
         result.add_issue(issue)
@@ -70,7 +70,7 @@ class TestJSONReporter:
             severity=Severity.MEDIUM,
             dimension=Dimension.QUALITY,
             location=loc,
-            snippet="SELECT *"
+            snippet="SELECT *",
         )
         result = AnalysisResult()
         result.add_issue(issue)
@@ -84,12 +84,30 @@ class TestJSONReporter:
 
         # Add multiple issues with different severities
         issues = [
-            Issue(rule_id="SEC-001", message="Security issue", severity=Severity.CRITICAL,
-                  dimension=Dimension.SECURITY, location=loc, snippet="SELECT *"),
-            Issue(rule_id="PERF-001", message="Performance issue", severity=Severity.HIGH,
-                  dimension=Dimension.PERFORMANCE, location=loc, snippet="SELECT *"),
-            Issue(rule_id="QUAL-001", message="Quality issue", severity=Severity.MEDIUM,
-                  dimension=Dimension.QUALITY, location=loc, snippet="SELECT *"),
+            Issue(
+                rule_id="SEC-001",
+                message="Security issue",
+                severity=Severity.CRITICAL,
+                dimension=Dimension.SECURITY,
+                location=loc,
+                snippet="SELECT *",
+            ),
+            Issue(
+                rule_id="PERF-001",
+                message="Performance issue",
+                severity=Severity.HIGH,
+                dimension=Dimension.PERFORMANCE,
+                location=loc,
+                snippet="SELECT *",
+            ),
+            Issue(
+                rule_id="QUAL-001",
+                message="Quality issue",
+                severity=Severity.MEDIUM,
+                dimension=Dimension.QUALITY,
+                location=loc,
+                snippet="SELECT *",
+            ),
         ]
 
         result = AnalysisResult()

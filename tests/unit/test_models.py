@@ -1,8 +1,15 @@
 # tests/unit/test_models.py
 import pytest
+
 from slowql.core.models import (
-    Severity, Dimension, Category, Location, Fix, Issue, Query,
-    Statistics, AnalysisResult
+    AnalysisResult,
+    Dimension,
+    Fix,
+    Issue,
+    Location,
+    Query,
+    Severity,
+    Statistics,
 )
 
 
@@ -109,7 +116,7 @@ class TestFix:
             description="Add index",
             replacement="CREATE INDEX idx_name ON table(col)",
             is_safe=True,
-            confidence=0.9
+            confidence=0.9,
         )
         assert fix.description == "Add index"
         assert fix.replacement == "CREATE INDEX idx_name ON table(col)"
@@ -134,7 +141,7 @@ class TestIssue:
             severity=Severity.MEDIUM,
             dimension=Dimension.QUALITY,
             location=loc,
-            snippet="SELECT *"
+            snippet="SELECT *",
         )
         assert issue.rule_id == "TEST-001"
         assert issue.message == "Test issue"
@@ -154,7 +161,7 @@ class TestIssue:
                 severity=Severity.MEDIUM,
                 dimension=Dimension.QUALITY,
                 location=loc,
-                snippet="code"
+                snippet="code",
             )
 
         with pytest.raises(ValueError):
@@ -164,7 +171,7 @@ class TestIssue:
                 severity=Severity.MEDIUM,
                 dimension=Dimension.QUALITY,
                 location=loc,
-                snippet="code"
+                snippet="code",
             )
 
     def test_issue_properties(self):
@@ -175,7 +182,7 @@ class TestIssue:
             severity=Severity.MEDIUM,
             dimension=Dimension.QUALITY,
             location=loc,
-            snippet="code"
+            snippet="code",
         )
         assert issue.code == "TEST-001"
 
@@ -190,7 +197,7 @@ class TestIssue:
             snippet="code",
             impact="Performance impact",
             tags=("tag1", "tag2"),
-            metadata={"key": "value"}
+            metadata={"key": "value"},
         )
         data = issue.to_dict()
         assert data["rule_id"] == "TEST-001"
@@ -214,7 +221,7 @@ class TestQuery:
             location=loc,
             tables=("users",),
             columns=("id", "name"),
-            query_type="SELECT"
+            query_type="SELECT",
         )
         assert query.raw == "SELECT * FROM users"
         assert query.normalized == "SELECT * FROM users"
@@ -232,7 +239,7 @@ class TestQuery:
             normalized="SELECT * FROM users",
             dialect="mysql",
             location=loc,
-            query_type="SELECT"
+            query_type="SELECT",
         )
         assert query.is_select is True
         assert query.is_insert is False
@@ -286,7 +293,7 @@ class TestAnalysisResult:
             severity=Severity.MEDIUM,
             dimension=Dimension.QUALITY,
             location=loc,
-            snippet="code"
+            snippet="code",
         )
         result = AnalysisResult()
         result.add_issue(issue)
@@ -298,10 +305,22 @@ class TestAnalysisResult:
 
     def test_analysis_result_filter_by_severity(self):
         loc = Location(line=1, column=1)
-        issue1 = Issue(rule_id="TEST-001", message="Test", severity=Severity.HIGH,
-                      dimension=Dimension.SECURITY, location=loc, snippet="code")
-        issue2 = Issue(rule_id="TEST-002", message="Test", severity=Severity.LOW,
-                      dimension=Dimension.QUALITY, location=loc, snippet="code")
+        issue1 = Issue(
+            rule_id="TEST-001",
+            message="Test",
+            severity=Severity.HIGH,
+            dimension=Dimension.SECURITY,
+            location=loc,
+            snippet="code",
+        )
+        issue2 = Issue(
+            rule_id="TEST-002",
+            message="Test",
+            severity=Severity.LOW,
+            dimension=Dimension.QUALITY,
+            location=loc,
+            snippet="code",
+        )
 
         result = AnalysisResult()
         result.add_issue(issue1)
@@ -313,10 +332,22 @@ class TestAnalysisResult:
 
     def test_analysis_result_filter_by_dimension(self):
         loc = Location(line=1, column=1)
-        issue1 = Issue(rule_id="TEST-001", message="Test", severity=Severity.MEDIUM,
-                      dimension=Dimension.SECURITY, location=loc, snippet="code")
-        issue2 = Issue(rule_id="TEST-002", message="Test", severity=Severity.MEDIUM,
-                      dimension=Dimension.QUALITY, location=loc, snippet="code")
+        issue1 = Issue(
+            rule_id="TEST-001",
+            message="Test",
+            severity=Severity.MEDIUM,
+            dimension=Dimension.SECURITY,
+            location=loc,
+            snippet="code",
+        )
+        issue2 = Issue(
+            rule_id="TEST-002",
+            message="Test",
+            severity=Severity.MEDIUM,
+            dimension=Dimension.QUALITY,
+            location=loc,
+            snippet="code",
+        )
 
         result = AnalysisResult()
         result.add_issue(issue1)
@@ -328,10 +359,22 @@ class TestAnalysisResult:
 
     def test_analysis_result_properties(self):
         loc = Location(line=1, column=1)
-        issue1 = Issue(rule_id="TEST-001", message="Test", severity=Severity.CRITICAL,
-                      dimension=Dimension.SECURITY, location=loc, snippet="code")
-        issue2 = Issue(rule_id="TEST-002", message="Test", severity=Severity.HIGH,
-                      dimension=Dimension.QUALITY, location=loc, snippet="code")
+        issue1 = Issue(
+            rule_id="TEST-001",
+            message="Test",
+            severity=Severity.CRITICAL,
+            dimension=Dimension.SECURITY,
+            location=loc,
+            snippet="code",
+        )
+        issue2 = Issue(
+            rule_id="TEST-002",
+            message="Test",
+            severity=Severity.HIGH,
+            dimension=Dimension.QUALITY,
+            location=loc,
+            snippet="code",
+        )
 
         result = AnalysisResult()
         result.add_issue(issue1)
@@ -348,35 +391,71 @@ class TestAnalysisResult:
         assert result.exit_code == 0
 
         # Only INFO issues
-        issue_info = Issue(rule_id="TEST-001", message="Test", severity=Severity.INFO,
-                          dimension=Dimension.QUALITY, location=loc, snippet="code")
+        issue_info = Issue(
+            rule_id="TEST-001",
+            message="Test",
+            severity=Severity.INFO,
+            dimension=Dimension.QUALITY,
+            location=loc,
+            snippet="code",
+        )
         result.add_issue(issue_info)
         assert result.exit_code == 0
 
         # LOW/MEDIUM issues
-        issue_low = Issue(rule_id="TEST-002", message="Test", severity=Severity.LOW,
-                         dimension=Dimension.QUALITY, location=loc, snippet="code")
+        issue_low = Issue(
+            rule_id="TEST-002",
+            message="Test",
+            severity=Severity.LOW,
+            dimension=Dimension.QUALITY,
+            location=loc,
+            snippet="code",
+        )
         result.add_issue(issue_low)
         assert result.exit_code == 1
 
         # HIGH issues
-        issue_high = Issue(rule_id="TEST-003", message="Test", severity=Severity.HIGH,
-                          dimension=Dimension.QUALITY, location=loc, snippet="code")
+        issue_high = Issue(
+            rule_id="TEST-003",
+            message="Test",
+            severity=Severity.HIGH,
+            dimension=Dimension.QUALITY,
+            location=loc,
+            snippet="code",
+        )
         result.add_issue(issue_high)
         assert result.exit_code == 2
 
         # CRITICAL issues
-        issue_critical = Issue(rule_id="TEST-004", message="Test", severity=Severity.CRITICAL,
-                              dimension=Dimension.QUALITY, location=loc, snippet="code")
+        issue_critical = Issue(
+            rule_id="TEST-004",
+            message="Test",
+            severity=Severity.CRITICAL,
+            dimension=Dimension.QUALITY,
+            location=loc,
+            snippet="code",
+        )
         result.add_issue(issue_critical)
         assert result.exit_code == 3
 
     def test_analysis_result_sorted_by_severity(self):
         loc = Location(line=1, column=1)
-        issue1 = Issue(rule_id="TEST-001", message="Test", severity=Severity.LOW,
-                      dimension=Dimension.QUALITY, location=loc, snippet="code")
-        issue2 = Issue(rule_id="TEST-002", message="Test", severity=Severity.CRITICAL,
-                      dimension=Dimension.QUALITY, location=loc, snippet="code")
+        issue1 = Issue(
+            rule_id="TEST-001",
+            message="Test",
+            severity=Severity.LOW,
+            dimension=Dimension.QUALITY,
+            location=loc,
+            snippet="code",
+        )
+        issue2 = Issue(
+            rule_id="TEST-002",
+            message="Test",
+            severity=Severity.CRITICAL,
+            dimension=Dimension.QUALITY,
+            location=loc,
+            snippet="code",
+        )
 
         result = AnalysisResult()
         result.add_issue(issue1)
@@ -388,12 +467,30 @@ class TestAnalysisResult:
 
     def test_analysis_result_grouped_by_dimension(self):
         loc = Location(line=1, column=1)
-        issue1 = Issue(rule_id="TEST-001", message="Test", severity=Severity.MEDIUM,
-                      dimension=Dimension.SECURITY, location=loc, snippet="code")
-        issue2 = Issue(rule_id="TEST-002", message="Test", severity=Severity.MEDIUM,
-                      dimension=Dimension.SECURITY, location=loc, snippet="code")
-        issue3 = Issue(rule_id="TEST-003", message="Test", severity=Severity.MEDIUM,
-                      dimension=Dimension.QUALITY, location=loc, snippet="code")
+        issue1 = Issue(
+            rule_id="TEST-001",
+            message="Test",
+            severity=Severity.MEDIUM,
+            dimension=Dimension.SECURITY,
+            location=loc,
+            snippet="code",
+        )
+        issue2 = Issue(
+            rule_id="TEST-002",
+            message="Test",
+            severity=Severity.MEDIUM,
+            dimension=Dimension.SECURITY,
+            location=loc,
+            snippet="code",
+        )
+        issue3 = Issue(
+            rule_id="TEST-003",
+            message="Test",
+            severity=Severity.MEDIUM,
+            dimension=Dimension.QUALITY,
+            location=loc,
+            snippet="code",
+        )
 
         result = AnalysisResult()
         result.add_issue(issue1)
@@ -409,12 +506,30 @@ class TestAnalysisResult:
         loc2 = Location(line=1, column=1, file="file2.sql")
         loc3 = Location(line=1, column=1)  # No file
 
-        issue1 = Issue(rule_id="TEST-001", message="Test", severity=Severity.MEDIUM,
-                      dimension=Dimension.QUALITY, location=loc1, snippet="code")
-        issue2 = Issue(rule_id="TEST-002", message="Test", severity=Severity.MEDIUM,
-                      dimension=Dimension.QUALITY, location=loc2, snippet="code")
-        issue3 = Issue(rule_id="TEST-003", message="Test", severity=Severity.MEDIUM,
-                      dimension=Dimension.QUALITY, location=loc3, snippet="code")
+        issue1 = Issue(
+            rule_id="TEST-001",
+            message="Test",
+            severity=Severity.MEDIUM,
+            dimension=Dimension.QUALITY,
+            location=loc1,
+            snippet="code",
+        )
+        issue2 = Issue(
+            rule_id="TEST-002",
+            message="Test",
+            severity=Severity.MEDIUM,
+            dimension=Dimension.QUALITY,
+            location=loc2,
+            snippet="code",
+        )
+        issue3 = Issue(
+            rule_id="TEST-003",
+            message="Test",
+            severity=Severity.MEDIUM,
+            dimension=Dimension.QUALITY,
+            location=loc3,
+            snippet="code",
+        )
 
         result = AnalysisResult()
         result.add_issue(issue1)

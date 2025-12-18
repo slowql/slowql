@@ -12,11 +12,10 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import TYPE_CHECKING, Any, Callable, Iterator, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 if TYPE_CHECKING:
-    from sqlglot import exp
-
+    from collections.abc import Iterator
 
 T = TypeVar("T", bound="ASTNode")
 
@@ -186,7 +185,7 @@ class ASTNode(ABC):
         return None
 
 
-class ASTVisitor(ABC):
+class ASTVisitor:
     """
     Base class for AST visitors.
 
@@ -340,10 +339,21 @@ class Function(Expression):
     def is_aggregate(self) -> bool:
         """Check if this is an aggregate function."""
         aggregates = {
-            "COUNT", "SUM", "AVG", "MIN", "MAX",
-            "ARRAY_AGG", "STRING_AGG", "GROUP_CONCAT", "LISTAGG",
-            "STDDEV", "VARIANCE", "VAR_POP", "VAR_SAMP",
-            "PERCENTILE_CONT", "PERCENTILE_DISC",
+            "COUNT",
+            "SUM",
+            "AVG",
+            "MIN",
+            "MAX",
+            "ARRAY_AGG",
+            "STRING_AGG",
+            "GROUP_CONCAT",
+            "LISTAGG",
+            "STDDEV",
+            "VARIANCE",
+            "VAR_POP",
+            "VAR_SAMP",
+            "PERCENTILE_CONT",
+            "PERCENTILE_DISC",
         }
         return self.name.upper() in aggregates
 
@@ -351,8 +361,15 @@ class Function(Expression):
     def is_window(self) -> bool:
         """Check if this is a window function."""
         windows = {
-            "ROW_NUMBER", "RANK", "DENSE_RANK", "NTILE",
-            "LAG", "LEAD", "FIRST_VALUE", "LAST_VALUE", "NTH_VALUE",
+            "ROW_NUMBER",
+            "RANK",
+            "DENSE_RANK",
+            "NTILE",
+            "LAG",
+            "LEAD",
+            "FIRST_VALUE",
+            "LAST_VALUE",
+            "NTH_VALUE",
         }
         return self.name.upper() in windows
 
@@ -656,17 +673,13 @@ class Select(ASTNode):
     def has_aggregation(self) -> bool:
         """Check if query has aggregation."""
         return len(self.group_by) > 0 or any(
-            isinstance(c, Function) and c.is_aggregate
-            for c in self.columns
+            isinstance(c, Function) and c.is_aggregate for c in self.columns
         )
 
     @property
     def selects_star(self) -> bool:
         """Check if query uses SELECT *."""
-        for col in self.columns:
-            if isinstance(col, Column) and col.is_star:
-                return True
-        return False
+        return any(isinstance(col, Column) and col.is_star for col in self.columns)
 
     @property
     def table_count(self) -> int:

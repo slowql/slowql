@@ -3,12 +3,22 @@
 Test analyzer classes.
 """
 
+from typing import ClassVar
+
 import pytest
 
-from slowql.analyzers.base import BaseAnalyzer, RuleBasedAnalyzer, PatternAnalyzer, AnalyzerResult, CompositeAnalyzer
-from slowql.analyzers.registry import AnalyzerRegistry
+from slowql.analyzers.base import (
+    AnalyzerResult,
+    BaseAnalyzer,
+    CompositeAnalyzer,
+    PatternAnalyzer,
+    RuleBasedAnalyzer,
+)
+from slowql.analyzers.registry import AnalyzerRegistry, analyzer, get_registry, register_analyzer
 from slowql.analyzers.security import SecurityAnalyzer
-from slowql.core.models import Query, Location, Issue, Severity, Dimension
+from slowql.core.config import Config
+from slowql.core.models import Dimension, Issue, Location, Query, Severity
+from slowql.rules.base import PatternRule
 
 
 # Test analyzer classes
@@ -53,9 +63,6 @@ class GlobalAnalyzerHelper(RuleBasedAnalyzer):
 
     def get_rules(self):
         return []
-from slowql.analyzers.registry import AnalyzerRegistry
-from slowql.analyzers.security import SecurityAnalyzer
-from slowql.core.models import Query, Location, Issue, Severity, Dimension
 
 
 class TestBaseAnalyzer:
@@ -63,7 +70,7 @@ class TestBaseAnalyzer:
         # BaseAnalyzer is abstract and cannot be instantiated directly
         try:
             BaseAnalyzer()
-            assert False, "Should not be able to instantiate abstract class"
+            raise AssertionError("Should not be able to instantiate abstract class")
         except TypeError:
             pass
 
@@ -73,10 +80,13 @@ class TestBaseAnalyzerMethods:
 
     def test_analyze_with_result(self):
         """Test analyze_with_result method."""
-        from slowql.core.config import Config
-
         analyzer = RuleBasedAnalyzer()
-        query = Query(raw="SELECT *", normalized="SELECT *", dialect="mysql", location=Location(line=1, column=1))
+        query = Query(
+            raw="SELECT *",
+            normalized="SELECT *",
+            dialect="mysql",
+            location=Location(line=1, column=1),
+        )
         config = Config()
 
         result = analyzer.analyze_with_result(query, config=config)
@@ -90,9 +100,6 @@ class TestBaseAnalyzerMethods:
 
     def test_check_rule_without_config(self):
         """Test check_rule method without config."""
-        from slowql.rules.base import PatternRule
-        from slowql.core.models import Dimension, Severity
-
         # Create a simple test rule
         class TestRule(PatternRule):
             id = "TEST-RULE"
@@ -104,8 +111,12 @@ class TestBaseAnalyzerMethods:
 
         analyzer = RuleBasedAnalyzer()
         rule = TestRule()
-        query = Query(raw="SELECT * FROM test", normalized="SELECT * FROM test",
-                     dialect="mysql", location=Location(line=1, column=1))
+        query = Query(
+            raw="SELECT * FROM test",
+            normalized="SELECT * FROM test",
+            dialect="mysql",
+            location=Location(line=1, column=1),
+        )
 
         issues = analyzer.check_rule(query, rule)
         assert len(issues) == 1
@@ -113,10 +124,6 @@ class TestBaseAnalyzerMethods:
 
     def test_check_rule_with_disabled_config(self):
         """Test check_rule with disabled rule config."""
-        from slowql.rules.base import PatternRule
-        from slowql.core.models import Dimension, Severity
-        from slowql.core.config import Config
-
         class TestRule(PatternRule):
             id = "TEST-RULE"
             name = "Test Rule"
@@ -127,8 +134,12 @@ class TestBaseAnalyzerMethods:
 
         analyzer = RuleBasedAnalyzer()
         rule = TestRule()
-        query = Query(raw="SELECT * FROM test", normalized="SELECT * FROM test",
-                     dialect="mysql", location=Location(line=1, column=1))
+        query = Query(
+            raw="SELECT * FROM test",
+            normalized="SELECT * FROM test",
+            dialect="mysql",
+            location=Location(line=1, column=1),
+        )
 
         # Create config that disables the rule
         config = Config()
@@ -139,10 +150,6 @@ class TestBaseAnalyzerMethods:
 
     def test_check_rule_with_enabled_rules_config(self):
         """Test check_rule with enabled rules config."""
-        from slowql.rules.base import PatternRule
-        from slowql.core.models import Dimension, Severity
-        from slowql.core.config import Config
-
         class TestRule(PatternRule):
             id = "TEST-RULE"
             name = "Test Rule"
@@ -153,8 +160,12 @@ class TestBaseAnalyzerMethods:
 
         analyzer = RuleBasedAnalyzer()
         rule = TestRule()
-        query = Query(raw="SELECT * FROM test", normalized="SELECT * FROM test",
-                     dialect="mysql", location=Location(line=1, column=1))
+        query = Query(
+            raw="SELECT * FROM test",
+            normalized="SELECT * FROM test",
+            dialect="mysql",
+            location=Location(line=1, column=1),
+        )
 
         # Create config that only enables specific rules
         config = Config().with_overrides(analysis={"enabled_rules": {"OTHER-RULE"}})
@@ -181,7 +192,12 @@ class TestRuleBasedAnalyzer:
 
     def test_rule_based_analyzer_analyze(self):
         analyzer = RuleBasedAnalyzer()
-        query = Query(raw="SELECT *", normalized="SELECT *", dialect="mysql", location=Location(line=1, column=1))
+        query = Query(
+            raw="SELECT *",
+            normalized="SELECT *",
+            dialect="mysql",
+            location=Location(line=1, column=1),
+        )
         issues = analyzer.analyze(query)
         assert issues == []
 
@@ -226,19 +242,21 @@ class TestPatternAnalyzer:
 
     def test_pattern_analyzer_analyze(self):
         """Test PatternAnalyzer analyze method."""
-        from slowql.core.models import Severity
-
         class TestPatternAnalyzer(PatternAnalyzer):
             name = "test-pattern"
             dimension = Dimension.SECURITY
-            patterns = [
+            patterns: ClassVar[list] = [
                 (r"password\s*=\s*'[^']+'", "SEC-001", "Hardcoded password", Severity.HIGH),
                 (r"SELECT \*", "PERF-001", "SELECT * usage", Severity.MEDIUM),
             ]
 
         analyzer = TestPatternAnalyzer()
-        query = Query(raw="SELECT password = 'secret123'", normalized="SELECT password = 'secret123'",
-                     dialect="mysql", location=Location(line=1, column=1))
+        query = Query(
+            raw="SELECT password = 'secret123'",
+            normalized="SELECT password = 'secret123'",
+            dialect="mysql",
+            location=Location(line=1, column=1),
+        )
 
         issues = analyzer.analyze(query)
         assert len(issues) == 1
@@ -247,10 +265,8 @@ class TestPatternAnalyzer:
 
     def test_pattern_analyzer_initialize(self):
         """Test PatternAnalyzer initialization compiles patterns."""
-        from slowql.core.models import Severity
-
         class TestPatternAnalyzer(PatternAnalyzer):
-            patterns = [
+            patterns: ClassVar[list] = [
                 (r"test", "TEST-001", "Test pattern", Severity.LOW),
             ]
 
@@ -274,7 +290,7 @@ class TestCompositeAnalyzer:
             name="test-composite",
             analyzers=[analyzer1, analyzer2],
             dimension=Dimension.SECURITY,
-            description="Test composite analyzer"
+            description="Test composite analyzer",
         )
 
         assert composite.name == "test-composite"
@@ -287,10 +303,7 @@ class TestCompositeAnalyzer:
         analyzer1 = RuleBasedAnalyzer()
         analyzer2 = RuleBasedAnalyzer()
 
-        composite = CompositeAnalyzer(
-            name="test-composite",
-            analyzers=[analyzer1, analyzer2]
-        )
+        composite = CompositeAnalyzer(name="test-composite", analyzers=[analyzer1, analyzer2])
 
         rules = composite.get_rules()
         assert rules == []  # Both analyzers return empty rules
@@ -300,12 +313,14 @@ class TestCompositeAnalyzer:
         analyzer1 = RuleBasedAnalyzer()
         analyzer2 = RuleBasedAnalyzer()
 
-        composite = CompositeAnalyzer(
-            name="test-composite",
-            analyzers=[analyzer1, analyzer2]
-        )
+        composite = CompositeAnalyzer(name="test-composite", analyzers=[analyzer1, analyzer2])
 
-        query = Query(raw="SELECT *", normalized="SELECT *", dialect="mysql", location=Location(line=1, column=1))
+        query = Query(
+            raw="SELECT *",
+            normalized="SELECT *",
+            dialect="mysql",
+            location=Location(line=1, column=1),
+        )
 
         issues = composite.analyze(query)
         assert issues == []  # No rules, so no issues
@@ -326,21 +341,43 @@ class TestAnalyzerResult:
         result = AnalyzerResult()
         assert bool(result) is False
 
-        result.issues = [Issue(rule_id="TEST", message="test", severity=Severity.MEDIUM,
-                              dimension=Dimension.QUALITY, location=Location(line=1, column=1), snippet="code")]
+        result.issues = [
+            Issue(
+                rule_id="TEST",
+                message="test",
+                severity=Severity.MEDIUM,
+                dimension=Dimension.QUALITY,
+                location=Location(line=1, column=1),
+                snippet="code",
+            )
+        ]
         assert bool(result) is True
 
     def test_analyzer_result_len(self):
         result = AnalyzerResult()
         assert len(result) == 0
 
-        result.issues = [Issue(rule_id="TEST", message="test", severity=Severity.MEDIUM,
-                              dimension=Dimension.QUALITY, location=Location(line=1, column=1), snippet="code")]
+        result.issues = [
+            Issue(
+                rule_id="TEST",
+                message="test",
+                severity=Severity.MEDIUM,
+                dimension=Dimension.QUALITY,
+                location=Location(line=1, column=1),
+                snippet="code",
+            )
+        ]
         assert len(result) == 1
 
     def test_analyzer_result_iter(self):
-        issue = Issue(rule_id="TEST", message="test", severity=Severity.MEDIUM,
-                     dimension=Dimension.QUALITY, location=Location(line=1, column=1), snippet="code")
+        issue = Issue(
+            rule_id="TEST",
+            message="test",
+            severity=Severity.MEDIUM,
+            dimension=Dimension.QUALITY,
+            location=Location(line=1, column=1),
+            snippet="code",
+        )
         result = AnalyzerResult(issues=[issue])
 
         issues = list(result)
@@ -348,8 +385,14 @@ class TestAnalyzerResult:
 
     def test_analyzer_result_add_issue(self):
         result = AnalyzerResult()
-        issue = Issue(rule_id="TEST", message="test", severity=Severity.MEDIUM,
-                     dimension=Dimension.QUALITY, location=Location(line=1, column=1), snippet="code")
+        issue = Issue(
+            rule_id="TEST",
+            message="test",
+            severity=Severity.MEDIUM,
+            dimension=Dimension.QUALITY,
+            location=Location(line=1, column=1),
+            snippet="code",
+        )
 
         result.add_issue(issue)
         assert len(result.issues) == 1
@@ -357,10 +400,22 @@ class TestAnalyzerResult:
 
     def test_analyzer_result_filter_by_severity(self):
         loc = Location(line=1, column=1)
-        issue1 = Issue(rule_id="TEST1", message="test", severity=Severity.HIGH,
-                      dimension=Dimension.QUALITY, location=loc, snippet="code")
-        issue2 = Issue(rule_id="TEST2", message="test", severity=Severity.LOW,
-                      dimension=Dimension.QUALITY, location=loc, snippet="code")
+        issue1 = Issue(
+            rule_id="TEST1",
+            message="test",
+            severity=Severity.HIGH,
+            dimension=Dimension.QUALITY,
+            location=loc,
+            snippet="code",
+        )
+        issue2 = Issue(
+            rule_id="TEST2",
+            message="test",
+            severity=Severity.LOW,
+            dimension=Dimension.QUALITY,
+            location=loc,
+            snippet="code",
+        )
 
         result = AnalyzerResult(issues=[issue1, issue2])
 
@@ -566,8 +621,6 @@ class TestGlobalRegistry:
     """Test global registry functions."""
 
     def test_get_registry(self):
-        from slowql.analyzers.registry import get_registry
-
         registry = get_registry()
         assert registry is not None
         # Should return the same instance
@@ -575,8 +628,6 @@ class TestGlobalRegistry:
         assert registry is registry2
 
     def test_register_analyzer_global(self):
-        from slowql.analyzers.registry import register_analyzer, get_registry
-
         registry = get_registry()
         initial_count = len(registry)
 
@@ -587,18 +638,12 @@ class TestGlobalRegistry:
         assert "global-test-analyzer" in registry
 
     def test_analyzer_decorator(self):
-        from slowql.analyzers.registry import analyzer, get_registry
-        from slowql.analyzers.base import BaseAnalyzer
-
         registry = get_registry()
         initial_count = len(registry)
 
         @analyzer(name="decorated-analyzer", dimension=Dimension.SECURITY, priority=50)
-        class DecoratedAnalyzer(BaseAnalyzer):
+        class DecoratedAnalyzer(RuleBasedAnalyzer):
             def get_rules(self):
-                return []
-
-            def analyze(self, query, config=None):
                 return []
 
         assert len(registry) == initial_count + 1
@@ -609,13 +654,19 @@ class TestGlobalRegistry:
         assert decorated_analyzer.dimension == Dimension.SECURITY
         assert decorated_analyzer.priority == 50
 
+        # Clean up - unregister the test analyzer
+        registry.unregister("decorated-analyzer")
+
 
 class TestSecurityAnalyzer:
     def test_security_analyzer_creation(self):
         analyzer = SecurityAnalyzer()
         assert analyzer.name == "security"
         assert analyzer.dimension == Dimension.SECURITY
-        assert analyzer.description == "Detects SQL injection, hardcoded secrets, and privilege issues."
+        assert (
+            analyzer.description
+            == "Detects SQL injection, hardcoded secrets, and privilege issues."
+        )
         assert analyzer.priority == 10
 
     def test_security_analyzer_get_rules(self):
@@ -625,9 +676,12 @@ class TestSecurityAnalyzer:
 
     def test_security_analyzer_analyze(self):
         analyzer = SecurityAnalyzer()
-        query = Query(raw="SELECT * FROM users WHERE password = 'secret123'",
-                     normalized="SELECT * FROM users WHERE password = 'secret123'",
-                     dialect="mysql", location=Location(line=1, column=1))
+        query = Query(
+            raw="SELECT * FROM users WHERE password = 'secret123'",
+            normalized="SELECT * FROM users WHERE password = 'secret123'",
+            dialect="mysql",
+            location=Location(line=1, column=1),
+        )
 
         issues = analyzer.analyze(query)
         # Should find hardcoded password

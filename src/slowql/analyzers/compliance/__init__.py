@@ -8,15 +8,20 @@ like GDPR, HIPAA, and PCI-DSS by identifying sensitive data access patterns.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from slowql.analyzers.base import RuleBasedAnalyzer
 from slowql.core.models import Dimension
-from slowql.rules.base import Rule
+from slowql.rules.catalog import PIIExposureRule
+
+if TYPE_CHECKING:
+    from slowql.rules.base import Rule
 
 
 class ComplianceAnalyzer(RuleBasedAnalyzer):
     """
     Analyzer for regulatory compliance.
-    
+
     Checks for:
     - PII (Personally Identifiable Information) access
     - Financial data handling
@@ -32,8 +37,6 @@ class ComplianceAnalyzer(RuleBasedAnalyzer):
         """
         Get compliance rules from the catalog.
         """
-        from slowql.rules.catalog import PIIExposureRule
-
         return [
             PIIExposureRule(),
         ]

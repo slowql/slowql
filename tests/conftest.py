@@ -5,16 +5,18 @@ from pathlib import Path
 import pytest
 
 from slowql.core.engine import SlowQL
-from slowql.core.models import Issue, Severity, Location, Dimension
+from slowql.core.models import Dimension, Issue, Location, Severity
 
 # -------------------------------
 # Core Fixtures
 # -------------------------------
 
+
 @pytest.fixture(scope="session")
 def analyzer() -> SlowQL:
     """Shared SlowQL instance for all tests."""
     return SlowQL()
+
 
 @pytest.fixture
 def sample_queries() -> dict:
@@ -29,9 +31,11 @@ def sample_queries() -> dict:
         "leading_wildcard": "SELECT * FROM users WHERE name LIKE '%john%'",
     }
 
+
 # -------------------------------
 # Paths & Files
 # -------------------------------
+
 
 @pytest.fixture
 def sample_sql_file(tmp_path: Path) -> Path:
@@ -45,6 +49,7 @@ def sample_sql_file(tmp_path: Path) -> Path:
     file_path.write_text(sql_content.strip(), encoding="utf-8")
     return file_path
 
+
 @pytest.fixture
 def empty_sql_file(tmp_path: Path) -> Path:
     """Create an empty SQL file for error handling tests."""
@@ -52,9 +57,11 @@ def empty_sql_file(tmp_path: Path) -> Path:
     file_path.write_text("", encoding="utf-8")
     return file_path
 
+
 # -------------------------------
 # Helper Fixtures
 # -------------------------------
+
 
 @pytest.fixture
 def detected_issue_example() -> Issue:
@@ -69,6 +76,7 @@ def detected_issue_example() -> Issue:
         fix=None,
         impact="50-90% less data transfer, enables covering indexes",
     )
+
 
 @pytest.fixture
 def multiple_queries() -> list[str]:

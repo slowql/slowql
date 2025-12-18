@@ -12,15 +12,15 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from slowql.analyzers.registry import get_registry
 from slowql.core.config import Config
 from slowql.core.exceptions import FileNotFoundError, ParseError, SlowQLError
 from slowql.core.models import (
     AnalysisResult,
     Issue,
-    Location,
     Query,
-    Statistics,
 )
+from slowql.parser.universal import UniversalParser
 
 if TYPE_CHECKING:
     from slowql.analyzers.base import BaseAnalyzer
@@ -75,7 +75,6 @@ class SlowQL:
     def parser(self) -> BaseParser:
         """Get the SQL parser, creating it if necessary."""
         if self._parser is None:
-            from slowql.parser.universal import UniversalParser
             self._parser = UniversalParser(dialect=self.config.analysis.dialect)
         return self._parser
 
@@ -89,9 +88,6 @@ class SlowQL:
 
     def _load_analyzers(self) -> None:
         """Load all enabled analyzers."""
-        # Fix: Use the get_registry helper from analyzers.registry
-        from slowql.analyzers.registry import get_registry
-
         registry = get_registry()
 
         if self._auto_discover:
@@ -100,9 +96,7 @@ class SlowQL:
         # Filter by enabled dimensions
         enabled = self.config.analysis.enabled_dimensions
         self._analyzers = [
-            analyzer
-            for analyzer in registry.get_all()
-            if analyzer.dimension.value in enabled
+            analyzer for analyzer in registry.get_all() if analyzer.dimension.value in enabled
         ]
 
     def analyze(
@@ -269,23 +263,18 @@ class SlowQL:
 
     def _should_run_analyzer(self, analyzer: BaseAnalyzer) -> bool:
         """Check if an analyzer should run based on configuration."""
-        # Check dimension
-        if analyzer.dimension.value not in self.config.analysis.enabled_dimensions:
-            return False
-
-        return True
+        return analyzer.dimension.value in self.config.analysis.enabled_dimensions
 
     def _should_report_issue(self, issue: Issue) -> bool:
         """Check if an issue should be reported based on configuration."""
         config = self.config.analysis
 
         # Check enabled_rules (whitelist mode)
-        if config.enabled_rules is not None:
-            if issue.rule_id not in config.enabled_rules:
-                # Also check rule prefix
-                prefix = "-".join(issue.rule_id.split("-")[:2])
-                if prefix not in config.enabled_rules:
-                    return False
+        if config.enabled_rules is not None and issue.rule_id not in config.enabled_rules:
+            # Also check rule prefix
+            prefix = "-".join(issue.rule_id.split("-")[:2])
+            if prefix not in config.enabled_rules:
+                return False
 
         # Check disabled_rules (blacklist mode)
         if issue.rule_id in config.disabled_rules:
@@ -293,16 +282,13 @@ class SlowQL:
 
         # Check prefix disable
         prefix = "-".join(issue.rule_id.split("-")[:2])
-        if prefix in config.disabled_rules:
-            return False
-
-        return True
+        return prefix not in config.disabled_rules
 
     def get_rule_info(self, rule_id: str) -> dict[str, Any] | None:
         """
         Get information about a specific rule.
-        
-        Note: Currently relies on analyzer inspection as explicit rule registry 
+
+        Note: Currently relies on analyzer inspection as explicit rule registry
         isn't fully populated in this version.
         """
         # Iterate over all loaded analyzers to find the rule
@@ -326,9 +312,11 @@ class SlowQL:
         rules = []
         for analyzer in self.analyzers:
             for rule in analyzer.rules:
-                rules.append({
-                    "id": rule.id,
-                    "name": getattr(rule, "name", ""),
-                    "dimension": getattr(rule, "dimension", ""),
-                })
+                rules.append(
+                    {
+                        "id": rule.id,
+                        "name": getattr(rule, "name", ""),
+                        "dimension": getattr(rule, "dimension", ""),
+                    }
+                )
         return rules

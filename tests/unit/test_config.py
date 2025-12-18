@@ -3,10 +3,13 @@
 Test configuration classes.
 """
 
-import pytest
 from slowql.core.config import (
-    Config, AnalysisConfig, OutputConfig, ComplianceConfig, CostConfig,
-    SeverityThresholds
+    AnalysisConfig,
+    ComplianceConfig,
+    Config,
+    CostConfig,
+    OutputConfig,
+    SeverityThresholds,
 )
 
 
@@ -35,7 +38,7 @@ class TestAnalysisConfig:
         config = AnalysisConfig(
             dialect="postgres",
             max_query_length=50000,
-            enabled_dimensions={"security", "performance"}
+            enabled_dimensions={"security", "performance"},
         )
         assert config.dialect == "postgres"
         assert config.max_query_length == 50000
@@ -50,11 +53,7 @@ class TestOutputConfig:
         assert config.verbose is False
 
     def test_output_config_custom(self):
-        config = OutputConfig(
-            format="json",
-            color=False,
-            verbose=True
-        )
+        config = OutputConfig(format="json", color=False, verbose=True)
         assert config.format == "json"
         assert config.color is False
         assert config.verbose is True
@@ -67,10 +66,7 @@ class TestComplianceConfig:
         assert config.strict_mode is False
 
     def test_compliance_config_custom(self):
-        config = ComplianceConfig(
-            frameworks={"gdpr", "hipaa"},
-            strict_mode=True
-        )
+        config = ComplianceConfig(frameworks={"gdpr", "hipaa"}, strict_mode=True)
         assert "gdpr" in config.frameworks
         assert "hipaa" in config.frameworks
         assert config.strict_mode is True
@@ -86,9 +82,7 @@ class TestCostConfig:
 
     def test_cost_config_custom(self):
         config = CostConfig(
-            cloud_provider="aws",
-            compute_cost_per_hour=1.5,
-            storage_cost_per_gb=0.1
+            cloud_provider="aws", compute_cost_per_hour=1.5, storage_cost_per_gb=0.1
         )
         assert config.cloud_provider == "aws"
         assert config.compute_cost_per_hour == 1.5
@@ -110,10 +104,7 @@ class TestConfig:
 
     def test_config_with_overrides(self):
         config = Config()
-        new_config = config.with_overrides(
-            output={"format": "json"},
-            analysis={"dialect": "mysql"}
-        )
+        new_config = config.with_overrides(output={"format": "json"}, analysis={"dialect": "mysql"})
         assert new_config.output.format == "json"
         assert new_config.analysis.dialect == "mysql"
 
@@ -132,7 +123,7 @@ class TestConfig:
         config = Config()
         new_config = config.with_overrides(
             severity={"fail_on": "high", "warn_on": "low"},
-            analysis={"dialect": "postgres", "max_query_length": 10000}
+            analysis={"dialect": "postgres", "max_query_length": 10000},
         )
         assert new_config.severity.fail_on == "high"
         assert new_config.severity.warn_on == "low"
@@ -173,7 +164,7 @@ class TestConfig:
             show_fixes=False,
             show_snippets=False,
             max_issues=50,
-            group_by="file"
+            group_by="file",
         )
         assert config.format == "json"
         assert config.color is False
@@ -211,7 +202,7 @@ class TestConfig:
             cloud_provider="aws",
             compute_cost_per_hour=2.5,
             storage_cost_per_gb=0.05,
-            data_transfer_cost_per_gb=0.1
+            data_transfer_cost_per_gb=0.1,
         )
         assert config.cloud_provider == "aws"
         assert config.compute_cost_per_hour == 2.5

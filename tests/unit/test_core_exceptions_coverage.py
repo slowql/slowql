@@ -1,10 +1,13 @@
-
-import pytest
 from slowql.core.exceptions import (
-    SlowQLError, ParseError, AnalysisError, ConfigurationError,
-    RuleNotFoundError, UnsupportedDialectError
+    AnalysisError,
+    ConfigurationError,
+    ParseError,
+    RuleNotFoundError,
+    SlowQLError,
+    UnsupportedDialectError,
 )
 from slowql.core.models import Location
+
 
 class TestExceptionsCoverage:
     def test_slowql_error(self):
@@ -19,9 +22,9 @@ class TestExceptionsCoverage:
         assert "at line 1, column 1" in s
         assert "SQL: SELECT *" in s
         assert "Details: det" in s
-        
-        e2 = ParseError("msg", sql="x"*150)
-        assert "..." in str(e2) # Truncation check
+
+        e2 = ParseError("msg", sql="x" * 150)
+        assert "..." in str(e2)  # Truncation check
 
     def test_analysis_error(self):
         e = AnalysisError("msg", analyzer_name="ana", rule_id="rl", details="det")
@@ -42,7 +45,7 @@ class TestExceptionsCoverage:
         e = RuleNotFoundError("SEC-001", available_rules=["SEC-002", "PERF-001"])
         s = str(e)
         assert "Did you mean: SEC-002" in s
-        
+
         # Case without suggestions
         e2 = RuleNotFoundError("UNK-001", available_rules=["SEC-001"])
         assert "Did you mean" not in str(e2)

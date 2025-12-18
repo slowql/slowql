@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 class CostAnalyzer(BaseAnalyzer):
     """
     Analyzer for cost estimation.
-    
+
     Unlike rule-based analyzers, this uses heuristics to estimate
     compute/scan costs based on the query structure and (optional)
     cloud provider configuration.
@@ -48,13 +48,13 @@ class CostAnalyzer(BaseAnalyzer):
         self,
         query: Query,
         *,
-        config: Config | None = None,
+        config: Config | None = None,  # noqa: ARG002
     ) -> list[Issue]:
         """
         Analyze query for cost implications.
         """
         issues: list[Issue] = []
-        
+
         # Ensure query.raw is not None before string operations
         raw_sql = query.raw or ""
         raw_lower = raw_sql.lower()
@@ -69,16 +69,18 @@ class CostAnalyzer(BaseAnalyzer):
         # Simple heuristic: Scanning * without limit in aggregate
         # This is a basic example; a real implementation would estimate bytes scanned
         if is_select and "count" in raw_lower and "where" not in raw_lower:
-            issues.append(Issue(
-                rule_id="COST-COMP-002",
-                message="Unfiltered aggregation on potential full table.",
-                severity=Severity.LOW,
-                dimension=Dimension.COST,
-                location=query.location,
-                snippet=raw_sql[:50],
-                impact="High compute cost for aggregation over entire dataset.",
-                fix=None,
-                category=None
-            ))
+            issues.append(
+                Issue(
+                    rule_id="COST-COMP-002",
+                    message="Unfiltered aggregation on potential full table.",
+                    severity=Severity.LOW,
+                    dimension=Dimension.COST,
+                    location=query.location,
+                    snippet=raw_sql[:50],
+                    impact="High compute cost for aggregation over entire dataset.",
+                    fix=None,
+                    category=None,
+                )
+            )
 
         return issues

@@ -5,13 +5,17 @@ Rule registry for SlowQL.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Iterator
+from typing import TYPE_CHECKING, Any
 
 from slowql.core.models import Category, Dimension, Severity
 
 if TYPE_CHECKING:
     from slowql.rules.base import Rule
 
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    from slowql.rules.base import Rule
 
 class RuleRegistry:
     def __init__(self) -> None:
@@ -36,7 +40,8 @@ class RuleRegistry:
 
     def _remove_from_indices(self, rule_id: str) -> None:
         rule = self._rules.get(rule_id)
-        if not rule: return
+        if not rule:
+            return
         if rule_id in self._by_dimension[rule.dimension]:
             self._by_dimension[rule.dimension].remove(rule_id)
         if rule.category and rule_id in self._by_category[rule.category]:
@@ -45,7 +50,8 @@ class RuleRegistry:
             self._by_severity[rule.severity].remove(rule_id)
 
     def unregister(self, rule_id: str) -> Rule | None:
-        if rule_id not in self._rules: return None
+        if rule_id not in self._rules:
+            return None
         self._remove_from_indices(rule_id)
         return self._rules.pop(rule_id)
 
@@ -54,7 +60,8 @@ class RuleRegistry:
 
     def get_rule_info(self, rule_id: str) -> dict[str, Any] | None:
         rule = self.get(rule_id)
-        if rule is None: return None
+        if rule is None:
+            return None
         return rule.metadata.to_dict()
 
     def get_all(self) -> list[Rule]:
@@ -94,12 +101,16 @@ class RuleRegistry:
         query_lower = query.lower()
         results = []
         for rule in self._rules.values():
-            if enabled_only and not rule.enabled: continue
-            if dimensions and rule.dimension not in dimensions: continue
-            if severities and rule.severity not in severities: continue
+            if enabled_only and not rule.enabled:
+                continue
+            if dimensions and rule.dimension not in dimensions:
+                continue
+            if severities and rule.severity not in severities:
+                continue
             if query_lower:
                 searchable = f"{rule.id} {rule.name} {rule.description}".lower()
-                if query_lower not in searchable: continue
+                if query_lower not in searchable:
+                    continue
             results.append(rule)
         return sorted(results, key=lambda r: r.id)
 
@@ -129,18 +140,22 @@ class RuleRegistry:
         self._by_severity = {s: [] for s in Severity}
 
 
-_global_rule_registry: RuleRegistry | None = None
+_global_rule_registry: list[RuleRegistry] = []
+
 
 def get_rule_registry() -> RuleRegistry:
-    global _global_rule_registry
-    if _global_rule_registry is None:
-        _global_rule_registry = RuleRegistry()
-        _load_builtin_rules(_global_rule_registry)
-    return _global_rule_registry
+    """Get the global, singleton instance of the RuleRegistry."""
+    if not _global_rule_registry:
+        registry = RuleRegistry()
+        _load_builtin_rules(registry)
+        _global_rule_registry.append(registry)
+    return _global_rule_registry[0]
+
 
 def _load_builtin_rules(registry: RuleRegistry) -> None:
+    from slowql.rules.catalog import get_all_rules  # noqa: PLC0415
+
     try:
-        from slowql.rules.catalog import get_all_rules
         for rule in get_all_rules():
             registry.register(rule)
     except ImportError:

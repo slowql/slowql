@@ -12,7 +12,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, TextIO
 
-
 if TYPE_CHECKING:
     from slowql.core.models import AnalysisResult
 

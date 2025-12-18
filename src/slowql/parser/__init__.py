@@ -33,25 +33,20 @@ from slowql.parser.ast.nodes import (
 )
 
 __all__ = [
-    # Base
     "ASTNode",
     "ASTVisitor",
-    # Expressions
-    "Expression",
-    "Literal",
-    "Column",
-    "Function",
     "BinaryOp",
-    "UnaryOp",
-    "Subquery",
-    # Clauses
-    "Select",
-    "Where",
+    "Column",
     "Condition",
+    "Expression",
+    "Function",
     "Join",
+    "Literal",
     "OrderBy",
-    # Tables
-    "Table",
-    # Query
     "Query",
+    "Select",
+    "Subquery",
+    "Table",
+    "UnaryOp",
+    "Where",
 ]

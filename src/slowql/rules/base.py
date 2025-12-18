@@ -11,7 +11,10 @@ from __future__ import annotations
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Pattern
+from re import Pattern
+from typing import TYPE_CHECKING, Any, ClassVar
+
+from sqlglot import exp
 
 from slowql.core.models import (
     Category,
@@ -21,8 +24,11 @@ from slowql.core.models import (
     Location,
     Severity,
 )
+from slowql.rules.registry import RuleRegistry, get_rule_registry
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from slowql.core.models import Query
 
 
@@ -289,7 +295,7 @@ class Rule(ABC):
 
 
 class PatternRule(Rule):
-    """
+    r"""
     A rule that uses regex pattern matching.
 
     This is a convenience base class for simple pattern-based rules.
@@ -326,11 +332,13 @@ class PatternRule(Rule):
                 match=match.group(0),
                 **match.groupdict(),
             )
-            issues.append(self.create_issue(
-                query=query,
-                message=message,
-                snippet=match.group(0),
-            ))
+            issues.append(
+                self.create_issue(
+                    query=query,
+                    message=message,
+                    snippet=match.group(0),
+                )
+            )
 
         return issues
 
@@ -380,12 +388,10 @@ class ASTRule(Rule):
 
     def _has_where_clause(self, ast: Any) -> bool:
         """Check if AST has a WHERE clause."""
-        from sqlglot import exp
         return ast.find(exp.Where) is not None
 
     def _get_tables(self, ast: Any) -> list[str]:
         """Get table names from AST."""
-        from sqlglot import exp
         tables = []
         for table in ast.find_all(exp.Table):
             tables.append(table.name)
@@ -393,7 +399,6 @@ class ASTRule(Rule):
 
     def _get_columns(self, ast: Any) -> list[str]:
         """Get column names from AST."""
-        from sqlglot import exp
         columns = []
         for col in ast.find_all(exp.Column):
             columns.append(col.name)
@@ -401,10 +406,9 @@ class ASTRule(Rule):
 
     def _get_functions(self, ast: Any) -> list[str]:
         """Get function names from AST."""
-        from sqlglot import exp
         functions = []
         for func in ast.find_all(exp.Func):
-            functions.append(func.name if hasattr(func, 'name') else func.__class__.__name__)
+            functions.append(func.name if hasattr(func, "name") else func.__class__.__name__)
         return functions
 
 
@@ -457,7 +461,7 @@ def create_rule(
 
     class DynamicRule(Rule):
         def check(self, query: Query) -> list[Issue]:
-            return check_fn(query) # type: ignore
+            return check_fn(query)
 
     # Set class attributes
     DynamicRule.id = id
@@ -473,3 +477,14 @@ def create_rule(
 
     # Instantiate
     return DynamicRule()
+
+
+__all__ = [
+    "ASTRule",
+    "PatternRule",
+    "Rule",
+    "RuleMetadata",
+    "RuleRegistry",
+    "create_rule",
+    "get_rule_registry",
+]

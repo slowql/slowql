@@ -29,10 +29,10 @@ from __future__ import annotations
 
 # Import base classes first
 from slowql.rules.base import (
+    ASTRule,
+    PatternRule,
     Rule,
     RuleMetadata,
-    PatternRule,
-    ASTRule,
     create_rule,
 )
 
@@ -40,10 +40,10 @@ from slowql.rules.base import (
 from slowql.rules.registry import RuleRegistry, get_rule_registry
 
 __all__ = [
+    "ASTRule",
+    "PatternRule",
     "Rule",
     "RuleMetadata",
-    "PatternRule",
-    "ASTRule",
     "RuleRegistry",
     "create_rule",
     "get_rule_registry",

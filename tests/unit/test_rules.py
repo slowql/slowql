@@ -5,12 +5,18 @@ Test rule classes.
 
 import pytest
 
-from slowql.rules.base import Rule, PatternRule, ASTRule
+from slowql.core.models import Category, Dimension, Location, Query, Severity
+from slowql.rules.base import ASTRule, PatternRule, Rule
 from slowql.rules.catalog import (
-    SQLInjectionRule, HardcodedPasswordRule, SelectStarRule,
-    LeadingWildcardRule, UnsafeWriteRule, PIIExposureRule
+    HardcodedPasswordRule,
+    LeadingWildcardRule,
+    PIIExposureRule,
+    SelectStarRule,
+    SQLInjectionRule,
+    UnsafeWriteRule,
+    get_all_rules,
 )
-from slowql.core.models import Query, Location, Severity, Dimension, Category
+from slowql.rules.registry import RuleRegistry, get_rule_registry
 
 
 class TestRule:
@@ -18,7 +24,7 @@ class TestRule:
         # Rule is abstract and cannot be instantiated directly
         try:
             Rule()
-            assert False, "Should not be able to instantiate abstract class"
+            raise AssertionError("Should not be able to instantiate abstract class")
         except TypeError:
             pass
 
@@ -31,7 +37,12 @@ class TestPatternRule:
 
     def test_pattern_rule_check_no_pattern(self):
         rule = PatternRule()
-        query = Query(raw="SELECT *", normalized="SELECT *", dialect="mysql", location=Location(line=1, column=1))
+        query = Query(
+            raw="SELECT *",
+            normalized="SELECT *",
+            dialect="mysql",
+            location=Location(line=1, column=1),
+        )
         issues = rule.check(query)
         assert issues == []
 
@@ -41,7 +52,7 @@ class TestASTRule:
         # ASTRule is abstract and cannot be instantiated directly
         try:
             ASTRule()
-            assert False, "Should not be able to instantiate abstract class"
+            raise AssertionError("Should not be able to instantiate abstract class")
         except TypeError:
             pass
 
@@ -56,9 +67,12 @@ class TestSQLInjectionRule:
 
     def test_sql_injection_rule_check(self):
         rule = SQLInjectionRule()
-        query = Query(raw="SELECT * FROM users WHERE id = ' + user_input + '",
-                     normalized="SELECT * FROM users WHERE id = ' + user_input + '",
-                     dialect="mysql", location=Location(line=1, column=1))
+        query = Query(
+            raw="SELECT * FROM users WHERE id = ' + user_input + '",
+            normalized="SELECT * FROM users WHERE id = ' + user_input + '",
+            dialect="mysql",
+            location=Location(line=1, column=1),
+        )
         issues = rule.check(query)
         assert len(issues) > 0
 
@@ -72,9 +86,12 @@ class TestHardcodedPasswordRule:
 
     def test_hardcoded_password_rule_check(self):
         rule = HardcodedPasswordRule()
-        query = Query(raw="SELECT * FROM users WHERE password = 'secret123'",
-                     normalized="SELECT * FROM users WHERE password = 'secret123'",
-                     dialect="mysql", location=Location(line=1, column=1))
+        query = Query(
+            raw="SELECT * FROM users WHERE password = 'secret123'",
+            normalized="SELECT * FROM users WHERE password = 'secret123'",
+            dialect="mysql",
+            location=Location(line=1, column=1),
+        )
         issues = rule.check(query)
         assert len(issues) > 0
 
@@ -88,11 +105,14 @@ class TestSelectStarRule:
 
     def test_select_star_rule_check(self):
         rule = SelectStarRule()
-        query = Query(raw="SELECT * FROM users", normalized="SELECT * FROM users",
-                     dialect="mysql", location=Location(line=1, column=1))
-        issues = rule.check(query)
+        query = Query(
+            raw="SELECT * FROM users",
+            normalized="SELECT * FROM users",
+            dialect="mysql",
+            location=Location(line=1, column=1),
+        )
+        rule.check(query)
         # This would require AST parsing, so may not work without proper setup
-        # assert len(issues) > 0
 
 
 class TestLeadingWildcardRule:
@@ -103,9 +123,12 @@ class TestLeadingWildcardRule:
 
     def test_leading_wildcard_rule_check(self):
         rule = LeadingWildcardRule()
-        query = Query(raw="SELECT * FROM users WHERE name LIKE '%john'",
-                     normalized="SELECT * FROM users WHERE name LIKE '%john'",
-                     dialect="mysql", location=Location(line=1, column=1))
+        query = Query(
+            raw="SELECT * FROM users WHERE name LIKE '%john'",
+            normalized="SELECT * FROM users WHERE name LIKE '%john'",
+            dialect="mysql",
+            location=Location(line=1, column=1),
+        )
         issues = rule.check(query)
         assert len(issues) > 0
 
@@ -119,11 +142,14 @@ class TestUnsafeWriteRule:
 
     def test_unsafe_write_rule_check(self):
         rule = UnsafeWriteRule()
-        query = Query(raw="DELETE FROM users", normalized="DELETE FROM users",
-                     dialect="mysql", location=Location(line=1, column=1))
-        issues = rule.check(query)
+        query = Query(
+            raw="DELETE FROM users",
+            normalized="DELETE FROM users",
+            dialect="mysql",
+            location=Location(line=1, column=1),
+        )
+        rule.check(query)
         # Would require AST parsing
-        # assert len(issues) > 0
 
 
 class TestPIIExposureRule:
@@ -134,32 +160,40 @@ class TestPIIExposureRule:
 
     def test_pii_exposure_rule_check(self):
         rule = PIIExposureRule()
-        query = Query(raw="SELECT email FROM users",
-                     normalized="SELECT email FROM users",
-                     dialect="mysql", location=Location(line=1, column=1))
+        query = Query(
+            raw="SELECT email FROM users",
+            normalized="SELECT email FROM users",
+            dialect="mysql",
+            location=Location(line=1, column=1),
+        )
         issues = rule.check(query)
         assert len(issues) > 0
 
     def test_pii_exposure_rule_check_ssn(self):
         rule = PIIExposureRule()
-        query = Query(raw="SELECT ssn FROM users",
-                     normalized="SELECT ssn FROM users",
-                     dialect="mysql", location=Location(line=1, column=1))
+        query = Query(
+            raw="SELECT ssn FROM users",
+            normalized="SELECT ssn FROM users",
+            dialect="mysql",
+            location=Location(line=1, column=1),
+        )
         issues = rule.check(query)
         assert len(issues) > 0
 
     def test_pii_exposure_rule_check_no_pii(self):
         rule = PIIExposureRule()
-        query = Query(raw="SELECT id, name FROM users",
-                     normalized="SELECT id, name FROM users",
-                     dialect="mysql", location=Location(line=1, column=1))
+        query = Query(
+            raw="SELECT id, name FROM users",
+            normalized="SELECT id, name FROM users",
+            dialect="mysql",
+            location=Location(line=1, column=1),
+        )
         issues = rule.check(query)
         assert len(issues) == 0
 
 
 def test_get_all_rules():
     """Test that get_all_rules returns all built-in rules."""
-    from slowql.rules.catalog import get_all_rules
     rules = get_all_rules()
     assert isinstance(rules, list)
     assert len(rules) > 0
@@ -211,7 +245,6 @@ class TestRuleRegistry:
 
     def test_init(self):
         """Test RuleRegistry initialization."""
-        from slowql.rules.registry import RuleRegistry
         registry = RuleRegistry()
         assert len(registry) == 0
         assert registry._rules == {}
@@ -221,8 +254,6 @@ class TestRuleRegistry:
 
     def test_register_new_rule(self):
         """Test registering a new rule."""
-        from slowql.rules.registry import RuleRegistry
-
         registry = RuleRegistry()
         rule = SecurityRuleHelper()
 
@@ -234,9 +265,6 @@ class TestRuleRegistry:
 
     def test_register_rule_without_id(self):
         """Test registering a rule without an ID."""
-        from slowql.rules.registry import RuleRegistry
-        from slowql.rules.base import PatternRule
-
         class NoIdRule(PatternRule):
             pass  # No id attribute
 
@@ -248,8 +276,6 @@ class TestRuleRegistry:
 
     def test_register_duplicate_rule(self):
         """Test registering a duplicate rule without replace flag."""
-        from slowql.rules.registry import RuleRegistry
-
         registry = RuleRegistry()
         rule1 = SecurityRuleHelper()
         rule2 = SecurityRuleHelper()  # Same ID
@@ -260,8 +286,6 @@ class TestRuleRegistry:
 
     def test_register_duplicate_rule_with_replace(self):
         """Test registering a duplicate rule with replace flag."""
-        from slowql.rules.registry import RuleRegistry
-
         class TestSecurityRule2(PatternRule):
             id = "TEST-SEC-001"
             name = "Test Security Rule 2"
@@ -284,8 +308,6 @@ class TestRuleRegistry:
 
     def test_unregister_existing_rule(self):
         """Test unregistering an existing rule."""
-        from slowql.rules.registry import RuleRegistry
-
         registry = RuleRegistry()
         rule = SecurityRuleHelper()
 
@@ -299,16 +321,12 @@ class TestRuleRegistry:
 
     def test_unregister_nonexistent_rule(self):
         """Test unregistering a nonexistent rule."""
-        from slowql.rules.registry import RuleRegistry
-
         registry = RuleRegistry()
         removed_rule = registry.unregister("NONEXISTENT")
         assert removed_rule is None
 
     def test_get_rule_info(self):
         """Test getting rule info."""
-        from slowql.rules.registry import RuleRegistry
-
         registry = RuleRegistry()
         rule = SecurityRuleHelper()
 
@@ -321,16 +339,12 @@ class TestRuleRegistry:
 
     def test_get_rule_info_nonexistent(self):
         """Test getting rule info for nonexistent rule."""
-        from slowql.rules.registry import RuleRegistry
-
         registry = RuleRegistry()
         info = registry.get_rule_info("NONEXISTENT")
         assert info is None
 
     def test_get_all(self):
         """Test getting all rules."""
-        from slowql.rules.registry import RuleRegistry
-
         registry = RuleRegistry()
         rule1 = SecurityRuleHelper()
         rule2 = PerformanceRuleHelper()
@@ -345,8 +359,6 @@ class TestRuleRegistry:
 
     def test_get_by_dimension(self):
         """Test getting rules by dimension."""
-        from slowql.rules.registry import RuleRegistry
-
         registry = RuleRegistry()
         rule1 = SecurityRuleHelper()
         rule2 = PerformanceRuleHelper()
@@ -364,8 +376,6 @@ class TestRuleRegistry:
 
     def test_get_by_category(self):
         """Test getting rules by category."""
-        from slowql.rules.registry import RuleRegistry
-
         registry = RuleRegistry()
         rule1 = SecurityRuleHelper()
         rule2 = PerformanceRuleHelper()
@@ -379,8 +389,6 @@ class TestRuleRegistry:
 
     def test_get_by_severity(self):
         """Test getting rules by severity."""
-        from slowql.rules.registry import RuleRegistry
-
         registry = RuleRegistry()
         rule1 = SecurityRuleHelper()
         rule2 = PerformanceRuleHelper()
@@ -398,8 +406,6 @@ class TestRuleRegistry:
 
     def test_get_by_prefix(self):
         """Test getting rules by prefix."""
-        from slowql.rules.registry import RuleRegistry
-
         class SecRule(PatternRule):
             id = "SEC-001"
             name = "Security Rule 1"
@@ -432,8 +438,6 @@ class TestRuleRegistry:
 
     def test_get_enabled(self):
         """Test getting enabled rules."""
-        from slowql.rules.registry import RuleRegistry
-
         registry = RuleRegistry()
         rule1 = SecurityRuleHelper()
         rule2 = DisabledRuleHelper()  # This rule is disabled by default
@@ -447,8 +451,6 @@ class TestRuleRegistry:
 
     def test_list_all(self):
         """Test listing all rules."""
-        from slowql.rules.registry import RuleRegistry
-
         registry = RuleRegistry()
         rule = SecurityRuleHelper()
 
@@ -461,8 +463,6 @@ class TestRuleRegistry:
 
     def test_search(self):
         """Test searching rules."""
-        from slowql.rules.registry import RuleRegistry
-
         class InjectionRule(PatternRule):
             id = "SEC-INJ-001"
             name = "SQL Injection"
@@ -514,8 +514,6 @@ class TestRuleRegistry:
 
     def test_stats(self):
         """Test getting registry statistics."""
-        from slowql.rules.registry import RuleRegistry
-
         registry = RuleRegistry()
         rule1 = SecurityRuleHelper()
         rule2 = DisabledRuleHelper()  # This rule is disabled
@@ -535,8 +533,6 @@ class TestRuleRegistry:
 
     def test_clear(self):
         """Test clearing the registry."""
-        from slowql.rules.registry import RuleRegistry
-
         registry = RuleRegistry()
         rule = SecurityRuleHelper()
 
@@ -548,8 +544,6 @@ class TestRuleRegistry:
 
     def test_contains(self):
         """Test __contains__ method."""
-        from slowql.rules.registry import RuleRegistry
-
         registry = RuleRegistry()
         rule = SecurityRuleHelper()
 
@@ -560,8 +554,6 @@ class TestRuleRegistry:
 
     def test_iter(self):
         """Test __iter__ method."""
-        from slowql.rules.registry import RuleRegistry
-
         registry = RuleRegistry()
         rule1 = SecurityRuleHelper()
         rule2 = PerformanceRuleHelper()
@@ -581,8 +573,6 @@ class TestGlobalRegistry:
 
     def test_get_rule_registry(self):
         """Test getting the global rule registry."""
-        from slowql.rules.registry import get_rule_registry
-
         registry = get_rule_registry()
         assert registry is not None
         # Should return the same instance on subsequent calls

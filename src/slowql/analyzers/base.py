@@ -9,9 +9,13 @@ and detecting issues within their specific domain.
 
 from __future__ import annotations
 
+import re
+import sys
+import time
 from abc import ABC, abstractmethod
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from slowql.core.models import Dimension, Issue, Severity
 
@@ -52,7 +56,7 @@ class AnalyzerResult:
         """Return number of issues."""
         return len(self.issues)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Issue]:
         """Iterate over issues."""
         return iter(self.issues)
 
@@ -181,7 +185,6 @@ class BaseAnalyzer(ABC):
         Returns:
             AnalyzerResult with issues and metadata.
         """
-        import time
 
         start_time = time.perf_counter()
 
@@ -197,8 +200,8 @@ class BaseAnalyzer(ABC):
             query=query,
             analyzer_name=self.name,
             execution_time_ms=execution_time,
-            rules_executed=len(self._rules),
-            rules_matched=len(set(i.rule_id for i in issues)),
+            rules_executed=len(self.rules),
+            rules_matched=len({i.rule_id for i in issues}),
         )
 
     def check_rule(
@@ -223,12 +226,12 @@ class BaseAnalyzer(ABC):
         if config is not None:
             if rule.id in config.analysis.disabled_rules:
                 return []
-            if config.analysis.enabled_rules is not None:
-                if rule.id not in config.analysis.enabled_rules:
-                    # Also check prefix
-                    prefix = "-".join(rule.id.split("-")[:2])
-                    if prefix not in config.analysis.enabled_rules:
-                        return []
+            if (
+                config.analysis.enabled_rules is not None
+                and rule.id not in config.analysis.enabled_rules
+                and "-".join(rule.id.split("-")[:2]) not in config.analysis.enabled_rules
+            ):
+                return []
 
         return rule.check(query)
 
@@ -366,7 +369,6 @@ class RuleBasedAnalyzer(BaseAnalyzer):
             except Exception as e:
                 # Log but don't fail on individual rule errors
                 # In production, this would log to proper logging
-                import sys
                 print(
                     f"Warning: Rule {rule.id} failed on query: {e}",
                     file=sys.stderr,
@@ -387,7 +389,7 @@ class RuleBasedAnalyzer(BaseAnalyzer):
 
 
 class PatternAnalyzer(RuleBasedAnalyzer):
-    """
+    r"""
     An analyzer that uses regex patterns to detect issues.
 
     This is useful for simple pattern-based detection where
@@ -412,8 +414,6 @@ class PatternAnalyzer(RuleBasedAnalyzer):
 
     def initialize(self) -> None:
         """Compile regex patterns."""
-        import re
-
         super().initialize()
 
         for pattern, rule_id, message, severity in self.patterns:
@@ -434,10 +434,11 @@ class PatternAnalyzer(RuleBasedAnalyzer):
         sql = query.raw
 
         for pattern, rule_id, message, severity in self._compiled_patterns:
-            # Check if rule is disabled
-            if config is not None:
-                if rule_id in config.analysis.disabled_rules:
-                    continue
+            if (
+                config is not None
+                and rule_id in config.analysis.disabled_rules
+            ):
+                continue
 
             match = pattern.search(sql)
             if match:

@@ -9,7 +9,7 @@ the sqlglot library. It can auto-detect dialects or use a specified one.
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import sqlglot
 from sqlglot import exp
@@ -34,7 +34,7 @@ class UniversalParser(BaseParser):
     # sqlglot supports many dialects, so we leave this empty to signify "all"
     supported_dialects: tuple[str, ...] = ()
 
-    DIALECT_DETECTION_RULES = {
+    DIALECT_DETECTION_RULES: ClassVar[dict[str, list[str]]] = {
         "bigquery": [r"`[\w-]+\.[\w-]+\.[\w-]+`"],
         "postgres": [r"::", r"\$\d+"],
         "mysql": [r"`"],
@@ -53,6 +53,9 @@ class UniversalParser(BaseParser):
         Raises:
             UnsupportedDialectError: If the dialect is not supported by sqlglot.
         """
+        # Allow 'postgres' as an alias for 'postgresql'
+        if dialect == "postgres":
+            dialect = "postgresql"
         if dialect and dialect not in sqlglot.dialects.DIALECTS:
             raise UnsupportedDialectError(dialect)
         self.default_dialect = dialect
@@ -80,7 +83,9 @@ class UniversalParser(BaseParser):
         for i, (statement_sql, location) in enumerate(statements):
             try:
                 # Use provided dialect, then default, then auto-detect
-                effective_dialect = dialect or self.default_dialect or self.detect_dialect(statement_sql)
+                effective_dialect = (
+                    dialect or self.default_dialect or self.detect_dialect(statement_sql)
+                )
 
                 # Parse the single statement
                 parsed = sqlglot.parse_one(
@@ -101,8 +106,8 @@ class UniversalParser(BaseParser):
                         query_index=i,
                     ),
                     ast=parsed,
-                    tables=tuple(self.extract_tables(parsed)),
-                    columns=tuple(self.extract_columns(parsed)),
+                    tables=tuple(self._extract_tables_from_ast(parsed)),
+                    columns=tuple(self._extract_columns_from_ast(parsed)),
                     query_type=self._get_query_type_from_ast(parsed),
                 )
                 queries.append(query)
@@ -158,7 +163,7 @@ class UniversalParser(BaseParser):
         Returns:
             The detected dialect name, or None if no specific dialect is detected.
         """
-        scores: dict[str, int] = {dialect: 0 for dialect in self.DIALECT_DETECTION_RULES}
+        scores: dict[str, int] = dict.fromkeys(self.DIALECT_DETECTION_RULES, 0)
 
         for dialect, patterns in self.DIALECT_DETECTION_RULES.items():
             for pattern in patterns:
@@ -166,7 +171,7 @@ class UniversalParser(BaseParser):
                     scores[dialect] += 1
 
         # Find the dialect with the highest score
-        best_dialect = max(scores, key=scores.get)
+        best_dialect = max(scores, key=lambda k: scores[k])
         if scores[best_dialect] > 0:
             return best_dialect
 
@@ -190,14 +195,16 @@ class UniversalParser(BaseParser):
                 return []
             # This approach loses original line/col, so we fallback
             # For now, we'll use a simpler method if this succeeds
-            return [(stmt.sql(), (1, 1)) for stmt in parsed_statements]
+            return [(stmt.sql(), (1, 1)) for stmt in parsed_statements if stmt is not None]
         except SqlglotParseError:
             # Fallback to simple semicolon splitting
             statements = [s.strip() for s in sql.split(";") if s.strip()]
             return [(stmt, (1, 1)) for stmt in statements]
         except Exception as e:
             # Catch generic exceptions and wrap them
-            raise ParseError("An unexpected error occurred during SQL splitting.", details=str(e)) from e
+            raise ParseError(
+                "An unexpected error occurred during SQL splitting.", details=str(e)
+            ) from e
 
     def normalize(self, ast: Any, dialect: str | None = None) -> str:
         """Normalize a SQL query using its AST."""
@@ -209,7 +216,7 @@ class UniversalParser(BaseParser):
         else:
             parsed_ast = ast
 
-        if not parsed_ast:
+        if parsed_ast is None:
             return " ".join(ast.split()) if isinstance(ast, str) else ""
         try:
             # Use sqlglot's generation with pretty printing
@@ -218,48 +225,61 @@ class UniversalParser(BaseParser):
             # Fallback for ASTs that can't be regenerated
             return str(parsed_ast)
 
-    def extract_tables(self, ast: Any) -> list[str]:
+    def _extract_tables_from_ast(self, ast: Any) -> list[str]:
         """Extract table names from a parsed AST."""
-        if isinstance(ast, str):
-            try:
-                ast = sqlglot.parse_one(ast, read=self.default_dialect)
-            except SqlglotParseError:
-                return []
         if not ast:
             return []
         return [table.name for table in ast.find_all(exp.Table)]
 
-    def extract_columns(self, ast: Any) -> list[str]:
+    def extract_tables(self, sql: str, *, dialect: str | None = None) -> list[str]:
+        """Extract table names from a raw SQL string."""
+        try:
+            ast = sqlglot.parse_one(sql, read=dialect or self.default_dialect)
+            return self._extract_tables_from_ast(ast)
+        except SqlglotParseError:
+            return []
+
+    def _extract_columns_from_ast(self, ast: Any) -> list[str]:
         """Extract column names from a parsed AST."""
-        if isinstance(ast, str):
-            try:
-                ast = sqlglot.parse_one(ast, read=self.default_dialect)
-            except SqlglotParseError:
-                return []
         if not ast:
             return []
         return [column.name for column in ast.find_all(exp.Column)]
+
+    def extract_columns(self, sql: str, *, dialect: str | None = None) -> list[str]:
+        """Extract column names from a raw SQL string."""
+        try:
+            ast = sqlglot.parse_one(sql, read=dialect or self.default_dialect)
+            return self._extract_columns_from_ast(ast)
+        except SqlglotParseError:
+            return []
 
     def get_query_type(self, sql: str) -> str | None:
         """Get the type of query (SELECT, INSERT, etc.) from a raw SQL string."""
         # Fast path for common keywords
         clean_sql = sql.lstrip().upper()
-        for keyword in [
-            "SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "ALTER", "DROP", "WITH"
-        ]:
+        for keyword in ["SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "ALTER", "DROP", "WITH"]:
             if clean_sql.startswith(keyword):
                 return "SELECT" if keyword == "WITH" else keyword
         return None
 
     def _get_query_type_from_ast(self, ast: Any) -> str | None:
         """Determine query type from the AST node."""
-        if isinstance(ast, exp.Select): return "SELECT"
-        if isinstance(ast, exp.Insert): return "INSERT"
-        if isinstance(ast, exp.Update): return "UPDATE"
-        if isinstance(ast, exp.Delete): return "DELETE"
-        if isinstance(ast, exp.Merge): return "MERGE"
-        if isinstance(ast, exp.Create): return "CREATE"
-        if isinstance(ast, exp.Alter): return "ALTER"
-        if isinstance(ast, exp.Drop): return "DROP"
-        if isinstance(ast, exp.Command): return str(ast.this).upper().split()[0]
+        type_mapping = {
+            exp.Select: "SELECT",
+            exp.Insert: "INSERT",
+            exp.Update: "UPDATE",
+            exp.Delete: "DELETE",
+            exp.Merge: "MERGE",
+            exp.Create: "CREATE",
+            exp.Alter: "ALTER",
+            exp.Drop: "DROP",
+        }
+
+        for ast_type, name in type_mapping.items():
+            if isinstance(ast, ast_type):
+                return name
+
+        if isinstance(ast, exp.Command):
+            return str(ast.this).upper().split()[0]
+
         return type(ast).__name__.upper()

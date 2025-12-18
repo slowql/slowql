@@ -20,14 +20,17 @@ jobs:
 
       - name: Install Wrangler + jq
         run: |
+          apt-get update && apt-get install -y jq curl
           npm install -g wrangler
-          sudo apt-get update && sudo apt-get install -y jq curl
 
       - name: Fetch stats and update KV
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          KV_NAMESPACE_ID: ${{ secrets.KV_NAMESPACE_ID }}
         run: |
+          set -e
+
           echo "Fetching DockerHub stats..."
           docker_pulls=$(curl -s https://hub.docker.com/v2/repositories/makroumi/slowql/ | jq -r .pull_count)
 
@@ -41,11 +44,11 @@ jobs:
           pypi_total=$(curl -s https://pepy.tech/api/projects/slowql | jq -r .total_downloads)
 
           echo "Updating KV..."
-          wrangler kv key put docker_pulls $docker_pulls --namespace-id 7d08723ee7224bde9977e33ef3e59a62
-          wrangler kv key put pypi_last_day $pypi_last_day --namespace-id 7d08723ee7224bde9977e33ef3e59a62
-          wrangler kv key put pypi_last_week $pypi_last_week --namespace-id 7d08723ee7224bde9977e33ef3e59a62
-          wrangler kv key put pypi_last_month $pypi_last_month --namespace-id 7d08723ee7224bde9977e33ef3e59a62
-          wrangler kv key put pypi_total_downloads $pypi_total --namespace-id 7d08723ee7224bde9977e33ef3e59a62
-          wrangler kv key put cached_at $(date +%s) --namespace-id 7d08723ee7224bde9977e33ef3e59a62
+          wrangler kv key put docker_pulls "$docker_pulls" --namespace-id "$KV_NAMESPACE_ID"
+          wrangler kv key put pypi_last_day "$pypi_last_day" --namespace-id "$KV_NAMESPACE_ID"
+          wrangler kv key put pypi_last_week "$pypi_last_week" --namespace-id "$KV_NAMESPACE_ID"
+          wrangler kv key put pypi_last_month "$pypi_last_month" --namespace-id "$KV_NAMESPACE_ID"
+          wrangler kv key put pypi_total_downloads "$pypi_total" --namespace-id "$KV_NAMESPACE_ID"
+          wrangler kv key put cached_at "$(date +%s)" --namespace-id "$KV_NAMESPACE_ID"
 
           echo "KV update complete ✅"

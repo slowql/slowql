@@ -15,17 +15,18 @@ respective Analyzers.
 
 from __future__ import annotations
 
-import re
 from typing import Any
+
+from sqlglot import exp
 
 from slowql.core.models import (
     Category,
     Dimension,
     Fix,
     Issue,
+    Query,
     Severity,
 )
-from slowql.core.models import Query
 from slowql.rules.base import ASTRule, PatternRule, Rule
 
 # =============================================================================
@@ -38,15 +39,16 @@ class SQLInjectionRule(PatternRule):
 
     id = "SEC-INJ-001"
     name = "Potential SQL Injection"
-    description = "Detects string concatenation in SQL queries which may indicate SQL injection vulnerabilities."
+    description = "Detects string concatenation in SQL queries which may indicate SQL injection."
     severity = Severity.CRITICAL
     dimension = Dimension.SECURITY
     category = Category.SEC_INJECTION
-    
-    # Matches: 'SELECT ' + var + ' FROM' or "SELECT " + var
+
     pattern = r"(?i)(['\"]\s*\+\s*[a-zA-Z_]\w*)|([a-zA-Z_]\w*\s*\+\s*['\"])"
-    message_template = "Potential SQL injection detected: String concatenation with variable '{match}'."
-    
+    message_template = (
+        "Potential SQL injection detected: String concatenation with variable '{match}'."
+    )
+
     impact = "Attackers can execute arbitrary SQL commands, accessing or destroying data."
     rationale = "Dynamic SQL construction using concatenation is the #1 vector for SQL injection."
     fix_guidance = "Use parameterized queries (prepared statements) instead of concatenation."
@@ -82,15 +84,14 @@ class GrantAllRule(ASTRule):
     category = Category.SEC_AUTHENTICATION
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
-        from sqlglot import exp
         issues = []
-        
+
         # SQLGlot parses GRANT specifically
         if isinstance(ast, exp.Grant):
             # Use getattr to safely access 'actions' without triggering static analysis errors
             raw_actions = getattr(ast, "actions", None) or []
             normalized_actions = []
-            
+
             for action in raw_actions:
                 # Handle Identifier/Var nodes vs raw strings if any
                 if hasattr(action, "name"):
@@ -99,13 +100,16 @@ class GrantAllRule(ASTRule):
                     normalized_actions.append(str(action).upper())
 
             if "ALL" in normalized_actions or "ALL PRIVILEGES" in normalized_actions:
-                issues.append(self.create_issue(
-                    query=query,
-                    message="GRANT ALL detected. Follow principle of least privilege.",
-                    snippet=query.raw,
-                    impact="Users receive administrative control, increasing blast radius of compromise.",
-                ))
-                
+                issues.append(
+                    self.create_issue(
+                        query=query,
+                        message="GRANT ALL detected. Follow principle of least privilege.",
+                        snippet=query.raw,
+                        impact="Users receive administrative control, increasing blast radius of "
+                        "compromise.",
+                    )
+                )
+
         return issues
 
 
@@ -125,27 +129,29 @@ class SelectStarRule(ASTRule):
     category = Category.PERF_SCAN
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
-        from sqlglot import exp
         issues = []
-        
+
         if query.is_select:
             # Check for star in projections
             for expression in ast.find_all(exp.Star):
                 # Ensure it's in the projection list (not count(*))
                 parent = expression.parent
                 if isinstance(parent, exp.Select):
-                    issues.append(self.create_issue(
-                        query=query,
-                        message="Avoid 'SELECT *'. Explicitly list required columns.",
-                        snippet="SELECT *",
-                        fix=Fix(
-                            description="Replace * with specific column names",
-                            replacement="SELECT col1, col2 ...", # Placeholder logic
-                            is_safe=False # Cannot safely auto-fix without schema
-                        ),
-                        impact="Increases network traffic, memory usage, and prevents covering index usage."
-                    ))
-                    break # Report once per query
+                    issues.append(
+                        self.create_issue(
+                            query=query,
+                            message="Avoid 'SELECT *'. Explicitly list required columns.",
+                            snippet="SELECT *",
+                            fix=Fix(
+                                description="Replace * with specific column names",
+                                replacement="SELECT col1, col2 ...",  # Placeholder logic
+                                is_safe=False,  # Cannot safely auto-fix without schema
+                            ),
+                            impact="Increases network traffic, memory usage, and prevents covering "
+                            "index usage.",
+                        )
+                    )
+                    break  # Report once per query
         return issues
 
 
@@ -163,11 +169,14 @@ class LeadingWildcardRule(PatternRule):
     message_template = "Non-SARGable query: Leading wildcard in LIKE clause '{match}'."
 
     impact = "Forces a full table scan because B-Tree indexes cannot be traversed in reverse."
-    fix_guidance = "Use Full-Text Search (e.g., Elasticsearch, Postgres FTS) for substring searches."
+    fix_guidance = (
+        "Use Full-Text Search (e.g., Elasticsearch, Postgres FTS) for substring searches."
+    )
 
 
 class MissingWhereRule(ASTRule):
     """Detects UPDATE/DELETE without WHERE (Performance aspect)."""
+
     # Note: This is also a Reliability rule, but handled here for large scan prevention
 
     id = "PERF-SCAN-002"
@@ -178,20 +187,21 @@ class MissingWhereRule(ASTRule):
     category = Category.PERF_SCAN
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
-        from sqlglot import exp
-        
         if query.query_type not in ("UPDATE", "DELETE"):
             return []
 
         # Check for WHERE clause
         if not ast.find(exp.Where):
-            return [self.create_issue(
-                query=query,
-                message=f"Unbounded {query.query_type} detected (missing WHERE).",
-                snippet=query.raw[:50],
-                impact=f"Will modify/delete ALL rows in the table, causing massive lock contention and log growth.",
-            )]
-        
+            return [
+                self.create_issue(
+                    query=query,
+                    message=f"Unbounded {query.query_type} detected (missing WHERE).",
+                    snippet=query.raw[:50],
+                    impact="Will modify/delete ALL rows in the table, causing massive lock "
+                    "contention and log growth.",
+                )
+            ]
+
         return []
 
 
@@ -206,15 +216,16 @@ class DistinctOnLargeSetRule(ASTRule):
     category = Category.PERF_SCAN
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
-        from sqlglot import exp
-        
         if isinstance(ast, exp.Select) and ast.args.get("distinct"):
-            return [self.create_issue(
-                query=query,
-                message="DISTINCT usage detected. Ensure this is necessary.",
-                snippet="SELECT DISTINCT ...",
-                impact="Requires sorting or hashing entire result set. Check if data model allows duplicates."
-            )]
+            return [
+                self.create_issue(
+                    query=query,
+                    message="DISTINCT usage detected. Ensure this is necessary.",
+                    snippet="SELECT DISTINCT ...",
+                    impact="Requires sorting or hashing entire result set. Check if data model "
+                    "allows duplicates.",
+                )
+            ]
         return []
 
 
@@ -234,27 +245,24 @@ class UnsafeWriteRule(ASTRule):
     category = Category.REL_DATA_INTEGRITY
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
-        from sqlglot import exp
-        
         if query.query_type not in ("DELETE", "UPDATE"):
             return []
 
         if not ast.find(exp.Where):
-             # Logic to distinguish TRUNCATE intent vs Accidental Delete
-            fix_suggestion = "Use TRUNCATE TABLE if you intend to wipe the table." if query.query_type == "DELETE" else "Add a WHERE clause."
-            
-            return [self.create_issue(
-                query=query,
-                message=f"CRITICAL: {query.query_type} statement has no WHERE clause.",
-                snippet=query.raw,
-                severity=Severity.CRITICAL,
-                fix=Fix(
-                    description="Add WHERE clause placeholder",
-                    replacement=f"{query.raw.rstrip(';')} WHERE id = ...;",
-                    is_safe=False
-                ),
-                impact="Instant data loss of entire table content."
-            )]
+            return [
+                self.create_issue(
+                    query=query,
+                    message=f"CRITICAL: {query.query_type} statement has no WHERE clause.",
+                    snippet=query.raw,
+                    severity=Severity.CRITICAL,
+                    fix=Fix(
+                        description="Add WHERE clause placeholder",
+                        replacement=f"{query.raw.rstrip(';')} WHERE id = ...;",
+                        is_safe=False,
+                    ),
+                    impact="Instant data loss of entire table content.",
+                )
+            ]
         return []
 
 
@@ -269,14 +277,16 @@ class DropTableRule(ASTRule):
     category = Category.REL_DATA_INTEGRITY
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
-        from sqlglot import exp
         if isinstance(ast, exp.Drop):
-            return [self.create_issue(
-                query=query,
-                message="DROP statement detected.",
-                snippet=query.raw,
-                impact="Irreversible schema and data destruction. Ensure this is a migration script."
-            )]
+            return [
+                self.create_issue(
+                    query=query,
+                    message="DROP statement detected.",
+                    snippet=query.raw,
+                    impact="Irreversible schema and data destruction. Ensure this is a migration "
+                    "script.",
+                )
+            ]
         return []
 
 
@@ -304,6 +314,7 @@ class PIIExposureRule(PatternRule):
 # 📝 QUALITY RULES
 # =============================================================================
 
+
 class ImplicitJoinRule(ASTRule):
     """Detects implicit joins (comma-separated tables)."""
 
@@ -315,25 +326,25 @@ class ImplicitJoinRule(ASTRule):
     category = Category.QUAL_MODERN
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
-        from sqlglot import exp
-        
         if not query.is_select:
             return []
 
         # Check if FROM has multiple tables in the same From node (comma separation)
         from_clause = ast.find(exp.From)
         if from_clause and len(from_clause.expressions) > 1:
-             return [self.create_issue(
-                query=query,
-                message="Implicit join syntax detected (comma-separated tables).",
-                snippet=str(from_clause),
-                fix=Fix(
-                    description="Convert to explicit INNER JOIN",
-                    replacement="... FROM table1 JOIN table2 ON ...",
-                    is_safe=False
-                ),
-                impact="Implicit joins are harder to read and prone to accidental cross-joins."
-            )]
+            return [
+                self.create_issue(
+                    query=query,
+                    message="Implicit join syntax detected (comma-separated tables).",
+                    snippet=str(from_clause),
+                    fix=Fix(
+                        description="Convert to explicit INNER JOIN",
+                        replacement="... FROM table1 JOIN table2 ON ...",
+                        is_safe=False,
+                    ),
+                    impact="Implicit joins are harder to read and prone to accidental cross-joins.",
+                )
+            ]
         return []
 
 
@@ -341,10 +352,11 @@ class ImplicitJoinRule(ASTRule):
 # CATALOG EXPORT
 # =============================================================================
 
+
 def get_all_rules() -> list[Rule]:
     """
     Get instances of all built-in rules.
-    
+
     Returns:
         List of Rule objects.
     """
@@ -353,20 +365,16 @@ def get_all_rules() -> list[Rule]:
         SQLInjectionRule(),
         HardcodedPasswordRule(),
         GrantAllRule(),
-        
         # Performance
         SelectStarRule(),
         LeadingWildcardRule(),
         MissingWhereRule(),
         DistinctOnLargeSetRule(),
-        
         # Reliability
         UnsafeWriteRule(),
         DropTableRule(),
-        
         # Compliance
         PIIExposureRule(),
-        
         # Quality
         ImplicitJoinRule(),
     ]

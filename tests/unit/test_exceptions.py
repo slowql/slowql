@@ -3,10 +3,14 @@
 Test exception classes.
 """
 
-import pytest
 from slowql.core.exceptions import (
-    SlowQLError, ParseError, FileNotFoundError, AnalysisError,
-    ConfigurationError, RuleNotFoundError, UnsupportedDialectError
+    AnalysisError,
+    ConfigurationError,
+    FileNotFoundError,
+    ParseError,
+    RuleNotFoundError,
+    SlowQLError,
+    UnsupportedDialectError,
 )
 
 

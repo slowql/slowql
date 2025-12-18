@@ -20,11 +20,23 @@ Example:
 
 from __future__ import annotations
 
-from slowql.analyzers.base import BaseAnalyzer, AnalyzerResult
+from slowql.analyzers.base import AnalyzerResult, BaseAnalyzer
+from slowql.analyzers.compliance import ComplianceAnalyzer
+from slowql.analyzers.cost import CostAnalyzer
+from slowql.analyzers.performance import PerformanceAnalyzer
+from slowql.analyzers.quality import QualityAnalyzer
 from slowql.analyzers.registry import AnalyzerRegistry
+from slowql.analyzers.reliability import ReliabilityAnalyzer
+from slowql.analyzers.security import SecurityAnalyzer
 
 __all__ = [
-    "BaseAnalyzer",
-    "AnalyzerResult",
     "AnalyzerRegistry",
+    "AnalyzerResult",
+    "BaseAnalyzer",
+    "ComplianceAnalyzer",
+    "CostAnalyzer",
+    "PerformanceAnalyzer",
+    "QualityAnalyzer",
+    "ReliabilityAnalyzer",
+    "SecurityAnalyzer",
 ]

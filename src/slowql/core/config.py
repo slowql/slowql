@@ -13,11 +13,22 @@ Configuration is validated using Pydantic for type safety.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 from pathlib import Path
 from typing import Any, Literal
 
+import tomli
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+from slowql.core.exceptions import ConfigurationError
+
+yaml: Any | None
+try:
+    import yaml
+except ImportError:
+    yaml = None
 
 
 class SeverityThresholds(BaseModel):
@@ -100,17 +111,9 @@ class AnalysisConfig(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    @field_validator("enabled_dimensions", mode="before")
+    @field_validator("enabled_dimensions", "disabled_rules", mode="before")
     @classmethod
-    def validate_dimensions(cls, v: Any) -> set[str]:
-        """Convert list to set if needed."""
-        if isinstance(v, list):
-            return set(v)
-        return v
-
-    @field_validator("disabled_rules", mode="before")
-    @classmethod
-    def validate_disabled_rules(cls, v: Any) -> set[str]:
+    def _validate_str_list_to_set(cls, v: Any) -> set[str] | Any:
         """Convert list to set if needed."""
         if isinstance(v, list):
             return set(v)
@@ -181,7 +184,7 @@ class Config(BaseModel):
     )
 
     @classmethod
-    def from_file(cls, path: str | Path) -> "Config":
+    def from_file(cls, path: str | Path) -> Config:
         """
         Load configuration from a file.
 
@@ -196,32 +199,25 @@ class Config(BaseModel):
         Raises:
             ConfigurationError: If file cannot be loaded or parsed.
         """
-        from slowql.core.exceptions import ConfigurationError
-
         path = Path(path)
 
         if not path.exists():
             raise ConfigurationError(f"Configuration file not found: {path}")
 
         suffix = path.suffix.lower()
-        content = path.read_text(encoding="utf-8")
 
         try:
             if suffix == ".toml":
-                import tomllib
-                data = tomllib.loads(content)
+                data = tomli.loads(path.read_text(encoding="utf-8"))
             elif suffix in {".yaml", ".yml"}:
-                try:
-                    import yaml
-                    data = yaml.safe_load(content)
-                except ImportError as err:
+                if yaml is None:  # pragma: no cover
                     raise ConfigurationError(
                         "PyYAML is required for YAML config files",
                         details="Install with: pip install pyyaml",
-                    ) from err
+                    )
+                data = yaml.safe_load(path.read_text(encoding="utf-8"))
             elif suffix == ".json":
-                import json
-                data = json.loads(content)
+                data = json.loads(path.read_text(encoding="utf-8"))
             else:
                 raise ConfigurationError(
                     f"Unsupported configuration file format: {suffix}",
@@ -239,7 +235,7 @@ class Config(BaseModel):
             ) from e
 
     @classmethod
-    def from_env(cls) -> "Config":
+    def from_env(cls) -> Config:
         """
         Load configuration from environment variables.
 
@@ -263,7 +259,7 @@ class Config(BaseModel):
                 continue
 
             # Remove prefix and split by double underscore
-            key_path = key[len(prefix):].lower().split("__")
+            key_path = key[len(prefix) :].lower().split("__")
 
             # Navigate/create nested dict
             current = data
@@ -299,14 +295,14 @@ class Config(BaseModel):
         except ValueError:
             pass
 
-        # List (comma-separated)
+        # NOTE: This is a simple parser for comma-separated lists.
         if "," in value:
             return [v.strip() for v in value.split(",")]
 
         return value
 
     @classmethod
-    def find_and_load(cls, start_path: Path | None = None) -> "Config":
+    def find_and_load(cls, start_path: Path | None = None) -> Config:
         """
         Find and load configuration file from current or parent directories.
 
@@ -358,12 +354,9 @@ class Config(BaseModel):
         return cls.from_env()
 
     @classmethod
-    def _load_from_pyproject(cls, path: Path) -> "Config | None":
+    def _load_from_pyproject(cls, path: Path) -> Config | None:
         """Load configuration from pyproject.toml [tool.slowql] section."""
-        import tomllib
-
-        content = path.read_text(encoding="utf-8")
-        data = tomllib.loads(content)
+        data = tomli.loads(path.read_text(encoding="utf-8"))
 
         tool_config = data.get("tool", {}).get("slowql")
         if tool_config:
@@ -371,7 +364,7 @@ class Config(BaseModel):
 
         return None
 
-    def with_overrides(self, **kwargs: Any) -> "Config":
+    def with_overrides(self, **kwargs: Any) -> Config:
         """
         Create a new configuration with overrides.
 
@@ -405,8 +398,5 @@ class Config(BaseModel):
         Returns:
             Hex string hash of the configuration.
         """
-        import hashlib
-        import json
-
         config_str = json.dumps(self.model_dump(), sort_keys=True, default=str)
         return hashlib.sha256(config_str.encode()).hexdigest()[:16]
