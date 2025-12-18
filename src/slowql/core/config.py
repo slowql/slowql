@@ -25,11 +25,9 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from slowql.core.exceptions import ConfigurationError
 
 try:
-    import yaml as _yaml
+    import yaml
 except ImportError:
-    _yaml = None
-
-yaml = _yaml  # type: ignore[assignment]
+    yaml = None  # type: ignore[assignment]
 
 
 class SeverityThresholds(BaseModel):
