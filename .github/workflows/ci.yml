@@ -14,7 +14,7 @@ jobs:
   # ========================================
   # Phase 1: Quality Gates & Core Files
   # ========================================
-  
+
   # Lint Job
   lint:
     runs-on: ubuntu-latest
@@ -31,7 +31,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install ruff
+          python -m pip install ruff
 
       - name: Run Ruff linting
         run: ruff check src tests
@@ -52,7 +52,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install mypy types-PyYAML
+          python -m pip install mypy types-PyYAML
 
       - name: Install missing type stubs
         run: mypy --install-types --non-interactive
@@ -77,8 +77,9 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e .[test]
-          pip install pytest pytest-cov pytest-xdist
+          python -m pip install -e ".[test]"
+          # Keep this if you didn't include pytest-xdist in the [test] extra
+          python -m pip install pytest-xdist
 
       - name: Run tests with coverage
         run: |
@@ -98,7 +99,7 @@ jobs:
   # ========================================
   # Phase 3: Deployment & Distribution
   # ========================================
-  
+
   # DockerHub Deployment
   docker-build-and-push:
     runs-on: ubuntu-latest
@@ -159,6 +160,7 @@ jobs:
     needs: [lint, type-check, tests]
     if: github.event_name == 'push'
     permissions:
+      contents: read
       packages: write
     steps:
       - name: Checkout code
@@ -186,13 +188,13 @@ jobs:
             type=semver,pattern={{version}}
             type=raw,value=latest,enable={{is_default_branch}}
 
-      # Login to GHCR
+      # Login to GHCR (FIXED: use your GHCR_* secrets)
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ secrets.GITHUB_USERNAME }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.GHCR_USERNAME }}
+          password: ${{ secrets.GHCR_TOKEN }}
 
       # Set up Docker Buildx
       - name: Set up Docker Buildx
@@ -230,7 +232,7 @@ jobs:
       - name: Install build dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install build
+          python -m pip install build
 
       # Extract version for PyPI
       - name: Extract version
