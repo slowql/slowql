@@ -1,7 +1,6 @@
 # slowql/src/slowql/core/config.py
 """
 Configuration management for SlowQL.
-
 This module provides a flexible configuration system that supports:
 - Default configuration
 - Configuration files (TOML, YAML, JSON)
@@ -18,7 +17,10 @@ import json
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
-
+try:
+    import yaml
+except ImportError:
+    yaml = None  # type: ignore[no-redef]
 import tomli
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 

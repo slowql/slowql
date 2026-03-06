@@ -34,3 +34,4 @@ __pycache__/
 *.xml
 .mypy_cache/
 .ruff_cache/
+.aider*
