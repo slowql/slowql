@@ -229,6 +229,247 @@ class DistinctOnLargeSetRule(ASTRule):
         return []
 
 
+class FunctionOnIndexedColumnRule(ASTRule):
+    """Detects functions wrapping columns in WHERE clause."""
+
+    id = "PERF-IDX-001"
+    name = "Function on Indexed Column"
+    description = "Detects functions applied to columns in WHERE predicates (e.g. WHERE LOWER(email) = ...)."
+    severity = Severity.MEDIUM
+    dimension = Dimension.PERFORMANCE
+    category = Category.PERF_INDEX
+
+    impact = "Prevents index usage, forces full table scan"
+    fix_guidance = "Use functional indexes or rewrite predicate without wrapping function"
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        issues = []
+        where = ast.find(exp.Where)
+        if where is None:
+            return []
+
+        for func in where.find_all(exp.Func):
+            # Check if the function wraps a column reference
+            if func.find(exp.Column):
+                issues.append(
+                    self.create_issue(
+                        query=query,
+                        message=f"Function '{type(func).__name__}' applied to column in WHERE clause prevents index usage.",
+                        snippet=str(func),
+                    )
+                )
+                break  # Report once per query
+        return issues
+
+
+class OrOnIndexedColumnsRule(PatternRule):
+    """Detects OR conditions in WHERE clauses."""
+
+    id = "PERF-IDX-004"
+    name = "OR in WHERE Clause"
+    description = "Detects OR conditions in WHERE clauses which can prevent index usage."
+    severity = Severity.INFO
+    dimension = Dimension.PERFORMANCE
+    category = Category.PERF_INDEX
+
+    pattern = r"(?i)\bWHERE\b.+\bOR\b"
+    message_template = "OR condition in WHERE clause detected: {match}"
+
+    impact = "OR conditions can prevent index usage depending on the query planner"
+    fix_guidance = "Consider rewriting as UNION ALL of two queries"
+
+
+class DeepOffsetPaginationRule(PatternRule):
+    """Detects OFFSET values over 1000."""
+
+    id = "PERF-IDX-005"
+    name = "Deep Offset Pagination"
+    description = "Detects OFFSET values over 1000 which degrade pagination performance."
+    severity = Severity.HIGH
+    dimension = Dimension.PERFORMANCE
+    category = Category.PERF_INDEX
+
+    pattern = r"(?i)\bOFFSET\s+([1-9]\d{3,})\b"
+    message_template = "Deep pagination detected with large OFFSET: {match}"
+
+    impact = "Database must scan and discard all rows before the offset"
+    fix_guidance = "Use keyset/cursor pagination instead: WHERE id > last_seen_id LIMIT n"
+
+
+class CartesianProductRule(ASTRule):
+    """Detects CROSS JOIN usage."""
+
+    id = "PERF-JOIN-001"
+    name = "Cartesian Product (CROSS JOIN)"
+    description = "Detects CROSS JOIN usage which produces a Cartesian product of rows."
+    severity = Severity.HIGH
+    dimension = Dimension.PERFORMANCE
+    category = Category.PERF_JOIN
+
+    impact = "Produces row count = table1_rows * table2_rows, exponential cost"
+    fix_guidance = "Add explicit JOIN condition or use INNER JOIN"
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        issues = []
+        for join in ast.find_all(exp.Join):
+            kind = join.args.get("kind")
+            if kind and str(kind).upper() == "CROSS":
+                issues.append(
+                    self.create_issue(
+                        query=query,
+                        message="CROSS JOIN detected. This produces a Cartesian product.",
+                        snippet=str(join),
+                    )
+                )
+                break  # Report once per query
+        return issues
+
+
+class TooManyJoinsRule(ASTRule):
+    """Detects queries with 5 or more JOINs."""
+
+    id = "PERF-JOIN-002"
+    name = "Excessive Joins"
+    description = "Detects queries with 5 or more JOIN clauses."
+    severity = Severity.MEDIUM
+    dimension = Dimension.PERFORMANCE
+    category = Category.PERF_JOIN
+
+    impact = "High join count increases query plan complexity and memory usage"
+    fix_guidance = "Consider breaking into CTEs or denormalizing hot query paths"
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        joins = list(ast.find_all(exp.Join))
+        if len(joins) >= 5:
+            return [
+                self.create_issue(
+                    query=query,
+                    message=f"Query has {len(joins)} JOINs. Consider simplifying.",
+                    snippet=query.raw[:80],
+                )
+            ]
+        return []
+
+
+class UnfilteredAggregationRule(ASTRule):
+    """Detects aggregation without a WHERE clause."""
+
+    id = "PERF-AGG-001"
+    name = "Unfiltered Aggregation"
+    description = "Detects COUNT(*), SUM(), AVG() without a WHERE clause on SELECT."
+    severity = Severity.MEDIUM
+    dimension = Dimension.PERFORMANCE
+    category = Category.PERF_AGGREGATION
+
+    impact = "Aggregates entire table, expensive on large datasets"
+    fix_guidance = "Add WHERE clause to filter rows before aggregation"
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        if not query.is_select:
+            return []
+
+        has_agg = bool(
+            list(ast.find_all(exp.Count))
+            or list(ast.find_all(exp.Sum))
+            or list(ast.find_all(exp.Avg))
+        )
+
+        if has_agg and not ast.find(exp.Where):
+            return [
+                self.create_issue(
+                    query=query,
+                    message="Aggregation without WHERE clause scans entire table.",
+                    snippet=query.raw[:80],
+                )
+            ]
+        return []
+
+
+class OrderByInSubqueryRule(PatternRule):
+    """Detects ORDER BY inside a subquery or CTE."""
+
+    id = "PERF-AGG-002"
+    name = "ORDER BY in Subquery"
+    description = "Detects ORDER BY inside a subquery or CTE where it is typically meaningless."
+    severity = Severity.LOW
+    dimension = Dimension.PERFORMANCE
+    category = Category.PERF_AGGREGATION
+
+    pattern = r"(?i)\(\s*SELECT\b[^)]+\bORDER\s+BY\b"
+    message_template = "ORDER BY in subquery is typically meaningless: {match}"
+
+    impact = "ORDER BY in subquery is meaningless and wastes sort cost"
+    fix_guidance = "Remove ORDER BY from subquery unless paired with LIMIT/TOP"
+
+
+class UnboundedSelectRule(ASTRule):
+    """Detects SELECT without LIMIT on non-aggregated queries."""
+
+    id = "PERF-SCAN-003"
+    name = "Unbounded SELECT"
+    description = "Detects SELECT statements with no LIMIT clause on non-aggregated queries."
+    severity = Severity.LOW
+    dimension = Dimension.PERFORMANCE
+    category = Category.PERF_SCAN
+
+    impact = "May return millions of rows, overwhelming application memory"
+    fix_guidance = "Add LIMIT clause for paginated or exploratory queries"
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        if not query.is_select:
+            return []
+
+        has_group_by = ast.find(exp.Group) is not None
+        has_limit = ast.find(exp.Limit) is not None
+        has_agg = bool(
+            list(ast.find_all(exp.Count))
+            or list(ast.find_all(exp.Sum))
+            or list(ast.find_all(exp.Avg))
+        )
+
+        if not has_group_by and not has_limit and not has_agg:
+            return [
+                self.create_issue(
+                    query=query,
+                    message="SELECT without LIMIT on non-aggregated query.",
+                    snippet=query.raw[:80],
+                )
+            ]
+        return []
+
+
+class NotInSubqueryRule(ASTRule):
+    """Detects NOT IN (...subquery...) pattern."""
+
+    id = "PERF-SCAN-004"
+    name = "NOT IN Subquery"
+    description = "Detects NOT IN with subquery which can fail silently with NULLs."
+    severity = Severity.MEDIUM
+    dimension = Dimension.PERFORMANCE
+    category = Category.PERF_SCAN
+
+    impact = "NOT IN with subquery fails silently with NULLs and disables index usage"
+    fix_guidance = "Rewrite as NOT EXISTS or LEFT JOIN ... WHERE col IS NULL"
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        issues = []
+        for not_node in ast.find_all(exp.Not):
+            in_node = not_node.find(exp.In)
+            if in_node is not None:
+                # Check if the IN contains a subquery
+                if in_node.find(exp.Select):
+                    issues.append(
+                        self.create_issue(
+                            query=query,
+                            message="NOT IN with subquery detected. Vulnerable to NULL semantics.",
+                            snippet=str(not_node),
+                        )
+                    )
+                    break  # Report once per query
+        return issues
+
+
+
 # =============================================================================
 # 🛡️ RELIABILITY RULES
 # =============================================================================
@@ -346,6 +587,356 @@ class ImplicitJoinRule(ASTRule):
                 )
             ]
         return []
+
+
+# =============================================================================
+# 🔒 SECURITY RULES (Extended)
+# =============================================================================
+
+
+class DynamicSQLExecutionRule(PatternRule):
+    """Detects dynamic SQL construction and execution."""
+
+    id = "SEC-INJ-002"
+    name = "Dynamic SQL Execution"
+    description = (
+        "Detects dynamic SQL construction and execution via EXEC(), EXECUTE(), "
+        "EXECUTE IMMEDIATE, sp_executesql, and PREPARE FROM variable/concatenation. "
+        "Dynamic SQL built from string concatenation or variables is the primary "
+        "mechanism for SQL injection in stored procedures."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.SECURITY
+    category = Category.SEC_INJECTION
+
+    pattern = (
+        r"EXEC\s*\("
+        r"|EXECUTE\s*\("
+        r"|EXECUTE\s+IMMEDIATE\b"
+        r"|\bsp_executesql\b"
+        r"|\bPREPARE\s+\w+\s+FROM\s+@"
+        r"|\bPREPARE\s+\w+\s+FROM\s+CONCAT\s*\("
+    )
+    message_template = "Dynamic SQL execution detected: {match}"
+
+    impact = (
+        "Attackers can inject arbitrary SQL through unsanitized inputs passed into "
+        "dynamically constructed queries, leading to data theft, privilege escalation, "
+        "or complete database compromise."
+    )
+    fix_guidance = (
+        "Use parameterized queries or stored procedures with typed parameters. "
+        "Replace string concatenation with sp_executesql parameter binding. "
+        "For MySQL, use PREPARE with placeholder syntax (?) instead of variable interpolation."
+    )
+
+
+class TautologicalOrConditionRule(PatternRule):
+    """Detects always-true OR conditions."""
+
+    id = "SEC-INJ-003"
+    name = "Tautological OR Condition"
+    description = (
+        "Detects always-true OR conditions such as OR 1=1, OR 'a'='a', and OR TRUE. "
+        "These are classic SQL injection payload indicators and should be investigated "
+        "when found in application queries."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.SECURITY
+    category = Category.SEC_INJECTION
+
+    pattern = (
+        r"\bOR\s+1\s*=\s*1\b"
+        r"|\bOR\s+'[^']*'\s*=\s*'[^']*'"
+        r"|\bOR\s+\"[^\"]*\"\s*=\s*\"[^\"]*\""
+        r"|\bOR\s+TRUE\b"
+    )
+    message_template = "Tautological OR condition detected: {match}"
+
+    impact = (
+        "Tautological OR conditions bypass authentication and authorization checks, "
+        "allowing attackers to retrieve all rows, bypass login forms, or escalate privileges."
+    )
+    fix_guidance = (
+        "Use parameterized queries to prevent injection. If the tautological condition "
+        "is intentional (e.g., for testing), remove it before deploying to production. "
+        "Investigate the source of the query for injection vulnerabilities."
+    )
+
+
+class TimeBasedBlindInjectionRule(PatternRule):
+    """Detects time delay functions used in blind SQL injection."""
+
+    id = "SEC-INJ-004"
+    name = "Time-Based Blind Injection Indicator"
+    description = (
+        "Detects time delay functions commonly used in blind SQL injection attacks: "
+        "WAITFOR DELAY, SLEEP(), pg_sleep(), and BENCHMARK(). These functions have "
+        "almost zero legitimate use in application SQL queries and are strong indicators "
+        "of injection attempts or testing."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.SECURITY
+    category = Category.SEC_INJECTION
+
+    pattern = (
+        r"\bWAITFOR\s+DELAY\b"
+        r"|\bSLEEP\s*\("
+        r"|\bpg_sleep\s*\("
+        r"|\bBENCHMARK\s*\("
+    )
+    message_template = "Time-based blind injection indicator detected: {match}"
+
+    impact = (
+        "Blind SQL injection allows attackers to extract data one bit at a time by "
+        "measuring response delays. Even without visible output, attackers can fully "
+        "compromise a database through time-based techniques."
+    )
+    fix_guidance = (
+        "Remove time delay functions from application queries. Use parameterized "
+        "queries to prevent injection. If used for testing or scheduling, move the "
+        "logic to application code outside of SQL."
+    )
+
+
+class GrantToPublicRule(PatternRule):
+    """Detects GRANT statements to the PUBLIC role."""
+
+    id = "SEC-AUTH-002"
+    name = "Grant to PUBLIC Role"
+    description = (
+        "Detects GRANT statements that assign permissions to the PUBLIC role. PUBLIC "
+        "includes every user in the database, making this a violation of the "
+        "least-privilege principle."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.SECURITY
+    category = Category.SEC_AUTHENTICATION
+
+    pattern = r"\bGRANT\b.+\bTO\s+PUBLIC\b"
+    message_template = "Grant to PUBLIC role detected: {match}"
+
+    impact = (
+        "Granting permissions to PUBLIC gives every current and future database user "
+        "access to the specified objects, creating an uncontrollable access surface "
+        "and potential data exposure."
+    )
+    fix_guidance = (
+        "Grant permissions to specific roles or users instead of PUBLIC. Create "
+        "application-specific roles with minimal required permissions and assign "
+        "users to those roles."
+    )
+
+
+class UserCreationWithoutPasswordRule(PatternRule):
+    """Detects CREATE USER/LOGIN without a password clause."""
+
+    id = "SEC-AUTH-003"
+    name = "User Creation Without Password"
+    description = (
+        "Detects CREATE USER and CREATE LOGIN statements that do not include a "
+        "password clause (IDENTIFIED BY, WITH PASSWORD, PASSWORD =). Creating "
+        "database users without passwords creates unauthenticated access points."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.SECURITY
+    category = Category.SEC_AUTHENTICATION
+
+    pattern = r"\bCREATE\s+(USER|LOGIN)\b(?![\s\S]*(IDENTIFIED\s+BY|WITH\s+PASSWORD|PASSWORD\s*=))"
+    message_template = "User/login created without password: {match}"
+
+    impact = (
+        "Passwordless database accounts can be accessed by anyone who knows the "
+        "username, enabling unauthorized data access, modification, or administrative "
+        "actions."
+    )
+    fix_guidance = (
+        "Always specify a strong password when creating users or logins. Use "
+        "IDENTIFIED BY (Oracle/MySQL), WITH PASSWORD (SQL Server), or PASSWORD "
+        "(PostgreSQL). Enforce password complexity policies."
+    )
+
+
+class PasswordPolicyBypassRule(PatternRule):
+    """Detects disabling of password policy enforcement."""
+
+    id = "SEC-AUTH-004"
+    name = "Password Policy Bypass"
+    description = (
+        "Detects disabling of password policy enforcement (CHECK_POLICY = OFF) or "
+        "password expiration checks (CHECK_EXPIRATION = OFF) in SQL Server login "
+        "management. Disabling these allows weak and non-expiring passwords."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.SECURITY
+    category = Category.SEC_AUTHENTICATION
+
+    pattern = (
+        r"\bCHECK_POLICY\s*=\s*OFF\b"
+        r"|\bCHECK_EXPIRATION\s*=\s*OFF\b"
+    )
+    message_template = "Password policy bypass detected: {match}"
+
+    impact = (
+        "Weak passwords without policy enforcement are vulnerable to brute force and "
+        "credential stuffing attacks. Non-expiring passwords increase the window for "
+        "compromised credentials to be exploited."
+    )
+    fix_guidance = (
+        "Always keep CHECK_POLICY = ON and CHECK_EXPIRATION = ON. Use strong password "
+        "complexity requirements. Implement password rotation policies through "
+        "database-level enforcement."
+    )
+
+
+class DataExfiltrationViaFileRule(PatternRule):
+    """Detects SQL file operations that can export or read data."""
+
+    id = "SEC-DATA-001"
+    name = "Data Exfiltration via File Operations"
+    description = (
+        "Detects SQL file operations that can export data to the filesystem or read "
+        "arbitrary files: INTO OUTFILE, INTO DUMPFILE, LOAD_FILE(), LOAD DATA INFILE, "
+        "BULK INSERT, and COPY FROM/TO PROGRAM. These are primary vectors for data "
+        "exfiltration and arbitrary file read."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.SECURITY
+    category = Category.SEC_DATA_EXPOSURE
+
+    pattern = (
+        r"\bINTO\s+OUTFILE\b"
+        r"|\bINTO\s+DUMPFILE\b"
+        r"|\bLOAD_FILE\s*\("
+        r"|\bLOAD\s+DATA\s+INFILE\b"
+        r"|\bBULK\s+INSERT\b"
+        r"|\bCOPY\b.+\bFROM\s+PROGRAM\b"
+        r"|\bCOPY\b.+\bTO\s+PROGRAM\b"
+    )
+    message_template = "Data exfiltration via file operation detected: {match}"
+
+    impact = (
+        "Attackers can export entire tables to attacker-readable locations, read "
+        "sensitive OS files (e.g., /etc/passwd, configuration files), or execute "
+        "arbitrary OS commands via COPY PROGRAM."
+    )
+    fix_guidance = (
+        "Restrict FILE privilege in MySQL. Disable LOAD DATA INFILE via "
+        "local_infile=0. Revoke COPY permissions in PostgreSQL. Use application-level "
+        "export mechanisms with proper access controls instead of SQL-level file operations."
+    )
+
+
+class RemoteDataAccessRule(PatternRule):
+    """Detects remote/linked data access functions."""
+
+    id = "SEC-DATA-002"
+    name = "Remote/Linked Data Access"
+    description = (
+        "Detects remote data access functions that can connect to external servers: "
+        "OPENROWSET, OPENDATASOURCE, OPENQUERY (SQL Server), and dblink functions "
+        "(PostgreSQL). These can be exploited for data exfiltration and lateral "
+        "movement to other database servers."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.SECURITY
+    category = Category.SEC_DATA_EXPOSURE
+
+    pattern = (
+        r"\bOPENROWSET\s*\("
+        r"|\bOPENDATASOURCE\s*\("
+        r"|\bOPENQUERY\s*\("
+        r"|\bdblink_connect\s*\("
+        r"|\bdblink_exec\s*\("
+        r"|\bdblink\s*\("
+    )
+    message_template = "Remote data access detected: {match}"
+
+    impact = (
+        "Attackers can use remote access functions to exfiltrate data to external "
+        "servers, pivot to other databases in the network, or connect to "
+        "attacker-controlled servers to stage further attacks."
+    )
+    fix_guidance = (
+        "Disable Ad Hoc Distributed Queries in SQL Server. Remove linked server "
+        "connections that are not required. Restrict dblink extension usage in "
+        "PostgreSQL. Use application-level integration instead of database-to-database "
+        "direct connections."
+    )
+
+
+class DangerousServerConfigRule(PatternRule):
+    """Detects sp_configure enabling dangerous SQL Server features."""
+
+    id = "SEC-CFG-001"
+    name = "Dangerous Server Configuration"
+    description = (
+        "Detects sp_configure commands that enable dangerous SQL Server features: "
+        "xp_cmdshell (OS command execution), Ole Automation Procedures (COM object "
+        "access), CLR integration (arbitrary .NET code execution), and Ad Hoc "
+        "Distributed Queries (remote data access)."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.SECURITY
+    category = Category.SEC_ACCESS
+
+    pattern = (
+        r"\bsp_configure\b.+\bxp_cmdshell\b"
+        r"|\bsp_configure\b.+\bOle\s+Automation\b"
+        r"|\bsp_configure\b.+\bclr\s+enabled\b"
+        r"|\bsp_configure\b.+\bAd\s+Hoc\s+Distributed\s+Queries\b"
+    )
+    message_template = "Dangerous server configuration detected: {match}"
+
+    impact = (
+        "Enabling xp_cmdshell gives SQL users full operating system command execution. "
+        "Ole Automation and CLR allow arbitrary code execution within the database "
+        "process. These are the most common post-exploitation steps in SQL Server attacks."
+    )
+    fix_guidance = (
+        "Keep dangerous features disabled. Use sp_configure to verify settings. If "
+        "xp_cmdshell or CLR is required, restrict access to specific logins and audit "
+        "all usage. Never enable these features in production without a documented "
+        "security review."
+    )
+
+
+class OverprivilegedExecutionContextRule(PatternRule):
+    """Detects stored procedures with elevated execution contexts."""
+
+    id = "SEC-PRIV-001"
+    name = "Overprivileged Execution Context"
+    description = (
+        "Detects stored procedures, functions, or grants that use elevated execution "
+        "contexts: EXECUTE AS dbo/sa/sysadmin, EXECUTE AS OWNER/SELF, SECURITY "
+        "DEFINER (MySQL/PostgreSQL), WITH ADMIN OPTION, and WITH GRANT OPTION. "
+        "These create privilege escalation paths."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.SECURITY
+    category = Category.SEC_AUTHENTICATION
+
+    pattern = (
+        r"\bEXECUTE\s+AS\s+(USER\s*=\s*)?'(dbo|sa|sysadmin)'"
+        r"|\bEXECUTE\s+AS\s+LOGIN\s*=\s*'(sa|sysadmin)'"
+        r"|\bEXECUTE\s+AS\s+(OWNER|SELF)\b"
+        r"|\bSECURITY\s+DEFINER\b"
+        r"|\bWITH\s+ADMIN\s+OPTION\b"
+        r"|\bWITH\s+GRANT\s+OPTION\b"
+    )
+    message_template = "Overprivileged execution context detected: {match}"
+
+    impact = (
+        "Stored procedures running as high-privilege accounts can be exploited for "
+        "privilege escalation. WITH ADMIN/GRANT OPTION creates uncontrolled permission "
+        "propagation where any granted user can re-grant to others."
+    )
+    fix_guidance = (
+        "Use EXECUTE AS CALLER or SECURITY INVOKER instead of DEFINER/OWNER. Avoid "
+        "WITH ADMIN OPTION and WITH GRANT OPTION unless absolutely necessary. Run "
+        "stored procedures with the minimum privileges required. Audit all objects "
+        "running as dbo or sa."
+    )
 
 
 # =============================================================================

