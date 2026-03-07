@@ -209,6 +209,13 @@ class Category(str, Enum):
     REL_TRANSACTION = "transaction"
     REL_ERROR_HANDLING = "error-handling"
     REL_RECOVERY = "recovery"
+    REL_IDEMPOTENCY = "idempotency"
+    REL_RACE_CONDITION = "race_condition"
+    REL_FOREIGN_KEY = "foreign_key"
+    REL_DEADLOCK = "deadlock"
+    REL_TIMEOUT = "timeout"
+    REL_CONSISTENCY = "consistency"
+    REL_RETRY = "retry"
 
     # Compliance categories
     COMP_GDPR = "gdpr"
@@ -216,6 +223,8 @@ class Category(str, Enum):
     COMP_PCI = "pci-dss"
     COMP_SOX = "sox"
     COMP_SOC2 = "soc2"
+    COMP_CCPA = "ccpa"
+
 
     # Cost categories
     COST_CLOUD = "cloud"
@@ -223,6 +232,15 @@ class Category(str, Enum):
     COST_COMPUTE = "compute"
     COST_IO = "io"
     COST_NETWORK = "network"
+    COST_PAGINATION = "pagination"
+    COST_INDEX_WASTE = "index_waste"
+    COST_INDEX_OPTIMIZATION = "index_optimization"
+    COST_CROSS_DATABASE = "cross_database"
+    COST_CROSS_REGION = "cross_region"
+    COST_DISTRIBUTED = "distributed"
+    COST_SERVERLESS = "serverless"
+    COST_ARCHIVAL = "archival"
+    COST_PARTITIONING = "partitioning"
 
     # Quality categories
     QUAL_READABILITY = "readability"

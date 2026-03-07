@@ -411,6 +411,16 @@ class ASTRule(Rule):
             functions.append(func.name if hasattr(func, "name") else func.__class__.__name__)
         return functions
 
+    def _get_where_columns(self, ast: Any) -> list[str]:
+        """Get column names used in WHERE clause."""
+        where = ast.find(exp.Where)
+        if not where:
+            return []
+        columns = []
+        for col in where.find_all(exp.Column):
+            columns.append(col.name)
+        return columns
+
 
 # Factory function for creating simple rules
 def create_rule(

@@ -15,6 +15,7 @@ respective Analyzers.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from sqlglot import exp
@@ -709,7 +710,6 @@ class LongTransactionWithoutSavepointRule(PatternRule):
 
     pattern = r"\bSAVEPOINT\b"
     message_template = "Long transaction detected — consider using SAVEPOINTs for partial recovery: {match}"
-
     impact = (
         "A failure in step 10 of a 10-step transaction forces rollback of all "
         "previous steps. Savepoints allow partial recovery and reduce re-work cost."
@@ -717,7 +717,533 @@ class LongTransactionWithoutSavepointRule(PatternRule):
     fix_guidance = (
         "Use SAVEPOINT after logically complete sub-operations within long "
         "transactions. Use ROLLBACK TO SAVEPOINT to recover from partial failures "
-        "without abandoning the entire transaction."
+        "without rolling back the entire transaction."
+    )
+
+
+class NonIdempotentInsertRule(ASTRule):
+    """Detects INSERT statements without idempotency guards."""
+
+    id = "REL-IDEM-001"
+    name = "Non-Idempotent INSERT Pattern"
+    description = (
+        "Detects INSERT statements without ON CONFLICT/ON DUPLICATE KEY or unique "
+        "constraint checks, which will fail or create duplicates on retry."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.RELIABILITY
+    category = Category.REL_IDEMPOTENCY
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        issues = []
+
+        for node in ast.walk():
+            if isinstance(node, exp.Insert):
+                query_upper = query.raw.upper()
+
+                # Check for idempotency patterns
+                has_on_conflict = "ON CONFLICT" in query_upper
+                has_on_duplicate = "ON DUPLICATE KEY" in query_upper
+                has_ignore = "INSERT IGNORE" in query_upper
+                has_merge = "MERGE" in query_upper
+                has_not_exists = "NOT EXISTS" in query_upper
+                has_where_not_exists = "WHERE NOT EXISTS" in query_upper
+
+                is_idempotent = any(
+                    [
+                        has_on_conflict,
+                        has_on_duplicate,
+                        has_ignore,
+                        has_merge,
+                        has_not_exists,
+                        has_where_not_exists,
+                    ]
+                )
+
+                if not is_idempotent:
+                    issues.append(
+                        self.create_issue(
+                            query=query,
+                            message="INSERT without idempotency guard — will fail or create duplicates on retry.",
+                            snippet=str(node)[:100],
+                        )
+                    )
+
+        return issues
+
+    impact = (
+        "Non-idempotent INSERTs cause duplicate data on network retries, application "
+        "restarts, or message queue redelivery. This corrupts data and breaks business "
+        "logic."
+    )
+    fix_guidance = (
+        "Use idempotent patterns: INSERT ... ON CONFLICT DO NOTHING, INSERT IGNORE, "
+        "INSERT ... ON DUPLICATE KEY UPDATE, or MERGE. Include unique identifiers (UUID) "
+        "from the client."
+    )
+
+
+class NonIdempotentUpdateRule(ASTRule):
+    """Detects UPDATE statements using non-idempotent relative operations."""
+
+    id = "REL-IDEM-002"
+    name = "Non-Idempotent UPDATE Pattern"
+    description = (
+        "Detects UPDATE statements using relative operations (+=, -=, counter++) "
+        "without version checks, which produce different results on retry."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.RELIABILITY
+    category = Category.REL_IDEMPOTENCY
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        issues = []
+
+        for node in ast.walk():
+            if isinstance(node, exp.Update):
+                # Check for relative updates (counter = counter + 1, etc.)
+                for expr in node.expressions:
+                    if isinstance(expr, exp.EQ):
+                        right = expr.expression
+
+                        # Check if right side contains same column (relative update)
+                        if isinstance(right, (exp.Add, exp.Sub)):
+                            left_col = expr.this
+
+                            # Check if operation references the same column
+                            if isinstance(left_col, exp.Column):
+                                for ref in right.find_all(exp.Column):
+                                    if ref.name.lower() == left_col.name.lower():
+                                        # Check for version/optimistic lock
+                                        query_upper = query.raw.upper()
+                                        has_version_check = any(
+                                            v in query_upper
+                                            for v in [
+                                                "VERSION",
+                                                "UPDATED_AT",
+                                                "MODIFIED_AT",
+                                                "ETAG",
+                                                "ROW_VERSION",
+                                                "LOCK_VERSION",
+                                            ]
+                                        )
+
+                                        if not has_version_check:
+                                            issues.append(
+                                                self.create_issue(
+                                                    query=query,
+                                                    message=f"Relative UPDATE ({left_col.name} = {left_col.name} +/- x) without version check — not idempotent.",
+                                                    snippet=str(node)[:100],
+                                                )
+                                            )
+                                        break
+        return issues
+
+    impact = (
+        "Relative updates like SET count = count + 1 execute multiple times on retry, "
+        "causing incorrect totals. Financial calculations become inaccurate, "
+        "inventory goes negative."
+    )
+    fix_guidance = (
+        "Use optimistic locking: UPDATE ... SET count = count + 1, version = version + 1 "
+        "WHERE id = ? AND version = ?. Or use idempotency keys to track processed "
+        "operations."
+    )
+
+
+class ReadModifyWriteLockingRule(ASTRule):
+    """Detects read-modify-write patterns without locking."""
+
+    id = "REL-RACE-001"
+    name = "Read-Modify-Write Without Lock"
+    description = (
+        "Detects patterns suggesting read-modify-write cycles (SELECT followed by "
+        "UPDATE on same table) without FOR UPDATE lock or transaction isolation."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.RELIABILITY
+    category = Category.REL_RACE_CONDITION
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        issues = []
+        query_upper = query.raw.upper()
+
+        # Pattern: SELECT without FOR UPDATE, then UPDATE same table
+        # Note: This heuristic checks if both SELECT and UPDATE exist in the same batch
+        has_select = "SELECT" in query_upper
+        has_update = "UPDATE" in query_upper
+        has_for_update = "FOR UPDATE" in query_upper
+        has_serializable = "SERIALIZABLE" in query_upper
+
+        if has_select and has_update and not (has_for_update or has_serializable):
+            issues.append(
+                self.create_issue(
+                    query=query,
+                    message="Read-modify-write pattern without FOR UPDATE or SERIALIZABLE isolation — race condition risk.",
+                    snippet=query.raw[:100],
+                )
+            )
+
+        return issues
+
+    impact = (
+        "Read-modify-write without locks causes lost updates. Two concurrent "
+        "transactions read the same value, both modify, both write — one update is lost. "
+        "Classic race condition."
+    )
+    fix_guidance = (
+        "Use SELECT ... FOR UPDATE to lock rows during read-modify-write. Or use "
+        "SERIALIZABLE isolation. Better: use atomic UPDATE with single statement."
+    )
+
+
+class TOCTOUPatternRule(PatternRule):
+    """Detects Time-of-Check-Time-of-Use patterns."""
+
+    id = "REL-RACE-002"
+    name = "TOCTOU Pattern"
+    description = (
+        "Detects IF EXISTS / IF NOT EXISTS checks followed by INSERT/UPDATE/DELETE "
+        "without proper locking, creating time-of-check-time-of-use vulnerabilities."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.RELIABILITY
+    category = Category.REL_RACE_CONDITION
+
+    pattern = r"(?i)\bIF\s+(NOT\s+)?EXISTS\s*\(\s*SELECT[^)]+\)[^;]*\b(INSERT|UPDATE|DELETE)\b"
+    message_template = "Potential TOCTOU race condition detected: IF EXISTS check followed by modification."
+
+    impact = (
+        "TOCTOU vulnerabilities allow race conditions: checking if row exists, then acting, "
+        "leaves a gap where another transaction can change state. Common in user "
+        "registration, inventory management."
+    )
+    fix_guidance = (
+        "Use atomic operations: INSERT ... ON CONFLICT, MERGE, or INSERT ... WHERE NOT "
+        "EXISTS as single statement. If IF is required, wrap in SERIALIZABLE "
+        "transaction or use advisory locks."
+    )
+
+
+class OrphanRecordRiskRule(ASTRule):
+    """Detects INSERT statements with potential orphan record risk."""
+
+    id = "REL-FK-001"
+    name = "Orphan Record Risk"
+    description = (
+        "Detects INSERT statements referencing likely foreign key columns without "
+        "verifying parent record existence."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.RELIABILITY
+    category = Category.REL_FOREIGN_KEY
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        issues = []
+
+        # Common foreign key column patterns
+        fk_patterns = {
+            "user_id",
+            "customer_id",
+            "order_id",
+            "product_id",
+            "account_id",
+            "parent_id",
+            "category_id",
+            "department_id",
+            "company_id",
+            "tenant_id",
+            "created_by",
+            "updated_by",
+            "owner_id",
+            "assigned_to",
+            "manager_id",
+        }
+
+        for node in ast.walk():
+            if isinstance(node, exp.Insert):
+                # Get column list from INSERT
+                columns = self._get_insert_columns(node)
+
+                # Check if any FK-like columns are present
+                fk_columns = set(c.lower() for c in columns) & fk_patterns
+
+                if fk_columns:
+                    # Check if query has subquery or JOIN verifying FK
+                    query_upper = query.raw.upper()
+                    has_fk_check = any(
+                        term in query_upper
+                        for term in ["FOREIGN KEY", "REFERENCES", "EXISTS", "JOIN"]
+                    )
+
+                    if not has_fk_check:
+                        issues.append(
+                            self.create_issue(
+                                query=query,
+                                message=f"INSERT with foreign key columns {fk_columns} without existence verification — orphan record risk.",
+                                snippet=str(node)[:100],
+                            )
+                        )
+
+        return issues
+
+    def _get_insert_columns(self, node) -> list[str]:
+        columns = []
+        if node.this and hasattr(node.this, "expressions"):
+            for col in node.this.expressions:
+                if hasattr(col, "name"):
+                    columns.append(col.name)
+        return columns
+
+    impact = (
+        "INSERTs without FK verification create orphan records when parent doesn't "
+        "exist. If FK constraints are disabled or missing, data integrity is "
+        "silently corrupted."
+    )
+    fix_guidance = (
+        "Ensure FK constraints exist in schema. Or verify parent: INSERT INTO orders "
+        "(user_id) SELECT ? WHERE EXISTS (SELECT 1 FROM users WHERE id = ?). Use "
+        "deferred FK checks if needed."
+    )
+
+
+class CascadeDeleteRiskRule(PatternRule):
+    """Detects potential cascade delete risks on parent tables."""
+
+    id = "REL-FK-002"
+    name = "Cascade Delete Risk"
+    description = (
+        "Detects DELETE on parent tables that likely have cascading child records, "
+        "risking unintended mass deletion."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.RELIABILITY
+    category = Category.REL_FOREIGN_KEY
+
+    pattern = (
+        r"(?i)\bDELETE\s+FROM\s+(users|customers|accounts|orders|products|categories|"
+        r"departments|companies|tenants|organizations)\b(?!.*\bCASCADE\s*=\s*FALSE\b)"
+    )
+    message_template = "Potential mass delete on parent table: {match}"
+
+    impact = (
+        "DELETE on parent table with ON DELETE CASCADE can wipe millions of child "
+        "records in one statement. Often unintended and irreversible without backups."
+    )
+    fix_guidance = (
+        "Check child records before DELETE: SELECT COUNT(*) FROM child_table WHERE "
+        "parent_id = ?. Use soft delete (is_deleted flag). Disable CASCADE for "
+        "critical tables. Require explicit confirmation."
+    )
+
+
+class DeadlockPatternRule(PatternRule):
+    """Detects transactions that update multiple tables in potentially inconsistent order."""
+
+    id = "REL-DEAD-001"
+    name = "Deadlock Pattern"
+    description = (
+        "Detects transactions that update multiple tables, which can cause deadlocks if "
+        "other transactions update the same tables in different order."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.RELIABILITY
+    category = Category.REL_DEADLOCK
+
+    pattern = r"(?i)\bBEGIN\b[\s\S]*?\bUPDATE\s+(\w+)\b[\s\S]*?\bUPDATE\s+(?!\1)(\w+)\b[\s\S]*?\bCOMMIT\b"
+    message_template = "Potential deadlock pattern: Multiple table updates within a transaction."
+
+    impact = (
+        "Deadlocks occur when Transaction A locks Table1 then waits for Table2, while "
+        "Transaction B locks Table2 then waits for Table1. Both freeze, one must abort."
+    )
+    fix_guidance = (
+        "Always lock tables in consistent alphabetical order across all transactions. "
+        "Use SELECT ... FOR UPDATE in consistent order. Consider using NOWAIT and "
+        "retry logic."
+    )
+
+
+class LockEscalationRiskRule(ASTRule):
+    """Detects UPDATE/DELETE statements with lock escalation risk."""
+
+    id = "REL-DEAD-002"
+    name = "Lock Escalation Risk"
+    description = (
+        "Detects UPDATE/DELETE without WHERE clause or with unbounded conditions "
+        "that may lock excessive rows, causing lock escalation and blocking."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.RELIABILITY
+    category = Category.REL_DEADLOCK
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        issues = []
+
+        for node in ast.walk():
+            if isinstance(node, (exp.Update, exp.Delete)):
+                where = node.args.get("where")
+
+                # No WHERE clause
+                if not where:
+                    stmt_type = "UPDATE" if isinstance(node, exp.Update) else "DELETE"
+                    issues.append(
+                        self.create_issue(
+                            query=query,
+                            message=f"{stmt_type} without WHERE clause — will lock entire table (lock escalation).",
+                            snippet=str(node)[:100],
+                        )
+                    )
+                else:
+                    # Check for non-selective WHERE (e.g., status = 'active' might match millions)
+                    query_upper = query.raw.upper()
+
+                    # Heuristic: no indexed column patterns (id, _id suffix)
+                    has_likely_pk = any(
+                        term in query_upper
+                        for term in [
+                            "WHERE ID",
+                            "WHERE USER_ID",
+                            "WHERE ORDER_ID",
+                            "_ID =",
+                            "_ID IN",
+                            "PRIMARY",
+                        ]
+                    )
+
+                    has_limit = "TOP" in query_upper or "LIMIT" in query_upper
+
+                    if not has_likely_pk and not has_limit:
+                        stmt_type = (
+                            "UPDATE" if isinstance(node, exp.Update) else "DELETE"
+                        )
+                        issues.append(
+                            self.create_issue(
+                                query=query,
+                                message=f"{stmt_type} with non-selective WHERE may lock many rows — consider batching.",
+                                snippet=str(node)[:100],
+                            )
+                        )
+        return issues
+
+    impact = (
+        "SQL Server escalates row locks to table locks after ~5000 locks. Wide "
+        "UPDATE/DELETE statements lock the entire table, blocking all other operations."
+    )
+    fix_guidance = (
+        "Add selective WHERE with indexed columns. Use TOP/LIMIT for batching. "
+        "Consider ROWLOCK hint if table lock is not acceptable. Process in smaller "
+        "batches."
+    )
+
+
+class LongRunningQueryRiskRule(ASTRule):
+    """Detects potentially long-running queries without bounds."""
+
+    id = "REL-TIMEOUT-001"
+    name = "Long-Running Query Risk"
+    description = (
+        "Detects queries with multiple JOINs, subqueries, and no LIMIT that may run "
+        "indefinitely without timeout protection."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.RELIABILITY
+    category = Category.REL_TIMEOUT
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        issues = []
+
+        for node in ast.walk():
+            if isinstance(node, exp.Select):
+                # Count complexity factors
+                joins = node.args.get("joins") or []
+                join_count = len(joins)
+
+                # Count subqueries
+                subquery_count = len(list(node.find_all(exp.Subquery)))
+
+                # Check for LIMIT/TOP
+                has_limit = node.args.get("limit") is not None
+                query_upper = query.raw.upper()
+                has_top = "TOP" in query_upper
+                has_timeout = "TIMEOUT" in query_upper or "MAXTIME" in query_upper
+
+                complexity = join_count + subquery_count
+
+                if complexity >= 3 and not (has_limit or has_top or has_timeout):
+                    issues.append(
+                        self.create_issue(
+                            query=query,
+                            message=f"Complex query ({join_count} JOINs, {subquery_count} subqueries) without row limit or timeout.",
+                            snippet=str(node)[:100],
+                        )
+                    )
+        return issues
+
+    impact = (
+        "Complex queries without bounds can run for hours, consuming connections, "
+        "blocking resources, and exhausting timeout-less connection pools."
+    )
+    fix_guidance = (
+        "Add LIMIT/TOP to bound result size. Set query timeout at connection level. "
+        "Use query governor or Resource Governor. Monitor and kill long-running queries."
+    )
+
+
+class StaleReadRiskRule(PatternRule):
+    """Detects immediate reads after writes without transactions."""
+
+    id = "REL-STALE-001"
+    name = "Stale Read Risk"
+    description = (
+        "Detects UPDATE/INSERT followed by immediate SELECT without transaction, "
+        "which may return stale data in replicated/distributed environments."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.RELIABILITY
+    category = Category.REL_CONSISTENCY
+
+    pattern = r"(?i)^(?!.*?\bBEGIN\b).*?(INSERT|UPDATE)\s+[^;]+;\s*SELECT\s+[^;]+FROM\s+(\w+)"
+    message_template = "Potential stale read: SELECT immediately follows UPDATE/INSERT without transaction."
+
+    impact = (
+        "In replicated databases, writes go to primary, reads may hit replicas. SELECT "
+        "immediately after UPDATE may return old data if replication lag exists."
+    )
+    fix_guidance = (
+        "Wrap write-then-read in transaction. Use read-from-primary hints for critical "
+        "reads. Use RETURNING/OUTPUT clause to get written data atomically. Accept "
+        "eventual consistency where appropriate."
+    )
+
+
+class MissingRetryLogicRule(PatternRule):
+    """Detects transaction blocks without apparent retry logic."""
+
+    id = "REL-RETRY-001"
+    name = "Missing Retry Logic"
+    description = (
+        "Detects transaction blocks without error handling or retry patterns, which "
+        "will fail permanently on transient errors."
+    )
+    severity = Severity.INFO
+    dimension = Dimension.RELIABILITY
+    category = Category.REL_RETRY
+
+    pattern = (
+        r"(?i)\bBEGIN\s+(TRAN|TRANSACTION)\b(?![\s\S]*\b(TRY|CATCH|EXCEPTION|RETRY|"
+        r"ATTEMPT|LOOP|WHILE)\b)[\s\S]*?\b(COMMIT|ROLLBACK)\b"
+    )
+    message_template = "Transaction block without retry logic — will fail on transient errors."
+
+    impact = (
+        "Transactions fail on transient errors (deadlock, timeout, connection blip). "
+        "Without retry logic, operations fail permanently when they could succeed on retry."
+    )
+    fix_guidance = (
+        "Implement retry loop with exponential backoff for deadlocks (error 1205) and "
+        "timeouts. Use TRY...CATCH block. Limit retry attempts (3-5). Log failures "
+        "for monitoring."
     )
 
 
@@ -936,7 +1462,722 @@ class ConsentTableMissingRule(PatternRule):
     )
 
 
+class PHIAccessWithoutAuditRule(ASTRule):
+    """Detects SELECT queries on healthcare-related tables without corresponding audit logging pattern."""
+
+    id = "COMP-HIPAA-001"
+    name = "PHI Access Without Audit Trail"
+    description = (
+        "Detects SELECT queries on healthcare-related tables/columns without corresponding "
+        "audit logging pattern, violating HIPAA audit requirements (45 CFR § 164.312(b))."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.COMPLIANCE
+    category = Category.COMP_HIPAA
+
+    _phi_tables = {
+        "patients", "patient", "medical_records", "diagnoses", "prescriptions",
+        "treatments", "procedures", "lab_results", "radiology", "encounters",
+        "visits", "admissions", "insurance_claims", "billing_records",
+        "health_records", "clinical_data", "ehr", "emr"
+    }
+
+    _phi_columns = {
+        "ssn", "social_security", "mrn", "medical_record_number",
+        "diagnosis", "condition", "medication", "prescription",
+        "treatment", "procedure", "lab_result", "test_result",
+        "health_status", "patient_id", "member_id"
+    }
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        issues = []
+        is_phi_access = False
+
+        # Check tables
+        tables = self._get_tables(ast)
+        if any(t.lower() in self._phi_tables for t in tables):
+            is_phi_access = True
+
+        # Check columns
+        if not is_phi_access:
+            columns = self._get_columns(ast)
+            if any(c.lower() in self._phi_columns for c in columns):
+                is_phi_access = True
+
+        if is_phi_access:
+            # Simple heuristic: Check if query contains 'AUDIT' or 'LOG' keyword in join or CTE
+            # or if it's accompanied by another query in a batch.
+            # Here we check for presence of audit-related words in the raw SQL
+            if not re.search(r"\b(audit|access_log|phi_log|compliance_log)\b", query.raw, re.IGNORECASE):
+                issues.append(
+                    self.create_issue(
+                        query=query,
+                        message="PHI access detected without apparent audit logging reference.",
+                        snippet=query.raw[:100],
+                    )
+                )
+
+        return issues
+
+    impact = (
+        "Lack of audit trails for PHI access prevents detection of unauthorized access "
+        "and violates HIPAA Technical Safeguards, potentially leading to OCR "
+        "investigations and significant civil money penalties."
+    )
+    fix_guidance = (
+        "Ensure all queries accessing PHI are wrapped in a stored procedure or application "
+        "service that performs mandatory audit logging. Consider using database-level "
+        "Audit features (e.g., SQL Server Audit, Oracle Audit Vault)."
+    )
+
+
+class PHIMinimumNecessaryRule(ASTRule):
+    """Detects broad PHI access (SELECT *) which may violate HIPAA 'Minimum Necessary' standard."""
+
+    id = "COMP-HIPAA-002"
+    name = "PHI Minimum Necessary Violation"
+    description = (
+        "Detects SELECT * queries on PHI tables. HIPAA requires covered entities to make "
+        "reasonable efforts to limit PHI to the minimum necessary to accomplish the intended "
+        "purpose (45 CFR § 164.502(b))."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.COMPLIANCE
+    category = Category.COMP_HIPAA
+
+    _phi_tables = PHIAccessWithoutAuditRule._phi_tables
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        issues = []
+        
+        # Check for SELECT * on PHI tables
+        if query.query_type == "SELECT":
+            # Check if any star expression exists
+            stars = ast.find_all(exp.Star)
+            if any(stars):
+                tables = self._get_tables(ast)
+                if any(t.lower() in self._phi_tables for t in tables):
+                    issues.append(
+                        self.create_issue(
+                            query=query,
+                            message="SELECT * used on PHI table — violates 'Minimum Necessary' standard.",
+                            snippet="SELECT *",
+                        )
+                    )
+        return issues
+
+    impact = (
+        "Fetching all columns from healthcare tables often retrieves unnecessary "
+        "protected health information, increasing the risk and scope of a potential data breach."
+    )
+    fix_guidance = (
+        "Explicitly list only the columns required for the specific business function. "
+        "Avoid using SELECT * on tables containing PHI."
+    )
+
+
+class UnencryptedPHITransitRule(PatternRule):
+    """Detects PHI-related queries over insecure protocols signal."""
+
+    id = "COMP-HIPAA-003"
+    name = "Unencrypted PHI Transit Signal"
+    description = (
+        "Detects connection strings or configuration queries hinting at unencrypted PHI transit "
+        "(e.g., SSL/TLS disabled in connection properties for healthcare databases)."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.COMPLIANCE
+    category = Category.COMP_HIPAA
+
+    pattern = (
+        r"\b(encrypt=false|trustServerCertificate=true|sslmode=disable|ssl_mode=none)\b"
+        r".*?\b(patients|medical_records|phi|health|ehr)\b"
+    )
+    message_template = "Insecure connection parameters detected for PHI-related database: {match}"
+
+    impact = (
+        "Transmitting PHI over unencrypted connections violates the HIPAA Security Rule "
+        "regarding transmission security (45 CFR § 164.312(e)(1)) and exposes data to "
+        "man-in-the-middle attacks."
+    )
+    fix_guidance = (
+        "Enable SSL/TLS for all database connections. Update connection strings to use "
+        "encrypt=true, sslmode=verify-full, or equivalent secure parameters."
+    )
+
+
+class PANExposureRule(PatternRule):
+    """Detects Primary Account Number (PAN) exposure in queries."""
+
+    id = "COMP-PCI-001"
+    name = "PAN Exposure in SQL"
+    description = (
+        "Detects queries that select or store unmasked 16-digit credit card numbers (PAN). "
+        "PCI-DSS Requirement 3.3 requires masking PAN when displayed."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.COMPLIANCE
+    category = Category.COMP_PCI
+
+    # Regex for 13-19 digit card numbers usually starting with specific digits
+    pattern = r"\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|6(?:011|5[0-9][0-9])[0-9]{12})\b"
+    message_template = "Potential unmasked PAN (Credit Card Number) detected in query: {match}"
+
+    impact = (
+        "Unmasked PANs in logs, cache, or application output violate PCI-DSS and increase "
+        "the risk of financial fraud and massive non-compliance fines."
+    )
+    fix_guidance = (
+        "Mask PANs at the database level using Dynamic Data Masking or in the application "
+        "layer. Only store the last 4 digits if full PAN is not required. Use tokenization "
+        "services."
+    )
+
+
+class CVVStorageRule(PatternRule):
+    """Detects storage of sensitive authentication data (CVV/CVC)."""
+
+    id = "COMP-PCI-002"
+    name = "CVV Storage Violation"
+    description = (
+        "Detects INSERT or CREATE TABLE statements referencing CVV, CVC, or CID. "
+        "PCI-DSS Requirement 3.2 strictly prohibits storage of card security codes after "
+        "authorization, even if encrypted."
+    )
+    severity = Severity.CRITICAL
+    dimension = Dimension.COMPLIANCE
+    category = Category.COMP_PCI
+
+    pattern = r"\b(INSERT|CREATE)\b.*?\b(cvv|cvc|cid|security_code|card_verification)\b"
+    message_template = "Illegal storage of sensitive authentication data (CVV/CVC) detected: {match}"
+
+    impact = (
+        "Storing CVV/CVC is a major PCI-DSS violation. It makes the database a prime target "
+        "for attackers, as stolen CVVs enable 'CNP' (Card Not Present) fraud."
+    )
+    fix_guidance = (
+        "DELETE all columns and code that store CVV/CVC. These values must only be used "
+        "during the real-time authorization process and never persisted to disk."
+    )
+
+
+class CardholderDataRetentionRule(PatternRule):
+    """Detects missing retention policy signals for cardholder data."""
+
+    id = "COMP-PCI-003"
+    name = "Data Retention Violation"
+    description = (
+        "Detects queries on transaction/cardholder tables without date filters or "
+        "purge logic, potentially violating PCI-DSS Requirement 3.1."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.COMPLIANCE
+    category = Category.COMP_PCI
+
+    pattern = r"\bSELECT\b.*?\bFROM\b.*?\b(transactions|cardholder_data|payments)\b(?!.*?\bWHERE\b.*?\b(date|created_at|timestamp|retention)\b)"
+    message_template = "Query on cardholder data without time-based filter — verify retention policy compliance: {match}"
+
+    impact = (
+        "Keeping cardholder data longer than necessary increases risk and violates "
+        "PCI data minimization principles. It expands the scope of investigations in case of breach."
+    )
+    fix_guidance = (
+        "Implement automated purge scripts or partitioning to remove data older than the "
+        "defined retention period. Always include date filters when querying large "
+        "transactional datasets."
+    )
+
+
+class FinancialChangeTrackingRule(ASTRule):
+    """Detects UPDATE/DELETE on financial tables without a linked change reason or ticket ID."""
+
+    id = "COMP-SOX-001"
+    name = "Financial Data Modification Without Change Tracking"
+    description = (
+        "Detects UPDATE or DELETE statements on financial tables (ledger, accounts, payments, "
+        "salaries) without a comment or where clause containing a change reason or "
+        "tracking ID (ticket, bug, ref), violating SOX internal control requirements."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.COMPLIANCE
+    category = Category.COMP_SOX
+
+    _financial_tables = {
+        "ledger", "accounts", "payments", "salaries", "payroll", "revenue", 
+        "expenses", "general_ledger", "trial_balance", "balance_sheet"
+    }
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        issues = []
+        if query.query_type in ("UPDATE", "DELETE"):
+            tables = self._get_tables(ast)
+            if any(t.lower() in self._financial_tables for t in tables):
+                # Check for ticket/reason in query string (raw) as it's often in comments
+                if not re.search(r"\b(ticket|req|reason|change_id|ref|bug|jira)\s*[:=]?\s*\w+\b", query.raw, re.IGNORECASE):
+                    issues.append(
+                        self.create_issue(
+                            query=query,
+                            message="Financial data modification without change tracking reference.",
+                            snippet=query.raw[:100],
+                        )
+                    )
+        return issues
+
+    impact = (
+        "Untracked modifications to financial records violate Sarbanes-Oxley (SOX) "
+        "Section 404 internal controls, potentially leading to audit failures and "
+        "legal liabilities for public companies."
+    )
+    fix_guidance = (
+        "Always include a change tracking reference (e.g., Jira ticket ID or change reason) "
+        "in the query comment or as a mandatory field in the audit metadata columns."
+    )
+
+
+class SegregationOfDutiesRule(PatternRule):
+    """Detects queries that might indicate a Segregation of Duties (SoD) violation."""
+
+    id = "COMP-SOX-002"
+    name = "Segregation of Duties Violation"
+    description = (
+        "Detects queries where the same user context is performing both 'Creator' "
+        "and 'Approver' functions on financial transactions, signaling an SoD risk."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.COMPLIANCE
+    category = Category.COMP_SOX
+
+    pattern = (
+        r"\bUPDATE\s+.*?\bSET\s+.*?\b(approved_by|status)\b.*?\bWHERE\b.*?\bcreated_by\b"
+    )
+    message_template = "Potential Segregation of Duties violation: User attempting to approve their own creation: {match}"
+
+    impact = (
+        "SoD violations allow a single individual to initiate and approve a financial "
+        "transaction, creating a significant risk of fraud and material misstatement."
+    )
+    fix_guidance = (
+        "Enforce SoD at the application and database trigger level. Ensure that "
+        "created_by and approved_by values are never the same for the same record."
+    )
+
+
+class DataExportCompletenessRule(ASTRule):
+    """Detects potential gaps in data subject access request (DSAR) export queries."""
+
+    id = "COMP-GDPR-005"
+    name = "Data Subject Request Without Completeness Check"
+    description = (
+        "Detects SELECT queries for user data export (GDPR Art. 15) that use broad "
+        "filters but might miss related sensitive tables like logs or backups."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.COMPLIANCE
+    category = Category.COMP_GDPR
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        issues = []
+        # Look for export-like queries
+        if query.query_type == "SELECT" and re.search(r"\b(export|dsar|access_request|subject_data)\b", query.raw, re.IGNORECASE):
+            tables = self._get_tables(ast)
+            # If exporting from 'users' but not joining 'activity_logs' or similar
+            if any(t.lower() == "users" for t in tables):
+                if not any(t.lower() in ("activity_logs", "user_logs", "audit_log", "metadata") for t in tables):
+                    issues.append(
+                        self.create_issue(
+                            query=query,
+                            message="User data export might be missing related audit or activity logs.",
+                            snippet=query.raw[:100],
+                        )
+                    )
+        return issues
+
+    impact = (
+        "Incomplete responses to Data Subject Access Requests (DSAR) violate GDPR "
+        "Article 15, leading to regulatory complaints and potential fines from Data "
+        "Protection Authorities."
+    )
+    fix_guidance = (
+        "Verify that all sources of personal data, including logs, secondary profiles, "
+        "and metadata, are included in the export query or process."
+    )
+
+
+class ConsentWithdrawalRule(ASTRule):
+    """Detects queries accessing data where consent withdrawal signals are ignored."""
+
+    id = "COMP-GDPR-006"
+    name = "Consent Withdrawal Not Honored"
+    description = (
+        "Detects SELECT queries on personal data that do not filter for active "
+        "consent (e.g., missing WHERE consent_withdrawn = 0)."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.COMPLIANCE
+    category = Category.COMP_GDPR
+
+    _pii_tables = {"users", "profiles", "customers", "contacts", "leads"}
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        issues = []
+        if query.query_type == "SELECT":
+            tables = self._get_tables(ast)
+            if any(t.lower() in self._pii_tables for t in tables):
+                where_cols = self._get_where_columns(ast)
+                if not any(c in ("consent", "consent_status", "opt_in", "active") for c in where_cols):
+                    issues.append(
+                        self.create_issue(
+                            query=query,
+                            message="PII access without active consent filter.",
+                            snippet=query.raw[:100],
+                        )
+                    )
+        return issues
+
+    impact = (
+        "Failing to honor consent withdrawal violates GDPR Article 7. Continuing to process "
+        "data after consent is revoked is a major non-compliance event."
+    )
+    fix_guidance = (
+        "Always include a consent check in the WHERE clause when querying personal data "
+        "for processing categories that require consent."
+    )
+
+
+class CCPAOptOutRule(ASTRule):
+    """Detects queries accessing user data for sale without checking CCPA 'Do Not Sell' flag."""
+
+    id = "COMP-CCPA-001"
+    name = "Do Not Sell Flag Not Checked"
+    description = (
+        "Detects queries targeting marketing or third-party sharing tables that do not "
+        "check the CCPA 'Do Not Sell' (DNS) flag."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.COMPLIANCE
+    category = Category.COMP_CCPA
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        issues = []
+        if query.query_type == "SELECT" and re.search(r"marketing|sharing|third_party|affiliate", query.raw, re.IGNORECASE):
+            where_cols = self._get_where_columns(ast)
+            if not any(c in ("do_not_sell", "dns_flag", "opt_out", "ccpa_status") for c in where_cols):
+                issues.append(
+                    self.create_issue(
+                        query=query,
+                        message="Data share/sale query without CCPA 'Do Not Sell' flag check.",
+                        snippet=query.raw[:100],
+                    )
+                )
+        return issues
+
+    impact = (
+        "Processing 'sale' of data for consumers who have opted out violates CCPA "
+        "requirements, exposing the company to statutory damages and enforcement actions."
+    )
+    fix_guidance = (
+        "Modify all queries that share or sell data to include a check for the "
+        "do_not_sell flag. Ensure it's set to FALSE before including the record."
+    )
+
+
 # =============================================================================
+# 💰 COST RULES
+# =============================================================================
+
+
+class OffsetPaginationWithoutCoveringIndexRule(ASTRule):
+    """Detects OFFSET-based pagination that must scan and discard rows."""
+
+    id = "COST-PAGE-001"
+    name = "OFFSET Pagination Without Index"
+    description = (
+        "Detects OFFSET-based pagination on non-indexed columns. In SQL, OFFSET "
+        "forces the database to scan and discard rows, becoming exponentially "
+        "slower and more expensive on later pages."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.COST
+    category = Category.COST_PAGINATION
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        issues = []
+        for node in ast.walk():
+            if isinstance(node, exp.Select):
+                offset_obj = node.args.get("offset")
+                has_offset = offset_obj is not None
+                if not has_offset:
+                    has_offset = "OFFSET" in query.raw.upper()
+
+                if has_offset:
+                    order = node.args.get("order")
+                    if order:
+                        order_cols = []
+                        if hasattr(order, "expressions"):
+                            for expr in order.expressions:
+                                if isinstance(expr, exp.Ordered):
+                                    col = expr.this
+                                    if isinstance(col, exp.Column):
+                                        order_cols.append(col.name.lower())
+                        
+                        likely_indexed = {"id", "created_at", "updated_at", "timestamp", "date"}
+                        uses_pk = any(col in likely_indexed or col.endswith("_id") for col in order_cols)
+                        
+                        if not uses_pk:
+                            issues.append(
+                                self.create_issue(
+                                    query=query,
+                                    message="OFFSET pagination on non-indexed column - cost increases linearly with page depth",
+                                    snippet=str(node)[:100],
+                                )
+                            )
+                    else:
+                        issues.append(
+                            self.create_issue(
+                                query=query,
+                                message="OFFSET pagination without ORDER BY - non-deterministic and expensive",
+                                snippet=str(node)[:100],
+                            )
+                        )
+        return issues
+
+    impact = (
+        "OFFSET 10000 forces the database to scan and discard 10,000 rows. On page 1000, "
+        "you pay for scanning 1 million rows. In cloud databases, this means IOPS "
+        "charges for wasted work."
+    )
+    fix_guidance = (
+        "Use keyset/cursor pagination: WHERE id > last_seen_id ORDER BY id LIMIT 100. "
+        "This maintains constant cost per page. For random access, use search indexing."
+    )
+
+
+class DeepPaginationWithoutCursorRule(ASTRule):
+    """Detects deep pagination (>1000 offset) that should use keyset pagination."""
+
+    id = "COST-PAGE-002"
+    name = "Deep Pagination Without Cursor"
+    description = (
+        "Detects OFFSET values >1000, indicating deep pagination that should "
+        "use a cursor/keyset approach for better performance and lower cost."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.COST
+    category = Category.COST_PAGINATION
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        issues = []
+        for node in ast.walk():
+            if isinstance(node, exp.Select):
+                offset_obj = node.args.get("offset")
+                offset_value = None
+                if offset_obj:
+                    # sqlglot.expressions.Offset has the value in 'expression'
+                    offset_expr = offset_obj.args.get("expression")
+                    if isinstance(offset_expr, exp.Literal):
+                        try:
+                            offset_value = int(offset_expr.this)
+                        except (ValueError, AttributeError):
+                            pass
+                    elif isinstance(offset_obj, exp.Literal): # Fallback
+                        try:
+                            offset_value = int(offset_obj.this)
+                        except (ValueError, AttributeError):
+                            pass
+                else:
+                    match = re.search(r'(?i)OFFSET\s+(\d+)', query.raw)
+                    if match:
+                        try:
+                            offset_value = int(match.group(1))
+                        except ValueError:
+                            pass
+
+                if offset_value and offset_value > 1000:
+                    issues.append(
+                        self.create_issue(
+                            query=query,
+                            message=f"Deep pagination (OFFSET {offset_value}) - switch to cursor-based pagination",
+                            snippet=str(node)[:100],
+                        )
+                    )
+        return issues
+
+    impact = (
+        "Deep pagination (OFFSET > 1000) means scanning thousands of rows per page. "
+        "Cloud databases charge per row scanned. Users on page 100+ generate 100x "
+        "more cost than page 1 users."
+    )
+    fix_guidance = (
+        "Implement cursor-based pagination: return cursor token with last record ID. "
+        "Next page: WHERE id > cursor ORDER BY id LIMIT 100."
+    )
+
+
+class CountStarForPaginationRule(PatternRule):
+    """Detects COUNT(*) queries used for total counts in pagination."""
+
+    id = "COST-PAGE-003"
+    name = "COUNT(*) for Pagination Total"
+    description = (
+        "Detects COUNT(*) queries used to calculate total pages, which can be "
+        "expensive on large tables and is often unnecessary for user experience."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.COST
+    category = Category.COST_PAGINATION
+
+    pattern = r"(?i)\bSELECT\s+COUNT\s*\(\s*\*\s*\)\s+FROM\b(?!.*\b(WHERE|LIMIT|TOP)\b)"
+    message_template = "Expensive COUNT(*) for pagination total detected on unfiltered table."
+
+    impact = (
+        "COUNT(*) on large tables requires full table scan or index scan. For 100M "
+        "row table, this can take 30+ seconds and cost significant IOPS. Users "
+        "rarely navigate past page 3."
+    )
+    fix_guidance = (
+        "Avoid showing total counts beyond page 10. Use approximate counts or "
+        "cached counts updated periodically. Show 'More results' instead of page numbers."
+    )
+
+
+
+# =============================================================================
+class DuplicateIndexSignalRule(PatternRule):
+    """Detects CREATE INDEX statements that may duplicate existing indexes."""
+
+    id = "COST-IDX-001"
+    name = "Duplicate Index Signal"
+    description = (
+        "Detects CREATE INDEX statements which may duplicate existing indexes "
+        "(same columns, different name). Duplicate indexes waste storage and slow down writes."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.COST
+    category = Category.COST_INDEX_WASTE
+
+    pattern = r"(?i)\bCREATE\s+INDEX\s+\w+\s+ON\s+(\w+)\s*\(([^)]+)\)"
+    message_template = "Duplicate index signal detected: {match}. Verify if index already exists."
+
+    impact = (
+        "Duplicate indexes waste storage (each index = 100% of indexed data), slow "
+        "down writes (every INSERT/UPDATE maintains all indexes), and cost money in "
+        "cloud storage charges."
+    )
+    fix_guidance = (
+        "Query system catalog to find duplicates (e.g., pg_indexes). Keep only the "
+        "most selective index. Use covering indexes instead of multiple single-column indexes."
+    )
+
+
+class OverIndexedTableSignalRule(PatternRule):
+    """Flags tables that likely already have many indexes."""
+
+    id = "COST-IDX-002"
+    name = "Over-Indexed Table Signal"
+    description = (
+        "Flags CREATE INDEX on tables that likely already have many indexes, "
+        "causing massive write penalties and increased cloud storage costs."
+    )
+    severity = Severity.LOW
+    dimension = Dimension.COST
+    category = Category.COST_INDEX_WASTE
+
+    pattern = r"(?i)(CREATE\s+INDEX\s+\w+\s+ON\s+(\w+)[\s\S]*?){3,}"
+    message_template = "Over-indexed table signal: multiple CREATE INDEX statements found for the same table."
+
+    impact = (
+        "Tables with 10+ indexes pay massive write penalties. Each INSERT updates all "
+        "indexes. Write throughput can drop 90%. Cloud databases charge for IOPS "
+        "consumed by index maintenance."
+    )
+    fix_guidance = (
+        "Audit index usage and drop unused indexes. Consolidate into composite or "
+        "covering indexes."
+    )
+
+
+class MissingCoveringIndexOpportunityRule(ASTRule):
+    """Detects SELECT with WHERE + specific columns that could benefit from covering index."""
+
+    id = "COST-IDX-003"
+    name = "Missing Covering Index Opportunity"
+    description = (
+        "Detects SELECT with WHERE filters and specific columns that could benefit "
+        "from a covering index, eliminating expensive table lookups."
+    )
+    severity = Severity.LOW
+    dimension = Dimension.COST
+    category = Category.COST_INDEX_OPTIMIZATION
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        issues = []
+        for node in ast.walk():
+            if isinstance(node, exp.Select):
+                where = node.args.get("where")
+                where_cols = set()
+                if where:
+                    for col in where.find_all(exp.Column):
+                        where_cols.add(col.name.lower())
+                
+                select_cols = set()
+                has_star = False
+                for expr in node.expressions:
+                    if isinstance(expr, exp.Star):
+                        has_star = True
+                        break
+                    elif isinstance(expr, exp.Column):
+                        select_cols.add(expr.name.lower())
+                    elif isinstance(expr, exp.Alias) and isinstance(expr.this, exp.Column):
+                        select_cols.add(expr.this.name.lower())
+
+                if where_cols and select_cols and not has_star:
+                    total_cols = where_cols | select_cols
+                    if 2 <= len(total_cols) <= 5:
+                        issues.append(
+                            self.create_issue(
+                                query=query,
+                                message=f"Covering index opportunity: index on {sorted(where_cols)} INCLUDE {sorted(select_cols - where_cols)}",
+                                snippet=str(node)[:100],
+                            )
+                        )
+        return issues
+
+    impact = (
+        "Non-covering indexes require key lookup - reading index then reading table. "
+        "Covering indexes eliminate table access, reducing I/O by 50-90%."
+    )
+    fix_guidance = (
+        "Create covering index: CREATE INDEX idx_name ON table(where_cols) INCLUDE (select_cols). "
+        "Monitor index size vs benefit."
+    )
+
+
+class RedundantIndexColumnOrderRule(PatternRule):
+    """Detects composite index creation where column order may be suboptimal."""
+
+    id = "COST-IDX-004"
+    name = "Redundant Index Column Order"
+    description = (
+        "Detects composite index creation where column order may not match common "
+        "query patterns, leading to wasted indexes and slower queries."
+    )
+    severity = Severity.INFO
+    dimension = Dimension.COST
+    category = Category.COST_INDEX_OPTIMIZATION
+
+    pattern = r"(?i)\bCREATE\s+INDEX\s+\w+\s+ON\s+\w+\s*\((\w+)\s*,\s*(\w+)"
+    message_template = "Composite index column order signal: check if order matches query patterns: {match}"
+
+    impact = (
+        "Index (col_B, col_A) cannot optimize WHERE col_A = ?. Column order matters. "
+        "Wrong order = wasted index and slower queries."
+    )
+    fix_guidance = (
+        "Order index columns by selectivity and query usage. For queries filtering "
+        "col_A then col_B, use INDEX(col_A, col_B)."
+    )
+
+
 # 📝 QUALITY RULES
 # =============================================================================
 
@@ -1215,6 +2456,302 @@ class CommentedCodeRule(PatternRule):
 # =============================================================================
 # 🔒 SECURITY RULES (Extended)
 # =============================================================================
+
+
+class CrossDatabaseJoinRule(ASTRule):
+    """Detects JOIN across different databases."""
+
+    id = "COST-CROSS-001"
+    name = "Cross-Database JOIN"
+    description = (
+        "Detects JOIN across different databases, which forces data transfer and "
+        "prevents query optimization."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.COST
+    category = Category.COST_CROSS_DATABASE
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        issues = []
+        for node in ast.walk():
+            if isinstance(node, exp.Select):
+                databases = set()
+                for table in node.find_all(exp.Table):
+                    db_name = None
+                    if hasattr(table, "db") and table.db:
+                        db_name = str(table.db)
+                    elif "." in str(table):
+                        parts = str(table).split(".")
+                        if len(parts) >= 2:
+                            db_name = parts[0]
+                    
+                    if db_name:
+                        databases.add(db_name)
+                
+                if len(databases) > 1:
+                    issues.append(
+                        self.create_issue(
+                            query=query,
+                            message=f"Cross-database JOIN detected ({databases}) - forces data transfer and prevents optimization",
+                            snippet=str(node)[:100],
+                        )
+                    )
+        return issues
+
+    impact = (
+        "Cross-database JOINs cannot use indexes across boundaries. Forces full table "
+        "scans and data copying. In cloud, this means egress charges and 10-100x "
+        "slower queries."
+    )
+    fix_guidance = (
+        "Denormalize data into single database or use ETL to replicate needed data. "
+        "Consider microservices with API calls instead of cross-DB queries."
+    )
+
+
+class MultiRegionQueryLatencyRule(PatternRule):
+    """Detects queries indicating cross-region data access."""
+
+    id = "COST-CROSS-002"
+    name = "Multi-Region Query Latency"
+    description = (
+        "Detects queries using database links, federated tables, or region qualifiers "
+        "indicating cross-region data access."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.COST
+    category = Category.COST_CROSS_REGION
+
+    pattern = r"(?i)\b(SELECT|INSERT|UPDATE|DELETE)\b[^;]*\b(us-east|us-west|eu-west|ap-south|@[^.]*\..*\.rds\.amazonaws\.com|@[^.]*\.database\.windows\.net)\b"
+    message_template = "Multi-region query detected: potential latency and egress costs: {match}"
+
+    impact = (
+        "Cross-region queries add 50-200ms latency per request. Egress charges "
+        "of $0.02-0.12/GB also apply."
+    )
+    fix_guidance = (
+        "Use read replicas in each region or implement a caching layer (Redis) "
+        "for cross-region reads."
+    )
+
+
+class DistributedTransactionOverheadRule(PatternRule):
+    """Detects distributed transaction patterns."""
+
+    id = "COST-CROSS-003"
+    name = "Distributed Transaction Overhead"
+    description = (
+        "Detects distributed transaction patterns (BEGIN DISTRIBUTED TRANSACTION, XA START) "
+        "that are 10-100x slower than local transactions."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.COST
+    category = Category.COST_DISTRIBUTED
+
+    pattern = r"(?i)\b(BEGIN\s+DISTRIBUTED\s+TRANSACTION|XA\s+START|START\s+TRANSACTION\s+WITH\s+CONSISTENT\s+SNAPSHOT)\b"
+    message_template = "Distributed transaction detected: major performance and cost overhead: {match}"
+
+    impact = (
+        "Distributed transactions require 2-phase commit across nodes, holding locks "
+        "for network round-trips. Throughput drops significantly."
+    )
+    fix_guidance = (
+        "Avoid distributed transactions. Use Saga pattern for cross-service consistency. "
+        "Implement compensating transactions or eventual consistency."
+    )
+
+
+class ColdStartQueryPatternRule(PatternRule):
+    """Detects complex queries in serverless environments that trigger scaling."""
+
+    id = "COST-SERVERLESS-001"
+    name = "Cold Start Query Pattern"
+    description = (
+        "Detects complex queries in serverless environments (Aurora Serverless) "
+        "that will trigger cold starts and ACU scaling, increasing costs."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.COST
+    category = Category.COST_SERVERLESS
+
+    pattern = r"(?i)\bSELECT\b.*\b(JOIN|UNION|INTERSECT|EXCEPT)\b.*\b(GROUP\s+BY|ORDER\s+BY|DISTINCT)\b"
+    message_template = "Complex query in serverless environment: potential cold start and scaling cost: {match}"
+
+    impact = (
+        "Complex queries trigger Aurora Capacity Unit (ACU) scaling. Each scale-up "
+        "costs minimum $0.12/hour. Frequent scaling wastes budget."
+    )
+    fix_guidance = (
+        "Keep queries simple in serverless. Pre-aggregate data or use materialized "
+        "views. Set minimum ACUs appropriately."
+    )
+
+
+class UnnecessaryConnectionPoolingRule(PatternRule):
+    """Detects wasteful connection management in serverless."""
+
+    id = "COST-SERVERLESS-002"
+    name = "Unnecessary Connection Pooling"
+    description = (
+        "Detects connection management patterns that are wasteful in serverless "
+        "(connections held open unnecessarily)."
+    )
+    severity = Severity.INFO
+    dimension = Dimension.COST
+    category = Category.COST_SERVERLESS
+
+    pattern = r"(?i)\b(SET\s+SESSION|CONNECTION\s+TIMEOUT\s*=\s*\d{4,}|KEEP\s+ALIVE|POOLING\s*=\s*TRUE)\b"
+    message_template = " wasteful connection management found: {match}"
+
+    impact = (
+        "Serverless databases charge per second of connection time. Keeping connections "
+        "alive between invocations wastes money."
+    )
+    fix_guidance = (
+        "Close connections immediately after query in Lambda/serverless. Use RDS Proxy "
+        "for connection pooling."
+    )
+
+
+class OldDataNotArchivedRule(ASTRule):
+    """Detects queries suggesting potential for data archival."""
+
+    id = "COST-ARCHIVE-001"
+    name = "Old Data Not Archived"
+    description = (
+        "Detects SELECT on tables with date columns, suggesting potential for "
+        "archival of old data to reduce hot storage costs."
+    )
+    severity = Severity.LOW
+    dimension = Dimension.COST
+    category = Category.COST_ARCHIVAL
+
+    _date_columns = {
+        "created_at", "updated_at", "modified_at", "date", "timestamp",
+        "event_date", "order_date", "transaction_date", "posted_at"
+    }
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        issues = []
+        for node in ast.walk():
+            if isinstance(node, exp.Select):
+                has_date_col = False
+                for col in node.find_all(exp.Column):
+                    if col.name.lower() in self._date_columns:
+                        has_date_col = True
+                        break
+                
+                if has_date_col:
+                    where = node.args.get("where")
+                    filters_by_date_range = False
+                    hits_old_data = False
+                    
+                    if where:
+                        # Check if any date column is used in the filter
+                        for col in where.find_all(exp.Column):
+                            if col.name.lower() in self._date_columns:
+                                filters_by_date_range = True
+                        
+                        # Check specifically for "older than" filters (<, <=)
+                        for bin_op in where.find_all((exp.LT, exp.LTE)):
+                            for col in bin_op.find_all(exp.Column):
+                                if col.name.lower() in self._date_columns:
+                                    hits_old_data = True
+                    
+                    # Trigger if no date filter is present, or if it's specifically hitting old data
+                    if not filters_by_date_range or hits_old_data:
+                        issues.append(
+                            self.create_issue(
+                                query=query,
+                                message="Query on table with timestamp - consider archiving old data to reduce storage costs",
+                                snippet=str(node)[:100],
+                            )
+                        )
+        return issues
+
+    impact = (
+        "Storing years of logs in hot storage costs 10x vs cold storage (S3 Glacier). "
+        "Old data wastes IOPS and backup capacity."
+    )
+    fix_guidance = (
+        "Implement data lifecycle: archive data > 90 days old to S3/Glacier. Use "
+        "table partitioning by date."
+    )
+
+
+class LargeTextColumnWithoutCompressionRule(PatternRule):
+    """Detects large TEXT columns that should use compression."""
+
+    id = "COST-COMPRESS-001"
+    name = "Large Text Column Without Compression"
+    description = (
+        "Detects CREATE TABLE with large VARCHAR/TEXT columns that should use compression "
+        "to save storage costs."
+    )
+    severity = Severity.LOW
+    dimension = Dimension.COST
+    category = Category.COST_STORAGE
+
+    pattern = r"(?i)\bCREATE\s+TABLE\b[^;]*\b(VARCHAR\s*\(\s*\d{4,}\)|TEXT|CLOB|NVARCHAR\s*\(MAX\)|LONGTEXT)\b"
+    message_template = "Large text column without compression detected: {match}"
+
+    impact = (
+        "Uncompressed TEXT columns waste 3-10x storage space. Cloud storage charges "
+        "are significant for uncompressed data."
+    )
+    fix_guidance = (
+        "Enable row/page compression (e.g., ROW_FORMAT=COMPRESSED in MySQL). Use "
+        "JSONB instead of TEXT for JSON data."
+    )
+
+
+class LargeTableWithoutPartitioningRule(ASTRule):
+    """Detects queries on likely large tables without partition pruning."""
+
+    id = "COST-PARTITION-001"
+    name = "Large Table Without Partitioning"
+    description = (
+        "Detects queries on large tables without partition pruning signals, "
+        "which can be extremely expensive on large datasets."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.COST
+    category = Category.COST_PARTITIONING
+
+    _large_table_patterns = {
+        "events", "logs", "transactions", "clickstream", "analytics",
+        "audit", "history", "archive", "sessions", "metrics"
+    }
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        issues = []
+        for node in ast.walk():
+            if isinstance(node, exp.Select):
+                tables = self._get_tables(ast)
+                for table in tables:
+                    table_lower = table.lower()
+                    is_large = any(p in table_lower for p in self._large_table_patterns)
+                    
+                    if is_large:
+                        has_partition = "PARTITION" in query.raw.upper()
+                        if not has_partition:
+                            issues.append(
+                                self.create_issue(
+                                    query=query,
+                                    message=f"Query on large table '{table}' without partition pruning",
+                                    snippet=str(node)[:100],
+                                )
+                            )
+        return issues
+
+    impact = (
+        "Scanning unpartitioned 1B row table costs 100x more than scanning one partition. "
+        "Partitioning by date reduces cost by 90-99% for time-range queries."
+    )
+    fix_guidance = (
+        "Partition large tables by date. Most queries filter by date - partition "
+        "pruning eliminates 99% of data."
+    )
 
 
 class DynamicSQLExecutionRule(PatternRule):
@@ -2343,7 +3880,7 @@ class CompositeIndexOrderViolationRule(ASTRule):
         
         for node in ast.walk():
             if isinstance(node, exp.Select):
-                where_cols = self._extract_where_columns(node)
+                where_cols = self._get_where_columns(node)
                 
                 for (lead, secondary), required_lead in composite_patterns.items():
                     if secondary in where_cols and lead not in where_cols:
@@ -2364,13 +3901,7 @@ class CompositeIndexOrderViolationRule(ASTRule):
         
         return issues
 
-    def _extract_where_columns(self, node: Any) -> set[str]:
-        columns = set()
-        where = getattr(node.args.get('where'), "this", node.args.get('where')) if node.args.get('where') else None
-        if where:
-            for col in where.find_all(exp.Column):
-                columns.add(getattr(col, "name", "").lower())
-        return columns
+
 
 
 class NonSargableOrConditionRule(ASTRule):
@@ -2689,7 +4220,7 @@ class UnboundedTempTableRule(PatternRule):
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_MEMORY
 
-    pattern = r"(?i)\bSELECT\b[^;]*\bINTO\s+[#@]\w+\s+FROM\b(?!.*\b(WHERE|TOP|LIMIT)\b)"
+    pattern = r"(?i)\bSELECT\b(?!.*\b(WHERE|TOP|LIMIT)\b)[^;]*\bINTO\s+[#@\w]+"
     message_template = "Unbounded SELECT INTO temp table detected: {match}"
     
     impact = (
@@ -3111,6 +4642,429 @@ class LargeObjectUnboundedRule(ASTRule):
         return issues
 
 
+
+# =============================================================================
+# SECURITY RULES (ADVANCED - BATCH 8)
+# =============================================================================
+
+class LDAPInjectionRule(PatternRule):
+    """Detects LDAP filter construction using string concatenation with user input."""
+
+    id = "SEC-INJ-007"
+    name = "LDAP Injection in Directory Queries"
+    description = (
+        "Detects LDAP filter construction using string concatenation with user input, "
+        "enabling LDAP injection attacks."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.SECURITY
+    category = Category.SEC_INJECTION
+
+    pattern = r'(?i)\b(LDAP|AD_|DIRECTORY)\w*\s*\([^)]*(\+|CONCAT|CONCATENATE|\|\|)[^)]*\b(cn=|ou=|dc=|uid=|objectClass=)\b'
+
+    impact = (
+        "LDAP injection allows attackers to bypass authentication, enumerate directory structure, "
+        "and access unauthorized data. Concatenating user input into LDAP filters enables filter "
+        "manipulation like SQL injection."
+    )
+    fix_guidance = (
+        "Use parameterized LDAP queries. Escape special characters: *()\\NULL. Validate input against "
+        "whitelist. Use prepared LDAP statements where available. Example: escape * as \\2a, ( as \\28."
+    )
+
+
+class NoSQLInjectionRule(PatternRule):
+    """Detects JSON/document queries with concatenated input for NoSQL injection."""
+
+    id = "SEC-INJ-008"
+    name = "NoSQL Injection Pattern"
+    description = (
+        "Detects JSON/document queries with concatenated input that may enable NoSQL injection "
+        "in document databases."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.SECURITY
+    category = Category.SEC_INJECTION
+
+    pattern = r'(?i)\b(OPENJSON|JSON_QUERY|JSON_VALUE|FOR\s+JSON|MONGODB|COSMOSDB|mongo_\w*|json_\w*)\b[^;]*(\+|CONCAT|\|\|)[^;]*[{}\[\]$]'
+
+    impact = (
+        "NoSQL injection in JSON queries allows filter bypass, data extraction, and denial of service. "
+        "MongoDB-style operators like $where, $ne can be injected to bypass authentication."
+    )
+    fix_guidance = (
+        "Parameterize JSON queries. Use ORM/ODM libraries with prepared statements. Validate JSON structure. "
+        "Never concatenate user input into JSON filter strings. Example: use parameterized MongoDB queries, "
+        "not string concatenation."
+    )
+
+
+class XMLXPathInjectionRule(PatternRule):
+    """Detects XPath/XQuery construction using string concatenation."""
+
+    id = "SEC-INJ-009"
+    name = "XML/XPath Injection"
+    description = (
+        "Detects XPath/XQuery construction using string concatenation, enabling XML injection attacks."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.SECURITY
+    category = Category.SEC_INJECTION
+
+    pattern = r'(?i)\b(XMLQUERY|XMLEXISTS|XPATH|XQUERY|xml_)\b[^;]*(\+|CONCAT|\|\|)[^;]*[/\[\]]'
+
+    impact = (
+        "XPath injection allows attackers to manipulate XML queries, bypass authentication, and extract "
+        "unauthorized data from XML documents. Similar to SQL injection but for XML."
+    )
+    fix_guidance = (
+        "Use parameterized XPath/XQuery. Escape XML special characters: < > & ' \". Validate against "
+        "schema. Use XPath variables instead of concatenation. Example: use $variable in XPath, "
+        "not string concatenation."
+    )
+
+
+class ServerSideTemplateInjectionRule(PatternRule):
+    """Detects template engine usage with user input for SSTI."""
+
+    id = "SEC-INJ-010"
+    name = "Server-Side Template Injection"
+    description = (
+        "Detects template engine usage with user input, which may enable server-side template "
+        "injection (SSTI)."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.SECURITY
+    category = Category.SEC_INJECTION
+
+    pattern = r'(?i)\b(RENDER|TEMPLATE|EVAL|EXECUTE|PROCESS|render_)\w*\b\([^)]*(\+|CONCAT|\|\|)'
+
+    impact = (
+        "Template injection allows arbitrary code execution on the server. If user input is embedded "
+        "in template syntax ({{}}, {%%}), attackers can execute system commands."
+    )
+    fix_guidance = (
+        "Never use user input in template strings. Use static templates only. If dynamic content is "
+        "needed, use safe interpolation methods. Escape template syntax characters. Sandbox template execution."
+    )
+
+
+class JSONFunctionInjectionRule(PatternRule):
+    """Detects JSON path expressions built via concatenation."""
+
+    id = "SEC-INJ-011"
+    name = "SQL Injection via JSON Functions"
+    description = (
+        "Detects JSON path expressions built via concatenation, which can enable injection through "
+        "JSON query functions."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.SECURITY
+    category = Category.SEC_INJECTION
+
+    pattern = r'(?i)\b(JSON_OBJECT|JSON_ARRAY|JSON_INSERT|JSON_REPLACE|JSON_SET|json_\w*)\b[^;]*(\+|CONCAT|\|\|)'
+
+    impact = (
+        "Concatenating user input into JSON path expressions allows attackers to modify query logic, "
+        "access unauthorized data, or cause errors that reveal schema information."
+    )
+    fix_guidance = (
+        "Use parameterized JSON paths. Validate path components against whitelist. Avoid dynamic path "
+        "construction. Example: validate that path only contains allowed property names before using."
+    )
+
+
+class DatabaseVersionDisclosureRule(PatternRule):
+    """Detects queries that expose database version information."""
+
+    id = "SEC-INFO-001"
+    name = "Database Version Disclosure"
+    description = (
+        "Detects queries that expose database version information, which aids attackers in finding "
+        "version-specific vulnerabilities."
+    )
+    severity = Severity.LOW
+    dimension = Dimension.SECURITY
+    category = Category.SEC_DATA_EXPOSURE
+
+    pattern = r'(?i)(?:@@VERSION|VERSION\(\)|SERVERPROPERTY\(\'ProductVersion\'\)|pg_version\(\)|BANNER|v\$version)'
+
+    impact = (
+        "Exposing database version helps attackers identify known vulnerabilities (CVEs) specific to that "
+        "version. This information should not be accessible to application users."
+    )
+    fix_guidance = (
+        "Never expose version info to end users. If needed for admin purposes, require authentication and "
+        "log access. Return generic error messages without version details."
+    )
+
+
+class SchemaInformationDisclosureRule(PatternRule):
+    """Detects queries accessing system catalog tables that expose schema information."""
+
+    id = "SEC-INFO-002"
+    name = "Schema Information Disclosure"
+    description = (
+        "Detects queries accessing system catalog tables that expose schema information to potential attackers."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.SECURITY
+    category = Category.SEC_DATA_EXPOSURE
+
+    pattern = r'(?i)\b(INFORMATION_SCHEMA|sys\.|pg_catalog|ALL_TABLES|USER_TABLES|DBA_TABLES|SHOW\s+TABLES|SHOW\s+COLUMNS|DESCRIBE|syscolumns|sysobjects)\b'
+
+    impact = (
+        "Schema enumeration reveals table names, column names, and relationships. Attackers use this for "
+        "targeted SQL injection and privilege escalation. Should be restricted to DBAs only."
+    )
+    fix_guidance = (
+        "Restrict access to system catalogs using database permissions. Don't expose schema info through "
+        "application errors. Use views to hide underlying schema from application."
+    )
+
+
+class TimingAttackPatternRule(PatternRule):
+    """Detects password/authentication queries without constant-time comparison."""
+
+    id = "SEC-INFO-003"
+    name = "Timing Attack Pattern"
+    description = (
+        "Detects password/authentication queries without constant-time comparison, enabling timing attacks."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.SECURITY
+    category = Category.SEC_DATA_EXPOSURE
+
+    pattern = r'(?i)\b(SLEEP|WAITFOR\s+DELAY|DBMS_LOCK\.SLEEP|PG_SLEEP)\b\s*\(\s*\d+\s*\)'
+
+    impact = (
+        "String comparison of passwords has variable timing based on match length. Attackers can infer "
+        "password characters through timing analysis. Each character leak reduces brute-force complexity."
+    )
+    fix_guidance = (
+        "Use constant-time comparison for password verification. Hash passwords and compare hashes. Add "
+        "artificial delays to equalize timing. Use bcrypt/Argon2 which have built-in constant-time comparison."
+    )
+
+
+class VerboseErrorMessageDisclosureRule(PatternRule):
+    """Detects error handling that may expose sensitive information."""
+
+    id = "SEC-INFO-004"
+    name = "Verbose Error Messages"
+    description = (
+        "Detects error handling that may expose sensitive information (stack traces, query text, schema details)."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.SECURITY
+    category = Category.SEC_DATA_EXPOSURE
+
+    pattern = r'(?i)\b(RAISERROR|THROW|SIGNAL)\b[^;]*\b(@@ERROR|ERROR_MESSAGE|SQLERRM|SQLSTATE)|\bCAST\s*\(\s*(?:@@VERSION|VERSION\(\)|BANNER)'
+
+    impact = (
+        "Error messages containing schema names, query fragments, or stack traces help attackers "
+        "understand database structure and find injection points. Production errors should be generic."
+    )
+    fix_guidance = (
+        "Return generic error messages to users ('An error occurred. Contact support.'). Log detailed "
+        "errors server-side only. Never expose query text, object names, or internal errors to clients."
+    )
+
+
+class OSCommandInjectionRule(PatternRule):
+    """Detects use of system command execution procedures."""
+
+    id = "SEC-CMD-001"
+    name = "OS Command Injection"
+    description = (
+        "Detects use of system command execution procedures (xp_cmdshell, SHELL, etc.) "
+        "which can lead to OS-level compromise."
+    )
+    severity = Severity.CRITICAL
+    dimension = Dimension.SECURITY
+    category = Category.SEC_INJECTION
+
+    pattern = r'(?i)\b(xp_cmdshell|sp_OACreate|sp_OAMethod|SHELL|EXEC\s+master\.\.xp_cmdshell|pg_read_file|pg_execute_server_program)\b'
+
+    impact = (
+        "OS command execution from SQL gives attackers full server access. xp_cmdshell with user input "
+        "= remote code execution. Attacker can install malware, exfiltrate data, pivot to other systems."
+    )
+    fix_guidance = (
+        "NEVER use xp_cmdshell. Disable it: sp_configure 'xp_cmdshell', 0. Move system operations to "
+        "application layer with proper input validation. If absolutely required, use whitelisted "
+        "commands only and strict validation."
+    )
+
+
+class PathTraversalRule(PatternRule):
+    """Detects file operations with user input that could enable directory traversal."""
+
+    id = "SEC-PATH-001"
+    name = "Path Traversal in File Operations"
+    description = (
+        "Detects file operations with user input that could enable directory traversal attacks (../, ..)."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.SECURITY
+    category = Category.SEC_ACCESS
+
+    pattern = r'(?i)\b(OPENROWSET|BULK\s+INSERT|LOAD_FILE|INTO\s+OUTFILE|UTL_FILE|BFILE|DBMS_LOB\.LOADFROMFILE)\b[^;]*(\+|CONCAT|\|\|)[^;]*[\'"][^\'"]*\.\.[/\\]'
+
+    impact = (
+        "Path traversal allows attackers to read/write arbitrary files on the server. Reading /etc/passwd "
+        "or C:\\Windows\\System32\\config\\SAM exposes credentials. Writing enables code execution."
+    )
+    fix_guidance = (
+        "Validate file paths against whitelist. Use absolute paths only. Reject paths containing ../ or ..\\. "
+        "Sandbox file operations to specific directory. Use path canonicalization and verify result."
+    )
+
+
+class LocalFileInclusionRule(PatternRule):
+    """Detects dynamic loading of SQL files or stored procedures."""
+
+    id = "SEC-PATH-002"
+    name = "Local File Inclusion"
+    description = (
+        "Detects dynamic loading of SQL files or stored procedures that could enable arbitrary code execution."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.SECURITY
+    category = Category.SEC_INJECTION
+
+    pattern = r'(?i)\b(EXECUTE|EXEC|SOURCE|\\i|@)\b[^;]*(\+|CONCAT|\|\|)[^;]*\.sql\b'
+
+    impact = (
+        "Including SQL files based on user input allows attackers to execute arbitrary SQL code. "
+        "If attacker can upload a .sql file, they can execute it via file inclusion."
+    )
+    fix_guidance = (
+        "Never include SQL files based on user input. Use whitelist of allowed procedures. Validate against "
+        "allowed set of script names. Store procedures in database, not files."
+    )
+
+
+class SSRFViaDatabaseRule(PatternRule):
+    """Detects database functions that make HTTP requests."""
+
+    id = "SEC-SSRF-001"
+    name = "Server-Side Request Forgery via Database"
+    description = (
+        "Detects database functions that make HTTP requests, which can be abused for SSRF attacks."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.SECURITY
+    category = Category.SEC_INJECTION
+
+    pattern = r'(?i)\b(sp_OACreate.*XMLHTTP|UTL_HTTP|DBMS_NETWORK|HTTPURLConnection|CURL)\b|\bOPENROWSET\b.*[\'"][^\'"]*(?:http|https|ftp|ldap|\\\\)'
+
+    impact = (
+        "SSRF via database allows attackers to scan internal networks, access cloud metadata services "
+        "(AWS EC2 metadata at 169.254.169.254), bypass firewalls, and exfiltrate data."
+    )
+    fix_guidance = (
+        "Disable HTTP functions in database. If needed, use allowlist of approved URLs. Block access to "
+        "private IP ranges (10.0.0.0/8, 169.254.0.0/16). Validate and sanitize all URLs."
+    )
+
+
+class HardcodedCredentialsRule(PatternRule):
+    """Detects connection strings or CREATE USER statements with hardcoded passwords."""
+
+    id = "SEC-CONFIG-001"
+    name = "Hardcoded Database Credentials"
+    description = (
+        "Detects connection strings or CREATE USER statements with hardcoded passwords in queries."
+    )
+    severity = Severity.CRITICAL
+    dimension = Dimension.SECURITY
+    category = Category.SEC_AUTHENTICATION
+
+    pattern = r'(?i)(PASSWORD\s*=\s*[\'"][^\'"]{4,}[\'"]|pwd\s*=\s*[\'"][^\'"]{4,}[\'"]|IDENTIFIED\s+BY\s+[\'"][^\'"]+[\'"])'
+
+    impact = (
+        "Hardcoded credentials in queries are stored in query logs, execution history, source control, "
+        "and backups. One leaked log file exposes database access permanently."
+    )
+    fix_guidance = (
+        "Use connection pooling with credentials from secure vaults (Azure Key Vault, AWS Secrets Manager, "
+        "HashiCorp Vault). Never embed passwords in SQL. Use Windows/Kerberos authentication where possible."
+    )
+
+
+class WeakSSLConfigRule(PatternRule):
+    """Detects connection settings that disable encryption or use weak protocols."""
+
+    id = "SEC-CONFIG-002"
+    name = "Weak SSL/TLS Configuration"
+    description = (
+        "Detects connection settings that disable encryption or use weak protocols."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.SECURITY
+    category = Category.SEC_AUTHENTICATION
+
+    pattern = r'(?i)(Encrypt\s*=\s*(false|no|0)|TrustServerCertificate\s*=\s*true|sslmode\s*=\s*(disable|allow|prefer)|ssl\s*=\s*(false|0))'
+
+    impact = (
+        "Disabling SSL/TLS exposes all data in transit to interception. Man-in-the-middle attacks can "
+        "capture credentials, session tokens, and sensitive data. Required by PCI-DSS, HIPAA."
+    )
+    fix_guidance = (
+        "Always use encrypted connections: Encrypt=True, sslmode=require. Use certificate validation: "
+        "TrustServerCertificate=False. Enforce TLS 1.2+ minimum version."
+    )
+
+
+class DefaultCredentialUsageRule(PatternRule):
+    """Detects use of default usernames/passwords."""
+
+    id = "SEC-CONFIG-003"
+    name = "Default Credential Usage"
+    description = (
+        "Detects use of default usernames/passwords (sa, admin, root with common passwords)."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.SECURITY
+    category = Category.SEC_AUTHENTICATION
+
+    pattern = r'(?i)\b(sa|admin|root|postgres|mysql)\b.*\b(Password\s*=\s*[\'"]?(sa|admin|root|password|123456|default)[\'"]?|IDENTIFIED\s+BY\s+[\'"]?(sa|admin|root|password)[\'"]?)'
+
+    impact = (
+        "Default credentials are the #1 cause of database breaches. Attackers scan for default sa password. "
+        "Automated bots check common defaults within minutes of database exposure."
+    )
+    fix_guidance = (
+        "Change all default passwords immediately. Disable default accounts. Use strong, unique passwords "
+        "(20+ chars, random). Implement password rotation. Monitor for default credential usage attempts."
+    )
+
+
+class OverlyPermissiveAccessRule(PatternRule):
+    """Detects database settings allowing connections from any host."""
+
+    id = "SEC-CONFIG-004"
+    name = "Overly Permissive CORS/Access"
+    description = (
+        "Detects database settings allowing connections from any host or overly broad IP ranges."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.SECURITY
+    category = Category.SEC_AUTHENTICATION
+
+    pattern = r'(?i)(GRANT\s+.*\s+TO\s+.*@[\'"]%[\'"]|CREATE\s+USER\s+.*@[\'"]%[\'"]|Host\s*=\s*[\'"]?(\*|0\.0\.0\.0|%|::|all)[\'"]?)'
+
+    impact = (
+        "Allowing connections from any host (@'%', Host=*) exposes database to internet-wide attacks. "
+        "Attackers can brute-force credentials from anywhere. Should be limited to application server IPs only."
+    )
+    fix_guidance = (
+        "Restrict access to specific IP addresses: @\'10.0.1.5\'. Use firewall rules. Implement VPC/private "
+        "networking. For cloud databases, use private endpoints only."
+    )
+
+
 # =============================================================================
 # CATALOG EXPORT
 # =============================================================================
@@ -3148,6 +5102,17 @@ def get_all_rules() -> list[Rule]:
         AutocommitDisabledRule(),
         ExceptionSwallowedRule(),
         LongTransactionWithoutSavepointRule(),
+        NonIdempotentInsertRule(),
+        NonIdempotentUpdateRule(),
+        ReadModifyWriteLockingRule(),
+        TOCTOUPatternRule(),
+        OrphanRecordRiskRule(),
+        CascadeDeleteRiskRule(),
+        DeadlockPatternRule(),
+        LockEscalationRiskRule(),
+        LongRunningQueryRiskRule(),
+        StaleReadRiskRule(),
+        MissingRetryLogicRule(),
         PIIExposureRule(),
         UnencryptedSensitiveColumnRule(),
         RetentionPolicyMissingRule(),
@@ -3222,4 +5187,54 @@ def get_all_rules() -> list[Rule]:
         MissingBatchSizeInLoopRule(),
         ExcessiveColumnCountRule(),
         LargeObjectUnboundedRule(),
+
+        # Batch 5: Compliance Rules
+        PHIAccessWithoutAuditRule(),
+        PHIMinimumNecessaryRule(),
+        UnencryptedPHITransitRule(),
+        PANExposureRule(),
+        CVVStorageRule(),
+        CardholderDataRetentionRule(),
+        FinancialChangeTrackingRule(),
+        SegregationOfDutiesRule(),
+        DataExportCompletenessRule(),
+        ConsentWithdrawalRule(),
+        CCPAOptOutRule(),
+
+
+        # Batch 7: Cost Rules
+        OffsetPaginationWithoutCoveringIndexRule(),
+        DeepPaginationWithoutCursorRule(),
+        CountStarForPaginationRule(),
+        DuplicateIndexSignalRule(),
+        OverIndexedTableSignalRule(),
+        MissingCoveringIndexOpportunityRule(),
+        RedundantIndexColumnOrderRule(),
+        CrossDatabaseJoinRule(),
+        MultiRegionQueryLatencyRule(),
+        DistributedTransactionOverheadRule(),
+        ColdStartQueryPatternRule(),
+        UnnecessaryConnectionPoolingRule(),
+        OldDataNotArchivedRule(),
+        LargeTextColumnWithoutCompressionRule(),
+        LargeTableWithoutPartitioningRule(),
+
+        # Batch 8: Advanced Security Rules
+        LDAPInjectionRule(),
+        NoSQLInjectionRule(),
+        XMLXPathInjectionRule(),
+        ServerSideTemplateInjectionRule(),
+        JSONFunctionInjectionRule(),
+        DatabaseVersionDisclosureRule(),
+        SchemaInformationDisclosureRule(),
+        TimingAttackPatternRule(),
+        VerboseErrorMessageDisclosureRule(),
+        OSCommandInjectionRule(),
+        PathTraversalRule(),
+        LocalFileInclusionRule(),
+        SSRFViaDatabaseRule(),
+        HardcodedCredentialsRule(),
+        WeakSSLConfigRule(),
+        DefaultCredentialUsageRule(),
+        OverlyPermissiveAccessRule(),
     ]
