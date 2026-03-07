@@ -184,6 +184,10 @@ class Category(str, Enum):
     SEC_DATA_EXPOSURE = "data-exposure"
     SEC_CRYPTO = "cryptography"
     SEC_ACCESS = "access-control"
+    SEC_AUTHORIZATION = "authorization"
+    SEC_LOGGING = "logging"
+    SEC_SESSION = "session"
+    SEC_DOS = "denial_of_service"
 
     # Performance categories
     PERF_INDEX = "index"
@@ -194,6 +198,11 @@ class Category(str, Enum):
     PERF_SORT = "sorting"
     PERF_LOCK = "locking"
     PERF_MEMORY = "memory"
+    PERF_CURSOR = "cursor"
+    PERF_HINTS = "hints"
+    PERF_EXECUTION = "execution"
+    PERF_BATCH = "batch"
+    PERF_NETWORK = "network"
 
     # Reliability categories
     REL_DATA_INTEGRITY = "data-integrity"
@@ -212,6 +221,8 @@ class Category(str, Enum):
     COST_CLOUD = "cloud"
     COST_STORAGE = "storage"
     COST_COMPUTE = "compute"
+    COST_IO = "io"
+    COST_NETWORK = "network"
 
     # Quality categories
     QUAL_READABILITY = "readability"
