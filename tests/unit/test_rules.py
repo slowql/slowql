@@ -11,17 +11,22 @@ from slowql.rules.catalog import (
     AlterTableDestructiveRule,
     AuditLogTamperingRule,
     AutocommitDisabledRule,
+    CommentedCodeRule,
     ConsentTableMissingRule,
     CrossBorderDataTransferRule,
     DangerousServerConfigRule,
     DataExfiltrationViaFileRule,
+    DuplicateConditionRule,
     DynamicSQLExecutionRule,
     ExceptionSwallowedRule,
     GrantToPublicRule,
+    HardcodedDateRule,
     HardcodedPasswordRule,
     LeadingWildcardRule,
     LongTransactionWithoutSavepointRule,
+    MissingAliasRule,
     MissingRollbackRule,
+    NullComparisonRule,
     OverprivilegedExecutionContextRule,
     PasswordPolicyBypassRule,
     PIIExposureRule,
@@ -34,8 +39,10 @@ from slowql.rules.catalog import (
     TimeBasedBlindInjectionRule,
     TruncateWithoutTransactionRule,
     UnencryptedSensitiveColumnRule,
+    UnionWithoutAllRule,
     UnsafeWriteRule,
     UserCreationWithoutPasswordRule,
+    WildcardInColumnListRule,
     get_all_rules,
 )
 from slowql.rules.registry import RuleRegistry, get_rule_registry
@@ -1258,4 +1265,141 @@ class TestConsentTableMissingRule:
         assert not self.rule.check(_make_query(
             "SELECT * FROM newsletter"
         ))
+
+
+# =============================================================================
+# Quality Rule Tests
+# =============================================================================
+
+
+class TestNullComparisonRule:
+    def setup_method(self):
+        self.rule = NullComparisonRule()
+
+    def test_equals_null(self):
+        assert self.rule.check(_make_query("SELECT * FROM users WHERE deleted_at = NULL"))
+
+    def test_not_equals_null(self):
+        assert self.rule.check(_make_query("SELECT * FROM users WHERE deleted_at != NULL"))
+
+    def test_diamond_null(self):
+        assert self.rule.check(_make_query("SELECT * FROM users WHERE deleted_at <> NULL"))
+
+    def test_is_null_correct(self):
+        assert not self.rule.check(_make_query("SELECT * FROM users WHERE deleted_at IS NULL"))
+
+    def test_is_not_null_correct(self):
+        assert not self.rule.check(_make_query("SELECT * FROM users WHERE deleted_at IS NOT NULL"))
+
+
+class TestHardcodedDateRule:
+    def setup_method(self):
+        self.rule = HardcodedDateRule()
+
+    def test_hardcoded_date_where(self):
+        assert self.rule.check(_make_query("SELECT * FROM orders WHERE created_at = '2023-01-01'"))
+
+    def test_hardcoded_date_range(self):
+        assert self.rule.check(_make_query("SELECT * FROM events WHERE event_date > '2024-06-15'"))
+
+    def test_dynamic_date(self):
+        assert not self.rule.check(_make_query("SELECT * FROM orders WHERE created_at > NOW() - INTERVAL '30 days'"))
+
+    def test_no_where(self):
+        assert not self.rule.check(_make_query("SELECT * FROM orders"))
+
+    def test_parameterized(self):
+        assert not self.rule.check(_make_query("SELECT * FROM orders WHERE created_at = ?"))
+
+
+class TestWildcardInColumnListRule:
+    def setup_method(self):
+        self.rule = WildcardInColumnListRule()
+
+    def test_exists_select_star(self):
+        assert self.rule.check(_make_query(
+            "SELECT id FROM users WHERE EXISTS (SELECT * FROM orders WHERE orders.user_id = users.id)"
+        ))
+
+    def test_exists_select_one(self):
+        assert not self.rule.check(_make_query(
+            "SELECT id FROM users WHERE EXISTS (SELECT 1 FROM orders WHERE orders.user_id = users.id)"
+        ))
+
+    def test_regular_select_star(self):
+        assert not self.rule.check(_make_query("SELECT * FROM users"))
+
+
+class TestDuplicateConditionRule:
+    def setup_method(self):
+        self.rule = DuplicateConditionRule()
+
+    def test_duplicate_string_condition(self):
+        assert self.rule.check(_make_query(
+            "SELECT * FROM users WHERE status = 'active' AND status = 'active'"
+        ))
+
+    def test_duplicate_int_condition(self):
+        assert self.rule.check(_make_query(
+            "SELECT * FROM orders WHERE status = 1 AND status = 1"
+        ))
+
+    def test_different_conditions(self):
+        assert not self.rule.check(_make_query(
+            "SELECT * FROM users WHERE status = 'active' AND role = 'admin'"
+        ))
+
+    def test_same_column_different_values(self):
+        assert not self.rule.check(_make_query(
+            "SELECT * FROM users WHERE status = 'active' AND status = 'pending'"
+        ))
+
+
+class TestUnionWithoutAllRule:
+    def setup_method(self):
+        self.rule = UnionWithoutAllRule()
+
+    def test_union_without_all(self):
+        assert self.rule.check(_make_query(
+            "SELECT id FROM users UNION SELECT id FROM admins"
+        ))
+
+    def test_union_all(self):
+        assert not self.rule.check(_make_query(
+            "SELECT id FROM users UNION ALL SELECT id FROM admins"
+        ))
+
+    def test_no_union(self):
+        assert not self.rule.check(_make_query("SELECT * FROM users"))
+
+
+class TestMissingAliasRule:
+    def setup_method(self):
+        self.rule = MissingAliasRule()
+
+    def test_regular_table(self):
+        assert not self.rule.check(_make_query("SELECT * FROM users"))
+
+    def test_subquery_with_alias(self):
+        assert not self.rule.check(_make_query(
+            "SELECT * FROM (SELECT id FROM users) AS u WHERE u.id = 1"
+        ))
+
+
+class TestCommentedCodeRule:
+    def setup_method(self):
+        self.rule = CommentedCodeRule()
+
+    def test_commented_select(self):
+        assert self.rule.check(_make_query("SELECT id FROM users -- SELECT * FROM admins"))
+
+    def test_commented_delete(self):
+        assert self.rule.check(_make_query("SELECT 1 -- DELETE FROM users"))
+
+    def test_normal_comment(self):
+        assert not self.rule.check(_make_query("SELECT id FROM users -- get active users only"))
+
+    def test_no_comment(self):
+        assert not self.rule.check(_make_query("SELECT * FROM users WHERE active = 1"))
+
 

@@ -974,6 +974,244 @@ class ImplicitJoinRule(ASTRule):
         return []
 
 
+class NullComparisonRule(PatternRule):
+    """Detects incorrect NULL comparisons using = or != instead of IS NULL / IS NOT NULL."""
+
+    id = "QUAL-NULL-001"
+    name = "Incorrect NULL Comparison"
+    description = (
+        "Detects comparisons using = NULL or != NULL (and <> NULL) instead of "
+        "IS NULL or IS NOT NULL. In SQL, NULL = NULL evaluates to NULL (unknown), "
+        "not TRUE, so these comparisons always return no rows."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_READABILITY
+
+    pattern = (
+        r"(?<![A-Z_])\s*=\s*NULL\b"
+        r"|\bNULL\s*=\s*(?![A-Z_])"
+        r"|!=\s*NULL\b"
+        r"|<>\s*NULL\b"
+    )
+    message_template = "Incorrect NULL comparison detected — use IS NULL or IS NOT NULL: {match}"
+
+    impact = (
+        "Using = NULL or != NULL silently returns zero rows regardless of actual "
+        "NULL values, causing data to appear missing and logic to fail without errors."
+    )
+    fix_guidance = (
+        "Replace '= NULL' with 'IS NULL' and '!= NULL' or '<> NULL' with "
+        "'IS NOT NULL'. Use COALESCE() if a default value is needed instead of NULL handling."
+    )
+
+
+class SelectWithoutFromRule(PatternRule):
+    """Detects SELECT statements used as constants without FROM — often a sign of poor quality."""
+
+    id = "QUAL-STYLE-001"
+    name = "SELECT Without FROM Clause"
+    description = (
+        "Detects SELECT statements that compute constant expressions without a "
+        "FROM clause (e.g., SELECT 1, SELECT NOW(), SELECT 'value'). While valid "
+        "in some databases, this pattern is often used in test code or leftover "
+        "debug statements that should not reach production."
+    )
+    severity = Severity.INFO
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_READABILITY
+
+    pattern = r"(?i)^\s*SELECT\s+.+(?<!\bFROM\b.+)$"
+    message_template = "SELECT without FROM detected — verify this is intentional: {match}"
+
+    impact = (
+        "Constant SELECT statements in application queries may indicate debug "
+        "code left in production, test artifacts, or incomplete query construction."
+    )
+    fix_guidance = (
+        "Remove debug SELECT statements before deployment. If the constant "
+        "expression is needed, use database-specific syntax like SELECT 1 FROM "
+        "DUAL (Oracle) or ensure the intent is documented."
+    )
+
+
+class HardcodedDateRule(PatternRule):
+    """Detects hardcoded date literals in WHERE clauses."""
+
+    id = "QUAL-MODERN-002"
+    name = "Hardcoded Date Literal in Filter"
+    description = (
+        "Detects hardcoded date strings in WHERE clauses (e.g., WHERE date = '2023-01-01'). "
+        "Hardcoded dates create maintenance burden, break time-based logic silently "
+        "as time passes, and are a common source of stale query bugs."
+    )
+    severity = Severity.LOW
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_MODERN
+
+    pattern = (
+        r"\bWHERE\b.+['\"](\d{4}-\d{2}-\d{2})['\"]"
+    )
+    message_template = "Hardcoded date literal detected in WHERE clause — consider using parameters: {match}"
+
+    impact = (
+        "Hardcoded dates become stale and cause queries to return unexpected "
+        "results or no results as time passes. They also prevent query plan reuse."
+    )
+    fix_guidance = (
+        "Replace hardcoded dates with parameterized values (?), bind variables "
+        "(:date), or dynamic expressions like NOW(), CURRENT_DATE, or "
+        "CURRENT_DATE - INTERVAL '30 days'."
+    )
+
+
+class WildcardInColumnListRule(PatternRule):
+    """Detects SELECT * usage — already covered by SelectStarRule, this focuses on subqueries."""
+
+    id = "QUAL-STYLE-002"
+    name = "Wildcard in EXISTS Subquery"
+    description = (
+        "Detects SELECT * inside EXISTS subqueries. While functionally equivalent "
+        "to SELECT 1 in most databases, SELECT * in EXISTS causes the query planner "
+        "to potentially enumerate columns unnecessarily and signals poor query craftsmanship."
+    )
+    severity = Severity.INFO
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_READABILITY
+
+    pattern = r"\bEXISTS\s*\(\s*SELECT\s+\*"
+    message_template = "SELECT * inside EXISTS subquery — use SELECT 1 instead: {match}"
+
+    impact = (
+        "SELECT * in EXISTS subqueries may prevent optimizer shortcuts in some "
+        "databases and increases the surface area for column-level permission errors."
+    )
+    fix_guidance = (
+        "Replace 'EXISTS (SELECT * FROM ...)' with 'EXISTS (SELECT 1 FROM ...)'. "
+        "SELECT 1 clearly signals intent and is universally optimized."
+    )
+
+
+class DuplicateConditionRule(PatternRule):
+    """Detects obvious duplicate WHERE conditions."""
+
+    id = "QUAL-DRY-001"
+    name = "Duplicate WHERE Condition"
+    description = (
+        "Detects WHERE clauses containing the same column compared to the same "
+        "value twice with AND (e.g., WHERE status = 'active' AND status = 'active'). "
+        "Duplicate conditions add noise, confuse readers, and may indicate a "
+        "copy-paste error hiding a logic bug."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_DRY
+
+    pattern = (
+        r"\bWHERE\b.+\b(\w+)\s*=\s*('[^']*'|\d+)\s+AND\s+\1\s*=\s*\2"
+    )
+    message_template = "Duplicate WHERE condition detected — possible copy-paste error: {match}"
+
+    impact = (
+        "Duplicate conditions waste parser cycles and obscure intent. They often "
+        "indicate a copy-paste error where the second condition should have been "
+        "different (e.g., OR instead of AND, or a different value)."
+    )
+    fix_guidance = (
+        "Remove the duplicate condition. If both conditions were intended to "
+        "filter on different values, verify the logic — AND with two equal "
+        "conditions on the same column always reduces to a single condition."
+    )
+
+
+class UnionWithoutAllRule(PatternRule):
+    """Detects UNION without ALL where UNION ALL is likely intended for performance."""
+
+    id = "QUAL-MODERN-003"
+    name = "UNION Without ALL — Implicit Deduplication"
+    description = (
+        "Detects UNION without ALL. UNION performs an implicit DISTINCT which "
+        "requires a sort or hash operation over the full result set. If duplicate "
+        "elimination is not required, UNION ALL is significantly faster."
+    )
+    severity = Severity.LOW
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_MODERN
+
+    pattern = r"\bUNION\b(?!\s+ALL\b)"
+    message_template = "UNION without ALL detected — use UNION ALL if duplicates are not a concern: {match}"
+
+    impact = (
+        "UNION deduplicates results using an expensive sort or hash operation. "
+        "On large result sets this adds significant overhead compared to UNION ALL."
+    )
+    fix_guidance = (
+        "If the result sets cannot contain meaningful duplicates, replace UNION "
+        "with UNION ALL. If deduplication is required, keep UNION and add a "
+        "comment explaining why to prevent future 'optimization' regressions."
+    )
+
+
+class MissingAliasRule(PatternRule):
+    """Detects subqueries in FROM without an alias."""
+
+    id = "QUAL-STYLE-003"
+    name = "Subquery Missing Alias"
+    description = (
+        "Detects subqueries in FROM clauses that are not given an alias. "
+        "Unaliased subqueries are rejected by most databases (MySQL, PostgreSQL) "
+        "and always indicate incomplete or draft query construction."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_READABILITY
+
+    pattern = r"\bFROM\s*\(\s*SELECT\b[^)]+\)\s*WHERE\b"
+    message_template = "Subquery in FROM without alias detected — add an alias: {match}"
+
+    impact = (
+        "Unaliased subqueries cause syntax errors in PostgreSQL and MySQL. "
+        "Even where accepted, they make the query unreadable and unreferenceable "
+        "in outer query clauses."
+    )
+    fix_guidance = (
+        "Add an alias after the closing parenthesis: FROM (SELECT ...) AS subquery_name. "
+        "Choose a descriptive alias that reflects the subquery's purpose."
+    )
+
+
+class CommentedCodeRule(PatternRule):
+    """Detects large blocks of commented-out SQL code."""
+
+    id = "QUAL-STYLE-004"
+    name = "Commented-Out SQL Code"
+    description = (
+        "Detects inline SQL comments that appear to contain commented-out query "
+        "fragments (SELECT, INSERT, UPDATE, DELETE following -- or inside /* */). "
+        "Commented-out code is a code quality smell indicating dead code that "
+        "should be removed or tracked in version control."
+    )
+    severity = Severity.INFO
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_READABILITY
+
+    pattern = (
+        r"--\s*(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE)\b"
+        r"|/\*.*?(SELECT|INSERT|UPDATE|DELETE)\b.*?\*/"
+    )
+    message_template = "Commented-out SQL code detected — remove dead code or track in version control: {match}"
+
+    impact = (
+        "Commented-out code creates confusion about query intent, may hide "
+        "dangerous statements, and bloats query logs."
+    )
+    fix_guidance = (
+        "Remove commented-out SQL fragments before deploying queries. Use "
+        "version control to track historical query variants. If the code may "
+        "be needed, move it to a migration or script file with context."
+    )
+
+
 # =============================================================================
 # 🔒 SECURITY RULES (Extended)
 # =============================================================================
