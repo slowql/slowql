@@ -531,6 +531,196 @@ class DropTableRule(ASTRule):
         return []
 
 
+class TruncateWithoutTransactionRule(PatternRule):
+    """Detects TRUNCATE TABLE statements outside of an explicit transaction context."""
+
+    id = "REL-DATA-002"
+    name = "Truncate Without Transaction"
+    description = (
+        "Detects TRUNCATE TABLE statements outside of an explicit transaction context. "
+        "TRUNCATE is non-transactional in many databases (MySQL, older PostgreSQL) and "
+        "cannot be rolled back. Even in databases where it is transactional, it is "
+        "rarely wrapped in a transaction in application code."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.RELIABILITY
+    category = Category.REL_DATA_INTEGRITY
+
+    pattern = (
+        r"\bTRUNCATE\s+TABLE\b"
+        r"|\bTRUNCATE\b(?!\s*--)"
+    )
+    message_template = "TRUNCATE TABLE detected outside explicit transaction: {match}"
+
+    impact = (
+        "TRUNCATE removes all rows instantly with no row-by-row logging, making "
+        "recovery impossible without a backup in non-transactional databases."
+    )
+    fix_guidance = (
+        "Wrap TRUNCATE in an explicit BEGIN/START TRANSACTION block with a subsequent "
+        "COMMIT only after verification. Prefer DELETE with WHERE for recoverable "
+        "operations. Use TRUNCATE only in controlled migration scripts."
+    )
+
+
+class AlterTableDestructiveRule(PatternRule):
+    """Detects destructive ALTER TABLE operations."""
+
+    id = "REL-DATA-003"
+    name = "ALTER TABLE Without Backup Signal"
+    description = (
+        "Detects destructive ALTER TABLE operations: DROP COLUMN, MODIFY COLUMN "
+        "(type change), and RENAME COLUMN. These operations can cause irreversible "
+        "data loss or application breakage if not coordinated with application "
+        "deployments."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.RELIABILITY
+    category = Category.REL_DATA_INTEGRITY
+
+    pattern = (
+        r"\bALTER\s+TABLE\b.+\bDROP\s+COLUMN\b"
+        r"|\bALTER\s+TABLE\b.+\bMODIFY\s+COLUMN\b"
+        r"|\bALTER\s+TABLE\b.+\bRENAME\s+COLUMN\b"
+        r"|\bALTER\s+TABLE\b.+\bCHANGE\s+COLUMN\b"
+    )
+    message_template = "Destructive ALTER TABLE operation detected: {match}"
+
+    impact = (
+        "DROP COLUMN permanently destroys column data. MODIFY COLUMN can silently "
+        "truncate data if the new type is narrower. RENAME COLUMN breaks all "
+        "application queries referencing the old name."
+    )
+    fix_guidance = (
+        "Always take a full backup before destructive ALTER operations. Use "
+        "expand-contract pattern for zero-downtime schema changes: add new column, "
+        "migrate data, update application, then drop old column. Test in staging first."
+    )
+
+
+class MissingRollbackRule(PatternRule):
+    """Detects BEGIN/START TRANSACTION blocks for rollback review."""
+
+    id = "REL-TXN-001"
+    name = "Missing Transaction Rollback Handler"
+    description = (
+        "Detects BEGIN/START TRANSACTION blocks that have a COMMIT but no ROLLBACK, "
+        "indicating missing error handling. Transactions without ROLLBACK leave the "
+        "database in an inconsistent state if an error occurs mid-transaction."
+    )
+    severity = Severity.INFO
+    dimension = Dimension.RELIABILITY
+    category = Category.REL_TRANSACTION
+
+    pattern = r"\b(BEGIN|START\s+TRANSACTION)\b"
+    message_template = "Transaction opened — verify ROLLBACK handler exists: {match}"
+
+    impact = (
+        "Without ROLLBACK, a failed transaction may partially commit changes, leaving "
+        "data in an inconsistent state. This is especially dangerous for multi-step "
+        "operations like financial transfers."
+    )
+    fix_guidance = (
+        "Always pair BEGIN/COMMIT with a ROLLBACK in error handling. Use savepoints "
+        "for partial rollbacks in complex transactions. In application code, use "
+        "try/catch/finally patterns to ensure ROLLBACK on exception."
+    )
+
+
+class AutocommitDisabledRule(PatternRule):
+    """Detects explicit disabling of autocommit mode."""
+
+    id = "REL-TXN-002"
+    name = "Autocommit Disable Detection"
+    description = (
+        "Detects explicit disabling of autocommit mode (SET autocommit = 0, "
+        "SET IMPLICIT_TRANSACTIONS ON). When autocommit is disabled globally, every "
+        "statement starts an implicit transaction that must be manually committed or "
+        "rolled back, which can cause long-running locks and accidental data loss on "
+        "connection drop."
+    )
+    severity = Severity.LOW
+    dimension = Dimension.RELIABILITY
+    category = Category.REL_TRANSACTION
+
+    pattern = (
+        r"\bSET\s+autocommit\s*=\s*0\b"
+        r"|\bSET\s+IMPLICIT_TRANSACTIONS\s+ON\b"
+    )
+    message_template = "Autocommit disabled — risk of silent rollback on connection drop: {match}"
+
+    impact = (
+        "Disabling autocommit causes uncommitted changes to be silently rolled back "
+        "on connection drop or application crash, leading to data loss. Long-running "
+        "implicit transactions hold locks and degrade concurrency."
+    )
+    fix_guidance = (
+        "Use explicit BEGIN/COMMIT blocks instead of disabling autocommit globally. "
+        "If autocommit must be disabled, ensure every code path has explicit COMMIT "
+        "or ROLLBACK. Monitor for long-running transactions via pg_stat_activity or "
+        "information_schema.innodb_trx."
+    )
+
+
+class ExceptionSwallowedRule(PatternRule):
+    """Detects exception handling blocks that swallow errors silently."""
+
+    id = "REL-ERR-001"
+    name = "Swallowed Exception Pattern"
+    description = (
+        "Detects exception handling blocks that swallow errors silently: WHEN OTHERS "
+        "THEN NULL (Oracle), EXCEPTION WHEN OTHERS THEN (PL/pgSQL with no RAISE), "
+        "and empty CATCH blocks in T-SQL. Swallowed exceptions hide data integrity "
+        "failures and make debugging impossible."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.RELIABILITY
+    category = Category.REL_ERROR_HANDLING
+
+    pattern = r"\bWHEN\s+OTHERS\s+THEN\s+NULL\b"
+    message_template = "Exception handler may be swallowing errors silently: {match}"
+
+    impact = (
+        "Silent exception swallowing means failed operations appear to succeed. Data "
+        "integrity violations, constraint failures, and deadlocks go undetected, "
+        "leading to corrupted application state."
+    )
+    fix_guidance = (
+        "Always re-raise or log exceptions. In Oracle PL/SQL use RAISE or "
+        "RAISE_APPLICATION_ERROR. In PostgreSQL use RAISE EXCEPTION. In T-SQL use "
+        "THROW or RAISERROR. Never use WHEN OTHERS THEN NULL in production code."
+    )
+
+
+class LongTransactionWithoutSavepointRule(PatternRule):
+    """Detects SAVEPOINT usage for review in long transactions."""
+
+    id = "REL-REC-001"
+    name = "Missing Savepoint in Long Transaction"
+    description = (
+        "Detects long multi-statement transactions (containing 3 or more DML "
+        "operations: INSERT, UPDATE, DELETE) without a SAVEPOINT. Long transactions "
+        "without savepoints cannot be partially rolled back, forcing a full rollback "
+        "on any error."
+    )
+    severity = Severity.INFO
+    dimension = Dimension.RELIABILITY
+    category = Category.REL_RECOVERY
+
+    pattern = r"\bSAVEPOINT\b"
+    message_template = "Long transaction detected — consider using SAVEPOINTs for partial recovery: {match}"
+
+    impact = (
+        "A failure in step 10 of a 10-step transaction forces rollback of all "
+        "previous steps. Savepoints allow partial recovery and reduce re-work cost."
+    )
+    fix_guidance = (
+        "Use SAVEPOINT after logically complete sub-operations within long "
+        "transactions. Use ROLLBACK TO SAVEPOINT to recover from partial failures "
+        "without abandoning the entire transaction."
+    )
+
+
 # =============================================================================
 # 📋 COMPLIANCE RULES
 # =============================================================================

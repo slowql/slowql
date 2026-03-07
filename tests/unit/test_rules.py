@@ -8,12 +8,17 @@ import pytest
 from slowql.core.models import Category, Dimension, Location, Query, Severity
 from slowql.rules.base import ASTRule, PatternRule, Rule
 from slowql.rules.catalog import (
+    AlterTableDestructiveRule,
+    AutocommitDisabledRule,
     DangerousServerConfigRule,
     DataExfiltrationViaFileRule,
     DynamicSQLExecutionRule,
+    ExceptionSwallowedRule,
     GrantToPublicRule,
     HardcodedPasswordRule,
     LeadingWildcardRule,
+    LongTransactionWithoutSavepointRule,
+    MissingRollbackRule,
     OverprivilegedExecutionContextRule,
     PasswordPolicyBypassRule,
     PIIExposureRule,
@@ -22,6 +27,7 @@ from slowql.rules.catalog import (
     SQLInjectionRule,
     TautologicalOrConditionRule,
     TimeBasedBlindInjectionRule,
+    TruncateWithoutTransactionRule,
     UnsafeWriteRule,
     UserCreationWithoutPasswordRule,
     get_all_rules,
@@ -922,3 +928,137 @@ class TestOverprivilegedExecutionContextRule:
 
     def test_normal_execute(self):
         assert not self.rule.check(_make_query("EXECUTE myProcedure @param1 = 'value'"))
+
+
+# =============================================================================
+# Reliability Rule Tests
+# =============================================================================
+
+
+class TestTruncateWithoutTransactionRule:
+    def setup_method(self):
+        self.rule = TruncateWithoutTransactionRule()
+
+    def test_truncate_table(self):
+        assert self.rule.check(_make_query("TRUNCATE TABLE users"))
+
+    def test_truncate_no_table_keyword(self):
+        assert self.rule.check(_make_query("TRUNCATE orders"))
+
+    def test_truncate_in_migration(self):
+        assert self.rule.check(_make_query("TRUNCATE TABLE staging_data"))
+
+    def test_select_not_truncate(self):
+        assert not self.rule.check(_make_query("SELECT * FROM users"))
+
+    def test_delete_with_where(self):
+        assert not self.rule.check(_make_query("DELETE FROM users WHERE id = 1"))
+
+
+class TestAlterTableDestructiveRule:
+    def setup_method(self):
+        self.rule = AlterTableDestructiveRule()
+
+    def test_drop_column(self):
+        assert self.rule.check(_make_query("ALTER TABLE users DROP COLUMN email"))
+
+    def test_modify_column(self):
+        assert self.rule.check(_make_query("ALTER TABLE orders MODIFY COLUMN amount INT"))
+
+    def test_rename_column(self):
+        assert self.rule.check(_make_query("ALTER TABLE products RENAME COLUMN name TO title"))
+
+    def test_change_column(self):
+        assert self.rule.check(_make_query("ALTER TABLE users CHANGE COLUMN old_name new_name VARCHAR(100)"))
+
+    def test_add_column_safe(self):
+        assert not self.rule.check(_make_query("ALTER TABLE users ADD COLUMN phone VARCHAR(20)"))
+
+    def test_add_index_safe(self):
+        assert not self.rule.check(_make_query("ALTER TABLE users ADD INDEX idx_email (email)"))
+
+    def test_create_table(self):
+        assert not self.rule.check(_make_query("CREATE TABLE new_table (id INT PRIMARY KEY)"))
+
+
+class TestMissingRollbackRule:
+    def setup_method(self):
+        self.rule = MissingRollbackRule()
+
+    def test_begin_transaction(self):
+        assert self.rule.check(_make_query("BEGIN TRANSACTION"))
+
+    def test_start_transaction(self):
+        assert self.rule.check(_make_query("START TRANSACTION"))
+
+    def test_begin_simple(self):
+        assert self.rule.check(_make_query("BEGIN"))
+
+    def test_select_no_transaction(self):
+        assert not self.rule.check(_make_query("SELECT * FROM users"))
+
+    def test_commit_only(self):
+        assert not self.rule.check(_make_query("COMMIT"))
+
+
+class TestAutocommitDisabledRule:
+    def setup_method(self):
+        self.rule = AutocommitDisabledRule()
+
+    def test_autocommit_zero(self):
+        assert self.rule.check(_make_query("SET autocommit = 0"))
+
+    def test_autocommit_zero_no_spaces(self):
+        assert self.rule.check(_make_query("SET autocommit=0"))
+
+    def test_implicit_transactions_on(self):
+        assert self.rule.check(_make_query("SET IMPLICIT_TRANSACTIONS ON"))
+
+    def test_autocommit_one_safe(self):
+        assert not self.rule.check(_make_query("SET autocommit = 1"))
+
+    def test_set_other_variable(self):
+        assert not self.rule.check(_make_query("SET NOCOUNT ON"))
+
+    def test_select_autocommit(self):
+        assert not self.rule.check(_make_query("SELECT @@autocommit"))
+
+
+class TestExceptionSwallowedRule:
+    def setup_method(self):
+        self.rule = ExceptionSwallowedRule()
+
+    def test_when_others_then_null(self):
+        assert self.rule.check(_make_query("EXCEPTION WHEN OTHERS THEN NULL"))
+
+    def test_when_others_then_null_semicolon(self):
+        assert self.rule.check(_make_query("WHEN OTHERS THEN NULL;"))
+
+    def test_normal_exception_handler(self):
+        assert not self.rule.check(_make_query("EXCEPTION WHEN OTHERS THEN RAISE"))
+
+    def test_exception_when_others_no_null(self):
+        assert not self.rule.check(_make_query("EXCEPTION WHEN OTHERS THEN"))
+
+    def test_select_query(self):
+        assert not self.rule.check(_make_query("SELECT * FROM users WHERE status = 'active'"))
+
+    def test_when_clause_in_case(self):
+        assert not self.rule.check(_make_query("SELECT CASE WHEN status = 'active' THEN 1 ELSE 0 END FROM users"))
+
+
+class TestLongTransactionWithoutSavepointRule:
+    def setup_method(self):
+        self.rule = LongTransactionWithoutSavepointRule()
+
+    def test_savepoint_detected(self):
+        assert self.rule.check(_make_query("SAVEPOINT before_update"))
+
+    def test_savepoint_with_name(self):
+        assert self.rule.check(_make_query("SAVEPOINT sp1"))
+
+    def test_no_savepoint(self):
+        assert not self.rule.check(_make_query("BEGIN; INSERT INTO users VALUES (1); COMMIT;"))
+
+    def test_select_no_savepoint(self):
+        assert not self.rule.check(_make_query("SELECT * FROM users"))
