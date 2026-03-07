@@ -9,7 +9,10 @@ from slowql.core.models import Category, Dimension, Location, Query, Severity
 from slowql.rules.base import ASTRule, PatternRule, Rule
 from slowql.rules.catalog import (
     AlterTableDestructiveRule,
+    AuditLogTamperingRule,
     AutocommitDisabledRule,
+    ConsentTableMissingRule,
+    CrossBorderDataTransferRule,
     DangerousServerConfigRule,
     DataExfiltrationViaFileRule,
     DynamicSQLExecutionRule,
@@ -23,11 +26,14 @@ from slowql.rules.catalog import (
     PasswordPolicyBypassRule,
     PIIExposureRule,
     RemoteDataAccessRule,
+    RetentionPolicyMissingRule,
+    RightToErasureRule,
     SelectStarRule,
     SQLInjectionRule,
     TautologicalOrConditionRule,
     TimeBasedBlindInjectionRule,
     TruncateWithoutTransactionRule,
+    UnencryptedSensitiveColumnRule,
     UnsafeWriteRule,
     UserCreationWithoutPasswordRule,
     get_all_rules,
@@ -1062,3 +1068,194 @@ class TestLongTransactionWithoutSavepointRule:
 
     def test_select_no_savepoint(self):
         assert not self.rule.check(_make_query("SELECT * FROM users"))
+
+
+# =============================================================================
+# Compliance Rule Tests
+# =============================================================================
+
+
+class TestUnencryptedSensitiveColumnRule:
+    def setup_method(self):
+        self.rule = UnencryptedSensitiveColumnRule()
+
+    def test_password_varchar(self):
+        assert self.rule.check(_make_query(
+            "CREATE TABLE users (id INT, password VARCHAR(255))"
+        ))
+
+    def test_ssn_text(self):
+        assert self.rule.check(_make_query(
+            "CREATE TABLE profiles (id INT, ssn TEXT)"
+        ))
+
+    def test_token_char(self):
+        assert self.rule.check(_make_query(
+            "CREATE TABLE sessions (id INT, token CHAR(64))"
+        ))
+
+    def test_safe_column_int(self):
+        assert not self.rule.check(_make_query(
+            "CREATE TABLE users (id INT, age INT)"
+        ))
+
+    def test_select_not_create(self):
+        assert not self.rule.check(_make_query(
+            "SELECT password FROM users"
+        ))
+
+
+class TestRetentionPolicyMissingRule:
+    def setup_method(self):
+        self.rule = RetentionPolicyMissingRule()
+
+    def test_audit_log_table(self):
+        assert self.rule.check(_make_query(
+            "CREATE TABLE audit_log (id INT, action TEXT)"
+        ))
+
+    def test_history_table(self):
+        assert self.rule.check(_make_query(
+            "CREATE TABLE history (id INT, changed_at TIMESTAMP)"
+        ))
+
+    def test_access_log_table(self):
+        assert self.rule.check(_make_query(
+            "CREATE TABLE access_log (id INT, ip TEXT)"
+        ))
+
+    def test_regular_table(self):
+        assert not self.rule.check(_make_query(
+            "CREATE TABLE users (id INT, name TEXT)"
+        ))
+
+    def test_select_from_audit(self):
+        assert not self.rule.check(_make_query(
+            "SELECT * FROM audit_log"
+        ))
+
+
+class TestCrossBorderDataTransferRule:
+    def setup_method(self):
+        self.rule = CrossBorderDataTransferRule()
+
+    def test_dblink(self):
+        assert self.rule.check(_make_query(
+            "SELECT * FROM DBLINK('conn', 'SELECT id FROM users') AS t(id INT)"
+        ))
+
+    def test_openrowset(self):
+        assert self.rule.check(_make_query(
+            "SELECT * FROM OPENROWSET('SQLNCLI', 'server=remote', 'SELECT 1')"
+        ))
+
+    def test_create_server(self):
+        assert self.rule.check(_make_query(
+            "CREATE SERVER foreign_db FOREIGN DATA WRAPPER postgres_fdw"
+        ))
+
+    def test_create_foreign_table(self):
+        assert self.rule.check(_make_query(
+            "CREATE FOREIGN TABLE remote_users (id INT) SERVER foreign_db"
+        ))
+
+    def test_local_select(self):
+        assert not self.rule.check(_make_query(
+            "SELECT * FROM users WHERE id = 1"
+        ))
+
+
+class TestRightToErasureRule:
+    def setup_method(self):
+        self.rule = RightToErasureRule()
+
+    def test_delete_users(self):
+        assert self.rule.check(_make_query(
+            "DELETE FROM users WHERE id = 42"
+        ))
+
+    def test_delete_customers(self):
+        assert self.rule.check(_make_query(
+            "DELETE FROM customers WHERE email = 'x@y.com'"
+        ))
+
+    def test_delete_profiles(self):
+        assert self.rule.check(_make_query(
+            "DELETE FROM profiles WHERE user_id = 1"
+        ))
+
+    def test_delete_orders_safe(self):
+        assert not self.rule.check(_make_query(
+            "DELETE FROM orders WHERE created_at < '2020-01-01'"
+        ))
+
+    def test_select_not_delete(self):
+        assert not self.rule.check(_make_query(
+            "SELECT * FROM users"
+        ))
+
+
+class TestAuditLogTamperingRule:
+    def setup_method(self):
+        self.rule = AuditLogTamperingRule()
+
+    def test_delete_from_audit_log(self):
+        assert self.rule.check(_make_query(
+            "DELETE FROM audit_log WHERE created_at < '2023-01-01'"
+        ))
+
+    def test_update_audit_trail(self):
+        assert self.rule.check(_make_query(
+            "UPDATE audit_trail SET action = 'modified' WHERE id = 1"
+        ))
+
+    def test_delete_access_log(self):
+        assert self.rule.check(_make_query(
+            "DELETE FROM access_log WHERE id = 99"
+        ))
+
+    def test_delete_regular_table(self):
+        assert not self.rule.check(_make_query(
+            "DELETE FROM orders WHERE id = 1"
+        ))
+
+    def test_insert_audit_safe(self):
+        assert not self.rule.check(_make_query(
+            "INSERT INTO audit_log (action, user_id) VALUES ('login', 1)"
+        ))
+
+
+class TestConsentTableMissingRule:
+    def setup_method(self):
+        self.rule = ConsentTableMissingRule()
+
+    def test_insert_marketing(self):
+        assert self.rule.check(_make_query(
+            "INSERT INTO marketing (user_id, email) VALUES (1, 'a@b.com')"
+        ))
+
+    def test_insert_newsletter(self):
+        assert self.rule.check(_make_query(
+            "INSERT INTO newsletter (email) VALUES ('a@b.com')"
+        ))
+
+    def test_insert_mailing_list(self):
+        assert self.rule.check(_make_query(
+            "INSERT INTO mailing_list (user_id) VALUES (42)"
+        ))
+
+    def test_insert_subscribers(self):
+        assert self.rule.check(_make_query(
+            "INSERT INTO subscribers (email) VALUES ('x@y.com')"
+        ))
+
+    def test_insert_regular_table(self):
+        assert not self.rule.check(_make_query(
+            "INSERT INTO orders (user_id, total) VALUES (1, 99.99)"
+        ))
+
+    def test_select_not_insert(self):
+        assert not self.rule.check(_make_query(
+            "SELECT * FROM newsletter"
+        ))
+

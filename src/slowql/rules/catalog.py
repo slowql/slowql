@@ -741,6 +741,201 @@ class PIIExposureRule(PatternRule):
     impact = "Accessing PII requires audit logging and strict access controls under GDPR/CCPA."
 
 
+class UnencryptedSensitiveColumnRule(PatternRule):
+    """Detects sensitive column names created without encryption hints."""
+
+    id = "COMP-SEC-001"
+    name = "Unencrypted Sensitive Column Definition"
+    description = (
+        "Detects CREATE TABLE statements defining columns with sensitive names "
+        "(password, secret, token, ssn, credit_card, cvv, pin) using plain text "
+        "types (VARCHAR, TEXT, CHAR) without encryption hints in the column name "
+        "or comment."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.COMPLIANCE
+    category = Category.COMP_PCI
+
+    pattern = (
+        r"\bCREATE\s+TABLE\b.+\b(password|secret|token|ssn|credit_card|cvv|pin)\b"
+        r".+\b(VARCHAR|TEXT|CHAR)\b"
+    )
+    message_template = "Sensitive column defined with plain text type — consider encryption: {match}"
+
+    impact = (
+        "Storing sensitive values in plain text columns violates PCI-DSS, HIPAA, "
+        "and GDPR requirements and exposes data if the database is compromised."
+    )
+    fix_guidance = (
+        "Use application-level encryption before storing, or database-level "
+        "transparent encryption. Consider column names like password_hash or "
+        "token_encrypted to signal encrypted storage."
+    )
+
+
+class RetentionPolicyMissingRule(PatternRule):
+    """Detects CREATE TABLE on tables with time-series or audit naming without TTL hints."""
+
+    id = "COMP-RET-001"
+    name = "Missing Retention Policy Signal"
+    description = (
+        "Detects CREATE TABLE statements for tables with audit, log, history, or "
+        "event naming patterns. Such tables typically require a data retention "
+        "policy under GDPR Article 5(1)(e) and similar regulations but rarely "
+        "have one enforced at the schema level."
+    )
+    severity = Severity.LOW
+    dimension = Dimension.COMPLIANCE
+    category = Category.COMP_GDPR
+
+    pattern = (
+        r"\bCREATE\s+TABLE\b.+\b(audit|audits|audit_log|event_log|history|"
+        r"logs|access_log|activity_log)\b"
+    )
+    message_template = "Table with audit/log naming detected — verify retention policy exists: {match}"
+
+    impact = (
+        "Indefinite retention of audit and log data violates GDPR storage "
+        "limitation principles and increases breach exposure surface."
+    )
+    fix_guidance = (
+        "Implement a documented retention policy. Use partitioning with scheduled "
+        "partition drops, or a scheduled DELETE WHERE created_at < NOW() - INTERVAL. "
+        "Document the retention period in a data inventory."
+    )
+
+
+class CrossBorderDataTransferRule(PatternRule):
+    """Detects DBLINK or foreign server queries that may indicate cross-border data transfer."""
+
+    id = "COMP-GDPR-002"
+    name = "Potential Cross-Border Data Transfer"
+    description = (
+        "Detects use of DBLINK, foreign data wrappers (postgres_fdw, dblink), "
+        "or OPENROWSET which may transfer personal data across database boundaries "
+        "or geographic regions without adequate GDPR safeguards."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.COMPLIANCE
+    category = Category.COMP_GDPR
+
+    pattern = (
+        r"\bDBLINK\s*\("
+        r"|\bOPENROWSET\s*\("
+        r"|\bCREATE\s+SERVER\b"
+        r"|\bCREATE\s+FOREIGN\s+TABLE\b"
+    )
+    message_template = "Cross-database or foreign data access detected — verify GDPR transfer compliance: {match}"
+
+    impact = (
+        "Transferring personal data to foreign servers in non-adequate countries "
+        "without SCCs or BCRs violates GDPR Chapter V and can result in significant fines."
+    )
+    fix_guidance = (
+        "Document all cross-border data flows in your data inventory. Ensure "
+        "Standard Contractual Clauses or Binding Corporate Rules are in place. "
+        "Prefer data minimization — transfer only pseudonymized or anonymized data."
+    )
+
+
+class RightToErasureRule(PatternRule):
+    """Detects DELETE on tables with PII-related names, flagging for erasure compliance review."""
+
+    id = "COMP-GDPR-003"
+    name = "Right to Erasure — Verify Cascade Completeness"
+    description = (
+        "Detects DELETE statements on tables with user, customer, account, profile, "
+        "or member naming. GDPR Article 17 requires complete erasure across all "
+        "related tables. A single-table DELETE may leave PII in audit logs, "
+        "backups, or related tables."
+    )
+    severity = Severity.INFO
+    dimension = Dimension.COMPLIANCE
+    category = Category.COMP_GDPR
+
+    pattern = (
+        r"\bDELETE\s+FROM\s+(users|customers|accounts|profiles|members|"
+        r"user_data|customer_data|personal_data)\b"
+    )
+    message_template = "DELETE on PII table detected — verify GDPR erasure completeness: {match}"
+
+    impact = (
+        "Incomplete erasure leaves PII in related tables, audit logs, caches, "
+        "and backups, violating GDPR Article 17 and exposing the organization "
+        "to regulatory penalties."
+    )
+    fix_guidance = (
+        "Implement cascading deletes or a dedicated erasure procedure that covers "
+        "all related tables. Document which systems hold personal data and verify "
+        "backup purge schedules. Consider pseudonymization as an alternative to deletion."
+    )
+
+
+class AuditLogTamperingRule(PatternRule):
+    """Detects DELETE or UPDATE on audit/log tables."""
+
+    id = "COMP-AUD-001"
+    name = "Audit Log Tampering Risk"
+    description = (
+        "Detects DELETE or UPDATE statements targeting audit, log, or event tables. "
+        "Modifying audit logs undermines non-repudiation requirements under SOX, "
+        "PCI-DSS 10.5, and HIPAA audit controls."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.COMPLIANCE
+    category = Category.COMP_SOX
+
+    pattern = (
+        r"\b(DELETE\s+FROM|UPDATE)\s+\w*(audit|audit_log|event_log|access_log|"
+        r"activity_log|audit_trail|system_log)\w*\b"
+    )
+    message_template = "Modification of audit/log table detected — potential compliance violation: {match}"
+
+    impact = (
+        "Modifying audit logs violates regulatory non-repudiation requirements "
+        "and may constitute evidence tampering. PCI-DSS 10.5 explicitly requires "
+        "audit logs to be protected from modification."
+    )
+    fix_guidance = (
+        "Audit tables should be append-only. Use INSERT-only permissions on log "
+        "tables. Implement write-once storage for compliance archives. Use "
+        "database roles to prevent UPDATE/DELETE on audit tables."
+    )
+
+
+class ConsentTableMissingRule(PatternRule):
+    """Detects INSERT into marketing or communication tables without a consent table join signal."""
+
+    id = "COMP-GDPR-004"
+    name = "Marketing Insert Without Consent Signal"
+    description = (
+        "Detects INSERT INTO statements targeting marketing, newsletter, campaign, "
+        "or mailing list tables. GDPR Article 7 requires documented consent before "
+        "adding users to marketing lists. A bare INSERT with no consent reference "
+        "is a compliance signal."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.COMPLIANCE
+    category = Category.COMP_GDPR
+
+    pattern = (
+        r"\bINSERT\s+INTO\s+\w*(marketing|newsletter|mailing_list|campaign|"
+        r"subscribers|email_list)\w*\b"
+    )
+    message_template = "INSERT into marketing/communication table — verify GDPR consent was recorded: {match}"
+
+    impact = (
+        "Adding users to marketing lists without recorded consent violates GDPR "
+        "Article 7 and ePrivacy Directive, exposing the organization to "
+        "regulatory complaints and fines."
+    )
+    fix_guidance = (
+        "Ensure consent is recorded in a consent management table before INSERT. "
+        "Include consent_id or consent_timestamp as a required foreign key in "
+        "marketing tables. Audit consent validity before each campaign."
+    )
+
+
 # =============================================================================
 # 📝 QUALITY RULES
 # =============================================================================
