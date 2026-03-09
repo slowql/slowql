@@ -142,6 +142,10 @@ ignore = [
     "RUF012",   # mutable class default (false positives with Pydantic)
     "SIM105",   # use contextlib.suppress (style preference)
     "ARG002",   # unused method argument (often intentional in overrides)
+    "SIM102",   # collapsible if (reduces readability)
+    "SIM108",   # ternary operator (style preference)
+    "C401",     # unnecessary generator (minor optimization)
+    "B007",     # unused loop variable (intentional in some cases)
 ]
 
 [tool.ruff.lint.isort]
@@ -204,3 +208,7 @@ exclude_lines = [
 [tool.ruff.lint.per-file-ignores]
 # Allow star imports and redefined names in __init__.py files (re-exports)
 "*/__init__.py" = ["F403", "F405", "F811", "PLC0415"]
+# Allow test-specific patterns
+"tests/**/*.py" = ["PLC0415", "E402"]
+# Allow lazy imports in registry pattern
+"src/slowql/rules/registry.py" = ["PLC0415"]
