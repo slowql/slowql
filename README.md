@@ -1,6 +1,7 @@
 # SlowQL
 
-**Production-grade SQL static analyzer that prevents performance disasters, security breaches, and cloud cost explosions.**
+**SlowQL is a SQL static analyzer. Point it at your SQL files and it catches the patterns that cause production incidents before they ship.
+Zero dependencies. Completely offline. 171 rules across 6 categories.**
 
 Stop bad SQL before it hits production. SlowQL is a zero-dependency, offline SQL analyzer that catches performance anti-patterns, security vulnerabilities, compliance violations, and cost traps - with a beautiful terminal experience that developers actually enjoy using.
 
