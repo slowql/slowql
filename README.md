@@ -44,7 +44,7 @@ Stop bad SQL before it hits production. SlowQL is a zero-dependency, offline SQL
 
 | Problem | Impact | SlowQL Detection |
 |---------|--------|------------------|
-| `SELECT *` on 10M rows | $47K AWS bill | ✅ PERF-SCAN-001 |
+| `SELECT *` on 10M rows | $$$ Cloud bill | ✅ PERF-SCAN-001 |
 | `DELETE FROM users` (no WHERE) | Total data loss | ✅ REL-DATA-001 |
 | `EXEC(@sql + @input)` | SQL injection breach | ✅ SEC-INJ-002 |
 | `LIKE '%search%'` | 5-second page loads | ✅ PERF-IDX-002 |
