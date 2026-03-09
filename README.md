@@ -8,7 +8,6 @@ Stop bad SQL before it hits production. SlowQL is a zero-dependency, offline SQL
 <p align="center">
   <a href="https://github.com/makroumi/slowql/releases"><img src="https://img.shields.io/github/v/release/makroumi/slowql?logo=github&label=release&color=4c1" alt="Release"></a>
   <a href="https://pypi.org/project/slowql/"><img src="https://img.shields.io/pypi/v/slowql?logo=pypi&logoColor=white&color=3775A9" alt="PyPI"></a>
-  <a href="https://pypi.org/project/slowql/"><img src="https://img.shields.io/pypi/pyversions/slowql?logo=python&logoColor=white" alt="Python"></a>
   <a href="https://hub.docker.com/r/makroumi/slowql"><img src="https://img.shields.io/docker/v/makroumi/slowql?logo=docker&logoColor=white&label=docker&color=2496ED" alt="Docker"></a>
   <a href="https://github.com/makroumi/slowql/pkgs/container/slowql"><img src="https://img.shields.io/badge/GHCR-slowql-blue?logo=github" alt="GHCR"></a>
   <a href="https://pypi.org/project/slowql/"><img src="https://img.shields.io/docker/pulls/makroumi/slowql?logo=docker&logoColor=white&label=pulls" alt="Docker Pulls"></a>
