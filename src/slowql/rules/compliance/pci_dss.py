@@ -4,8 +4,6 @@ Compliance Pci dss rules.
 
 from __future__ import annotations
 
-
-
 from slowql.core.models import Category, Dimension, Severity
 from slowql.rules.base import PatternRule
 

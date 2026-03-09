@@ -4,8 +4,6 @@ Quality Documentation rules.
 
 from __future__ import annotations
 
-
-
 from slowql.core.models import Category, Dimension, Issue, Query, Severity
 from slowql.rules.base import PatternRule, Rule
 

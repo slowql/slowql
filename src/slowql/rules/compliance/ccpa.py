@@ -7,7 +7,6 @@ from __future__ import annotations
 import re
 from typing import Any
 
-
 from slowql.core.models import Category, Dimension, Issue, Query, Severity
 from slowql.rules.base import ASTRule
 
