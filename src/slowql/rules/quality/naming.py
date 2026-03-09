@@ -14,9 +14,9 @@ from slowql.core.models import Category, Dimension, Fix, Issue, Location, Query,
 from slowql.rules.base import ASTRule, PatternRule, Rule
 
 __all__ = [
-    'InconsistentTableNamingRule',
     'AmbiguousAliasRule',
     'HungarianNotationRule',
+    'InconsistentTableNamingRule',
     'ReservedWordAsColumnRule',
 ]
 
@@ -37,15 +37,15 @@ class InconsistentTableNamingRule(ASTRule):
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
         tables = [t.name.lower() for t in ast.find_all(exp.Table) if t.name]
-        
+
         if len(tables) < 2:
             return []
-            
+
         # Standardize: plural usually ends with 's', but not 'ss' (like 'process')
         # This is a heuristic for detecting mixtures.
         likely_singular = [t for t in tables if not t.endswith('s') or t.endswith('ss')]
         likely_plural = [t for t in tables if t.endswith('s') and not t.endswith('ss')]
-        
+
         # Only flag if we have a clear mixture of both patterns
         if likely_singular and likely_plural:
             # Check if they are actually different words (not just 'user' and 'user')
@@ -56,7 +56,7 @@ class InconsistentTableNamingRule(ASTRule):
                     snippet=", ".join(tables[:5]),
                 )
             )
-            
+
         return issues
 
     impact = (
@@ -81,12 +81,12 @@ class AmbiguousAliasRule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        
+
         for node in ast.walk():
             alias = None
             if isinstance(node, (exp.Alias, exp.Table)):
                 alias = getattr(node, 'alias', None)
-            
+
             if alias and len(alias) <= 2 and alias.lower() not in ('as', 'id'):
                 issues.append(
                     self.create_issue(
@@ -95,7 +95,7 @@ class AmbiguousAliasRule(ASTRule):
                         snippet=str(node)[:50],
                     )
                 )
-                
+
         return issues
 
     impact = (
@@ -147,7 +147,7 @@ class ReservedWordAsColumnRule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        
+
         # Check all identifiers, including those sqlglot might identify as words
         for node in ast.walk():
             name = None
@@ -156,7 +156,7 @@ class ReservedWordAsColumnRule(ASTRule):
                     name = node.this
                 else:
                     name = node.alias_or_name
-            
+
             if name and isinstance(name, str) and name.upper() in self.RESERVED:
                 issues.append(
                     self.create_issue(
@@ -165,7 +165,7 @@ class ReservedWordAsColumnRule(ASTRule):
                         snippet=str(node),
                     )
                 )
-                
+
         return issues
 
     impact = (

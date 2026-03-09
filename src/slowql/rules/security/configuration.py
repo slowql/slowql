@@ -15,11 +15,11 @@ from slowql.rules.base import ASTRule, PatternRule, Rule
 
 __all__ = [
     'DangerousServerConfigRule',
-    'OverprivilegedExecutionContextRule',
-    'HardcodedCredentialsRule',
-    'WeakSSLConfigRule',
     'DefaultCredentialUsageRule',
+    'HardcodedCredentialsRule',
     'OverlyPermissiveAccessRule',
+    'OverprivilegedExecutionContextRule',
+    'WeakSSLConfigRule',
 ]
 
 

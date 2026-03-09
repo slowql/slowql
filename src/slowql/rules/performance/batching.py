@@ -31,12 +31,12 @@ class LargeUnbatchedOperationRule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        
+
         for node in ast.walk():
             if isinstance(node, (exp.Update, exp.Delete)):
                 query_upper = query.raw.upper()
                 has_limit = 'TOP' in query_upper or 'LIMIT' in query_upper
-                
+
                 if not has_limit:
                     stmt_type = 'UPDATE' if isinstance(node, exp.Update) else 'DELETE'
                     issues.append(self.create_issue(
@@ -53,7 +53,7 @@ class LargeUnbatchedOperationRule(ASTRule):
                             is_safe=False,
                         ),
                     ))
-        
+
         return issues
 
 
@@ -69,7 +69,7 @@ class MissingBatchSizeInLoopRule(PatternRule):
 
     pattern = r"\bWHILE\b[\s\S]*?\b(UPDATE|DELETE)\b(?![\s\S]*?\b(TOP|LIMIT)\b)[\s\S]*?\bEND\b"
     message_template = "WHILE loop with unbatched DML detected."
-    
+
     impact = (
         "WHILE loops without batch limits may process unlimited rows per iteration, "
         "negating the benefits of batching."

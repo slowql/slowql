@@ -14,9 +14,9 @@ from slowql.core.models import Category, Dimension, Fix, Issue, Location, Query,
 from slowql.rules.base import ASTRule, PatternRule, Rule
 
 __all__ = [
-    'ScalarUdfInQueryRule',
     'CorrelatedSubqueryRule',
     'OrderByNonIndexedColumnRule',
+    'ScalarUdfInQueryRule',
 ]
 
 
@@ -32,7 +32,7 @@ class ScalarUdfInQueryRule(PatternRule):
 
     pattern = r"\b(SELECT|WHERE)\b[^;]*\bdbo\.\w+\s*\([^)]*\)"
     message_template = "Scalar UDF detected: {match}"
-    
+
     impact = (
         "Scalar UDFs execute row-by-row, prevent parallelism, and cannot be inlined in most SQL versions. "
         "A single scalar UDF can make queries 100x slower."
@@ -52,7 +52,7 @@ class CorrelatedSubqueryRule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        
+
         for node in ast.walk():
             if isinstance(node, exp.Select):
                 for subq in node.find_all(exp.Subquery):
@@ -60,7 +60,7 @@ class CorrelatedSubqueryRule(ASTRule):
                     if isinstance(inner, exp.Select):
                         outer_tables = self._get_table_aliases(node)
                         inner_refs = self._get_column_table_refs(inner)
-                        
+
                         if outer_tables and inner_refs and (outer_tables & inner_refs):
                             issues.append(self.create_issue(
                                 query=query,
@@ -76,7 +76,7 @@ class CorrelatedSubqueryRule(ASTRule):
                                     is_safe=False,
                                 ),
                             ))
-        
+
         return issues
 
     def _get_table_aliases(self, node: Any) -> set[str]:
@@ -108,13 +108,13 @@ class OrderByNonIndexedColumnRule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        
+
         unlikely_indexed = {
             'description', 'notes', 'comments', 'body', 'content', 'message',
             'address', 'bio', 'about', 'metadata', 'json_data', 'xml_data',
             'calculated', 'computed', 'derived'
         }
-        
+
         for node in ast.walk():
             if isinstance(node, exp.Select):
                 order = node.args.get('order')
@@ -140,5 +140,5 @@ class OrderByNonIndexedColumnRule(ASTRule):
                                             is_safe=False,
                                         ),
                                     ))
-        
+
         return issues

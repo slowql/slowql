@@ -14,9 +14,9 @@ from slowql.core.models import Category, Dimension, Fix, Issue, Location, Query,
 from slowql.rules.base import ASTRule, PatternRule, Rule
 
 __all__ = [
-    'MissingPrimaryKeyRule',
-    'MissingForeignKeyRule',
     'LackOfIndexingOnForeignKeyRule',
+    'MissingForeignKeyRule',
+    'MissingPrimaryKeyRule',
     'UsingFloatForCurrencyRule',
 ]
 
@@ -57,11 +57,11 @@ class MissingForeignKeyRule(ASTRule):
         issues = []
         if not isinstance(ast, exp.Create):
             return []
-            
+
         table_def = ast.this
         if not isinstance(table_def, exp.Schema):
             return []
-            
+
         columns = [c.this.name.lower() for c in table_def.find_all(exp.ColumnDef)]
         fks = []
         for f in table_def.find_all(exp.ForeignKey):
@@ -73,7 +73,7 @@ class MissingForeignKeyRule(ASTRule):
                 id_node = f.find(exp.Identifier)
                 if id_node:
                     fks.append(id_node.this.lower())
-        
+
         for col in columns:
             if col.endswith('_id') and col != 'id' and col not in fks:
                 issues.append(
@@ -83,7 +83,7 @@ class MissingForeignKeyRule(ASTRule):
                         snippet=col,
                     )
                 )
-                
+
         return issues
 
     impact = (
@@ -110,28 +110,28 @@ class LackOfIndexingOnForeignKeyRule(ASTRule):
         issues = []
         if not isinstance(ast, exp.Create):
             return []
-            
+
         table_def = ast.this
         if not isinstance(table_def, exp.Schema):
             return []
-            
+
         # Get all indexes/keys
         indexed_cols = set()
         for idx in table_def.find_all((exp.Index, exp.IndexColumnConstraint)):
             for ident in idx.find_all(exp.Identifier):
                 indexed_cols.add(ident.this.lower())
-        
+
         for fk in table_def.find_all(exp.ForeignKey):
             # expressions contains the local columns (Identifiers)
             local_idents = fk.expressions
             local_names = {ident.this.lower() for ident in local_idents if isinstance(ident, exp.Identifier)}
-            
+
             for col_name in local_names:
                 if col_name not in indexed_cols:
                     issues.append(
                         self.create_issue(query=query, message=f"Missing index on FK '{col_name}'", snippet=str(fk))
                     )
-                    
+
         return issues
 
     impact = (

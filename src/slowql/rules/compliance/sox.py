@@ -34,7 +34,7 @@ class FinancialChangeTrackingRule(ASTRule):
     category = Category.COMP_SOX
 
     _financial_tables = {
-        "ledger", "accounts", "payments", "salaries", "payroll", "revenue", 
+        "ledger", "accounts", "payments", "salaries", "payroll", "revenue",
         "expenses", "general_ledger", "trial_balance", "balance_sheet"
     }
 

@@ -107,7 +107,7 @@ class PHIMinimumNecessaryRule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        
+
         # Check for SELECT * on PHI tables
         if query.query_type == "SELECT":
             # Check if any star expression exists

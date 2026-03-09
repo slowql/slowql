@@ -14,9 +14,9 @@ from slowql.core.models import Category, Dimension, Fix, Issue, Location, Query,
 from slowql.rules.base import ASTRule, PatternRule, Rule
 
 __all__ = [
+    'LocalFileInclusionRule',
     'OSCommandInjectionRule',
     'PathTraversalRule',
-    'LocalFileInclusionRule',
     'SSRFViaDatabaseRule',
 ]
 

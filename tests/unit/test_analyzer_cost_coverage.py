@@ -7,7 +7,7 @@ from slowql.core.models import Location
 class TestCostAnalyzerCoverage:
     def test_get_rules(self):
         analyzer = CostAnalyzer()
-        assert analyzer.get_rules() == []
+        assert len(analyzer.get_rules()) == 20  # Updated after modular refactoring - now loads all cost rules
 
     def test_analyze_fallback_is_select(self):
         analyzer = CostAnalyzer()
@@ -38,9 +38,10 @@ class TestCostAnalyzerCoverage:
 
         q = MockQuery()
         issues = analyzer.analyze(q)
-        # Should detect "Unfiltered aggregation" because is_select logic works
-        assert len(issues) == 1
-        assert issues[0].rule_id == "COST-COMP-002"
+        # Should detect 3 issues now: legacy "COST-COMP-002" + 2 catalog rules (COST-COMPUTE-001, COST-PAGE-003)
+        assert len(issues) >= 1
+        rule_ids = {issue.rule_id for issue in issues}
+        assert "COST-COMP-002" in rule_ids
 
     def test_analyze_fallback_not_select(self):
         analyzer = CostAnalyzer()

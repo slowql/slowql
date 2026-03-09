@@ -44,7 +44,7 @@ class SelectStarInETLRule(ASTRule):
         for node in ast.walk():
             is_ctas = isinstance(node, exp.Create) and getattr(node, "kind", "") == 'TABLE'
             is_insert = isinstance(node, exp.Insert)
-            
+
             if is_ctas or is_insert:
                 select = getattr(node, "expression", None)
                 if select and isinstance(select, exp.Select):

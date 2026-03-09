@@ -1549,7 +1549,7 @@ class PHIMinimumNecessaryRule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        
+
         # Check for SELECT * on PHI tables
         if query.query_type == "SELECT":
             # Check if any star expression exists
@@ -1703,7 +1703,7 @@ class FinancialChangeTrackingRule(ASTRule):
     category = Category.COMP_SOX
 
     _financial_tables = {
-        "ledger", "accounts", "payments", "salaries", "payroll", "revenue", 
+        "ledger", "accounts", "payments", "salaries", "payroll", "revenue",
         "expenses", "general_ledger", "trial_balance", "balance_sheet"
     }
 
@@ -1919,10 +1919,10 @@ class OffsetPaginationWithoutCoveringIndexRule(ASTRule):
                                     col = expr.this
                                     if isinstance(col, exp.Column):
                                         order_cols.append(col.name.lower())
-                        
+
                         likely_indexed = {"id", "created_at", "updated_at", "timestamp", "date"}
                         uses_pk = any(col in likely_indexed or col.endswith("_id") for col in order_cols)
-                        
+
                         if not uses_pk:
                             issues.append(
                                 self.create_issue(
@@ -2118,7 +2118,7 @@ class MissingCoveringIndexOpportunityRule(ASTRule):
                 if where:
                     for col in where.find_all(exp.Column):
                         where_cols.add(col.name.lower())
-                
+
                 select_cols = set()
                 has_star = False
                 for expr in node.expressions:
@@ -2484,10 +2484,10 @@ class CrossDatabaseJoinRule(ASTRule):
                         parts = str(table).split(".")
                         if len(parts) >= 2:
                             db_name = parts[0]
-                    
+
                     if db_name:
                         databases.add(db_name)
-                
+
                 if len(databases) > 1:
                     issues.append(
                         self.create_issue(
@@ -2640,24 +2640,24 @@ class OldDataNotArchivedRule(ASTRule):
                     if col.name.lower() in self._date_columns:
                         has_date_col = True
                         break
-                
+
                 if has_date_col:
                     where = node.args.get("where")
                     filters_by_date_range = False
                     hits_old_data = False
-                    
+
                     if where:
                         # Check if any date column is used in the filter
                         for col in where.find_all(exp.Column):
                             if col.name.lower() in self._date_columns:
                                 filters_by_date_range = True
-                        
+
                         # Check specifically for "older than" filters (<, <=)
                         for bin_op in where.find_all((exp.LT, exp.LTE)):
                             for col in bin_op.find_all(exp.Column):
                                 if col.name.lower() in self._date_columns:
                                     hits_old_data = True
-                    
+
                     # Trigger if no date filter is present, or if it's specifically hitting old data
                     if not filters_by_date_range or hits_old_data:
                         issues.append(
@@ -2731,7 +2731,7 @@ class LargeTableWithoutPartitioningRule(ASTRule):
                 for table in tables:
                     table_lower = table.lower()
                     is_large = any(p in table_lower for p in self._large_table_patterns)
-                    
+
                     if is_large:
                         has_partition = "PARTITION" in query.raw.upper()
                         if not has_partition:
@@ -3200,7 +3200,7 @@ class SelectStarInETLRule(ASTRule):
         for node in ast.walk():
             is_ctas = isinstance(node, exp.Create) and getattr(node, "kind", "") == 'TABLE'
             is_insert = isinstance(node, exp.Insert)
-            
+
             if is_ctas or is_insert:
                 select = getattr(node, "expression", None)
                 if select and isinstance(select, exp.Select):
@@ -3313,7 +3313,7 @@ class SecondOrderSQLInjectionRule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        
+
         # Columns that commonly store user input later used unsafely
         dangerous_columns = {
             'username', 'user_name', 'email', 'name', 'first_name', 'last_name',
@@ -3321,12 +3321,12 @@ class SecondOrderSQLInjectionRule(ASTRule):
             'address', 'notes', 'bio', 'about', 'query', 'search', 'filter',
             'filename', 'filepath', 'url', 'callback', 'redirect'
         }
-        
+
         for node in ast.walk():
             if isinstance(node, (exp.Insert, exp.Update)):
                 # Get column names being set
                 columns = self._extract_target_columns(node)
-                
+
                 dangerous_found = columns & dangerous_columns
                 if dangerous_found:
                     issues.append(
@@ -3345,7 +3345,7 @@ class SecondOrderSQLInjectionRule(ASTRule):
                             ),
                         )
                     )
-        
+
         return issues
 
     def _extract_target_columns(self, node: Any) -> set[str]:
@@ -3379,11 +3379,11 @@ class LikeWildcardInjectionRule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        
+
         for node in ast.walk():
             if isinstance(node, exp.Like):
                 pattern = getattr(node, "expression", None)  # The LIKE pattern
-                
+
                 # Check if pattern is a parameter placeholder or simple literal
                 # Parameters suggest user input that should be escaped
                 if isinstance(pattern, exp.Placeholder):
@@ -3423,7 +3423,7 @@ class LikeWildcardInjectionRule(ASTRule):
                                 ),
                             )
                         )
-        
+
         return issues
 
 
@@ -3442,7 +3442,7 @@ class WeakHashingAlgorithmRule(PatternRule):
 
     pattern = r"\b(MD5|SHA1|SHA)\s*\(\s*[^)]*\b(password|passwd|pwd|secret|token|key|credential)\b"
     message_template = "Weak hashing algorithm detected: {match}"
-    
+
     impact = (
         "MD5 and SHA1 are cryptographically broken. GPU clusters can crack MD5 hashes at 200+ billion "
         "attempts/second. Rainbow tables provide instant lookups for common passwords."
@@ -3468,7 +3468,7 @@ class PlaintextPasswordInQueryRule(PatternRule):
 
     pattern = r"\b(INSERT\s+INTO|UPDATE)\b[^;]*\b(password|passwd|pwd|secret_key|api_key|auth_token)\b[^;]*?(?:=\s*|VALUES\s*\()[^;(]*?['\"][^'\"()]{4,}['\"]"
     message_template = "Potential plaintext password detected in query: {match}"
-    
+
     impact = (
         "Plaintext passwords in databases are catastrophic during breaches. A single leaked backup exposes "
         "all credentials. Violates every security compliance framework."
@@ -3491,7 +3491,7 @@ class HardcodedEncryptionKeyRule(PatternRule):
 
     pattern = r"\b(AES_ENCRYPT|AES_DECRYPT|ENCRYPT|DECRYPT|ENCRYPTBYKEY|DECRYPTBYKEY|HASHBYTES|HMAC)\s*\([^)]*,\s*['\"][A-Za-z0-9\+/=!@#\$%^&\*\-]{8,}['\"]"
     message_template = "Hardcoded encryption key detected: {match}"
-    
+
     impact = (
         "Hardcoded keys in queries appear in query logs, execution plans, source control history, and "
         "monitoring tools. Key compromise means total data compromise with no rotation path."
@@ -3514,7 +3514,7 @@ class WeakEncryptionAlgorithmRule(PatternRule):
 
     pattern = r"\b(DES_ENCRYPT|DES_DECRYPT|TRIPLE_DES|3DES|RC4|RC2|BLOWFISH|IDEA)\s*\("
     message_template = "Weak encryption algorithm detected: {match}"
-    
+
     impact = (
         "DES uses 56-bit keys, crackable in hours. RC4 has critical biases. These algorithms are prohibited "
         "by PCI-DSS, HIPAA, and most compliance frameworks."
@@ -3534,7 +3534,7 @@ class PrivilegeEscalationRoleGrantRule(PatternRule):
 
     pattern = r"\b(GRANT|ALTER\s+ROLE|sp_addrolemember|ALTER\s+USER)\b[^;]+\b(admin|administrator|superuser|sysadmin|db_owner|dba|root|securityadmin|serveradmin|dbcreator|sa)\b"
     message_template = "High-privilege role grant detected: {match}"
-    
+
     impact = (
         "Unrestricted admin access enables total database compromise. Attackers target privilege escalation as "
         "first step after initial access. Violates SOX segregation of duties."
@@ -3554,7 +3554,7 @@ class SchemaOwnershipChangeRule(PatternRule):
 
     pattern = r"\b(ALTER\s+AUTHORIZATION\s+ON|ALTER\s+SCHEMA\s+\w+\s+TRANSFER|CHOWN|SET\s+OWNER)\b"
     message_template = "Schema ownership change detected: {match}"
-    
+
     impact = (
         "Schema owners have implicit full control over all objects. Ownership transfer can bypass explicit "
         "DENY permissions and grant unexpected access."
@@ -3577,30 +3577,30 @@ class HorizontalAuthorizationBypassRule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        
+
         # Tables that typically require user/tenant scoping
         sensitive_tables = {
             'orders', 'transactions', 'accounts', 'profiles', 'messages',
             'documents', 'files', 'payments', 'invoices', 'subscriptions',
             'user_data', 'customer_data', 'private_data'
         }
-        
+
         # Columns that indicate proper scoping
         scoping_columns = {
             'user_id', 'tenant_id', 'account_id', 'owner_id', 'customer_id',
             'org_id', 'organization_id', 'created_by', 'belongs_to'
         }
-        
+
         for node in ast.walk():
             if isinstance(node, exp.Select):
                 tables = self._get_tables(ast)
                 sensitive_found = set(tables) & sensitive_tables
-                
+
                 if sensitive_found:
                     # Check if WHERE clause includes scoping column
                     where_columns = self._get_where_columns(node)
                     has_scoping = bool(set(where_columns) & scoping_columns)
-                    
+
                     if not has_scoping:
                         issues.append(
                             self.create_issue(
@@ -3618,9 +3618,9 @@ class HorizontalAuthorizationBypassRule(ASTRule):
                                 ),
                             )
                         )
-        
+
         return issues
-        
+
     def _get_where_columns(self, node: Any) -> list[str]:
         columns = []
         where_node = getattr(node, "args", {}).get("where")
@@ -3642,7 +3642,7 @@ class SensitiveDataInErrorOutputRule(PatternRule):
 
     pattern = r"\b(RAISERROR|THROW|RAISE|PRINT|DBMS_OUTPUT\.PUT_LINE|RAISE\s+NOTICE)\b[^;]*\b(password|pwd|ssn|social_security|credit_card|card_number|cvv|secret|token|api_key|private_key)\b"
     message_template = "Sensitive data exposed in error output: {match}"
-    
+
     impact = (
         "Sensitive data in error messages may be logged, displayed to users, or sent to monitoring systems. "
         "Error logs often have weaker access controls than databases."
@@ -3662,7 +3662,7 @@ class AuditTrailManipulationRule(PatternRule):
 
     pattern = r"\b(DELETE\s+FROM|TRUNCATE|UPDATE|DROP\s+TABLE)\s+[^;]*\b(audit|audit_log|audit_trail|event_log|security_log|access_log|change_log|history)\b|\b(SET\s+(?:sql_log_off|general_log|audit_trail|log_statement)\s*=\s*(?:0|OFF|NONE|false))\b"
     message_template = "Audit trail manipulation detected: {match}"
-    
+
     impact = (
         "Audit log tampering destroys forensic capability and violates every compliance framework. "
         "Attackers delete logs to cover tracks. This is often evidence of active compromise."
@@ -3682,7 +3682,7 @@ class InsecureSessionTokenStorageRule(PatternRule):
 
     pattern = r"\b(INSERT\s+INTO|UPDATE)\b[^;]*\b(session_token|auth_token|access_token|refresh_token|bearer_token|jwt_token)\b[^;]*?(?:=\s*|VALUES\s*\()[^;(]*?['\"]?[A-Za-z0-9_\-\.]{20,}['\"]?"
     message_template = "Insecure session token storage detected: {match}"
-    
+
     impact = (
         "Unhashed session tokens in databases can be stolen and replayed. Database dumps, SQL injection, "
         "or backup exposure immediately compromises all active sessions."
@@ -3702,7 +3702,7 @@ class SessionTimeoutNotEnforcedRule(PatternRule):
 
     pattern = r"\bSELECT\b[^;]*\bFROM\s+\w*(session|token)[s]?\b[^;]*\bWHERE\b(?!.*\b(expir|valid_until|expires_at|ttl|created_at)\b)"
     message_template = "Session timeout validation missing in query: {match}"
-    
+
     impact = (
         "Sessions without expiration validation remain valid indefinitely. Stolen tokens provide permanent access. "
         "Violates security best practices and compliance requirements."
@@ -3722,7 +3722,7 @@ class UnboundedRecursiveCTERule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        
+
         for node in ast.walk():
             # Check for WITH RECURSIVE or recursive CTE pattern
             if isinstance(node, exp.With):
@@ -3731,7 +3731,7 @@ class UnboundedRecursiveCTERule(ASTRule):
                         # Check if CTE references itself (recursive)
                         cte_name = getattr(cte, "alias", "")
                         cte_query = getattr(cte, "this", None)
-                        
+
                         if cte_name and cte_query and self._is_recursive(cte_query, cte_name):
                             # Check if OPTION (MAXRECURSION) exists in outer query
                             # This is a simplified check
@@ -3753,9 +3753,9 @@ class UnboundedRecursiveCTERule(ASTRule):
                                         ),
                                     )
                                 )
-        
+
         return issues
-        
+
     def _is_recursive(self, query_node: Any, cte_name: str) -> bool:
         """Check if CTE references itself"""
         for node in query_node.walk():
@@ -3778,7 +3778,7 @@ class RegexDenialOfServiceRule(PatternRule):
 
     pattern = r"\b(REGEXP|RLIKE|REGEXP_LIKE|REGEXP_MATCHES|SIMILAR\s+TO)\s*\(?[^)]*(\(\?\:?\[?\w+\]\*\)[\*\+]|\(\.\*\)[\*\+]|\(\w\+\)[\*\+]|\[\^?\w+\]\*\[\^?\w+\]\*)"
     message_template = "Potential ReDoS pattern detected: {match}"
-    
+
     impact = (
         "ReDoS patterns like (a+)+ or (.*)* can take exponential time on crafted input. "
         "A single malicious input can hang database threads for hours."
@@ -3801,22 +3801,22 @@ class ImplicitTypeConversionRule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        
+
         for node in ast.walk():
             if isinstance(node, exp.EQ):
                 left = node.this
                 right = getattr(node, "expression", None)
-                
+
                 if isinstance(left, exp.Column) and isinstance(right, exp.Literal):
                     col_name = left.name.lower()
-                    
-                    numeric_columns = {'id', 'user_id', 'account_id', 'order_id', 'product_id', 
+
+                    numeric_columns = {'id', 'user_id', 'account_id', 'order_id', 'product_id',
                                        'amount', 'quantity', 'price', 'count', 'total', 'age'}
                     string_columns = {'name', 'email', 'phone', 'address', 'code', 'status',
                                       'type', 'category', 'description', 'title', 'sku'}
-                    
+
                     is_string_literal = right.is_string
-                    
+
                     if any(nc in col_name for nc in numeric_columns) and is_string_literal:
                         issues.append(self.create_issue(
                             query=query,
@@ -3847,7 +3847,7 @@ class ImplicitTypeConversionRule(ASTRule):
                                 is_safe=False,
                             ),
                         ))
-        
+
         return issues
 
 
@@ -3866,7 +3866,7 @@ class CompositeIndexOrderViolationRule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        
+
         composite_patterns = {
             ('tenant_id', 'user_id'): 'tenant_id',
             ('tenant_id', 'created_at'): 'tenant_id',
@@ -3877,11 +3877,11 @@ class CompositeIndexOrderViolationRule(ASTRule):
             ('parent_id', 'child_id'): 'parent_id',
             ('org_id', 'department_id'): 'org_id',
         }
-        
+
         for node in ast.walk():
             if isinstance(node, exp.Select):
                 where_cols = self._get_where_columns(node)
-                
+
                 for (lead, secondary), required_lead in composite_patterns.items():
                     if secondary in where_cols and lead not in where_cols:
                         issues.append(self.create_issue(
@@ -3898,7 +3898,7 @@ class CompositeIndexOrderViolationRule(ASTRule):
                                 is_safe=False,
                             ),
                         ))
-        
+
         return issues
 
 
@@ -3916,12 +3916,12 @@ class NonSargableOrConditionRule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        
+
         for node in ast.walk():
             if isinstance(node, exp.Or):
                 left_cols = self._get_columns(node.this)
                 right_cols = self._get_columns(getattr(node, "expression", None))
-                
+
                 if left_cols and right_cols and left_cols != right_cols:
                     issues.append(self.create_issue(
                         query=query,
@@ -3934,7 +3934,7 @@ class NonSargableOrConditionRule(ASTRule):
                             is_safe=False,
                         ),
                     ))
-        
+
         return issues
 
     def _get_columns(self, node: Any) -> set[str]:
@@ -3957,7 +3957,7 @@ class CoalesceOnIndexedColumnRule(PatternRule):
 
     pattern = r"\bWHERE\b[^;]*\b(COALESCE|ISNULL|NVL|NVL2|IFNULL)\s*\(\s*\w+"
     message_template = "Function wrapping column in WHERE clause prevents index seek: {match}"
-    
+
     impact = (
         "Wrapping a column in COALESCE/ISNULL forces evaluation of every row. "
         "WHERE ISNULL(status, 'x') = 'active' cannot use an index on status."
@@ -3980,7 +3980,7 @@ class NegationOnIndexedColumnRule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        
+
         for node in ast.walk():
             if isinstance(node, exp.Not):
                 issues.append(self.create_issue(
@@ -3997,7 +3997,7 @@ class NegationOnIndexedColumnRule(ASTRule):
                         is_safe=False,
                     ),
                 ))
-            
+
             if isinstance(node, exp.NEQ):
                 issues.append(self.create_issue(
                     query=query,
@@ -4012,7 +4012,7 @@ class NegationOnIndexedColumnRule(ASTRule):
                         is_safe=False,
                     ),
                 ))
-        
+
         return issues
 
 
@@ -4028,7 +4028,7 @@ class TableLockHintRule(PatternRule):
 
     pattern = r"\bWITH\s*\(\s*(TABLOCK|TABLOCKX|HOLDLOCK|XLOCK|PAGLOCK|ROWLOCK|UPDLOCK|SERIALIZABLE)\s*\)"
     message_template = "Extremely restrictive locking hint detected: {match}"
-    
+
     impact = (
         "Table-level locks (TABLOCK, TABLOCKX) block ALL concurrent access to the table. "
         "Under load, this creates cascading waits that can freeze the entire application."
@@ -4048,7 +4048,7 @@ class ReadUncommittedHintRule(PatternRule):
 
     pattern = r"\bWITH\s*\(\s*(NOLOCK|READUNCOMMITTED)\s*\)|\bREAD\s+UNCOMMITTED\b|\bSET\s+TRANSACTION\s+ISOLATION\s+LEVEL\s+READ\s+UNCOMMITTED\b"
     message_template = "NOLOCK or READ UNCOMMITTED hint detected: {match}"
-    
+
     impact = (
         "NOLOCK reads uncommitted data (dirty reads), can skip rows, read rows twice, "
         "or return phantom data. It's not 'faster' — it's 'wrong'."
@@ -4068,7 +4068,7 @@ class LongTransactionPatternRule(PatternRule):
 
     pattern = r"\bBEGIN\s+(TRAN|TRANSACTION)\b[\s\S]{500,}?\b(COMMIT|ROLLBACK)\b"
     message_template = "Potentially long-running transaction detected (500+ characters)"
-    
+
     impact = (
         "Long transactions hold locks for their entire duration, blocking other queries. "
         "A 10-second transaction holding a lock can queue up hundreds of waiting requests."
@@ -4089,10 +4089,10 @@ class MissingTransactionIsolationRule(ASTRule):
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
         query_upper = query.raw.upper()
-        
+
         has_begin_tran = 'BEGIN TRAN' in query_upper or 'BEGIN TRANSACTION' in query_upper
         has_isolation = 'ISOLATION LEVEL' in query_upper
-        
+
         if has_begin_tran and not has_isolation:
             issues.append(self.create_issue(
                 query=query,
@@ -4108,7 +4108,7 @@ class MissingTransactionIsolationRule(ASTRule):
                     is_safe=False,
                 ),
             ))
-        
+
         return issues
 
 
@@ -4124,7 +4124,7 @@ class CursorDeclarationRule(PatternRule):
 
     pattern = r"\bDECLARE\s+\w+\s+CURSOR\b"
     message_template = "Cursor declaration detected: {match}"
-    
+
     impact = (
         "Cursors process one row at a time, requiring round-trips and preventing set-based optimizations. "
         "Cursor operations are typically 10-100x slower than equivalent set-based SQL."
@@ -4144,7 +4144,7 @@ class WhileLoopPatternRule(PatternRule):
 
     pattern = r"\bWHILE\s+[\(@].*\bBEGIN\b"
     message_template = "WHILE loop detected: {match}"
-    
+
     impact = (
         "WHILE loops in SQL often indicate procedural thinking applied to a set-based language. "
         "Each iteration may execute separate queries, multiplying execution time."
@@ -4164,7 +4164,7 @@ class NestedLoopJoinHintRule(PatternRule):
 
     pattern = r"\b(LOOP\s+JOIN|INNER\s+LOOP\s+JOIN|LEFT\s+LOOP\s+JOIN|OPTION\s*\(\s*LOOP\s+JOIN\s*\))"
     message_template = "Nested loop join hint detected: {match}"
-    
+
     impact = (
         "Forced nested loop joins perform O(n*m) comparisons. For large tables, this is catastrophic. "
         "The optimizer usually knows better."
@@ -4184,13 +4184,13 @@ class LargeInClauseRule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        
+
         for node in ast.walk():
             if isinstance(node, exp.In):
                 values = getattr(node, "expressions", [])
                 if not values and getattr(node, "query", None):
                     continue  # Subquery, not literal list
-                
+
                 if len(values) > 50:
                     issues.append(self.create_issue(
                         query=query,
@@ -4206,7 +4206,7 @@ class LargeInClauseRule(ASTRule):
                             is_safe=False,
                         ),
                     ))
-        
+
         return issues
 
 
@@ -4222,7 +4222,7 @@ class UnboundedTempTableRule(PatternRule):
 
     pattern = r"\bSELECT\b(?!.*\b(WHERE|TOP|LIMIT)\b)[^;]*\bINTO\s+[#@\w]+"
     message_template = "Unbounded SELECT INTO temp table detected: {match}"
-    
+
     impact = (
         "Unbounded SELECT INTO can fill tempdb, crash the instance, or exhaust memory. "
         "A single runaway query can impact all database users."
@@ -4242,14 +4242,14 @@ class OrderByWithoutLimitInSubqueryRule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        
+
         for node in ast.walk():
             if isinstance(node, exp.Subquery):
                 inner = node.this
                 if isinstance(inner, exp.Select):
                     has_order = inner.args.get('order') is not None
                     has_limit = inner.args.get('limit') is not None
-                    
+
                     if has_order and not has_limit:
                         issues.append(self.create_issue(
                             query=query,
@@ -4265,7 +4265,7 @@ class OrderByWithoutLimitInSubqueryRule(ASTRule):
                                 is_safe=False,
                             ),
                         ))
-        
+
         return issues
 
 
@@ -4281,13 +4281,13 @@ class GroupByHighCardinalityRule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        
+
         high_cardinality_patterns = {
             'timestamp', 'datetime', 'created_at', 'updated_at', 'modified_at',
             'uuid', 'guid', 'id', 'transaction_id', 'session_id', 'request_id',
             'email', 'phone', 'ip_address', 'user_agent'
         }
-        
+
         for node in ast.walk():
             if isinstance(node, exp.Select):
                 group = node.args.get('group')
@@ -4311,7 +4311,7 @@ class GroupByHighCardinalityRule(ASTRule):
                                         is_safe=False,
                                     ),
                                 ))
-        
+
         return issues
 
 
@@ -4327,7 +4327,7 @@ class QueryOptimizerHintRule(PatternRule):
 
     pattern = r"\bOPTION\s*\(\s*(FORCE\s+ORDER|HASH\s+JOIN|MERGE\s+JOIN|LOOP\s+JOIN|FAST\s+\d+|RECOMPILE|OPTIMIZE\s+FOR|MAXDOP|QUERYTRACEON|USE\s+PLAN)\b"
     message_template = "Query optimizer hint detected: {match}"
-    
+
     impact = (
         "Query hints freeze execution plans. As data grows and distribution changes, hinted plans become suboptimal. "
         "Hints hide underlying issues (missing indexes, bad statistics)."
@@ -4347,7 +4347,7 @@ class IndexHintRule(PatternRule):
 
     pattern = r"\b(FORCE\s+INDEX|USE\s+INDEX|IGNORE\s+INDEX|WITH\s*\(\s*INDEX\s*[=(])\b"
     message_template = "Index hint detected: {match}"
-    
+
     impact = (
         "Index hints force specific index usage regardless of statistics. "
         "When data changes, the forced index may become suboptimal, but the hint remains."
@@ -4367,7 +4367,7 @@ class ParallelQueryHintRule(PatternRule):
 
     pattern = r"\bOPTION\s*\([^)]*MAXDOP\s+\d+"
     message_template = "Parallel query hint (MAXDOP) detected: {match}"
-    
+
     impact = (
         "MAXDOP hints override server-level parallelism. MAXDOP 1 forces single-threaded execution. "
         "High MAXDOP values can starve other queries of CPU."
@@ -4387,7 +4387,7 @@ class ScalarUdfInQueryRule(PatternRule):
 
     pattern = r"\b(SELECT|WHERE)\b[^;]*\bdbo\.\w+\s*\([^)]*\)"
     message_template = "Scalar UDF detected: {match}"
-    
+
     impact = (
         "Scalar UDFs execute row-by-row, prevent parallelism, and cannot be inlined in most SQL versions. "
         "A single scalar UDF can make queries 100x slower."
@@ -4407,7 +4407,7 @@ class CorrelatedSubqueryRule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        
+
         for node in ast.walk():
             if isinstance(node, exp.Select):
                 for subq in node.find_all(exp.Subquery):
@@ -4415,7 +4415,7 @@ class CorrelatedSubqueryRule(ASTRule):
                     if isinstance(inner, exp.Select):
                         outer_tables = self._get_table_aliases(node)
                         inner_refs = self._get_column_table_refs(inner)
-                        
+
                         if outer_tables and inner_refs and (outer_tables & inner_refs):
                             issues.append(self.create_issue(
                                 query=query,
@@ -4431,7 +4431,7 @@ class CorrelatedSubqueryRule(ASTRule):
                                     is_safe=False,
                                 ),
                             ))
-        
+
         return issues
 
     def _get_table_aliases(self, node: Any) -> set[str]:
@@ -4463,13 +4463,13 @@ class OrderByNonIndexedColumnRule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        
+
         unlikely_indexed = {
             'description', 'notes', 'comments', 'body', 'content', 'message',
             'address', 'bio', 'about', 'metadata', 'json_data', 'xml_data',
             'calculated', 'computed', 'derived'
         }
-        
+
         for node in ast.walk():
             if isinstance(node, exp.Select):
                 order = node.args.get('order')
@@ -4495,7 +4495,7 @@ class OrderByNonIndexedColumnRule(ASTRule):
                                             is_safe=False,
                                         ),
                                     ))
-        
+
         return issues
 
 
@@ -4511,12 +4511,12 @@ class LargeUnbatchedOperationRule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        
+
         for node in ast.walk():
             if isinstance(node, (exp.Update, exp.Delete)):
                 query_upper = query.raw.upper()
                 has_limit = 'TOP' in query_upper or 'LIMIT' in query_upper
-                
+
                 if not has_limit:
                     stmt_type = 'UPDATE' if isinstance(node, exp.Update) else 'DELETE'
                     issues.append(self.create_issue(
@@ -4533,7 +4533,7 @@ class LargeUnbatchedOperationRule(ASTRule):
                             is_safe=False,
                         ),
                     ))
-        
+
         return issues
 
 
@@ -4549,7 +4549,7 @@ class MissingBatchSizeInLoopRule(PatternRule):
 
     pattern = r"\bWHILE\b[\s\S]*?\b(UPDATE|DELETE)\b(?![\s\S]*?\b(TOP|LIMIT)\b)[\s\S]*?\bEND\b"
     message_template = "WHILE loop with unbatched DML detected."
-    
+
     impact = (
         "WHILE loops without batch limits may process unlimited rows per iteration, "
         "negating the benefits of batching."
@@ -4569,14 +4569,14 @@ class ExcessiveColumnCountRule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        
+
         for node in ast.walk():
             if isinstance(node, exp.Select):
                 columns = getattr(node, "expressions", [])
-                
+
                 if any(isinstance(c, exp.Star) for c in columns):
                     continue
-                
+
                 if len(columns) > 20:
                     issues.append(self.create_issue(
                         query=query,
@@ -4592,7 +4592,7 @@ class ExcessiveColumnCountRule(ASTRule):
                             is_safe=False,
                         ),
                     ))
-        
+
         return issues
 
 
@@ -4608,17 +4608,17 @@ class LargeObjectUnboundedRule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        
+
         blob_columns = {
-            'blob', 'clob', 'text', 'content', 'body', 'data', 'image', 
+            'blob', 'clob', 'text', 'content', 'body', 'data', 'image',
             'document', 'file', 'attachment', 'payload', 'binary'
         }
-        
+
         for node in ast.walk():
             if isinstance(node, exp.Select):
                 has_where = node.args.get('where') is not None
                 has_limit = node.args.get('limit') is not None
-                
+
                 if not has_where and not has_limit:
                     for col in getattr(node, "expressions", []):
                         if isinstance(col, exp.Column):
@@ -4638,7 +4638,7 @@ class LargeObjectUnboundedRule(ASTRule):
                                         is_safe=False,
                                     ),
                                 ))
-        
+
         return issues
 
 
@@ -5107,7 +5107,7 @@ class ExcessiveCaseNestingRule(ASTRule):
                         is_nested = True
                         break
                     parent = getattr(parent, 'parent', None)
-                
+
                 if not is_nested:
                     depth = get_case_depth(node)
                     if depth > 3:
@@ -5167,7 +5167,7 @@ class ExcessiveSubqueryNestingRule(ASTRule):
                         is_nested = True
                         break
                     parent = getattr(parent, 'parent', None)
-                
+
                 if not is_nested:
                     depth = get_subquery_depth(node)
                     if depth >= 3:
@@ -5329,15 +5329,15 @@ class InconsistentTableNamingRule(ASTRule):
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
         tables = [t.name.lower() for t in ast.find_all(exp.Table) if t.name]
-        
+
         if len(tables) < 2:
             return []
-            
+
         # Standardize: plural usually ends with 's', but not 'ss' (like 'process')
         # This is a heuristic for detecting mixtures.
         likely_singular = [t for t in tables if not t.endswith('s') or t.endswith('ss')]
         likely_plural = [t for t in tables if t.endswith('s') and not t.endswith('ss')]
-        
+
         # Only flag if we have a clear mixture of both patterns
         if likely_singular and likely_plural:
             # Check if they are actually different words (not just 'user' and 'user')
@@ -5348,7 +5348,7 @@ class InconsistentTableNamingRule(ASTRule):
                     snippet=", ".join(tables[:5]),
                 )
             )
-            
+
         return issues
 
     impact = (
@@ -5373,12 +5373,12 @@ class AmbiguousAliasRule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        
+
         for node in ast.walk():
             alias = None
             if isinstance(node, (exp.Alias, exp.Table)):
                 alias = getattr(node, 'alias', None)
-            
+
             if alias and len(alias) <= 2 and alias.lower() not in ('as', 'id'):
                 issues.append(
                     self.create_issue(
@@ -5387,7 +5387,7 @@ class AmbiguousAliasRule(ASTRule):
                         snippet=str(node)[:50],
                     )
                 )
-                
+
         return issues
 
     impact = (
@@ -5439,7 +5439,7 @@ class ReservedWordAsColumnRule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        
+
         # Check all identifiers, including those sqlglot might identify as words
         for node in ast.walk():
             name = None
@@ -5448,7 +5448,7 @@ class ReservedWordAsColumnRule(ASTRule):
                     name = node.this
                 else:
                     name = node.alias_or_name
-            
+
             if name and isinstance(name, str) and name.upper() in self.RESERVED:
                 issues.append(
                     self.create_issue(
@@ -5457,7 +5457,7 @@ class ReservedWordAsColumnRule(ASTRule):
                         snippet=str(node),
                     )
                 )
-                
+
         return issues
 
     impact = (
@@ -5529,7 +5529,7 @@ class ComplexLogicWithoutExplanationRule(Rule):
         # Count complex components in raw query
         score = query.raw.count('AND') + query.raw.count('OR') + query.raw.count('CASE')
         has_comment = "--" in query.raw or "/*" in query.raw
-        
+
         if score >= 5 and not has_comment:
             issues.append(
                 self.create_issue(
@@ -5586,11 +5586,11 @@ class MissingForeignKeyRule(ASTRule):
         issues = []
         if not isinstance(ast, exp.Create):
             return []
-            
+
         table_def = ast.this
         if not isinstance(table_def, exp.Schema):
             return []
-            
+
         columns = [c.this.name.lower() for c in table_def.find_all(exp.ColumnDef)]
         fks = []
         for f in table_def.find_all(exp.ForeignKey):
@@ -5602,7 +5602,7 @@ class MissingForeignKeyRule(ASTRule):
                 id_node = f.find(exp.Identifier)
                 if id_node:
                     fks.append(id_node.this.lower())
-        
+
         for col in columns:
             if col.endswith('_id') and col != 'id' and col not in fks:
                 issues.append(
@@ -5612,7 +5612,7 @@ class MissingForeignKeyRule(ASTRule):
                         snippet=col,
                     )
                 )
-                
+
         return issues
 
     impact = (
@@ -5639,28 +5639,28 @@ class LackOfIndexingOnForeignKeyRule(ASTRule):
         issues = []
         if not isinstance(ast, exp.Create):
             return []
-            
+
         table_def = ast.this
         if not isinstance(table_def, exp.Schema):
             return []
-            
+
         # Get all indexes/keys
         indexed_cols = set()
         for idx in table_def.find_all((exp.Index, exp.IndexColumnConstraint)):
             for ident in idx.find_all(exp.Identifier):
                 indexed_cols.add(ident.this.lower())
-        
+
         for fk in table_def.find_all(exp.ForeignKey):
             # expressions contains the local columns (Identifiers)
             local_idents = fk.expressions
             local_names = {ident.this.lower() for ident in local_idents if isinstance(ident, exp.Identifier)}
-            
+
             for col_name in local_names:
                 if col_name not in indexed_cols:
                     issues.append(
                         self.create_issue(query=query, message=f"Missing index on FK '{col_name}'", snippet=str(fk))
                     )
-                    
+
         return issues
 
     impact = (

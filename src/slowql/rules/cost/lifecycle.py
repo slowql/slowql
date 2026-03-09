@@ -14,9 +14,9 @@ from slowql.core.models import Category, Dimension, Fix, Issue, Location, Query,
 from slowql.rules.base import ASTRule, PatternRule, Rule
 
 __all__ = [
-    'OldDataNotArchivedRule',
-    'LargeTextColumnWithoutCompressionRule',
     'LargeTableWithoutPartitioningRule',
+    'LargeTextColumnWithoutCompressionRule',
+    'OldDataNotArchivedRule',
 ]
 
 
@@ -47,24 +47,24 @@ class OldDataNotArchivedRule(ASTRule):
                     if col.name.lower() in self._date_columns:
                         has_date_col = True
                         break
-                
+
                 if has_date_col:
                     where = node.args.get("where")
                     filters_by_date_range = False
                     hits_old_data = False
-                    
+
                     if where:
                         # Check if any date column is used in the filter
                         for col in where.find_all(exp.Column):
                             if col.name.lower() in self._date_columns:
                                 filters_by_date_range = True
-                        
+
                         # Check specifically for "older than" filters (<, <=)
                         for bin_op in where.find_all((exp.LT, exp.LTE)):
                             for col in bin_op.find_all(exp.Column):
                                 if col.name.lower() in self._date_columns:
                                     hits_old_data = True
-                    
+
                     # Trigger if no date filter is present, or if it's specifically hitting old data
                     if not filters_by_date_range or hits_old_data:
                         issues.append(
@@ -138,7 +138,7 @@ class LargeTableWithoutPartitioningRule(ASTRule):
                 for table in tables:
                     table_lower = table.lower()
                     is_large = any(p in table_lower for p in self._large_table_patterns)
-                    
+
                     if is_large:
                         has_partition = "PARTITION" in query.raw.upper()
                         if not has_partition:

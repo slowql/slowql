@@ -672,7 +672,7 @@ class TestSecurityAnalyzer:
     def test_security_analyzer_get_rules(self):
         analyzer = SecurityAnalyzer()
         rules = analyzer.get_rules()
-        assert len(rules) == 3  # SQLInjectionRule, HardcodedPasswordRule, GrantAllRule
+        assert len(rules) == 45  # Updated after modular refactoring - now loads all security rules
 
     def test_security_analyzer_analyze(self):
         analyzer = SecurityAnalyzer()

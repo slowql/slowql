@@ -14,9 +14,9 @@ from slowql.core.models import Category, Dimension, Fix, Issue, Location, Query,
 from slowql.rules.base import ASTRule, PatternRule, Rule
 
 __all__ = [
-    'MissingColumnCommentsRule',
-    'MagicStringWithoutCommentRule',
     'ComplexLogicWithoutExplanationRule',
+    'MagicStringWithoutCommentRule',
+    'MissingColumnCommentsRule',
 ]
 
 
@@ -79,7 +79,7 @@ class ComplexLogicWithoutExplanationRule(Rule):
         # Count complex components in raw query
         score = query.raw.count('AND') + query.raw.count('OR') + query.raw.count('CASE')
         has_comment = "--" in query.raw or "/*" in query.raw
-        
+
         if score >= 5 and not has_comment:
             issues.append(
                 self.create_issue(

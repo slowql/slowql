@@ -15,8 +15,8 @@ from slowql.rules.base import ASTRule, PatternRule, Rule
 
 __all__ = [
     'CursorDeclarationRule',
-    'WhileLoopPatternRule',
     'NestedLoopJoinHintRule',
+    'WhileLoopPatternRule',
 ]
 
 
@@ -32,7 +32,7 @@ class CursorDeclarationRule(PatternRule):
 
     pattern = r"\bDECLARE\s+\w+\s+CURSOR\b"
     message_template = "Cursor declaration detected: {match}"
-    
+
     impact = (
         "Cursors process one row at a time, requiring round-trips and preventing set-based optimizations. "
         "Cursor operations are typically 10-100x slower than equivalent set-based SQL."
@@ -52,7 +52,7 @@ class WhileLoopPatternRule(PatternRule):
 
     pattern = r"\bWHILE\s+[\(@].*\bBEGIN\b"
     message_template = "WHILE loop detected: {match}"
-    
+
     impact = (
         "WHILE loops in SQL often indicate procedural thinking applied to a set-based language. "
         "Each iteration may execute separate queries, multiplying execution time."
@@ -72,7 +72,7 @@ class NestedLoopJoinHintRule(PatternRule):
 
     pattern = r"\b(LOOP\s+JOIN|INNER\s+LOOP\s+JOIN|LEFT\s+LOOP\s+JOIN|OPTION\s*\(\s*LOOP\s+JOIN\s*\))"
     message_template = "Nested loop join hint detected: {match}"
-    
+
     impact = (
         "Forced nested loop joins perform O(n*m) comparisons. For large tables, this is catastrophic. "
         "The optimizer usually knows better."

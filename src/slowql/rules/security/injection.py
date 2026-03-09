@@ -14,17 +14,17 @@ from slowql.core.models import Category, Dimension, Fix, Issue, Location, Query,
 from slowql.rules.base import ASTRule, PatternRule, Rule
 
 __all__ = [
-    'SQLInjectionRule',
     'DynamicSQLExecutionRule',
+    'JSONFunctionInjectionRule',
+    'LDAPInjectionRule',
+    'LikeWildcardInjectionRule',
+    'NoSQLInjectionRule',
+    'SQLInjectionRule',
+    'SecondOrderSQLInjectionRule',
+    'ServerSideTemplateInjectionRule',
     'TautologicalOrConditionRule',
     'TimeBasedBlindInjectionRule',
-    'SecondOrderSQLInjectionRule',
-    'LikeWildcardInjectionRule',
-    'LDAPInjectionRule',
-    'NoSQLInjectionRule',
     'XMLXPathInjectionRule',
-    'ServerSideTemplateInjectionRule',
-    'JSONFunctionInjectionRule',
 ]
 
 
@@ -169,7 +169,7 @@ class SecondOrderSQLInjectionRule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        
+
         # Columns that commonly store user input later used unsafely
         dangerous_columns = {
             'username', 'user_name', 'email', 'name', 'first_name', 'last_name',
@@ -177,12 +177,12 @@ class SecondOrderSQLInjectionRule(ASTRule):
             'address', 'notes', 'bio', 'about', 'query', 'search', 'filter',
             'filename', 'filepath', 'url', 'callback', 'redirect'
         }
-        
+
         for node in ast.walk():
             if isinstance(node, (exp.Insert, exp.Update)):
                 # Get column names being set
                 columns = self._extract_target_columns(node)
-                
+
                 dangerous_found = columns & dangerous_columns
                 if dangerous_found:
                     issues.append(
@@ -201,7 +201,7 @@ class SecondOrderSQLInjectionRule(ASTRule):
                             ),
                         )
                     )
-        
+
         return issues
 
     def _extract_target_columns(self, node: Any) -> set[str]:
@@ -235,11 +235,11 @@ class LikeWildcardInjectionRule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        
+
         for node in ast.walk():
             if isinstance(node, exp.Like):
                 pattern = getattr(node, "expression", None)  # The LIKE pattern
-                
+
                 # Check if pattern is a parameter placeholder or simple literal
                 # Parameters suggest user input that should be escaped
                 if isinstance(pattern, exp.Placeholder):
@@ -279,7 +279,7 @@ class LikeWildcardInjectionRule(ASTRule):
                                 ),
                             )
                         )
-        
+
         return issues
 
 

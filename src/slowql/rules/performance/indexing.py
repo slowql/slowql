@@ -14,15 +14,15 @@ from slowql.core.models import Category, Dimension, Fix, Issue, Location, Query,
 from slowql.rules.base import ASTRule, PatternRule, Rule
 
 __all__ = [
-    'LeadingWildcardRule',
-    'FunctionOnIndexedColumnRule',
-    'OrOnIndexedColumnsRule',
-    'DeepOffsetPaginationRule',
-    'ImplicitTypeConversionRule',
-    'CompositeIndexOrderViolationRule',
-    'NonSargableOrConditionRule',
     'CoalesceOnIndexedColumnRule',
+    'CompositeIndexOrderViolationRule',
+    'DeepOffsetPaginationRule',
+    'FunctionOnIndexedColumnRule',
+    'ImplicitTypeConversionRule',
+    'LeadingWildcardRule',
     'NegationOnIndexedColumnRule',
+    'NonSargableOrConditionRule',
+    'OrOnIndexedColumnsRule',
 ]
 
 
@@ -127,22 +127,22 @@ class ImplicitTypeConversionRule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        
+
         for node in ast.walk():
             if isinstance(node, exp.EQ):
                 left = node.this
                 right = getattr(node, "expression", None)
-                
+
                 if isinstance(left, exp.Column) and isinstance(right, exp.Literal):
                     col_name = left.name.lower()
-                    
-                    numeric_columns = {'id', 'user_id', 'account_id', 'order_id', 'product_id', 
+
+                    numeric_columns = {'id', 'user_id', 'account_id', 'order_id', 'product_id',
                                        'amount', 'quantity', 'price', 'count', 'total', 'age'}
                     string_columns = {'name', 'email', 'phone', 'address', 'code', 'status',
                                       'type', 'category', 'description', 'title', 'sku'}
-                    
+
                     is_string_literal = right.is_string
-                    
+
                     if any(nc in col_name for nc in numeric_columns) and is_string_literal:
                         issues.append(self.create_issue(
                             query=query,
@@ -173,7 +173,7 @@ class ImplicitTypeConversionRule(ASTRule):
                                 is_safe=False,
                             ),
                         ))
-        
+
         return issues
 
 
@@ -192,7 +192,7 @@ class CompositeIndexOrderViolationRule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        
+
         composite_patterns = {
             ('tenant_id', 'user_id'): 'tenant_id',
             ('tenant_id', 'created_at'): 'tenant_id',
@@ -203,11 +203,11 @@ class CompositeIndexOrderViolationRule(ASTRule):
             ('parent_id', 'child_id'): 'parent_id',
             ('org_id', 'department_id'): 'org_id',
         }
-        
+
         for node in ast.walk():
             if isinstance(node, exp.Select):
                 where_cols = self._get_where_columns(node)
-                
+
                 for (lead, secondary), required_lead in composite_patterns.items():
                     if secondary in where_cols and lead not in where_cols:
                         issues.append(self.create_issue(
@@ -224,7 +224,7 @@ class CompositeIndexOrderViolationRule(ASTRule):
                                 is_safe=False,
                             ),
                         ))
-        
+
         return issues
 
 
@@ -240,12 +240,12 @@ class NonSargableOrConditionRule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        
+
         for node in ast.walk():
             if isinstance(node, exp.Or):
                 left_cols = self._get_columns(node.this)
                 right_cols = self._get_columns(getattr(node, "expression", None))
-                
+
                 if left_cols and right_cols and left_cols != right_cols:
                     issues.append(self.create_issue(
                         query=query,
@@ -258,7 +258,7 @@ class NonSargableOrConditionRule(ASTRule):
                             is_safe=False,
                         ),
                     ))
-        
+
         return issues
 
     def _get_columns(self, node: Any) -> set[str]:
@@ -281,7 +281,7 @@ class CoalesceOnIndexedColumnRule(PatternRule):
 
     pattern = r"\bWHERE\b[^;]*\b(COALESCE|ISNULL|NVL|NVL2|IFNULL)\s*\(\s*\w+"
     message_template = "Function wrapping column in WHERE clause prevents index seek: {match}"
-    
+
     impact = (
         "Wrapping a column in COALESCE/ISNULL forces evaluation of every row. "
         "WHERE ISNULL(status, 'x') = 'active' cannot use an index on status."
@@ -304,7 +304,7 @@ class NegationOnIndexedColumnRule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        
+
         for node in ast.walk():
             if isinstance(node, exp.Not):
                 issues.append(self.create_issue(
@@ -321,7 +321,7 @@ class NegationOnIndexedColumnRule(ASTRule):
                         is_safe=False,
                     ),
                 ))
-            
+
             if isinstance(node, exp.NEQ):
                 issues.append(self.create_issue(
                     query=query,
@@ -336,5 +336,5 @@ class NegationOnIndexedColumnRule(ASTRule):
                         is_safe=False,
                     ),
                 ))
-        
+
         return issues

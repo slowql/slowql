@@ -15,8 +15,8 @@ from slowql.rules.base import ASTRule, PatternRule, Rule
 
 __all__ = [
     'LongRunningQueryRiskRule',
-    'StaleReadRiskRule',
     'MissingRetryLogicRule',
+    'StaleReadRiskRule',
 ]
 
 

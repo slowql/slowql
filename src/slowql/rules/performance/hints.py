@@ -14,9 +14,9 @@ from slowql.core.models import Category, Dimension, Fix, Issue, Location, Query,
 from slowql.rules.base import ASTRule, PatternRule, Rule
 
 __all__ = [
-    'QueryOptimizerHintRule',
     'IndexHintRule',
     'ParallelQueryHintRule',
+    'QueryOptimizerHintRule',
 ]
 
 
@@ -32,7 +32,7 @@ class QueryOptimizerHintRule(PatternRule):
 
     pattern = r"\bOPTION\s*\(\s*(FORCE\s+ORDER|HASH\s+JOIN|MERGE\s+JOIN|LOOP\s+JOIN|FAST\s+\d+|RECOMPILE|OPTIMIZE\s+FOR|MAXDOP|QUERYTRACEON|USE\s+PLAN)\b"
     message_template = "Query optimizer hint detected: {match}"
-    
+
     impact = (
         "Query hints freeze execution plans. As data grows and distribution changes, hinted plans become suboptimal. "
         "Hints hide underlying issues (missing indexes, bad statistics)."
@@ -52,7 +52,7 @@ class IndexHintRule(PatternRule):
 
     pattern = r"\b(FORCE\s+INDEX|USE\s+INDEX|IGNORE\s+INDEX|WITH\s*\(\s*INDEX\s*[=(])\b"
     message_template = "Index hint detected: {match}"
-    
+
     impact = (
         "Index hints force specific index usage regardless of statistics. "
         "When data changes, the forced index may become suboptimal, but the hint remains."
@@ -72,7 +72,7 @@ class ParallelQueryHintRule(PatternRule):
 
     pattern = r"\bOPTION\s*\([^)]*MAXDOP\s+\d+"
     message_template = "Parallel query hint (MAXDOP) detected: {match}"
-    
+
     impact = (
         "MAXDOP hints override server-level parallelism. MAXDOP 1 forces single-threaded execution. "
         "High MAXDOP values can starve other queries of CPU."

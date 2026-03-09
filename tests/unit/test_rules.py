@@ -9,166 +9,161 @@ from slowql.core.models import Category, Dimension, Location, Query, Severity
 from slowql.rules.base import ASTRule, PatternRule, Rule
 from slowql.rules.catalog import (
     AlterTableDestructiveRule,
+    AmbiguousAliasRule,
     AuditLogTamperingRule,
-    AutocommitDisabledRule,
-    CommentedCodeRule,
-    ConsentTableMissingRule,
-    CrossBorderDataTransferRule,
-    CrossRegionDataTransferCostRule,
-    SecondOrderSQLInjectionRule,
-    LikeWildcardInjectionRule,
-    WeakHashingAlgorithmRule,
-    PlaintextPasswordInQueryRule,
-    HardcodedEncryptionKeyRule,
-    WeakEncryptionAlgorithmRule,
-    PrivilegeEscalationRoleGrantRule,
-    SchemaOwnershipChangeRule,
-    HorizontalAuthorizationBypassRule,
-    SensitiveDataInErrorOutputRule,
     AuditTrailManipulationRule,
-    InsecureSessionTokenStorageRule,
-    SessionTimeoutNotEnforcedRule,
-    UnboundedRecursiveCTERule,
-    RegexDenialOfServiceRule,
+    AutocommitDisabledRule,
+    CardholderDataRetentionRule,
+    CascadeDeleteRiskRule,
+    CCPAOptOutRule,
+    CoalesceOnIndexedColumnRule,
+    ColdStartQueryPatternRule,
+    CommentedCodeRule,
+    ComplexLogicWithoutExplanationRule,
+    CompositeIndexOrderViolationRule,
+    ConsentTableMissingRule,
+    ConsentWithdrawalRule,
+    CorrelatedSubqueryRule,
+    CountStarForPaginationRule,
+    CrossBorderDataTransferRule,
+    CrossDatabaseJoinRule,
+    CrossRegionDataTransferCostRule,
+    CursorDeclarationRule,
+    CVVStorageRule,
+    CyclomaticComplexityRule,
     DangerousServerConfigRule,
+    DatabaseVersionDisclosureRule,
     DataExfiltrationViaFileRule,
+    DataExportCompletenessRule,
+    DeadlockPatternRule,
+    DeepPaginationWithoutCursorRule,
+    DefaultCredentialUsageRule,
+    DistributedTransactionOverheadRule,
     DuplicateConditionRule,
+    DuplicateIndexSignalRule,
     DynamicSQLExecutionRule,
     ExceptionSwallowedRule,
-    ExpensiveWindowFunctionRule,
-    FullTableScanRule,
-    GrantToPublicRule,
-    HardcodedDateRule,
-    HardcodedPasswordRule,
-    LeadingWildcardRule,
-    LongTransactionWithoutSavepointRule,
-    MissingAliasRule,
-    MissingRollbackRule,
-    NullComparisonRule,
-    OverprivilegedExecutionContextRule,
-    PasswordPolicyBypassRule,
-    PIIExposureRule,
-    RedundantOrderByRule,
-    RemoteDataAccessRule,
-    RetentionPolicyMissingRule,
-    RightToErasureRule,
-    SelectStarInETLRule,
-    SelectStarRule,
-    SQLInjectionRule,
-    TautologicalOrConditionRule,
-    TimeBasedBlindInjectionRule,
-    TruncateWithoutTransactionRule,
-    UnencryptedSensitiveColumnRule,
-    UnionWithoutAllRule,
-    UnsafeWriteRule,
-    UserCreationWithoutPasswordRule,
-    WildcardInColumnListRule,
-    ImplicitTypeConversionRule,
-    CompositeIndexOrderViolationRule,
-    NonSargableOrConditionRule,
-    CoalesceOnIndexedColumnRule,
-    NegationOnIndexedColumnRule,
-    TableLockHintRule,
-    ReadUncommittedHintRule,
-    LongTransactionPatternRule,
-    MissingTransactionIsolationRule,
-    CursorDeclarationRule,
-    WhileLoopPatternRule,
-    NestedLoopJoinHintRule,
-    LargeInClauseRule,
-    UnboundedTempTableRule,
-    OrderByWithoutLimitInSubqueryRule,
-    GroupByHighCardinalityRule,
-    QueryOptimizerHintRule,
-    IndexHintRule,
-    ParallelQueryHintRule,
-    ScalarUdfInQueryRule,
-    CorrelatedSubqueryRule,
-    OrderByNonIndexedColumnRule,
-    LargeUnbatchedOperationRule,
-    MissingBatchSizeInLoopRule,
+    ExcessiveCaseNestingRule,
     ExcessiveColumnCountRule,
-    LargeObjectUnboundedRule,
-
-    PHIAccessWithoutAuditRule,
-    PHIMinimumNecessaryRule,
-    UnencryptedPHITransitRule,
-    PANExposureRule,
-    CVVStorageRule,
-    CardholderDataRetentionRule,
+    ExcessiveSubqueryNestingRule,
+    ExpensiveWindowFunctionRule,
     FinancialChangeTrackingRule,
-    SegregationOfDutiesRule,
-    DataExportCompletenessRule,
-    ConsentWithdrawalRule,
-    CCPAOptOutRule,
+    FullTableScanRule,
+    GodQueryRule,
+    GrantToPublicRule,
+    GroupByHighCardinalityRule,
+    HardcodedCredentialsRule,
+    HardcodedDateRule,
+    HardcodedEncryptionKeyRule,
+    HardcodedPasswordRule,
+    HardcodedTestDataRule,
+    HorizontalAuthorizationBypassRule,
+    HungarianNotationRule,
+    ImplicitTypeConversionRule,
+    InconsistentTableNamingRule,
+    IndexHintRule,
+    InsecureSessionTokenStorageRule,
+    JSONFunctionInjectionRule,
+    LackOfIndexingOnForeignKeyRule,
+    LargeInClauseRule,
+    LargeObjectUnboundedRule,
+    LargeTableWithoutPartitioningRule,
+    LargeTextColumnWithoutCompressionRule,
+    LargeUnbatchedOperationRule,
+    LDAPInjectionRule,
+    LeadingWildcardRule,
+    LikeWildcardInjectionRule,
+    LocalFileInclusionRule,
+    LockEscalationRiskRule,
+    LongQueryRule,
+    LongRunningQueryRiskRule,
+    LongTransactionPatternRule,
+    LongTransactionWithoutSavepointRule,
+    MagicStringWithoutCommentRule,
+    MissingAliasRule,
+    MissingBatchSizeInLoopRule,
+    MissingColumnCommentsRule,
+    MissingCoveringIndexOpportunityRule,
+    MissingForeignKeyRule,
+    MissingPrimaryKeyRule,
+    MissingRetryLogicRule,
+    MissingRollbackRule,
+    MissingTransactionIsolationRule,
+    MultiRegionQueryLatencyRule,
+    NegationOnIndexedColumnRule,
+    NestedLoopJoinHintRule,
+    NonDeterministicQueryRule,
     NonIdempotentInsertRule,
     NonIdempotentUpdateRule,
-    ReadModifyWriteLockingRule,
-    TOCTOUPatternRule,
-    OrphanRecordRiskRule,
-    CascadeDeleteRiskRule,
-    DeadlockPatternRule,
-    LockEscalationRiskRule,
-    LongRunningQueryRiskRule,
-    StaleReadRiskRule,
-    MissingRetryLogicRule,
-
-    OffsetPaginationWithoutCoveringIndexRule,
-    DeepPaginationWithoutCursorRule,
-    CountStarForPaginationRule,
-    DuplicateIndexSignalRule,
-    OverIndexedTableSignalRule,
-    MissingCoveringIndexOpportunityRule,
-    RedundantIndexColumnOrderRule,
-    CrossDatabaseJoinRule,
-    MultiRegionQueryLatencyRule,
-    DistributedTransactionOverheadRule,
-    ColdStartQueryPatternRule,
-    UnnecessaryConnectionPoolingRule,
-    OldDataNotArchivedRule,
-    LargeTextColumnWithoutCompressionRule,
-    LargeTableWithoutPartitioningRule,
-
-    LDAPInjectionRule,
+    NonSargableOrConditionRule,
     NoSQLInjectionRule,
-    XMLXPathInjectionRule,
-    ServerSideTemplateInjectionRule,
-    JSONFunctionInjectionRule,
-    DatabaseVersionDisclosureRule,
-    SchemaInformationDisclosureRule,
-    TimingAttackPatternRule,
-    VerboseErrorMessageDisclosureRule,
-    OSCommandInjectionRule,
-    PathTraversalRule,
-    LocalFileInclusionRule,
-    SSRFViaDatabaseRule,
-    HardcodedCredentialsRule,
-    WeakSSLConfigRule,
-    DefaultCredentialUsageRule,
-    OverlyPermissiveAccessRule,
-
-    ExcessiveCaseNestingRule,
-    ExcessiveSubqueryNestingRule,
-    GodQueryRule,
-    CyclomaticComplexityRule,
-    LongQueryRule,
-    InconsistentTableNamingRule,
-    AmbiguousAliasRule,
-    HungarianNotationRule,
-    ReservedWordAsColumnRule,
-    MissingColumnCommentsRule,
-    MagicStringWithoutCommentRule,
-    ComplexLogicWithoutExplanationRule,
-    MissingPrimaryKeyRule,
-    MissingForeignKeyRule,
-    LackOfIndexingOnForeignKeyRule,
-    UsingFloatForCurrencyRule,
-    NonDeterministicQueryRule,
+    NullComparisonRule,
+    OffsetPaginationWithoutCoveringIndexRule,
+    OldDataNotArchivedRule,
     OrderByMissingForPaginationRule,
-    HardcodedTestDataRule,
-    TodoFixmeCommentRule,
+    OrderByNonIndexedColumnRule,
+    OrderByWithoutLimitInSubqueryRule,
+    OrphanRecordRiskRule,
+    OSCommandInjectionRule,
+    OverIndexedTableSignalRule,
+    OverlyPermissiveAccessRule,
+    OverprivilegedExecutionContextRule,
+    PANExposureRule,
+    ParallelQueryHintRule,
+    PasswordPolicyBypassRule,
+    PathTraversalRule,
+    PHIAccessWithoutAuditRule,
+    PHIMinimumNecessaryRule,
+    PIIExposureRule,
+    PlaintextPasswordInQueryRule,
+    PrivilegeEscalationRoleGrantRule,
+    QueryOptimizerHintRule,
+    ReadModifyWriteLockingRule,
+    ReadUncommittedHintRule,
+    RedundantIndexColumnOrderRule,
+    RedundantOrderByRule,
+    RegexDenialOfServiceRule,
+    RemoteDataAccessRule,
+    ReservedWordAsColumnRule,
+    RetentionPolicyMissingRule,
+    RightToErasureRule,
+    ScalarUdfInQueryRule,
+    SchemaInformationDisclosureRule,
+    SchemaOwnershipChangeRule,
+    SecondOrderSQLInjectionRule,
+    SegregationOfDutiesRule,
+    SelectStarInETLRule,
+    SelectStarRule,
+    SensitiveDataInErrorOutputRule,
+    ServerSideTemplateInjectionRule,
+    SessionTimeoutNotEnforcedRule,
+    SQLInjectionRule,
+    SSRFViaDatabaseRule,
+    StaleReadRiskRule,
+    TableLockHintRule,
+    TautologicalOrConditionRule,
     TempTableNotCleanedUpRule,
-
+    TimeBasedBlindInjectionRule,
+    TimingAttackPatternRule,
+    TOCTOUPatternRule,
+    TodoFixmeCommentRule,
+    TruncateWithoutTransactionRule,
+    UnboundedRecursiveCTERule,
+    UnboundedTempTableRule,
+    UnencryptedPHITransitRule,
+    UnencryptedSensitiveColumnRule,
+    UnionWithoutAllRule,
+    UnnecessaryConnectionPoolingRule,
+    UnsafeWriteRule,
+    UserCreationWithoutPasswordRule,
+    UsingFloatForCurrencyRule,
+    VerboseErrorMessageDisclosureRule,
+    WeakEncryptionAlgorithmRule,
+    WeakHashingAlgorithmRule,
+    WeakSSLConfigRule,
+    WhileLoopPatternRule,
+    WildcardInColumnListRule,
+    XMLXPathInjectionRule,
     get_all_rules,
 )
 from slowql.rules.registry import RuleRegistry, get_rule_registry
@@ -1632,13 +1627,13 @@ class TestSecondOrderSQLInjectionRule:
 
     def test_insert_dangerous_column(self):
         assert self.rule.check(_make_query("INSERT INTO users (username, email) VALUES ('test', 'a@b.com')"))
-        
+
     def test_update_dangerous_column(self):
         assert self.rule.check(_make_query("UPDATE posts SET comment = 'user input' WHERE id = 1"))
 
     def test_insert_safe_column(self):
         assert not self.rule.check(_make_query("INSERT INTO logs (timestamp, level) VALUES (NOW(), 'INFO')"))
-        
+
     def test_select_no_trigger(self):
         assert not self.rule.check(_make_query("SELECT username FROM users"))
 
@@ -1646,7 +1641,7 @@ class TestSecondOrderSQLInjectionRule:
 class TestLikeWildcardInjectionRule:
     def setup_method(self):
         self.rule = LikeWildcardInjectionRule()
-        
+
     def test_like_parameter(self):
         assert self.rule.check(_make_query("SELECT * FROM users WHERE name LIKE ?"))
 
@@ -1663,7 +1658,7 @@ class TestLikeWildcardInjectionRule:
 class TestWeakHashingAlgorithmRule:
     def setup_method(self):
         self.rule = WeakHashingAlgorithmRule()
-        
+
     def test_md5_password(self):
         assert self.rule.check(_make_query("SELECT MD5(password) FROM users"))
 
@@ -1683,7 +1678,7 @@ class TestWeakHashingAlgorithmRule:
 class TestPlaintextPasswordInQueryRule:
     def setup_method(self):
         self.rule = PlaintextPasswordInQueryRule()
-        
+
     def test_insert_plaintext(self):
         assert self.rule.check(_make_query("INSERT INTO users (name, password) VALUES ('john', 'secret123')"))
 
@@ -1703,7 +1698,7 @@ class TestPlaintextPasswordInQueryRule:
 class TestHardcodedEncryptionKeyRule:
     def setup_method(self):
         self.rule = HardcodedEncryptionKeyRule()
-        
+
     def test_aes_encrypt_hardcoded(self):
         assert self.rule.check(_make_query("SELECT AES_ENCRYPT(ssn, 'MySecretKey123!')"))
 
@@ -1720,7 +1715,7 @@ class TestHardcodedEncryptionKeyRule:
 class TestWeakEncryptionAlgorithmRule:
     def setup_method(self):
         self.rule = WeakEncryptionAlgorithmRule()
-        
+
     def test_des_encrypt(self):
         assert self.rule.check(_make_query("SELECT DES_ENCRYPT(data, key)"))
 
@@ -1737,7 +1732,7 @@ class TestWeakEncryptionAlgorithmRule:
 class TestPrivilegeEscalationRoleGrantRule:
     def setup_method(self):
         self.rule = PrivilegeEscalationRoleGrantRule()
-        
+
     def test_grant_db_owner(self):
         assert self.rule.check(_make_query("GRANT db_owner TO hacker_user"))
 
@@ -1757,7 +1752,7 @@ class TestPrivilegeEscalationRoleGrantRule:
 class TestSchemaOwnershipChangeRule:
     def setup_method(self):
         self.rule = SchemaOwnershipChangeRule()
-        
+
     def test_alter_authorization(self):
         assert self.rule.check(_make_query("ALTER AUTHORIZATION ON SCHEMA::dbo TO attacker"))
 
@@ -1774,7 +1769,7 @@ class TestSchemaOwnershipChangeRule:
 class TestHorizontalAuthorizationBypassRule:
     def setup_method(self):
         self.rule = HorizontalAuthorizationBypassRule()
-        
+
     def test_orders_no_scoping(self):
         assert self.rule.check(_make_query("SELECT * FROM orders WHERE status = 'pending'"))
 
@@ -1791,7 +1786,7 @@ class TestHorizontalAuthorizationBypassRule:
 class TestSensitiveDataInErrorOutputRule:
     def setup_method(self):
         self.rule = SensitiveDataInErrorOutputRule()
-        
+
     def test_raiserror_password(self):
         assert self.rule.check(_make_query("RAISERROR('Invalid password: %s', 16, 1, @password)"))
 
@@ -1811,7 +1806,7 @@ class TestSensitiveDataInErrorOutputRule:
 class TestAuditTrailManipulationRule:
     def setup_method(self):
         self.rule = AuditTrailManipulationRule()
-        
+
     def test_delete_audit_log(self):
         assert self.rule.check(_make_query("DELETE FROM audit_log WHERE created_at < '2020-01-01'"))
 
@@ -1834,7 +1829,7 @@ class TestAuditTrailManipulationRule:
 class TestInsecureSessionTokenStorageRule:
     def setup_method(self):
         self.rule = InsecureSessionTokenStorageRule()
-        
+
     def test_insert_session_token(self):
         assert self.rule.check(_make_query("INSERT INTO sessions (user_id, session_token) VALUES (1, 'abc123xyz789_abcdefghij...')"))
 
@@ -1851,7 +1846,7 @@ class TestInsecureSessionTokenStorageRule:
 class TestSessionTimeoutNotEnforcedRule:
     def setup_method(self):
         self.rule = SessionTimeoutNotEnforcedRule()
-        
+
     def test_select_token_no_expiry(self):
         assert self.rule.check(_make_query("SELECT user_id FROM sessions WHERE token = ?"))
 
@@ -1868,7 +1863,7 @@ class TestSessionTimeoutNotEnforcedRule:
 class TestUnboundedRecursiveCTERule:
     def setup_method(self):
         self.rule = UnboundedRecursiveCTERule()
-        
+
     def test_recursive_cte_unbounded(self):
         assert self.rule.check(_make_query("WITH RECURSIVE cte AS (SELECT 1 UNION ALL SELECT n+1 FROM cte) SELECT * FROM cte"))
 
@@ -1882,7 +1877,7 @@ class TestUnboundedRecursiveCTERule:
 class TestRegexDenialOfServiceRule:
     def setup_method(self):
         self.rule = RegexDenialOfServiceRule()
-        
+
     def test_regexp_a_plus(self):
         assert self.rule.check(_make_query("SELECT * FROM data WHERE text REGEXP '(a+)+'"))
 

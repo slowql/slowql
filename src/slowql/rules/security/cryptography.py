@@ -14,10 +14,10 @@ from slowql.core.models import Category, Dimension, Fix, Issue, Location, Query,
 from slowql.rules.base import ASTRule, PatternRule, Rule
 
 __all__ = [
-    'WeakHashingAlgorithmRule',
-    'PlaintextPasswordInQueryRule',
     'HardcodedEncryptionKeyRule',
+    'PlaintextPasswordInQueryRule',
     'WeakEncryptionAlgorithmRule',
+    'WeakHashingAlgorithmRule',
 ]
 
 
@@ -36,7 +36,7 @@ class WeakHashingAlgorithmRule(PatternRule):
 
     pattern = r"\b(MD5|SHA1|SHA)\s*\(\s*[^)]*\b(password|passwd|pwd|secret|token|key|credential)\b"
     message_template = "Weak hashing algorithm detected: {match}"
-    
+
     impact = (
         "MD5 and SHA1 are cryptographically broken. GPU clusters can crack MD5 hashes at 200+ billion "
         "attempts/second. Rainbow tables provide instant lookups for common passwords."
@@ -62,7 +62,7 @@ class PlaintextPasswordInQueryRule(PatternRule):
 
     pattern = r"\b(INSERT\s+INTO|UPDATE)\b[^;]*\b(password|passwd|pwd|secret_key|api_key|auth_token)\b[^;]*?(?:=\s*|VALUES\s*\()[^;(]*?['\"][^'\"()]{4,}['\"]"
     message_template = "Potential plaintext password detected in query: {match}"
-    
+
     impact = (
         "Plaintext passwords in databases are catastrophic during breaches. A single leaked backup exposes "
         "all credentials. Violates every security compliance framework."
@@ -85,7 +85,7 @@ class HardcodedEncryptionKeyRule(PatternRule):
 
     pattern = r"\b(AES_ENCRYPT|AES_DECRYPT|ENCRYPT|DECRYPT|ENCRYPTBYKEY|DECRYPTBYKEY|HASHBYTES|HMAC)\s*\([^)]*,\s*['\"][A-Za-z0-9\+/=!@#\$%^&\*\-]{8,}['\"]"
     message_template = "Hardcoded encryption key detected: {match}"
-    
+
     impact = (
         "Hardcoded keys in queries appear in query logs, execution plans, source control history, and "
         "monitoring tools. Key compromise means total data compromise with no rotation path."
@@ -108,7 +108,7 @@ class WeakEncryptionAlgorithmRule(PatternRule):
 
     pattern = r"\b(DES_ENCRYPT|DES_DECRYPT|TRIPLE_DES|3DES|RC4|RC2|BLOWFISH|IDEA)\s*\("
     message_template = "Weak encryption algorithm detected: {match}"
-    
+
     impact = (
         "DES uses 56-bit keys, crackable in hours. RC4 has critical biases. These algorithms are prohibited "
         "by PCI-DSS, HIPAA, and most compliance frameworks."

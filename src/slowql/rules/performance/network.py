@@ -31,14 +31,14 @@ class ExcessiveColumnCountRule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        
+
         for node in ast.walk():
             if isinstance(node, exp.Select):
                 columns = getattr(node, "expressions", [])
-                
+
                 if any(isinstance(c, exp.Star) for c in columns):
                     continue
-                
+
                 if len(columns) > 20:
                     issues.append(self.create_issue(
                         query=query,
@@ -54,7 +54,7 @@ class ExcessiveColumnCountRule(ASTRule):
                             is_safe=False,
                         ),
                     ))
-        
+
         return issues
 
 
@@ -70,17 +70,17 @@ class LargeObjectUnboundedRule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        
+
         blob_columns = {
-            'blob', 'clob', 'text', 'content', 'body', 'data', 'image', 
+            'blob', 'clob', 'text', 'content', 'body', 'data', 'image',
             'document', 'file', 'attachment', 'payload', 'binary'
         }
-        
+
         for node in ast.walk():
             if isinstance(node, exp.Select):
                 has_where = node.args.get('where') is not None
                 has_limit = node.args.get('limit') is not None
-                
+
                 if not has_where and not has_limit:
                     for col in getattr(node, "expressions", []):
                         if isinstance(col, exp.Column):
@@ -100,5 +100,5 @@ class LargeObjectUnboundedRule(ASTRule):
                                         is_safe=False,
                                     ),
                                 ))
-        
+
         return issues

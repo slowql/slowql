@@ -14,8 +14,8 @@ from slowql.core.models import Category, Dimension, Fix, Issue, Location, Query,
 from slowql.rules.base import ASTRule, PatternRule, Rule
 
 __all__ = [
-    'UnboundedRecursiveCTERule',
     'RegexDenialOfServiceRule',
+    'UnboundedRecursiveCTERule',
 ]
 
 
@@ -31,7 +31,7 @@ class UnboundedRecursiveCTERule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        
+
         for node in ast.walk():
             # Check for WITH RECURSIVE or recursive CTE pattern
             if isinstance(node, exp.With):
@@ -40,7 +40,7 @@ class UnboundedRecursiveCTERule(ASTRule):
                         # Check if CTE references itself (recursive)
                         cte_name = getattr(cte, "alias", "")
                         cte_query = getattr(cte, "this", None)
-                        
+
                         if cte_name and cte_query and self._is_recursive(cte_query, cte_name):
                             # Check if OPTION (MAXRECURSION) exists in outer query
                             # This is a simplified check
@@ -62,9 +62,9 @@ class UnboundedRecursiveCTERule(ASTRule):
                                         ),
                                     )
                                 )
-        
+
         return issues
-        
+
     def _is_recursive(self, query_node: Any, cte_name: str) -> bool:
         """Check if CTE references itself"""
         for node in query_node.walk():
@@ -87,7 +87,7 @@ class RegexDenialOfServiceRule(PatternRule):
 
     pattern = r"\b(REGEXP|RLIKE|REGEXP_LIKE|REGEXP_MATCHES|SIMILAR\s+TO)\s*\(?[^)]*(\(\?\:?\[?\w+\]\*\)[\*\+]|\(\.\*\)[\*\+]|\(\w\+\)[\*\+]|\[\^?\w+\]\*\[\^?\w+\]\*)"
     message_template = "Potential ReDoS pattern detected: {match}"
-    
+
     impact = (
         "ReDoS patterns like (a+)+ or (.*)* can take exponential time on crafted input. "
         "A single malicious input can hang database threads for hours."

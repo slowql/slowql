@@ -31,7 +31,7 @@ class InsecureSessionTokenStorageRule(PatternRule):
 
     pattern = r"\b(INSERT\s+INTO|UPDATE)\b[^;]*\b(session_token|auth_token|access_token|refresh_token|bearer_token|jwt_token)\b[^;]*?(?:=\s*|VALUES\s*\()[^;(]*?['\"]?[A-Za-z0-9_\-\.]{20,}['\"]?"
     message_template = "Insecure session token storage detected: {match}"
-    
+
     impact = (
         "Unhashed session tokens in databases can be stolen and replayed. Database dumps, SQL injection, "
         "or backup exposure immediately compromises all active sessions."
@@ -51,7 +51,7 @@ class SessionTimeoutNotEnforcedRule(PatternRule):
 
     pattern = r"\bSELECT\b[^;]*\bFROM\s+\w*(session|token)[s]?\b[^;]*\bWHERE\b(?!.*\b(expir|valid_until|expires_at|ttl|created_at)\b)"
     message_template = "Session timeout validation missing in query: {match}"
-    
+
     impact = (
         "Sessions without expiration validation remain valid indefinitely. Stolen tokens provide permanent access. "
         "Violates security best practices and compliance requirements."

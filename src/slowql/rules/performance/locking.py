@@ -14,10 +14,10 @@ from slowql.core.models import Category, Dimension, Fix, Issue, Location, Query,
 from slowql.rules.base import ASTRule, PatternRule, Rule
 
 __all__ = [
-    'TableLockHintRule',
-    'ReadUncommittedHintRule',
     'LongTransactionPatternRule',
     'MissingTransactionIsolationRule',
+    'ReadUncommittedHintRule',
+    'TableLockHintRule',
 ]
 
 
@@ -33,7 +33,7 @@ class TableLockHintRule(PatternRule):
 
     pattern = r"\bWITH\s*\(\s*(TABLOCK|TABLOCKX|HOLDLOCK|XLOCK|PAGLOCK|ROWLOCK|UPDLOCK|SERIALIZABLE)\s*\)"
     message_template = "Extremely restrictive locking hint detected: {match}"
-    
+
     impact = (
         "Table-level locks (TABLOCK, TABLOCKX) block ALL concurrent access to the table. "
         "Under load, this creates cascading waits that can freeze the entire application."
@@ -53,7 +53,7 @@ class ReadUncommittedHintRule(PatternRule):
 
     pattern = r"\bWITH\s*\(\s*(NOLOCK|READUNCOMMITTED)\s*\)|\bREAD\s+UNCOMMITTED\b|\bSET\s+TRANSACTION\s+ISOLATION\s+LEVEL\s+READ\s+UNCOMMITTED\b"
     message_template = "NOLOCK or READ UNCOMMITTED hint detected: {match}"
-    
+
     impact = (
         "NOLOCK reads uncommitted data (dirty reads), can skip rows, read rows twice, "
         "or return phantom data. It's not 'faster' — it's 'wrong'."
@@ -73,7 +73,7 @@ class LongTransactionPatternRule(PatternRule):
 
     pattern = r"\bBEGIN\s+(TRAN|TRANSACTION)\b[\s\S]{500,}?\b(COMMIT|ROLLBACK)\b"
     message_template = "Potentially long-running transaction detected (500+ characters)"
-    
+
     impact = (
         "Long transactions hold locks for their entire duration, blocking other queries. "
         "A 10-second transaction holding a lock can queue up hundreds of waiting requests."
@@ -94,10 +94,10 @@ class MissingTransactionIsolationRule(ASTRule):
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
         query_upper = query.raw.upper()
-        
+
         has_begin_tran = 'BEGIN TRAN' in query_upper or 'BEGIN TRANSACTION' in query_upper
         has_isolation = 'ISOLATION LEVEL' in query_upper
-        
+
         if has_begin_tran and not has_isolation:
             issues.append(self.create_issue(
                 query=query,
@@ -113,5 +113,5 @@ class MissingTransactionIsolationRule(ASTRule):
                     is_safe=False,
                 ),
             ))
-        
+
         return issues

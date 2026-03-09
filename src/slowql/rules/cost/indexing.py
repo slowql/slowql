@@ -15,8 +15,8 @@ from slowql.rules.base import ASTRule, PatternRule, Rule
 
 __all__ = [
     'DuplicateIndexSignalRule',
-    'OverIndexedTableSignalRule',
     'MissingCoveringIndexOpportunityRule',
+    'OverIndexedTableSignalRule',
     'RedundantIndexColumnOrderRule',
 ]
 
@@ -98,7 +98,7 @@ class MissingCoveringIndexOpportunityRule(ASTRule):
                 if where:
                     for col in where.find_all(exp.Column):
                         where_cols.add(col.name.lower())
-                
+
                 select_cols = set()
                 has_star = False
                 for expr in node.expressions:

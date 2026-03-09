@@ -14,10 +14,10 @@ from slowql.core.models import Category, Dimension, Fix, Issue, Location, Query,
 from slowql.rules.base import ASTRule, PatternRule, Rule
 
 __all__ = [
+    'CyclomaticComplexityRule',
     'ExcessiveCaseNestingRule',
     'ExcessiveSubqueryNestingRule',
     'GodQueryRule',
-    'CyclomaticComplexityRule',
     'LongQueryRule',
 ]
 
@@ -59,7 +59,7 @@ class ExcessiveCaseNestingRule(ASTRule):
                         is_nested = True
                         break
                     parent = getattr(parent, 'parent', None)
-                
+
                 if not is_nested:
                     depth = get_case_depth(node)
                     if depth > 3:
@@ -119,7 +119,7 @@ class ExcessiveSubqueryNestingRule(ASTRule):
                         is_nested = True
                         break
                     parent = getattr(parent, 'parent', None)
-                
+
                 if not is_nested:
                     depth = get_subquery_depth(node)
                     if depth >= 3:

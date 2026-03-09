@@ -15,8 +15,8 @@ from slowql.rules.base import ASTRule, PatternRule, Rule
 
 __all__ = [
     'CrossDatabaseJoinRule',
-    'MultiRegionQueryLatencyRule',
     'DistributedTransactionOverheadRule',
+    'MultiRegionQueryLatencyRule',
 ]
 
 
@@ -46,10 +46,10 @@ class CrossDatabaseJoinRule(ASTRule):
                         parts = str(table).split(".")
                         if len(parts) >= 2:
                             db_name = parts[0]
-                    
+
                     if db_name:
                         databases.add(db_name)
-                
+
                 if len(databases) > 1:
                     issues.append(
                         self.create_issue(

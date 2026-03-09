@@ -1,8 +1,8 @@
 """SlowQL Integration Diagnostic"""
-from slowql.rules.catalog import get_all_rules
 from slowql.analyzers.registry import get_registry
-from slowql.core.engine import Engine
 from slowql.core.config import EngineConfig
+from slowql.core.engine import Engine
+from slowql.rules.catalog import get_all_rules
 
 print("=" * 70)
 print("SLOWQL INTEGRATION DIAGNOSTIC")
@@ -45,16 +45,16 @@ print(f"  Query: {test_query}")
 
 try:
     result = engine.analyze(test_query)
-    print(f"  ✅ Analysis completed")
+    print("  ✅ Analysis completed")
     print(f"  Issues found: {len(result.issues)}")
-    
+
     if result.issues:
-        print(f"\n  First 3 issues:")
+        print("\n  First 3 issues:")
         for issue in result.issues[:3]:
             print(f"    - [{issue.severity.value}] {issue.name}")
     else:
         print("  ❌ NO ISSUES DETECTED - INTEGRATION BROKEN!")
-        
+
 except Exception as e:
     print(f"  ❌ Analysis failed: {e}")
     import traceback

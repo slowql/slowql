@@ -14,10 +14,10 @@ from slowql.core.models import Category, Dimension, Fix, Issue, Location, Query,
 from slowql.rules.base import ASTRule, PatternRule, Rule
 
 __all__ = [
-    'LargeInClauseRule',
-    'UnboundedTempTableRule',
-    'OrderByWithoutLimitInSubqueryRule',
     'GroupByHighCardinalityRule',
+    'LargeInClauseRule',
+    'OrderByWithoutLimitInSubqueryRule',
+    'UnboundedTempTableRule',
 ]
 
 
@@ -33,13 +33,13 @@ class LargeInClauseRule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        
+
         for node in ast.walk():
             if isinstance(node, exp.In):
                 values = getattr(node, "expressions", [])
                 if not values and getattr(node, "query", None):
                     continue  # Subquery, not literal list
-                
+
                 if len(values) > 50:
                     issues.append(self.create_issue(
                         query=query,
@@ -55,7 +55,7 @@ class LargeInClauseRule(ASTRule):
                             is_safe=False,
                         ),
                     ))
-        
+
         return issues
 
 
@@ -71,7 +71,7 @@ class UnboundedTempTableRule(PatternRule):
 
     pattern = r"\bSELECT\b(?!.*\b(WHERE|TOP|LIMIT)\b)[^;]*\bINTO\s+[#@\w]+"
     message_template = "Unbounded SELECT INTO temp table detected: {match}"
-    
+
     impact = (
         "Unbounded SELECT INTO can fill tempdb, crash the instance, or exhaust memory. "
         "A single runaway query can impact all database users."
@@ -91,14 +91,14 @@ class OrderByWithoutLimitInSubqueryRule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        
+
         for node in ast.walk():
             if isinstance(node, exp.Subquery):
                 inner = node.this
                 if isinstance(inner, exp.Select):
                     has_order = inner.args.get('order') is not None
                     has_limit = inner.args.get('limit') is not None
-                    
+
                     if has_order and not has_limit:
                         issues.append(self.create_issue(
                             query=query,
@@ -114,7 +114,7 @@ class OrderByWithoutLimitInSubqueryRule(ASTRule):
                                 is_safe=False,
                             ),
                         ))
-        
+
         return issues
 
 
@@ -130,13 +130,13 @@ class GroupByHighCardinalityRule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        
+
         high_cardinality_patterns = {
             'timestamp', 'datetime', 'created_at', 'updated_at', 'modified_at',
             'uuid', 'guid', 'id', 'transaction_id', 'session_id', 'request_id',
             'email', 'phone', 'ip_address', 'user_agent'
         }
-        
+
         for node in ast.walk():
             if isinstance(node, exp.Select):
                 group = node.args.get('group')
@@ -160,5 +160,5 @@ class GroupByHighCardinalityRule(ASTRule):
                                         is_safe=False,
                                     ),
                                 ))
-        
+
         return issues

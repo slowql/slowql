@@ -17,6 +17,7 @@ import json
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
+
 try:
     import yaml
 except ImportError:
