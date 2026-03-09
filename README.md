@@ -38,6 +38,12 @@ Stop bad SQL before it hits production. SlowQL is a zero-dependency, offline SQL
 
 ---
 
+<p align="center">
+  <img src="assets/slowql.gif" alt="SlowQL demo" width="800">
+</p>
+
+---
+
 ## 🎯 Why SlowQL?
 
 **Real problems SlowQL prevents:**
