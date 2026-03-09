@@ -45,7 +45,7 @@ class SQLInjectionRule(PatternRule):
     dimension = Dimension.SECURITY
     category = Category.SEC_INJECTION
 
-    pattern = r"(?i)(['\"]\s*\+\s*[a-zA-Z_]\w*)|([a-zA-Z_]\w*\s*\+\s*['\"])"
+    pattern = r"(['\"]\s*\+\s*[a-zA-Z_]\w*)|([a-zA-Z_]\w*\s*\+\s*['\"])"
     message_template = (
         "Potential SQL injection detected: String concatenation with variable '{match}'."
     )
@@ -66,7 +66,7 @@ class HardcodedPasswordRule(PatternRule):
     dimension = Dimension.SECURITY
     category = Category.SEC_AUTHENTICATION
 
-    pattern = r"(?i)(password|passwd|pwd|secret|token)\s*=\s*'[^']+'"
+    pattern = r"(password|passwd|pwd|secret|token)\s*=\s*'[^']+'"
     message_template = "Hardcoded credential detected: {match}"
 
     impact = "Credentials exposed in source code or logs can be used by attackers."
@@ -166,7 +166,7 @@ class LeadingWildcardRule(PatternRule):
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_INDEX
 
-    pattern = r"(?i)\s+LIKE\s+['\"]%[^'\"]+['\"]"
+    pattern = r"\s+LIKE\s+['\"]%[^'\"]+['\"]"
     message_template = "Non-SARGable query: Leading wildcard in LIKE clause '{match}'."
 
     impact = "Forces a full table scan because B-Tree indexes cannot be traversed in reverse."
@@ -273,7 +273,7 @@ class OrOnIndexedColumnsRule(PatternRule):
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_INDEX
 
-    pattern = r"(?i)\bWHERE\b.+\bOR\b"
+    pattern = r"\bWHERE\b.+\bOR\b"
     message_template = "OR condition in WHERE clause detected: {match}"
 
     impact = "OR conditions can prevent index usage depending on the query planner"
@@ -290,7 +290,7 @@ class DeepOffsetPaginationRule(PatternRule):
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_INDEX
 
-    pattern = r"(?i)\bOFFSET\s+([1-9]\d{3,})\b"
+    pattern = r"\bOFFSET\s+([1-9]\d{3,})\b"
     message_template = "Deep pagination detected with large OFFSET: {match}"
 
     impact = "Database must scan and discard all rows before the offset"
@@ -396,7 +396,7 @@ class OrderByInSubqueryRule(PatternRule):
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_AGGREGATION
 
-    pattern = r"(?i)\(\s*SELECT\b[^)]+\bORDER\s+BY\b"
+    pattern = r"\(\s*SELECT\b[^)]+\bORDER\s+BY\b"
     message_template = "ORDER BY in subquery is typically meaningless: {match}"
 
     impact = "ORDER BY in subquery is meaningless and wastes sort cost"
@@ -910,7 +910,7 @@ class TOCTOUPatternRule(PatternRule):
     dimension = Dimension.RELIABILITY
     category = Category.REL_RACE_CONDITION
 
-    pattern = r"(?i)\bIF\s+(NOT\s+)?EXISTS\s*\(\s*SELECT[^)]+\)[^;]*\b(INSERT|UPDATE|DELETE)\b"
+    pattern = r"\bIF\s+(NOT\s+)?EXISTS\s*\(\s*SELECT[^)]+\)[^;]*\b(INSERT|UPDATE|DELETE)\b"
     message_template = "Potential TOCTOU race condition detected: IF EXISTS check followed by modification."
 
     impact = (
@@ -1021,7 +1021,7 @@ class CascadeDeleteRiskRule(PatternRule):
     category = Category.REL_FOREIGN_KEY
 
     pattern = (
-        r"(?i)\bDELETE\s+FROM\s+(users|customers|accounts|orders|products|categories|"
+        r"\bDELETE\s+FROM\s+(users|customers|accounts|orders|products|categories|"
         r"departments|companies|tenants|organizations)\b(?!.*\bCASCADE\s*=\s*FALSE\b)"
     )
     message_template = "Potential mass delete on parent table: {match}"
@@ -1050,7 +1050,7 @@ class DeadlockPatternRule(PatternRule):
     dimension = Dimension.RELIABILITY
     category = Category.REL_DEADLOCK
 
-    pattern = r"(?i)\bBEGIN\b[\s\S]*?\bUPDATE\s+(\w+)\b[\s\S]*?\bUPDATE\s+(?!\1)(\w+)\b[\s\S]*?\bCOMMIT\b"
+    pattern = r"\bBEGIN\b[\s\S]*?\bUPDATE\s+(\w+)\b[\s\S]*?\bUPDATE\s+(?!\1)(\w+)\b[\s\S]*?\bCOMMIT\b"
     message_template = "Potential deadlock pattern: Multiple table updates within a transaction."
 
     impact = (
@@ -1203,7 +1203,7 @@ class StaleReadRiskRule(PatternRule):
     dimension = Dimension.RELIABILITY
     category = Category.REL_CONSISTENCY
 
-    pattern = r"(?i)^(?!.*?\bBEGIN\b).*?(INSERT|UPDATE)\s+[^;]+;\s*SELECT\s+[^;]+FROM\s+(\w+)"
+    pattern = r"^(?!.*?\bBEGIN\b).*?(INSERT|UPDATE)\s+[^;]+;\s*SELECT\s+[^;]+FROM\s+(\w+)"
     message_template = "Potential stale read: SELECT immediately follows UPDATE/INSERT without transaction."
 
     impact = (
@@ -1231,7 +1231,7 @@ class MissingRetryLogicRule(PatternRule):
     category = Category.REL_RETRY
 
     pattern = (
-        r"(?i)\bBEGIN\s+(TRAN|TRANSACTION)\b(?![\s\S]*\b(TRY|CATCH|EXCEPTION|RETRY|"
+        r"\bBEGIN\s+(TRAN|TRANSACTION)\b(?![\s\S]*\b(TRY|CATCH|EXCEPTION|RETRY|"
         r"ATTEMPT|LOOP|WHILE)\b)[\s\S]*?\b(COMMIT|ROLLBACK)\b"
     )
     message_template = "Transaction block without retry logic — will fail on transient errors."
@@ -1262,7 +1262,7 @@ class PIIExposureRule(PatternRule):
     dimension = Dimension.COMPLIANCE
     category = Category.COMP_GDPR
 
-    pattern = r"(?i)\b(email|ssn|social_security|credit_card|cc_num|passport)\b"
+    pattern = r"\b(email|ssn|social_security|credit_card|cc_num|passport)\b"
     message_template = "Potential PII column accessed: {match}"
     impact = "Accessing PII requires audit logging and strict access controls under GDPR/CCPA."
 
@@ -1985,7 +1985,7 @@ class DeepPaginationWithoutCursorRule(ASTRule):
                         except (ValueError, AttributeError):
                             pass
                 else:
-                    match = re.search(r'(?i)OFFSET\s+(\d+)', query.raw)
+                    match = re.search(r'OFFSET\s+(\d+)', query.raw, re.IGNORECASE)
                     if match:
                         try:
                             offset_value = int(match.group(1))
@@ -2026,7 +2026,7 @@ class CountStarForPaginationRule(PatternRule):
     dimension = Dimension.COST
     category = Category.COST_PAGINATION
 
-    pattern = r"(?i)\bSELECT\s+COUNT\s*\(\s*\*\s*\)\s+FROM\b(?!.*\b(WHERE|LIMIT|TOP)\b)"
+    pattern = r"\bSELECT\s+COUNT\s*\(\s*\*\s*\)\s+FROM\b(?!.*\b(WHERE|LIMIT|TOP)\b)"
     message_template = "Expensive COUNT(*) for pagination total detected on unfiltered table."
 
     impact = (
@@ -2055,7 +2055,7 @@ class DuplicateIndexSignalRule(PatternRule):
     dimension = Dimension.COST
     category = Category.COST_INDEX_WASTE
 
-    pattern = r"(?i)\bCREATE\s+INDEX\s+\w+\s+ON\s+(\w+)\s*\(([^)]+)\)"
+    pattern = r"\bCREATE\s+INDEX\s+\w+\s+ON\s+(\w+)\s*\(([^)]+)\)"
     message_template = "Duplicate index signal detected: {match}. Verify if index already exists."
 
     impact = (
@@ -2082,7 +2082,7 @@ class OverIndexedTableSignalRule(PatternRule):
     dimension = Dimension.COST
     category = Category.COST_INDEX_WASTE
 
-    pattern = r"(?i)(CREATE\s+INDEX\s+\w+\s+ON\s+(\w+)[\s\S]*?){3,}"
+    pattern = r"(CREATE\s+INDEX\s+\w+\s+ON\s+(\w+)[\s\S]*?){3,}"
     message_template = "Over-indexed table signal: multiple CREATE INDEX statements found for the same table."
 
     impact = (
@@ -2165,7 +2165,7 @@ class RedundantIndexColumnOrderRule(PatternRule):
     dimension = Dimension.COST
     category = Category.COST_INDEX_OPTIMIZATION
 
-    pattern = r"(?i)\bCREATE\s+INDEX\s+\w+\s+ON\s+\w+\s*\((\w+)\s*,\s*(\w+)"
+    pattern = r"\bCREATE\s+INDEX\s+\w+\s+ON\s+\w+\s*\((\w+)\s*,\s*(\w+)"
     message_template = "Composite index column order signal: check if order matches query patterns: {match}"
 
     impact = (
@@ -2262,7 +2262,7 @@ class SelectWithoutFromRule(PatternRule):
     dimension = Dimension.QUALITY
     category = Category.QUAL_READABILITY
 
-    pattern = r"(?i)^\s*SELECT\s+.+(?<!\bFROM\b.+)$"
+    pattern = r"^\s*SELECT\s+.+(?<!\bFROM\b.+)$"
     message_template = "SELECT without FROM detected — verify this is intentional: {match}"
 
     impact = (
@@ -2522,7 +2522,7 @@ class MultiRegionQueryLatencyRule(PatternRule):
     dimension = Dimension.COST
     category = Category.COST_CROSS_REGION
 
-    pattern = r"(?i)\b(SELECT|INSERT|UPDATE|DELETE)\b[^;]*\b(us-east|us-west|eu-west|ap-south|@[^.]*\..*\.rds\.amazonaws\.com|@[^.]*\.database\.windows\.net)\b"
+    pattern = r"\b(SELECT|INSERT|UPDATE|DELETE)\b[^;]*\b(us-east|us-west|eu-west|ap-south|@[^.]*\..*\.rds\.amazonaws\.com|@[^.]*\.database\.windows\.net)\b"
     message_template = "Multi-region query detected: potential latency and egress costs: {match}"
 
     impact = (
@@ -2548,7 +2548,7 @@ class DistributedTransactionOverheadRule(PatternRule):
     dimension = Dimension.COST
     category = Category.COST_DISTRIBUTED
 
-    pattern = r"(?i)\b(BEGIN\s+DISTRIBUTED\s+TRANSACTION|XA\s+START|START\s+TRANSACTION\s+WITH\s+CONSISTENT\s+SNAPSHOT)\b"
+    pattern = r"\b(BEGIN\s+DISTRIBUTED\s+TRANSACTION|XA\s+START|START\s+TRANSACTION\s+WITH\s+CONSISTENT\s+SNAPSHOT)\b"
     message_template = "Distributed transaction detected: major performance and cost overhead: {match}"
 
     impact = (
@@ -2574,7 +2574,7 @@ class ColdStartQueryPatternRule(PatternRule):
     dimension = Dimension.COST
     category = Category.COST_SERVERLESS
 
-    pattern = r"(?i)\bSELECT\b.*\b(JOIN|UNION|INTERSECT|EXCEPT)\b.*\b(GROUP\s+BY|ORDER\s+BY|DISTINCT)\b"
+    pattern = r"\bSELECT\b.*\b(JOIN|UNION|INTERSECT|EXCEPT)\b.*\b(GROUP\s+BY|ORDER\s+BY|DISTINCT)\b"
     message_template = "Complex query in serverless environment: potential cold start and scaling cost: {match}"
 
     impact = (
@@ -2600,7 +2600,7 @@ class UnnecessaryConnectionPoolingRule(PatternRule):
     dimension = Dimension.COST
     category = Category.COST_SERVERLESS
 
-    pattern = r"(?i)\b(SET\s+SESSION|CONNECTION\s+TIMEOUT\s*=\s*\d{4,}|KEEP\s+ALIVE|POOLING\s*=\s*TRUE)\b"
+    pattern = r"\b(SET\s+SESSION|CONNECTION\s+TIMEOUT\s*=\s*\d{4,}|KEEP\s+ALIVE|POOLING\s*=\s*TRUE)\b"
     message_template = " wasteful connection management found: {match}"
 
     impact = (
@@ -2692,7 +2692,7 @@ class LargeTextColumnWithoutCompressionRule(PatternRule):
     dimension = Dimension.COST
     category = Category.COST_STORAGE
 
-    pattern = r"(?i)\bCREATE\s+TABLE\b[^;]*\b(VARCHAR\s*\(\s*\d{4,}\)|TEXT|CLOB|NVARCHAR\s*\(MAX\)|LONGTEXT)\b"
+    pattern = r"\bCREATE\s+TABLE\b[^;]*\b(VARCHAR\s*\(\s*\d{4,}\)|TEXT|CLOB|NVARCHAR\s*\(MAX\)|LONGTEXT)\b"
     message_template = "Large text column without compression detected: {match}"
 
     impact = (
@@ -3283,7 +3283,7 @@ class CrossRegionDataTransferCostRule(PatternRule):
     dimension = Dimension.COST
     category = Category.COST_NETWORK
 
-    pattern = r"(?i)\b(OPENQUERY|OPENDATASOURCE|EXTERNAL\s+TABLE|DBLink|@[\w\.]+)\b"
+    pattern = r"\b(OPENQUERY|OPENDATASOURCE|EXTERNAL\s+TABLE|DBLink|@[\w\.]+)\b"
     message_template = "Potential cross-region data transfer detected: {match}"
 
     impact = (
@@ -3955,7 +3955,7 @@ class CoalesceOnIndexedColumnRule(PatternRule):
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_INDEX
 
-    pattern = r"(?i)\bWHERE\b[^;]*\b(COALESCE|ISNULL|NVL|NVL2|IFNULL)\s*\(\s*\w+"
+    pattern = r"\bWHERE\b[^;]*\b(COALESCE|ISNULL|NVL|NVL2|IFNULL)\s*\(\s*\w+"
     message_template = "Function wrapping column in WHERE clause prevents index seek: {match}"
     
     impact = (
@@ -4026,7 +4026,7 @@ class TableLockHintRule(PatternRule):
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_LOCK
 
-    pattern = r"(?i)\bWITH\s*\(\s*(TABLOCK|TABLOCKX|HOLDLOCK|XLOCK|PAGLOCK|ROWLOCK|UPDLOCK|SERIALIZABLE)\s*\)"
+    pattern = r"\bWITH\s*\(\s*(TABLOCK|TABLOCKX|HOLDLOCK|XLOCK|PAGLOCK|ROWLOCK|UPDLOCK|SERIALIZABLE)\s*\)"
     message_template = "Extremely restrictive locking hint detected: {match}"
     
     impact = (
@@ -4046,7 +4046,7 @@ class ReadUncommittedHintRule(PatternRule):
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_LOCK
 
-    pattern = r"(?i)\bWITH\s*\(\s*(NOLOCK|READUNCOMMITTED)\s*\)|\bREAD\s+UNCOMMITTED\b|\bSET\s+TRANSACTION\s+ISOLATION\s+LEVEL\s+READ\s+UNCOMMITTED\b"
+    pattern = r"\bWITH\s*\(\s*(NOLOCK|READUNCOMMITTED)\s*\)|\bREAD\s+UNCOMMITTED\b|\bSET\s+TRANSACTION\s+ISOLATION\s+LEVEL\s+READ\s+UNCOMMITTED\b"
     message_template = "NOLOCK or READ UNCOMMITTED hint detected: {match}"
     
     impact = (
@@ -4066,7 +4066,7 @@ class LongTransactionPatternRule(PatternRule):
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_LOCK
 
-    pattern = r"(?i)\bBEGIN\s+(TRAN|TRANSACTION)\b[\s\S]{500,}?\b(COMMIT|ROLLBACK)\b"
+    pattern = r"\bBEGIN\s+(TRAN|TRANSACTION)\b[\s\S]{500,}?\b(COMMIT|ROLLBACK)\b"
     message_template = "Potentially long-running transaction detected (500+ characters)"
     
     impact = (
@@ -4122,7 +4122,7 @@ class CursorDeclarationRule(PatternRule):
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_CURSOR
 
-    pattern = r"(?i)\bDECLARE\s+\w+\s+CURSOR\b"
+    pattern = r"\bDECLARE\s+\w+\s+CURSOR\b"
     message_template = "Cursor declaration detected: {match}"
     
     impact = (
@@ -4142,7 +4142,7 @@ class WhileLoopPatternRule(PatternRule):
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_CURSOR
 
-    pattern = r"(?i)\bWHILE\s+[\(@].*\bBEGIN\b"
+    pattern = r"\bWHILE\s+[\(@].*\bBEGIN\b"
     message_template = "WHILE loop detected: {match}"
     
     impact = (
@@ -4162,7 +4162,7 @@ class NestedLoopJoinHintRule(PatternRule):
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_CURSOR
 
-    pattern = r"(?i)\b(LOOP\s+JOIN|INNER\s+LOOP\s+JOIN|LEFT\s+LOOP\s+JOIN|OPTION\s*\(\s*LOOP\s+JOIN\s*\))"
+    pattern = r"\b(LOOP\s+JOIN|INNER\s+LOOP\s+JOIN|LEFT\s+LOOP\s+JOIN|OPTION\s*\(\s*LOOP\s+JOIN\s*\))"
     message_template = "Nested loop join hint detected: {match}"
     
     impact = (
@@ -4220,7 +4220,7 @@ class UnboundedTempTableRule(PatternRule):
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_MEMORY
 
-    pattern = r"(?i)\bSELECT\b(?!.*\b(WHERE|TOP|LIMIT)\b)[^;]*\bINTO\s+[#@\w]+"
+    pattern = r"\bSELECT\b(?!.*\b(WHERE|TOP|LIMIT)\b)[^;]*\bINTO\s+[#@\w]+"
     message_template = "Unbounded SELECT INTO temp table detected: {match}"
     
     impact = (
@@ -4325,7 +4325,7 @@ class QueryOptimizerHintRule(PatternRule):
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_HINTS
 
-    pattern = r"(?i)\bOPTION\s*\(\s*(FORCE\s+ORDER|HASH\s+JOIN|MERGE\s+JOIN|LOOP\s+JOIN|FAST\s+\d+|RECOMPILE|OPTIMIZE\s+FOR|MAXDOP|QUERYTRACEON|USE\s+PLAN)\b"
+    pattern = r"\bOPTION\s*\(\s*(FORCE\s+ORDER|HASH\s+JOIN|MERGE\s+JOIN|LOOP\s+JOIN|FAST\s+\d+|RECOMPILE|OPTIMIZE\s+FOR|MAXDOP|QUERYTRACEON|USE\s+PLAN)\b"
     message_template = "Query optimizer hint detected: {match}"
     
     impact = (
@@ -4345,7 +4345,7 @@ class IndexHintRule(PatternRule):
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_HINTS
 
-    pattern = r"(?i)\b(FORCE\s+INDEX|USE\s+INDEX|IGNORE\s+INDEX|WITH\s*\(\s*INDEX\s*[=(])\b"
+    pattern = r"\b(FORCE\s+INDEX|USE\s+INDEX|IGNORE\s+INDEX|WITH\s*\(\s*INDEX\s*[=(])\b"
     message_template = "Index hint detected: {match}"
     
     impact = (
@@ -4365,7 +4365,7 @@ class ParallelQueryHintRule(PatternRule):
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_HINTS
 
-    pattern = r"(?i)\bOPTION\s*\([^)]*MAXDOP\s+\d+"
+    pattern = r"\bOPTION\s*\([^)]*MAXDOP\s+\d+"
     message_template = "Parallel query hint (MAXDOP) detected: {match}"
     
     impact = (
@@ -4385,7 +4385,7 @@ class ScalarUdfInQueryRule(PatternRule):
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_EXECUTION
 
-    pattern = r"(?i)\b(SELECT|WHERE)\b[^;]*\bdbo\.\w+\s*\([^)]*\)"
+    pattern = r"\b(SELECT|WHERE)\b[^;]*\bdbo\.\w+\s*\([^)]*\)"
     message_template = "Scalar UDF detected: {match}"
     
     impact = (
@@ -4547,7 +4547,7 @@ class MissingBatchSizeInLoopRule(PatternRule):
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_BATCH
 
-    pattern = r"(?i)\bWHILE\b[\s\S]*?\b(UPDATE|DELETE)\b(?![\s\S]*?\b(TOP|LIMIT)\b)[\s\S]*?\bEND\b"
+    pattern = r"\bWHILE\b[\s\S]*?\b(UPDATE|DELETE)\b(?![\s\S]*?\b(TOP|LIMIT)\b)[\s\S]*?\bEND\b"
     message_template = "WHILE loop with unbatched DML detected."
     
     impact = (
@@ -4660,7 +4660,7 @@ class LDAPInjectionRule(PatternRule):
     dimension = Dimension.SECURITY
     category = Category.SEC_INJECTION
 
-    pattern = r'(?i)\b(LDAP|AD_|DIRECTORY)\w*\s*\([^)]*(\+|CONCAT|CONCATENATE|\|\|)[^)]*\b(cn=|ou=|dc=|uid=|objectClass=)\b'
+    pattern = r'\b(LDAP|AD_|DIRECTORY)\w*\s*\([^)]*(\+|CONCAT|CONCATENATE|\|\|)[^)]*\b(cn=|ou=|dc=|uid=|objectClass=)\b'
 
     impact = (
         "LDAP injection allows attackers to bypass authentication, enumerate directory structure, "
@@ -4686,7 +4686,7 @@ class NoSQLInjectionRule(PatternRule):
     dimension = Dimension.SECURITY
     category = Category.SEC_INJECTION
 
-    pattern = r'(?i)\b(OPENJSON|JSON_QUERY|JSON_VALUE|FOR\s+JSON|MONGODB|COSMOSDB|mongo_\w*|json_\w*)\b[^;]*(\+|CONCAT|\|\|)[^;]*[{}\[\]$]'
+    pattern = r'\b(OPENJSON|JSON_QUERY|JSON_VALUE|FOR\s+JSON|MONGODB|COSMOSDB|mongo_\w*|json_\w*)\b[^;]*(\+|CONCAT|\|\|)[^;]*[{}\[\]$]'
 
     impact = (
         "NoSQL injection in JSON queries allows filter bypass, data extraction, and denial of service. "
@@ -4711,7 +4711,7 @@ class XMLXPathInjectionRule(PatternRule):
     dimension = Dimension.SECURITY
     category = Category.SEC_INJECTION
 
-    pattern = r'(?i)\b(XMLQUERY|XMLEXISTS|XPATH|XQUERY|xml_)\b[^;]*(\+|CONCAT|\|\|)[^;]*[/\[\]]'
+    pattern = r'\b(XMLQUERY|XMLEXISTS|XPATH|XQUERY|xml_)\b[^;]*(\+|CONCAT|\|\|)[^;]*[/\[\]]'
 
     impact = (
         "XPath injection allows attackers to manipulate XML queries, bypass authentication, and extract "
@@ -4737,7 +4737,7 @@ class ServerSideTemplateInjectionRule(PatternRule):
     dimension = Dimension.SECURITY
     category = Category.SEC_INJECTION
 
-    pattern = r'(?i)\b(RENDER|TEMPLATE|EVAL|EXECUTE|PROCESS|render_)\w*\b\([^)]*(\+|CONCAT|\|\|)'
+    pattern = r'\b(RENDER|TEMPLATE|EVAL|EXECUTE|PROCESS|render_)\w*\b\([^)]*(\+|CONCAT|\|\|)'
 
     impact = (
         "Template injection allows arbitrary code execution on the server. If user input is embedded "
@@ -4762,7 +4762,7 @@ class JSONFunctionInjectionRule(PatternRule):
     dimension = Dimension.SECURITY
     category = Category.SEC_INJECTION
 
-    pattern = r'(?i)\b(JSON_OBJECT|JSON_ARRAY|JSON_INSERT|JSON_REPLACE|JSON_SET|json_\w*)\b[^;]*(\+|CONCAT|\|\|)'
+    pattern = r'\b(JSON_OBJECT|JSON_ARRAY|JSON_INSERT|JSON_REPLACE|JSON_SET|json_\w*)\b[^;]*(\+|CONCAT|\|\|)'
 
     impact = (
         "Concatenating user input into JSON path expressions allows attackers to modify query logic, "
@@ -4787,7 +4787,7 @@ class DatabaseVersionDisclosureRule(PatternRule):
     dimension = Dimension.SECURITY
     category = Category.SEC_DATA_EXPOSURE
 
-    pattern = r'(?i)(?:@@VERSION|VERSION\(\)|SERVERPROPERTY\(\'ProductVersion\'\)|pg_version\(\)|BANNER|v\$version)'
+    pattern = r'(?:@@VERSION|VERSION\(\)|SERVERPROPERTY\(\'ProductVersion\'\)|pg_version\(\)|BANNER|v\$version)'
 
     impact = (
         "Exposing database version helps attackers identify known vulnerabilities (CVEs) specific to that "
@@ -4811,7 +4811,7 @@ class SchemaInformationDisclosureRule(PatternRule):
     dimension = Dimension.SECURITY
     category = Category.SEC_DATA_EXPOSURE
 
-    pattern = r'(?i)\b(INFORMATION_SCHEMA|sys\.|pg_catalog|ALL_TABLES|USER_TABLES|DBA_TABLES|SHOW\s+TABLES|SHOW\s+COLUMNS|DESCRIBE|syscolumns|sysobjects)\b'
+    pattern = r'\b(INFORMATION_SCHEMA|sys\.|pg_catalog|ALL_TABLES|USER_TABLES|DBA_TABLES|SHOW\s+TABLES|SHOW\s+COLUMNS|DESCRIBE|syscolumns|sysobjects)\b'
 
     impact = (
         "Schema enumeration reveals table names, column names, and relationships. Attackers use this for "
@@ -4835,7 +4835,7 @@ class TimingAttackPatternRule(PatternRule):
     dimension = Dimension.SECURITY
     category = Category.SEC_DATA_EXPOSURE
 
-    pattern = r'(?i)\b(SLEEP|WAITFOR\s+DELAY|DBMS_LOCK\.SLEEP|PG_SLEEP)\b\s*\(\s*\d+\s*\)'
+    pattern = r'\b(SLEEP|WAITFOR\s+DELAY|DBMS_LOCK\.SLEEP|PG_SLEEP)\b\s*\(\s*\d+\s*\)'
 
     impact = (
         "String comparison of passwords has variable timing based on match length. Attackers can infer "
@@ -4859,7 +4859,7 @@ class VerboseErrorMessageDisclosureRule(PatternRule):
     dimension = Dimension.SECURITY
     category = Category.SEC_DATA_EXPOSURE
 
-    pattern = r'(?i)\b(RAISERROR|THROW|SIGNAL)\b[^;]*\b(@@ERROR|ERROR_MESSAGE|SQLERRM|SQLSTATE)|\bCAST\s*\(\s*(?:@@VERSION|VERSION\(\)|BANNER)'
+    pattern = r'\b(RAISERROR|THROW|SIGNAL)\b[^;]*\b(@@ERROR|ERROR_MESSAGE|SQLERRM|SQLSTATE)|\bCAST\s*\(\s*(?:@@VERSION|VERSION\(\)|BANNER)'
 
     impact = (
         "Error messages containing schema names, query fragments, or stack traces help attackers "
@@ -4884,7 +4884,7 @@ class OSCommandInjectionRule(PatternRule):
     dimension = Dimension.SECURITY
     category = Category.SEC_INJECTION
 
-    pattern = r'(?i)\b(xp_cmdshell|sp_OACreate|sp_OAMethod|SHELL|EXEC\s+master\.\.xp_cmdshell|pg_read_file|pg_execute_server_program)\b'
+    pattern = r'\b(xp_cmdshell|sp_OACreate|sp_OAMethod|SHELL|EXEC\s+master\.\.xp_cmdshell|pg_read_file|pg_execute_server_program)\b'
 
     impact = (
         "OS command execution from SQL gives attackers full server access. xp_cmdshell with user input "
@@ -4909,7 +4909,7 @@ class PathTraversalRule(PatternRule):
     dimension = Dimension.SECURITY
     category = Category.SEC_ACCESS
 
-    pattern = r'(?i)\b(OPENROWSET|BULK\s+INSERT|LOAD_FILE|INTO\s+OUTFILE|UTL_FILE|BFILE|DBMS_LOB\.LOADFROMFILE)\b[^;]*(\+|CONCAT|\|\|)[^;]*[\'"][^\'"]*\.\.[/\\]'
+    pattern = r'\b(OPENROWSET|BULK\s+INSERT|LOAD_FILE|INTO\s+OUTFILE|UTL_FILE|BFILE|DBMS_LOB\.LOADFROMFILE)\b[^;]*(\+|CONCAT|\|\|)[^;]*[\'"][^\'"]*\.\.[/\\]'
 
     impact = (
         "Path traversal allows attackers to read/write arbitrary files on the server. Reading /etc/passwd "
@@ -4933,7 +4933,7 @@ class LocalFileInclusionRule(PatternRule):
     dimension = Dimension.SECURITY
     category = Category.SEC_INJECTION
 
-    pattern = r'(?i)\b(EXECUTE|EXEC|SOURCE|\\i|@)\b[^;]*(\+|CONCAT|\|\|)[^;]*\.sql\b'
+    pattern = r'\b(EXECUTE|EXEC|SOURCE|\\i|@)\b[^;]*(\+|CONCAT|\|\|)[^;]*\.sql\b'
 
     impact = (
         "Including SQL files based on user input allows attackers to execute arbitrary SQL code. "
@@ -4957,7 +4957,7 @@ class SSRFViaDatabaseRule(PatternRule):
     dimension = Dimension.SECURITY
     category = Category.SEC_INJECTION
 
-    pattern = r'(?i)\b(sp_OACreate.*XMLHTTP|UTL_HTTP|DBMS_NETWORK|HTTPURLConnection|CURL)\b|\bOPENROWSET\b.*[\'"][^\'"]*(?:http|https|ftp|ldap|\\\\)'
+    pattern = r'\b(sp_OACreate.*XMLHTTP|UTL_HTTP|DBMS_NETWORK|HTTPURLConnection|CURL)\b|\bOPENROWSET\b.*[\'"][^\'"]*(?:http|https|ftp|ldap|\\\\)'
 
     impact = (
         "SSRF via database allows attackers to scan internal networks, access cloud metadata services "
@@ -4981,7 +4981,7 @@ class HardcodedCredentialsRule(PatternRule):
     dimension = Dimension.SECURITY
     category = Category.SEC_AUTHENTICATION
 
-    pattern = r'(?i)(PASSWORD\s*=\s*[\'"][^\'"]{4,}[\'"]|pwd\s*=\s*[\'"][^\'"]{4,}[\'"]|IDENTIFIED\s+BY\s+[\'"][^\'"]+[\'"])'
+    pattern = r'(PASSWORD\s*=\s*[\'"][^\'"]{4,}[\'"]|pwd\s*=\s*[\'"][^\'"]{4,}[\'"]|IDENTIFIED\s+BY\s+[\'"][^\'"]+[\'"])'
 
     impact = (
         "Hardcoded credentials in queries are stored in query logs, execution history, source control, "
@@ -5005,7 +5005,7 @@ class WeakSSLConfigRule(PatternRule):
     dimension = Dimension.SECURITY
     category = Category.SEC_AUTHENTICATION
 
-    pattern = r'(?i)(Encrypt\s*=\s*(false|no|0)|TrustServerCertificate\s*=\s*true|sslmode\s*=\s*(disable|allow|prefer)|ssl\s*=\s*(false|0))'
+    pattern = r'(Encrypt\s*=\s*(false|no|0)|TrustServerCertificate\s*=\s*true|sslmode\s*=\s*(disable|allow|prefer)|ssl\s*=\s*(false|0))'
 
     impact = (
         "Disabling SSL/TLS exposes all data in transit to interception. Man-in-the-middle attacks can "
@@ -5029,7 +5029,7 @@ class DefaultCredentialUsageRule(PatternRule):
     dimension = Dimension.SECURITY
     category = Category.SEC_AUTHENTICATION
 
-    pattern = r'(?i)\b(sa|admin|root|postgres|mysql)\b.*\b(Password\s*=\s*[\'"]?(sa|admin|root|password|123456|default)[\'"]?|IDENTIFIED\s+BY\s+[\'"]?(sa|admin|root|password)[\'"]?)'
+    pattern = r'\b(sa|admin|root|postgres|mysql)\b.*\b(Password\s*=\s*[\'"]?(sa|admin|root|password|123456|default)[\'"]?|IDENTIFIED\s+BY\s+[\'"]?(sa|admin|root|password)[\'"]?)'
 
     impact = (
         "Default credentials are the #1 cause of database breaches. Attackers scan for default sa password. "
@@ -5053,7 +5053,7 @@ class OverlyPermissiveAccessRule(PatternRule):
     dimension = Dimension.SECURITY
     category = Category.SEC_AUTHENTICATION
 
-    pattern = r'(?i)(GRANT\s+.*\s+TO\s+.*@[\'"]%[\'"]|CREATE\s+USER\s+.*@[\'"]%[\'"]|Host\s*=\s*[\'"]?(\*|0\.0\.0\.0|%|::|all)[\'"]?)'
+    pattern = r'(GRANT\s+.*\s+TO\s+.*@[\'"]%[\'"]|CREATE\s+USER\s+.*@[\'"]%[\'"]|Host\s*=\s*[\'"]?(\*|0\.0\.0\.0|%|::|all)[\'"]?)'
 
     impact = (
         "Allowing connections from any host (@'%', Host=*) exposes database to internet-wide attacks. "
@@ -5062,6 +5062,770 @@ class OverlyPermissiveAccessRule(PatternRule):
     fix_guidance = (
         "Restrict access to specific IP addresses: @\'10.0.1.5\'. Use firewall rules. Implement VPC/private "
         "networking. For cloud databases, use private endpoints only."
+    )
+
+
+# =============================================================================
+# BATCH 5: QUALITY & MAINTAINABILITY RULES
+# =============================================================================
+
+
+class ExcessiveCaseNestingRule(ASTRule):
+    """Detects CASE expressions nested more than 3 levels deep."""
+
+    id = "QUAL-COMPLEX-001"
+    name = "Excessive CASE Nesting"
+    description = (
+        "Detects CASE expressions nested more than 3 levels deep, which are hard to read, test, and maintain."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_COMPLEXITY
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        issues = []
+
+        def get_case_depth(node):
+            if not isinstance(node, exp.Case):
+                return 0
+            max_inner = 0
+            for child in node.walk():
+                if child is node:
+                    continue
+                if isinstance(child, exp.Case):
+                    inner_depth = get_case_depth(child)
+                    max_inner = max(max_inner, inner_depth)
+            return 1 + max_inner
+
+        for node in ast.walk():
+            if isinstance(node, exp.Case):
+                # Only check top-level CASE nodes
+                parent = getattr(node, 'parent', None)
+                is_nested = False
+                while parent:
+                    if isinstance(parent, exp.Case):
+                        is_nested = True
+                        break
+                    parent = getattr(parent, 'parent', None)
+                
+                if not is_nested:
+                    depth = get_case_depth(node)
+                    if depth > 3:
+                        issues.append(
+                            self.create_issue(
+                                query=query,
+                                message=f"CASE expression nested {depth} levels deep",
+                                snippet=str(node)[:100],
+                            )
+                        )
+        return issues
+
+    impact = (
+        "Deeply nested CASE statements are difficult to understand, test, and debug. Each nesting level "
+        "doubles the cognitive load. Often indicates business logic that belongs in application layer."
+    )
+    fix_guidance = (
+        "Refactor to lookup table or create a user-defined function. Limit CASE to 2-3 levels maximum. "
+        "Use early returns in functions."
+    )
+
+
+class ExcessiveSubqueryNestingRule(ASTRule):
+    """Detects subqueries nested more than 3 levels deep."""
+
+    id = "QUAL-COMPLEX-002"
+    name = "Excessive Subquery Nesting"
+    description = (
+        "Detects subqueries nested more than 3 levels deep, indicating overly complex query structure."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_COMPLEXITY
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        issues = []
+
+        def get_subquery_depth(node):
+            if not isinstance(node, exp.Subquery):
+                return 0
+            max_inner = 0
+            for child in node.walk():
+                if child is node:
+                    continue
+                if isinstance(child, exp.Subquery):
+                    inner_depth = get_subquery_depth(child)
+                    max_inner = max(max_inner, inner_depth)
+            return 1 + max_inner
+
+        for node in ast.walk():
+            if isinstance(node, exp.Subquery):
+                # Avoid redundant issues for nested subqueries
+                parent = getattr(node, 'parent', None)
+                is_nested = False
+                while parent:
+                    if isinstance(parent, exp.Subquery):
+                        is_nested = True
+                        break
+                    parent = getattr(parent, 'parent', None)
+                
+                if not is_nested:
+                    depth = get_subquery_depth(node)
+                    if depth >= 3:
+                        issues.append(
+                            self.create_issue(
+                                query=query,
+                                message=f"Subquery nested {depth} levels deep",
+                                snippet=str(node)[:100],
+                            )
+                        )
+        return issues
+
+    impact = (
+        "Deeply nested subqueries are unreadable and hard to optimize. Each level makes query execution "
+        "unpredictable. Often indicates poor query design that should use CTEs or temp tables."
+    )
+    fix_guidance = (
+        "Use Common Table Expressions (CTEs) to flatten query structure. Or break into temp tables. "
+        "Maximum 2-3 levels for readability."
+    )
+
+
+class GodQueryRule(ASTRule):
+    """Detects "god queries" with excessive clauses."""
+
+    id = "QUAL-COMPLEX-003"
+    name = "God Query"
+    description = (
+        "Detects queries with excessive clauses (10+ JOINs, complex WHERE, GROUP BY, HAVING, ORDER BY)."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_COMPLEXITY
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        issues = []
+
+        for node in ast.walk():
+            if isinstance(node, exp.Select):
+                complexity_score = 0
+
+                # Count JOINs
+                joins = node.args.get('joins') or []
+                complexity_score += len(joins) * 2
+
+                # WHERE clause complexity
+                where = node.args.get('where')
+                if where:
+                    complexity_score += 1
+                    where_str = str(where).upper()
+                    complexity_score += where_str.count(' AND ')
+                    complexity_score += where_str.count(' OR ')
+
+                # GROUP BY, HAVING, ORDER BY
+                if node.args.get('group'):
+                    complexity_score += 2
+                if node.args.get('having'):
+                    complexity_score += 2
+                if node.args.get('order'):
+                    complexity_score += 1
+
+                # Subqueries
+                subquery_count = len(list(node.find_all(exp.Subquery)))
+                complexity_score += subquery_count * 3
+
+                if complexity_score > 25:
+                    issues.append(
+                        self.create_issue(
+                            query=query,
+                            message=f"God query detected (complexity score: {complexity_score}) - break into smaller, focused queries",
+                            snippet=str(node)[:100],
+                        )
+                    )
+
+        return issues
+
+    impact = (
+        "God queries try to do everything in one statement. They're slow, hard to optimize, impossible "
+        "to test, and unmaintainable. Often leads to unpredictable performance."
+    )
+    fix_guidance = (
+        "Break into multiple focused queries. Use temp tables for intermediate results. Separate "
+        "data retrieval from business logic. Aim for < 5 JOINs per query."
+    )
+
+
+class CyclomaticComplexityRule(PatternRule):
+    """Detects stored procedures with high cyclomatic complexity."""
+
+    id = "QUAL-COMPLEX-004"
+    name = "Cyclomatic Complexity in Stored Procedure"
+    description = (
+        "Detects stored procedures with high cyclomatic complexity (many IF/WHILE/CASE branches)."
+    )
+    severity = Severity.LOW
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_COMPLEXITY
+
+    pattern = r'\b(CREATE\s+(?:OR\s+REPLACE\s+)?PROCEDURE|CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION)\b[\s\S]*?(?:(?:\bIF\b|\bWHILE\b|\bCASE\b)[\s\S]*?){5,}'
+
+    impact = (
+        "High cyclomatic complexity means many code paths, making testing exponentially harder. "
+        "Bugs hide in untested branches. Overly complex logic is hard to maintain."
+    )
+    fix_guidance = (
+        "Extract complex logic into smaller functions. Use lookup tables instead of IF chains. "
+        "Limit to 10 branches per procedure. Aim for cyclomatic complexity < 10."
+    )
+
+
+class LongQueryRule(Rule):
+    """Detects queries longer than 50 lines."""
+
+    id = "QUAL-COMPLEX-005"
+    name = "Long Query (Line Count)"
+    description = "Detects queries longer than 50 lines, suggesting over-complexity."
+    severity = Severity.INFO
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_COMPLEXITY
+
+    def check(self, query: Query) -> list[Issue]:
+        issues = []
+        line_count = query.raw.count('\n') + 1
+
+        if line_count > 50:
+            issues.append(
+                self.create_issue(
+                    query=query,
+                    message=f"Query is {line_count} lines long - consider breaking into smaller queries or using CTEs",
+                    snippet=query.raw[:100],
+                )
+            )
+
+        return issues
+
+    impact = (
+        "Queries over 50 lines are hard to understand, review, and debug. Often indicates poor "
+        "separation of concerns or missing abstraction layers."
+    )
+    fix_guidance = (
+        "Break into multiple queries or CTEs. Use views for complex joins. Extract repeated "
+        "patterns into functions. Aim for queries under 30 lines."
+    )
+
+
+class InconsistentTableNamingRule(ASTRule):
+    """Detects inconsistent table naming (e.g., Mixing plural and singular)."""
+
+    id = "QUAL-NAME-001"
+    name = "Inconsistent Table Naming"
+    description = (
+        "Detects inconsistent table naming conventions, specifically mixing singular and "
+        "plural names in the same query."
+    )
+    severity = Severity.LOW
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_NAMING
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        issues = []
+        tables = [t.name.lower() for t in ast.find_all(exp.Table) if t.name]
+        
+        if len(tables) < 2:
+            return []
+            
+        # Standardize: plural usually ends with 's', but not 'ss' (like 'process')
+        # This is a heuristic for detecting mixtures.
+        likely_singular = [t for t in tables if not t.endswith('s') or t.endswith('ss')]
+        likely_plural = [t for t in tables if t.endswith('s') and not t.endswith('ss')]
+        
+        # Only flag if we have a clear mixture of both patterns
+        if likely_singular and likely_plural:
+            # Check if they are actually different words (not just 'user' and 'user')
+            issues.append(
+                self.create_issue(
+                    query=query,
+                    message=f"Inconsistent table naming detected: mixed singular ({likely_singular[0]}) and plural ({likely_plural[0]}) names",
+                    snippet=", ".join(tables[:5]),
+                )
+            )
+            
+        return issues
+
+    impact = (
+        "Inconsistent naming makes the schema harder to learn and navigate. It creates "
+        "uncertainty for developers and often leads to bugs where the wrong table name is guessed."
+    )
+    fix_guidance = (
+        "Standardize on either singular (user) or plural (users) for all table names. "
+        "Plural is common for collections, singular for entity definitions."
+    )
+
+
+class AmbiguousAliasRule(ASTRule):
+    """Detects overly short or ambiguous aliases (e.g., a, b, t1)."""
+
+    id = "QUAL-NAME-002"
+    name = "Ambiguous Alias"
+    description = "Detects overly short (1-2 chars) or generic aliases that hinder readability."
+    severity = Severity.LOW
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_NAMING
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        issues = []
+        
+        for node in ast.walk():
+            alias = None
+            if isinstance(node, (exp.Alias, exp.Table)):
+                alias = getattr(node, 'alias', None)
+            
+            if alias and len(alias) <= 2 and alias.lower() not in ('as', 'id'):
+                issues.append(
+                    self.create_issue(
+                        query=query,
+                        message=f"Ambiguous alias '{alias}' detected - use descriptive names (e.g., 'usr' instead of 'u')",
+                        snippet=str(node)[:50],
+                    )
+                )
+                
+        return issues
+
+    impact = (
+        "Single-letter aliases make complex queries impossible to read without constant "
+        "referencing back to the source. They hide the semantic meaning of the data."
+    )
+    fix_guidance = (
+        "Use 3+ character descriptive aliases. Example: 'cust' for customers, 'emp' for employees. "
+        "Avoid aliases like 'a', 'b', 't1'."
+    )
+
+
+class HungarianNotationRule(PatternRule):
+    """Detects Hungarian notation in column/table names (e.g., strName, intId)."""
+
+    id = "QUAL-NAME-003"
+    name = "Hungarian Notation in Names"
+    description = "Detects Hungarian notation prefixing (e.g., str_name, i_id, tbl_users)."
+    severity = Severity.LOW
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_NAMING
+
+    pattern = r'\b(str_|int_|i_|tbl_|v_|idx_|fk_|pk_)[a-z0-9_]+\b'
+
+    impact = (
+        "Hungarian notation is redundant in SQL as types are defined in schema. It makes "
+        "renaming/typing changes harder and clutters the code with obsolete metaphors."
+    )
+    fix_guidance = (
+        "Remove type prefixes. Use 'name' instead of 'str_name', 'id' instead of 'int_id'. "
+        "Database metadata already provides type information."
+    )
+
+
+class ReservedWordAsColumnRule(ASTRule):
+    """Detects use of SQL reserved words as column or table names."""
+
+    id = "QUAL-NAME-004"
+    name = "Reserved Word as Identifier"
+    description = "Detects use of SQL reserved words (ORDER, GROUP, TABLE, etc.) as identifiers."
+    severity = Severity.MEDIUM
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_NAMING
+
+    RESERVED = {
+        'ORDER', 'GROUP', 'BY', 'SELECT', 'FROM', 'WHERE', 'TABLE', 'INDEX',
+        'USER', 'DATE', 'KEY', 'COLUMN', 'AS', 'JOIN', 'LIMIT', 'OFFSET'
+    }
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        issues = []
+        
+        # Check all identifiers, including those sqlglot might identify as words
+        for node in ast.walk():
+            name = None
+            if isinstance(node, (exp.Column, exp.Table, exp.Identifier)):
+                if isinstance(node, exp.Identifier):
+                    name = node.this
+                else:
+                    name = node.alias_or_name
+            
+            if name and isinstance(name, str) and name.upper() in self.RESERVED:
+                issues.append(
+                    self.create_issue(
+                        query=query,
+                        message=f"Reserved word '{name.upper()}' used as identifier",
+                        snippet=str(node),
+                    )
+                )
+                
+        return issues
+
+    impact = (
+        "Using reserved words forces the use of double quotes and can lead to syntax errors "
+        "if quotes are missing. It also makes queries much harder to read."
+    )
+    fix_guidance = (
+        "Choose a non-reserved synonym. Use 'created_at' instead of 'DATE', "
+        "'sort_order' instead of 'ORDER', 'user_account' instead of 'USER'."
+    )
+
+
+class MissingColumnCommentsRule(PatternRule):
+    """Detects CREATE TABLE statements without column comments."""
+
+    id = "QUAL-DOC-001"
+    name = "Missing Column Comments"
+    description = "Detects table definitions missing COMMENT or DESCRIPTION metadata."
+    severity = Severity.INFO
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_DOCUMENTATION
+
+    pattern = r'CREATE\s+TABLE\s+(?:(?!COMMENT).)*?(?:\);|\Z)'
+
+    impact = (
+        "Missing comments mean the business meaning of columns must be reverse-engineered "
+        "from code. This slows down onboarding and leads to data misuse."
+    )
+    fix_guidance = (
+        "Add COMMENT 'description' to all column definitions. Explain units (e.g., 'price in USD') "
+        "and expected values."
+    )
+
+
+class MagicStringWithoutCommentRule(PatternRule):
+    """Detects magic strings/numbers without explanatory comments."""
+
+    id = "QUAL-DOC-002"
+    name = "Magic Constant Without Comment"
+    description = "Detects hardcoded literals used in filters without inline comments."
+    severity = Severity.LOW
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_DOCUMENTATION
+
+    pattern = r'(?<!--)WHERE\s+.*\s*=\s*[\'"].+[\'"](?!\s*--)'
+
+    impact = (
+        "Magic constants like 'STATUS_42' or 1001 represent business logic that is "
+        "opaque to future maintainers. Without comments, it's impossible to know if the value is correct."
+    )
+    fix_guidance = (
+        "Add an inline comment explaining what the constant represents. E.g., "
+        "WHERE status = 'A' -- A = Active."
+    )
+
+
+class ComplexLogicWithoutExplanationRule(Rule):
+    """Detects long blocks of code without comments."""
+
+    id = "QUAL-DOC-003"
+    name = "Complex Logic Without Explanation"
+    description = "Detects long queries (>20 lines) that have no comments."
+    severity = Severity.INFO
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_DOCUMENTATION
+
+    def check(self, query: Query) -> list[Issue]:
+        issues = []
+        # Count complex components in raw query
+        score = query.raw.count('AND') + query.raw.count('OR') + query.raw.count('CASE')
+        has_comment = "--" in query.raw or "/*" in query.raw
+        
+        if score >= 5 and not has_comment:
+            issues.append(
+                self.create_issue(
+                    query=query,
+                    message=f"Complex logic (score: {score}) without explanation.",
+                    snippet=query.raw[:50]
+                )
+            )
+        return issues
+
+    impact = (
+        "Queries over 20 lines without comments are 'write-only' code. They are "
+        "prohibitively expensive to modify or peer-review safely."
+    )
+    fix_guidance = (
+        "Add header comments explaining the query's goal. Use inline comments for "
+        "complex JOIN conditions or business logic branches."
+    )
+
+
+class MissingPrimaryKeyRule(PatternRule):
+    """Detects CREATE TABLE without PRIMARY KEY."""
+
+    id = "QUAL-SCHEMA-001"
+    name = "Missing Primary Key"
+    description = "Detects table definitions missing a PRIMARY KEY constraint."
+    severity = Severity.HIGH
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_SCHEMA_DESIGN
+
+    pattern = r'CREATE\s+TABLE\s+(?:(?!PRIMARY\s+KEY).)*?(?:\);|\Z)'
+
+    impact = (
+        "Tables without primary keys are a major design flaw. They prevent row uniqueness, "
+        "break replication, make updates slow, and hinder most database optimizations."
+    )
+    fix_guidance = (
+        "Add a PRIMARY KEY to the table. Usually an auto-incrementing ID or a UUID. "
+        "Every table must have a unique identifier."
+    )
+
+
+class MissingForeignKeyRule(ASTRule):
+    """Detects columns named like *_id without FOREIGN KEY constraints."""
+
+    id = "QUAL-SCHEMA-002"
+    name = "Implicit Foreign Key (Logic)"
+    description = "Detects columns following *_id pattern missing explicit FOREIGN KEY constraints."
+    severity = Severity.MEDIUM
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_SCHEMA_DESIGN
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        issues = []
+        if not isinstance(ast, exp.Create):
+            return []
+            
+        table_def = ast.this
+        if not isinstance(table_def, exp.Schema):
+            return []
+            
+        columns = [c.this.name.lower() for c in table_def.find_all(exp.ColumnDef)]
+        fks = []
+        for f in table_def.find_all(exp.ForeignKey):
+            col_node = f.find(exp.Column)
+            if col_node:
+                fks.append(col_node.name.lower())
+            else:
+                # If sqlglot doesn't provide Column child, try to find Identifier
+                id_node = f.find(exp.Identifier)
+                if id_node:
+                    fks.append(id_node.this.lower())
+        
+        for col in columns:
+            if col.endswith('_id') and col != 'id' and col not in fks:
+                issues.append(
+                    self.create_issue(
+                        query=query,
+                        message=f"Column '{col}' looks like a foreign key but lacks a constraint",
+                        snippet=col,
+                    )
+                )
+                
+        return issues
+
+    impact = (
+        "Missing foreign keys lead to orphaned records and data corruption. Referenced data "
+        "can be deleted without cleaning up dependent rows, breaking application logic."
+    )
+    fix_guidance = (
+        "Add FOREIGN KEY ... REFERENCES ... constraints. This ensures referential integrity "
+        "at the database level."
+    )
+
+
+class LackOfIndexingOnForeignKeyRule(ASTRule):
+    """Detects foreign keys without supporting indexes."""
+
+    id = "QUAL-SCHEMA-003"
+    name = "Missing Index on Foreign Key"
+    description = "Detects foreign key columns that lack a corresponding INDEX."
+    severity = Severity.MEDIUM
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_SCHEMA_DESIGN
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        issues = []
+        if not isinstance(ast, exp.Create):
+            return []
+            
+        table_def = ast.this
+        if not isinstance(table_def, exp.Schema):
+            return []
+            
+        # Get all indexes/keys
+        indexed_cols = set()
+        for idx in table_def.find_all((exp.Index, exp.IndexColumnConstraint)):
+            for ident in idx.find_all(exp.Identifier):
+                indexed_cols.add(ident.this.lower())
+        
+        for fk in table_def.find_all(exp.ForeignKey):
+            # expressions contains the local columns (Identifiers)
+            local_idents = fk.expressions
+            local_names = {ident.this.lower() for ident in local_idents if isinstance(ident, exp.Identifier)}
+            
+            for col_name in local_names:
+                if col_name not in indexed_cols:
+                    issues.append(
+                        self.create_issue(query=query, message=f"Missing index on FK '{col_name}'", snippet=str(fk))
+                    )
+                    
+        return issues
+
+    impact = (
+        "JOINs and CASCADE deletes on unindexed foreign keys are extremely slow. They cause "
+        "full table scans for every referenced record lookup, killing performance."
+    )
+    fix_guidance = (
+        "Create an INDEX on the foreign key column. Most databases do not index "
+        "FKs automatically. Example: CREATE INDEX idx_users_id ON profiles(user_id)."
+    )
+
+
+class UsingFloatForCurrencyRule(PatternRule):
+    """Detects FLOAT/REAL types for currency (e.g., price FLOAT)."""
+
+    id = "QUAL-SCHEMA-004"
+    name = "Float for Currency"
+    description = "Detects use of approximate types (FLOAT, REAL) for monetary values."
+    severity = Severity.HIGH
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_SCHEMA_DESIGN
+
+    pattern = r'\b(price|amount|balance|cost|total|sum)\b.*?\b(FLOAT|REAL|DOUBLE)\b'
+
+    impact = (
+        "Float/Double types use binary floating-point math which leads to rounding errors (e.g., "
+        "0.1 + 0.2 != 0.3). This is catastrophic for financial data."
+    )
+    fix_guidance = (
+        "Use DECIMAL or NUMERIC for currency. Or store as integer (cents/pence). "
+        "Never use floating point types for money."
+    )
+
+
+class NonDeterministicQueryRule(ASTRule):
+    """Detects queries that might return different results (e.g., using NOW())."""
+
+    id = "QUAL-TEST-001"
+    name = "Non-Deterministic Query"
+    description = "Detects queries using non-deterministic functions (NOW, RAND) in filters/logic."
+    severity = Severity.LOW
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_TESTING
+
+    NON_DET = {'NOW', 'RAND', 'RANDOM', 'CURRENT_TIMESTAMP', 'GETDATE', 'CLOCK_TIMESTAMP'}
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        issues = []
+        for func in ast.find_all(exp.Anonymous):
+            if str(func.this).upper() in self.NON_DET:
+                issues.append(
+                    self.create_issue(
+                        query=query,
+                        message=f"Non-deterministic function '{str(func.this).upper()}' detected - makes testing difficult",
+                        snippet=str(func),
+                    )
+                )
+        return issues
+
+    impact = (
+        "Non-deterministic queries are hard to test and reproduce. They can cause flaky tests "
+        "and unpredictable behavior in production if results depend on the exact millisecond of execution."
+    )
+    fix_guidance = (
+        "Pass time as a parameter from the application layer. Use fixed seeds for random functions. "
+        "Ensure query results are predictable for the same input state."
+    )
+
+
+class OrderByMissingForPaginationRule(ASTRule):
+    """Detects LIMIT/OFFSET without ORDER BY."""
+
+    id = "QUAL-TEST-002"
+    name = "Pagination Without ORDER BY"
+    description = "Detects LIMIT/OFFSET usage without an explicit ORDER BY clause."
+    severity = Severity.MEDIUM
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_TESTING
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        issues = []
+        for select in ast.find_all(exp.Select):
+            if (select.args.get('limit') or select.args.get('offset')) and not select.args.get('order'):
+                issues.append(
+                    self.create_issue(
+                        query=query,
+                        message="Pagination (LIMIT/OFFSET) used without ORDER BY - result order is non-deterministic",
+                        snippet=str(select)[:100],
+                    )
+                )
+        return issues
+
+    impact = (
+        "SQL does not guarantee row order without ORDER BY. Without it, pagination can return "
+        "the same row on multiple pages or skip rows entirely, leading to UI bugs."
+    )
+    fix_guidance = (
+        "Always add ORDER BY when using LIMIT/OFFSET. Ensure the sort key is unique (e.g., include ID) "
+        "to guarantee stable sorting."
+    )
+
+
+class HardcodedTestDataRule(PatternRule):
+    """Detects obvious test data in queries (e.g., 'test%', 'dummy')."""
+
+    id = "QUAL-TEST-003"
+    name = "Hardcoded Test Data"
+    description = "Detects obvious test data patterns (test, dummy, fake, temp, asdf, qwerty) in queries."
+    severity = Severity.LOW
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_TESTING
+
+    pattern = r'[\'"][^\'"]*(test|dummy|fake|temp|asdf|qwerty)[^\'"]*[\'"]'
+
+    impact = (
+        "Leftover test data markers in production queries indicate poor release hygiene. "
+        "They can accidentally filter out real data or expose test logic to users."
+    )
+    fix_guidance = (
+        "Remove test data filters from production queries. Use proper environment "
+        "configuration to separate test and production logic."
+    )
+
+
+class TodoFixmeCommentRule(PatternRule):
+    """Detects TODO or FIXME in query comments."""
+
+    id = "QUAL-DEBT-001"
+    name = "Technical Debt Marker"
+    description = "Detects TODO or FIXME markers in query comments, indicating unresolved issues."
+    severity = Severity.INFO
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_TECH_DEBT
+
+    pattern = r'\b(TODO|FIXME|XXX|HACK)\b'
+
+    impact = (
+        "TODO/FIXME markers represent known bugs or missing features that haven't been "
+        "tracked in an issue tracker. They often rot and become obsolete while the issues remain."
+    )
+    fix_guidance = (
+        "Resolve the underlying issue or move the task to a formal issue tracking system. "
+        "Unresolved notes in code hinder long-term maintainability."
+    )
+
+
+class TempTableNotCleanedUpRule(PatternRule):
+    """Detects creation of temp tables without subsequent DROP."""
+
+    id = "QUAL-DEBT-002"
+    name = "Permanent Temporary Table"
+    description = "Detects CREATE TEMP TABLE without a corresponding DROP TABLE in the same unit."
+    severity = Severity.LOW
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_TECH_DEBT
+
+    pattern = r'CREATE\s+(?:TEMPORARY|TEMP)\s+TABLE\s+(\w+)(?:(?!DROP\s+TABLE\s+\1).)*\Z'
+
+    impact = (
+        "Temporary tables that aren't dropped consume memory and disk space in the temporary "
+        "tablespace. Over time, they can cause disk full errors and slow down the database."
+    )
+    fix_guidance = (
+        "Always DROP temporary tables as soon as they are no longer needed. Use 'ON COMMIT DROP' "
+        "if supported by your database."
     )
 
 
@@ -5237,4 +6001,27 @@ def get_all_rules() -> list[Rule]:
         WeakSSLConfigRule(),
         DefaultCredentialUsageRule(),
         OverlyPermissiveAccessRule(),
+
+        # Batch 5: Quality & Maintainability Rules
+        ExcessiveCaseNestingRule(),
+        ExcessiveSubqueryNestingRule(),
+        GodQueryRule(),
+        CyclomaticComplexityRule(),
+        LongQueryRule(),
+        InconsistentTableNamingRule(),
+        AmbiguousAliasRule(),
+        HungarianNotationRule(),
+        ReservedWordAsColumnRule(),
+        MissingColumnCommentsRule(),
+        MagicStringWithoutCommentRule(),
+        ComplexLogicWithoutExplanationRule(),
+        MissingPrimaryKeyRule(),
+        MissingForeignKeyRule(),
+        LackOfIndexingOnForeignKeyRule(),
+        UsingFloatForCurrencyRule(),
+        NonDeterministicQueryRule(),
+        OrderByMissingForPaginationRule(),
+        HardcodedTestDataRule(),
+        TodoFixmeCommentRule(),
+        TempTableNotCleanedUpRule(),
     ]

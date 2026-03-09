@@ -247,6 +247,11 @@ class Category(str, Enum):
     QUAL_NAMING = "naming"
     QUAL_DRY = "dry"
     QUAL_MODERN = "modern-sql"
+    QUAL_COMPLEXITY = "complexity"
+    QUAL_DOCUMENTATION = "documentation"
+    QUAL_SCHEMA_DESIGN = "schema_design"
+    QUAL_TESTING = "testing"
+    QUAL_TECH_DEBT = "technical_debt"
 
 
 @dataclass(frozen=True, slots=True)
