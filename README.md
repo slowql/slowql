@@ -2,25 +2,29 @@
 
 **Production-grade SQL static analyzer that prevents performance disasters, security breaches, and cloud cost explosions.**
 
-Stop bad SQL before it hits production. SlowQL is a zero-dependency, offline SQL analyzer that catches performance anti-patterns, security vulnerabilities, compliance violations, and cost traps — with a beautiful terminal experience that developers actually enjoy using.
+Stop bad SQL before it hits production. SlowQL is a zero-dependency, offline SQL analyzer that catches performance anti-patterns, security vulnerabilities, compliance violations, and cost traps - with a beautiful terminal experience that developers actually enjoy using.
 
 <!-- Package & Distribution -->
 <p align="center">
   <a href="https://github.com/makroumi/slowql/releases"><img src="https://img.shields.io/github/v/release/makroumi/slowql?logo=github&label=release&color=4c1" alt="Release"></a>
-  <a href="https://pypi.org/project/slowql/"><img src="https://img.shields.io/pypi/v/slowql?logo=pypi&logoColor=white&color=3775A9" alt="PyPI"></a>
-  <a href="https://hub.docker.com/r/makroumi/slowql"><img src="https://img.shields.io/docker/v/makroumi/slowql?logo=docker&logoColor=white&label=docker&color=2496ED" alt="Docker"></a>
-  <a href="https://github.com/makroumi/slowql/pkgs/container/slowql"><img src="https://img.shields.io/badge/GHCR-slowql-blue?logo=github" alt="GHCR"></a>
-  <a href="https://pypi.org/project/slowql/"><img src="https://img.shields.io/docker/pulls/makroumi/slowql?logo=docker&logoColor=white&label=pulls" alt="Docker Pulls"></a>
-  <a href="https://pypistats.org/packages/slowql"><img src="https://img.shields.io/badge/PyPI%20downloads-~1200%2Fmonth-blue?logo=pypi" alt="PyPI Downloads"></a>
+  <a href="https://pypi.org/project/slowql/"><img src="https://img.shields.io/pypi/v/slowql?logo=pypi&logoColor=white&label=PyPI&color=3775A9" alt="PyPI"></a>
+  <a href="https://pypi.org/project/slowql/"><img src="https://img.shields.io/pypi/pyversions/slowql?logo=python&logoColor=white&label=Python" alt="Python"></a>
+  <a href="https://hub.docker.com/r/makroumi/slowql"><img src="https://img.shields.io/docker/v/makroumi/slowql?logo=docker&logoColor=white&label=Docker&color=2496ED" alt="Docker"></a>
+  <a href="https://github.com/makroumi/slowql/pkgs/container/slowql"><img src="https://img.shields.io/badge/GHCR-ghcr.io%2Fmakroumi%2Fslowql-181717?logo=github&logoColor=white" alt="GHCR"></a>
+</p>
+
+<p align="center">
+  <a href="https://hub.docker.com/r/makroumi/slowql"><img src="https://img.shields.io/docker/pulls/makroumi/slowql?logo=docker&logoColor=white&label=Docker%20pulls" alt="Docker Pulls"></a>
+  <a href="https://pypistats.org/packages/slowql"><img src="https://img.shields.io/pypi/dm/slowql?logo=pypi&logoColor=white&label=PyPI%20downloads" alt="PyPI Downloads"></a>
 </p>
 
 <!-- CI/CD & Quality -->
 <p align="center">
-  <a href="https://github.com/makroumi/slowql/actions"><img src="https://github.com/makroumi/slowql/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/makroumi/slowql/actions/workflows/ci.yml"><img src="https://github.com/makroumi/slowql/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://codecov.io/gh/makroumi/slowql"><img src="https://codecov.io/gh/makroumi/slowql/branch/main/graph/badge.svg" alt="Coverage"></a>
-  <a href="https://github.com/astral-sh/ruff"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json" alt="Ruff"></a>
-  <a href="http://mypy-lang.org/"><img src="https://img.shields.io/badge/mypy-checked-blue?logo=python" alt="Mypy"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/makroumi/slowql?color=4c1" alt="License"></a>
+  <a href="https://github.com/astral-sh/ruff"><img src="https://img.shields.io/badge/lint-ruff-46a758?logo=ruff&logoColor=white" alt="Ruff"></a>
+  <a href="http://mypy-lang.org/"><img src="https://img.shields.io/badge/types-mypy-blue?logo=python&logoColor=white" alt="Mypy"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/makroumi/slowql?label=License&color=4c1" alt="License"></a>
 </p>
 
 <!-- Community -->
@@ -46,7 +50,7 @@ Stop bad SQL before it hits production. SlowQL is a zero-dependency, offline SQL
 | `LIKE '%search%'` | 5-second page loads | ✅ PERF-IDX-002 |
 | Unrestricted PII access | GDPR violation | ✅ COMP-GDPR-001 |
 
-**171 detection patterns** across 6 critical dimensions — catching issues **before they hit production**.
+**171 detection patterns** across 6 critical dimensions, catching issues **before they hit production**.
 
 ---
 
@@ -317,10 +321,10 @@ services:
 | Large | 1K-10K | 5-30s | ~150MB |
 
 ### Privacy
-- ✅ **Zero network calls** — 100% offline
-- ✅ **No telemetry** — zero data collection
-- ✅ **Local processing** — SQL never leaves your machine
-- ✅ **Open source** — fully auditable
+- ✅ **Zero network calls** - 100% offline
+- ✅ **No telemetry** - zero data collection
+- ✅ **Local processing** - SQL never leaves your machine
+- ✅ **Open source** - fully auditable
 
 ## 🛠️ Development
 ```bash
@@ -397,7 +401,6 @@ Apache 2.0 — Free for commercial and non-commercial use. See LICENSE.
 ## 📞 Support
 - 🐛 **Issues**: [GitHub Issues](https://github.com/makroumi/slowql/issues)
 - 💬 **Discussions**: [GitHub Discussions](https://github.com/makroumi/slowql/discussions)
-- 📧 **Email**: contact@makroumi.dev
 
 <p align="center"> <strong>Stop bad SQL before it costs you money.</strong> <br><br> Made with ❤️ by <a href="https://github.com/makroumi">@makroumi</a> <br><br> <a href="#slowql">⬆ Back to Top</a> </p>
 
