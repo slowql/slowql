@@ -24,7 +24,7 @@ Stop bad SQL before it hits production. SlowQL is a zero-dependency, offline SQL
   <a href="https://codecov.io/gh/makroumi/slowql"><img src="https://codecov.io/gh/makroumi/slowql/branch/main/graph/badge.svg" alt="Coverage"></a>
   <a href="https://github.com/astral-sh/ruff"><img src="https://img.shields.io/badge/lint-ruff-46a758?logo=ruff&logoColor=white" alt="Ruff"></a>
   <a href="http://mypy-lang.org/"><img src="https://img.shields.io/badge/types-mypy-blue?logo=python&logoColor=white" alt="Mypy"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/makroumi/slowql?label=License&color=4c1" alt="License"></a>
+  <a href="https://github.com/makroumi/slowql/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
 </p>
 
 <!-- Community -->
