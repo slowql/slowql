@@ -80,7 +80,7 @@ class OrphanRecordRiskRule(ASTRule):
 
         return issues
 
-    def _get_insert_columns(self, node) -> list[str]:
+    def _get_insert_columns(self, node: Any) -> list[str]:
         columns = []
         if node.this and hasattr(node.this, "expressions"):
             for col in node.this.expressions:

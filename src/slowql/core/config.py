@@ -18,25 +18,15 @@ import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
-try:
-    import yaml
-except ImportError:
-    yaml = None  # type: ignore[no-redef]
 import tomli
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from slowql.core.exceptions import ConfigurationError
 
-if TYPE_CHECKING:
-    import yaml as _yaml
-else:
-    try:
-        import yaml as _yaml
-    except ImportError:
-        _yaml = None
-
-# Type annotation for yaml variable - can be either the yaml module or None
-yaml: Any | None = _yaml
+try:
+    import yaml
+except ImportError:
+    yaml = None  # type: ignore[assignment]
 
 
 class SeverityThresholds(BaseModel):

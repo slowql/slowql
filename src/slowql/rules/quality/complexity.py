@@ -36,7 +36,7 @@ class ExcessiveCaseNestingRule(ASTRule):
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
 
-        def get_case_depth(node):
+        def get_case_depth(node: Any) -> int:
             if not isinstance(node, exp.Case):
                 return 0
             max_inner = 0
@@ -96,7 +96,7 @@ class ExcessiveSubqueryNestingRule(ASTRule):
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
 
-        def get_subquery_depth(node):
+        def get_subquery_depth(node: Any) -> int:
             if not isinstance(node, exp.Subquery):
                 return 0
             max_inner = 0

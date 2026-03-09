@@ -260,7 +260,7 @@ class NonSargableOrConditionRule(ASTRule):
 
         return issues
 
-    def _get_columns(self, node: Any) -> set[str]:
+    def _get_columns(self, node: Any) -> set[str]:  # type: ignore[override]
         columns = set()
         if node:
             for col in node.find_all(exp.Column):

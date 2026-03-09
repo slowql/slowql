@@ -987,7 +987,7 @@ class OrphanRecordRiskRule(ASTRule):
 
         return issues
 
-    def _get_insert_columns(self, node) -> list[str]:
+    def _get_insert_columns(self, node: Any) -> list[str]:
         columns = []
         if node.this and hasattr(node.this, "expressions"):
             for col in node.this.expressions:
@@ -3937,7 +3937,7 @@ class NonSargableOrConditionRule(ASTRule):
 
         return issues
 
-    def _get_columns(self, node: Any) -> set[str]:
+    def _get_columns(self, node: Any) -> set[str]:  # type: ignore[override]
         columns = set()
         if node:
             for col in node.find_all(exp.Column):
@@ -5085,7 +5085,7 @@ class ExcessiveCaseNestingRule(ASTRule):
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
 
-        def get_case_depth(node):
+        def get_case_depth(node: Any) -> int:
             if not isinstance(node, exp.Case):
                 return 0
             max_inner = 0
@@ -5145,7 +5145,7 @@ class ExcessiveSubqueryNestingRule(ASTRule):
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
 
-        def get_subquery_depth(node):
+        def get_subquery_depth(node: Any) -> int:
             if not isinstance(node, exp.Subquery):
                 return 0
             max_inner = 0
@@ -5646,7 +5646,7 @@ class LackOfIndexingOnForeignKeyRule(ASTRule):
 
         # Get all indexes/keys
         indexed_cols = set()
-        for idx in table_def.find_all((exp.Index, exp.IndexColumnConstraint)):
+        for idx in table_def.find_all((exp.Index, exp.IndexColumnConstraint)):  # type: ignore[arg-type]
             for ident in idx.find_all(exp.Identifier):
                 indexed_cols.add(ident.this.lower())
 
