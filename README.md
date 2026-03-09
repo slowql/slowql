@@ -400,7 +400,6 @@ Apache 2.0 — Free for commercial and non-commercial use. See LICENSE.
 - 📧 **Email**: contact@makroumi.dev
 
 <p align="center"> <strong>Stop bad SQL before it costs you money.</strong> <br><br> Made with ❤️ by <a href="https://github.com/makroumi">@makroumi</a> <br><br> <a href="#slowql">⬆ Back to Top</a> </p>
-[![Star History Chart](https://api.star-history.com/svg?repos=makroumi/slowql&type=Date)](https://star-history.com/#makroumi/slowql&Date)
 
 ---
 
