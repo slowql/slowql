@@ -10,7 +10,9 @@ Stop bad SQL before it hits production. SlowQL is a zero-dependency, offline SQL
   <a href="https://pypi.org/project/slowql/"><img src="https://img.shields.io/pypi/v/slowql?logo=pypi&logoColor=white&color=3775A9" alt="PyPI"></a>
   <a href="https://pypi.org/project/slowql/"><img src="https://img.shields.io/pypi/pyversions/slowql?logo=python&logoColor=white" alt="Python"></a>
   <a href="https://hub.docker.com/r/makroumi/slowql"><img src="https://img.shields.io/docker/v/makroumi/slowql?logo=docker&logoColor=white&label=docker&color=2496ED" alt="Docker"></a>
-  <a href="https://hub.docker.com/r/makroumi/slowql"><img src="https://img.shields.io/docker/pulls/makroumi/slowql?logo=docker&logoColor=white&label=pulls" alt="Docker Pulls"></a>
+  <a href="https://github.com/makroumi/slowql/pkgs/container/slowql"><img src="https://img.shields.io/badge/GHCR-slowql-blue?logo=github" alt="GHCR"></a>
+  <a href="https://pypi.org/project/slowql/"><img src="https://img.shields.io/docker/pulls/makroumi/slowql?logo=docker&logoColor=white&label=pulls" alt="Docker Pulls"></a>
+  <a href="https://pypistats.org/packages/slowql"><img src="https://img.shields.io/badge/PyPI%20downloads-~1200%2Fmonth-blue?logo=pypi" alt="PyPI Downloads"></a>
 </p>
 
 <!-- CI/CD & Quality -->
@@ -28,6 +30,7 @@ Stop bad SQL before it hits production. SlowQL is a zero-dependency, offline SQL
   <a href="https://github.com/makroumi/slowql/issues"><img src="https://img.shields.io/github/issues/makroumi/slowql?logo=github" alt="Issues"></a>
   <a href="https://github.com/makroumi/slowql/discussions"><img src="https://img.shields.io/github/discussions/makroumi/slowql?logo=github" alt="Discussions"></a>
   <a href="https://github.com/makroumi/slowql/graphs/contributors"><img src="https://img.shields.io/github/contributors/makroumi/slowql?logo=github&color=success" alt="Contributors"></a>
+  <a href="https://github.com/sponsors/makroumi"><img src="https://img.shields.io/github/sponsors/makroumi?logo=github&color=ff69b4" alt="Sponsor"></a>
 </p>
 
 <p align="center">
