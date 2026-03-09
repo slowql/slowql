@@ -16,11 +16,6 @@ from typing import TYPE_CHECKING
 
 from slowql.analyzers.base import RuleBasedAnalyzer
 from slowql.core.models import Dimension, Severity
-from slowql.rules.catalog import (
-    GrantAllRule,
-    HardcodedPasswordRule,
-    SQLInjectionRule,
-)
 
 if TYPE_CHECKING:
     from slowql.core.config import Config
@@ -42,17 +37,9 @@ class SecurityAnalyzer(RuleBasedAnalyzer):
     priority = 10  # High priority, security first
 
     def get_rules(self) -> list[Rule]:
-        """
-        Get security rules from the catalog.
-
-        Returns:
-            List of security rules.
-        """
-        return [
-            SQLInjectionRule(),
-            HardcodedPasswordRule(),
-            GrantAllRule(),
-        ]
+        """Load ALL security rules from catalog (45 rules)."""
+        from slowql.rules.catalog import get_rules_by_dimension
+        return get_rules_by_dimension(self.dimension.value)
 
     def analyze(self, query: Query, *, config: Config | None = None) -> list[Issue]:
         """

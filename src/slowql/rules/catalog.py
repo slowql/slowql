@@ -6025,3 +6025,17 @@ def get_all_rules() -> list[Rule]:
         TodoFixmeCommentRule(),
         TempTableNotCleanedUpRule(),
     ]
+
+
+def get_rules_by_dimension(dimension: str) -> list[Rule]:
+    """
+    Get all rules for a specific dimension.
+
+    Args:
+        dimension: Dimension name (e.g., "performance", "security")
+
+    Returns:
+        List of all rules matching the dimension
+    """
+    all_rules = get_all_rules()
+    return [rule for rule in all_rules if rule.dimension.value == dimension]

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from slowql.analyzers.base import BaseAnalyzer
+from slowql.analyzers.base import RuleBasedAnalyzer
 from slowql.core.models import (
     Dimension,
     Issue,
@@ -23,13 +23,12 @@ if TYPE_CHECKING:
     from slowql.rules.base import Rule
 
 
-class CostAnalyzer(BaseAnalyzer):
+class CostAnalyzer(RuleBasedAnalyzer):
     """
     Analyzer for cost estimation.
 
-    Unlike rule-based analyzers, this uses heuristics to estimate
-    compute/scan costs based on the query structure and (optional)
-    cloud provider configuration.
+    Combines heuristic scan cost models with rule-based detection of
+    expensive query patterns.
     """
 
     name = "cost"
@@ -38,22 +37,21 @@ class CostAnalyzer(BaseAnalyzer):
     priority = 50
 
     def get_rules(self) -> list[Rule]:
-        """
-        Cost analyzer doesn't use standard rules yet, but heuristic models.
-        Returning empty list as it implements analyze directly.
-        """
-        return []
+        """Load ALL cost rules from catalog (20 rules)."""
+        from slowql.rules.catalog import get_rules_by_dimension
+        return get_rules_by_dimension(self.dimension.value)
 
     def analyze(
         self,
         query: Query,
         *,
-        config: Config | None = None,  # noqa: ARG002
+        config: Config | None = None,
     ) -> list[Issue]:
         """
         Analyze query for cost implications.
         """
-        issues: list[Issue] = []
+        # Run standard rules first
+        issues = super().analyze(query, config=config)
 
         # Ensure query.raw is not None before string operations
         raw_sql = query.raw or ""

@@ -12,12 +12,6 @@ from typing import TYPE_CHECKING
 
 from slowql.analyzers.base import RuleBasedAnalyzer
 from slowql.core.models import Dimension
-from slowql.rules.catalog import (
-    DistinctOnLargeSetRule,
-    LeadingWildcardRule,
-    MissingWhereRule,
-    SelectStarRule,
-)
 
 if TYPE_CHECKING:
     from slowql.rules.base import Rule
@@ -38,15 +32,6 @@ class PerformanceAnalyzer(RuleBasedAnalyzer):
     priority = 20
 
     def get_rules(self) -> list[Rule]:
-        """
-        Get performance rules from the catalog.
-
-        Returns:
-            List of performance rules.
-        """
-        return [
-            SelectStarRule(),
-            LeadingWildcardRule(),
-            MissingWhereRule(),
-            DistinctOnLargeSetRule(),
-        ]
+        """Load ALL performance rules from catalog (39 rules)."""
+        from slowql.rules.catalog import get_rules_by_dimension
+        return get_rules_by_dimension(self.dimension.value)

@@ -12,10 +12,6 @@ from typing import TYPE_CHECKING
 
 from slowql.analyzers.base import RuleBasedAnalyzer
 from slowql.core.models import Dimension
-from slowql.rules.catalog import (
-    DropTableRule,
-    UnsafeWriteRule,
-)
 
 if TYPE_CHECKING:
     from slowql.rules.base import Rule
@@ -37,13 +33,6 @@ class ReliabilityAnalyzer(RuleBasedAnalyzer):
     priority = 15  # High priority, just after security
 
     def get_rules(self) -> list[Rule]:
-        """
-        Get reliability rules from the catalog.
-
-        Returns:
-            List of reliability rules.
-        """
-        return [
-            UnsafeWriteRule(),
-            DropTableRule(),
-        ]
+        """Load ALL reliability rules from catalog (19 rules)."""
+        from slowql.rules.catalog import get_rules_by_dimension
+        return get_rules_by_dimension(self.dimension.value)

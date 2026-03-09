@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING
 
 from slowql.analyzers.base import RuleBasedAnalyzer
 from slowql.core.models import Dimension
-from slowql.rules.catalog import PIIExposureRule
 
 if TYPE_CHECKING:
     from slowql.rules.base import Rule
@@ -34,9 +33,6 @@ class ComplianceAnalyzer(RuleBasedAnalyzer):
     priority = 30
 
     def get_rules(self) -> list[Rule]:
-        """
-        Get compliance rules from the catalog.
-        """
-        return [
-            PIIExposureRule(),
-        ]
+        """Load ALL compliance rules from catalog (18 rules)."""
+        from slowql.rules.catalog import get_rules_by_dimension
+        return get_rules_by_dimension(self.dimension.value)

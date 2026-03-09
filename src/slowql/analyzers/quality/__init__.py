@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING
 
 from slowql.analyzers.base import RuleBasedAnalyzer
 from slowql.core.models import Dimension
-from slowql.rules.catalog import ImplicitJoinRule
 
 if TYPE_CHECKING:
     from slowql.rules.base import Rule
@@ -34,9 +33,6 @@ class QualityAnalyzer(RuleBasedAnalyzer):
     priority = 40
 
     def get_rules(self) -> list[Rule]:
-        """
-        Get quality rules from the catalog.
-        """
-        return [
-            ImplicitJoinRule(),
-        ]
+        """Load ALL quality rules from catalog (30 rules)."""
+        from slowql.rules.catalog import get_rules_by_dimension
+        return get_rules_by_dimension(self.dimension.value)

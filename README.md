@@ -1,509 +1,276 @@
 # SlowQL
 
-**Catch expensive SQL before it hits production.**  
-Static, offline SQL analyzer that prevents performance regressions, security risks, correctness bugs, and cloud‑cost traps — with a polished terminal experience.
+**Production-grade SQL static analyzer that prevents performance disasters, security breaches, and cloud cost explosions.**
 
-[![Release](https://img.shields.io/github/v/release/makroumi/slowql?logo=github&label=v1.3.0)](https://github.com/makroumi/slowql/releases) [![PyPI](https://img.shields.io/pypi/v/slowql?logo=pypi)](https://pypi.org/project/slowql/) [![Docker](https://img.shields.io/docker/v/makroumi/slowql?logo=docker&label=docker)](https://hub.docker.com/r/makroumi/slowql) [![GHCR](https://img.shields.io/badge/GHCR-slowql-blue?logo=github)](https://github.com/makroumi/slowql/pkgs/container/slowql) [![Docker Pulls](https://img.shields.io/docker/pulls/makroumi/slowql?logo=docker&label=pulls)](https://hub.docker.com/r/makroumi/slowql) [![PyPI Downloads](https://img.shields.io/badge/PyPI%20downloads-~1200%2Fmonth-blue?logo=pypi)](https://pypistats.org/packages/slowql) [![GitHub stars](https://img.shields.io/github/stars/makroumi/slowql?style=social&logo=github)](https://github.com/makroumi/slowql/stargazers) [![CI](https://github.com/makroumi/slowql/actions/workflows/ci.yml/badge.svg?logo=github)](https://github.com/makroumi/slowql/actions) [![Coverage](https://codecov.io/gh/makroumi/slowql/branch/main/graph/badge.svg?logo=codecov)](https://codecov.io/gh/makroumi/slowql) [![Ruff](https://img.shields.io/badge/linter-ruff-blue?logo=python)](https://github.com/charliermarsh/ruff) [![Mypy](https://img.shields.io/badge/type_check-mypy-blue?logo=python)](http://mypy-lang.org/) [![Tests](https://img.shields.io/badge/test_suite-pytest-blue?logo=pytest)](https://docs.pytest.org/) [![Dependabot](https://img.shields.io/badge/dependabot-enabled-brightgreen?logo=dependabot)](https://github.com/makroumi/slowql/security/dependabot) [![Security](https://img.shields.io/badge/security-scanned%20via%20Snyk-blue?logo=snyk)](https://snyk.io/test/github/makroumi/slowql) [![Discussions](https://img.shields.io/github/discussions/makroumi/slowql?logo=github)](https://github.com/makroumi/slowql/discussions) [![Contributors](https://img.shields.io/github/contributors/makroumi/slowql?logo=github)](https://github.com/makroumi/slowql/graphs/contributors) [![Sponsor](https://img.shields.io/github/sponsors/makroumi?logo=github)](https://github.com/sponsors/makroumi)
+Stop bad SQL before it hits production. SlowQL is a zero-dependency, offline SQL analyzer that catches performance anti-patterns, security vulnerabilities, compliance violations, and cost traps — with a beautiful terminal experience that developers actually enjoy using.
 
-![SlowQL Demo](assets/demo.gif)
+<!-- Package & Distribution -->
+<p align="center">
+  <a href="https://github.com/makroumi/slowql/releases"><img src="https://img.shields.io/github/v/release/makroumi/slowql?logo=github&label=release&color=4c1" alt="Release"></a>
+  <a href="https://pypi.org/project/slowql/"><img src="https://img.shields.io/pypi/v/slowql?logo=pypi&logoColor=white&color=3775A9" alt="PyPI"></a>
+  <a href="https://pypi.org/project/slowql/"><img src="https://img.shields.io/pypi/pyversions/slowql?logo=python&logoColor=white" alt="Python"></a>
+  <a href="https://hub.docker.com/r/makroumi/slowql"><img src="https://img.shields.io/docker/v/makroumi/slowql?logo=docker&logoColor=white&label=docker&color=2496ED" alt="Docker"></a>
+  <a href="https://hub.docker.com/r/makroumi/slowql"><img src="https://img.shields.io/docker/pulls/makroumi/slowql?logo=docker&logoColor=white&label=pulls" alt="Docker Pulls"></a>
+</p>
 
-## 🚀 Quick Start Checklist
+<!-- CI/CD & Quality -->
+<p align="center">
+  <a href="https://github.com/makroumi/slowql/actions"><img src="https://github.com/makroumi/slowql/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://codecov.io/gh/makroumi/slowql"><img src="https://codecov.io/gh/makroumi/slowql/branch/main/graph/badge.svg" alt="Coverage"></a>
+  <a href="https://github.com/astral-sh/ruff"><img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json" alt="Ruff"></a>
+  <a href="http://mypy-lang.org/"><img src="https://img.shields.io/badge/mypy-checked-blue?logo=python" alt="Mypy"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/makroumi/slowql?color=4c1" alt="License"></a>
+</p>
 
-**New to SlowQL? Follow these steps:**
+<!-- Community -->
+<p align="center">
+  <a href="https://github.com/makroumi/slowql/stargazers"><img src="https://img.shields.io/github/stars/makroumi/slowql?style=social" alt="Stars"></a>
+  <a href="https://github.com/makroumi/slowql/issues"><img src="https://img.shields.io/github/issues/makroumi/slowql?logo=github" alt="Issues"></a>
+  <a href="https://github.com/makroumi/slowql/discussions"><img src="https://img.shields.io/github/discussions/makroumi/slowql?logo=github" alt="Discussions"></a>
+  <a href="https://github.com/makroumi/slowql/graphs/contributors"><img src="https://img.shields.io/github/contributors/makroumi/slowql?logo=github&color=success" alt="Contributors"></a>
+</p>
 
-- [ ] **Install SlowQL** (see [Installation](#installation))
-- [ ] **Try the demo** with sample queries
-- [ ] **Analyze your SQL files** using the CLI
-- [ ] **Set up CI/CD integration** for automated checks
-- [ ] **Explore advanced features** (exports, interactive mode)
+<p align="center">
+  <img src="assets/demo.gif" alt="SlowQL Demo" width="800">
+</p>
 
-## Table of Contents
+---
 
-- [What is SlowQL?](#what-is-slowql)
-- [Why Teams Choose SlowQL](#why-teams-choose-slowql)
-- [Installation](#installation)
-- [Getting Started](#getting-started)
-- [Key Features](#key-features)
-- [Interactive Terminal Experience](#interactive-terminal-experience)
-- [CLI Reference](#cli-reference)
-- [Export Formats](#export-formats)
-- [Detection Rules](#detection-rules)
-- [How It Works](#how-it-works)
-- [CI/CD Integration](#cicd-integration)
-- [Container Deployment](#container-deployment)
-- [Performance & Privacy](#performance--privacy)
-- [Development & Contributing](#development--contributing)
-- [FAQ](#faq)
-- [Roadmap](#roadmap)
+## 🎯 Why SlowQL?
 
-## What is SlowQL?
+**Real problems SlowQL prevents:**
 
-SlowQL is a **static SQL analyzer** that catches performance, security, and correctness issues in your SQL queries before they reach production. Think of it as a spell-checker for SQL, but much more powerful.
+| Problem | Impact | SlowQL Detection |
+|---------|--------|------------------|
+| `SELECT *` on 10M rows | $47K AWS bill | ✅ PERF-SCAN-001 |
+| `DELETE FROM users` (no WHERE) | Total data loss | ✅ REL-DATA-001 |
+| `EXEC(@sql + @input)` | SQL injection breach | ✅ SEC-INJ-002 |
+| `LIKE '%search%'` | 5-second page loads | ✅ PERF-IDX-002 |
+| Unrestricted PII access | GDPR violation | ✅ COMP-GDPR-001 |
 
-### Core Capabilities
-- 🔍 **Static Analysis**: No database connections required
-- 🎯 **Multi-Dimensional Detection**: Security, Performance, Cost, Reliability, Compliance, Quality
-- 🖥️ **Premium Terminal UI**: Modern, animated interface with keyboard navigation
-- 📊 **Multiple Export Formats**: JSON, HTML, CSV for reports and automation
-- 🔧 **CI/CD Ready**: Non-interactive mode for automated pipelines
-- 🔒 **Privacy-First**: Your SQL never leaves your machine
+**171 detection patterns** across 6 critical dimensions — catching issues **before they hit production**.
 
-### Supported SQL Dialects
-- PostgreSQL, MySQL, SQLite, SQL Server
-- Snowflake, BigQuery, Redshift
-- Pattern coverage varies by rule
+---
 
-## Why Teams Choose SlowQL
+## 📦 Installation
 
-### For Developers & Data Engineers
-- **Prevent Costly Mistakes**: Catch `SELECT *`, missing WHERE clauses, and performance killers
-- **Learn Best Practices**: Get actionable recommendations with real fixes
-- **Speed Up Reviews**: Automated checks reduce manual code review time
-- **Safe Exploration**: Test queries risk-free without touching production data
-
-### For DevOps & Platform Teams
-- **Reduce Cloud Costs**: Prevent full-table scans and expensive operations
-- **Security Compliance**: Detect SQL injection risks and hardcoded secrets
-- **Automated Quality Gates**: Integrate into CI/CD pipelines
-- **Comprehensive Reporting**: Generate shareable reports for leadership
-
-### For Security Teams
-- **Attack Prevention**: Detect SQL injection vectors and dynamic SQL risks
-- **Compliance Monitoring**: Identify PII exposure and audit violations
-- **Risk Assessment**: Quantify and prioritize security issues
-- **Documentation**: Maintain security audit trails
-
-## Installation
-
-### Prerequisites
-- Python 3.11+ (3.12+ recommended)
-- pip or pipx package manager
-
-### Method 1: Recommended (pipx)
 ```bash
-# Install with pipx (isolated environment)
+# Recommended (isolated environment)
 pipx install slowql
 
-# Optional: Install readchar for interactive menus
-pipx install readchar
-```
-
-### Method 2: Standard (pip)
-```bash
-# Install in current Python environment
+# Standard
 pip install slowql
 
-# Optional: Install readchar for interactive menus
-pip install readchar
-```
-
-### Method 3: Development Version
-```bash
-# Clone and install from source
-git clone https://github.com/makroumi/slowql.git
-cd slowql
-pip install -e ".[dev]"
-```
-
-### Verification
-```bash
-# Check installation
+# Verify
 slowql --version
-
-# View help
-slowql --help
 ```
 
-### Troubleshooting Installation
+Requirements: Python 3.11+ · Linux/macOS/Windows · Zero external dependencies
 
-**Python Version Issues:**
+## ⚡ Quick Start
+
+### Analyze SQL Files
 ```bash
-# Check Python version
-python --version  # Should be 3.11+
-
-# If using pyenv
-pyenv install 3.12.0
-pyenv global 3.12.0
-```
-
-**Permission Issues:**
-```bash
-# Use user installation
-pip install --user slowql
-
-# Or use pipx (recommended)
-pipx install slowql
-```
-
-## Getting Started
-
-### 1. Quick Analysis Demo
-
-Create a test file and analyze it:
-```bash
-# Create sample SQL file
-cat > sample.sql << 'EOF'
+# Create test file
+cat > test.sql << 'EOF'
 SELECT * FROM users WHERE email LIKE '%@gmail.com';
-UPDATE users SET password = 'secret123' WHERE id = 1;
-SELECT name, email FROM users;
+DELETE FROM logs;
+UPDATE users SET password = 'admin123' WHERE id = 1;
 EOF
 
-# Analyze the file
-slowql --input-file sample.sql
+# Run analysis
+slowql --input-file test.sql
 ```
 
-### 2. Interactive Mode
-
-Start the interactive terminal interface:
+### Interactive Mode
 ```bash
-slowql --mode auto
+slowql
 ```
 
-Then use arrow keys to navigate:
-- **↑/↓** to move between options
-- **Enter** to select
-- **q/Esc** to cancel
-
-### 3. Compare Queries
-
-Analyze and compare two versions of a query:
-```bash
-slowql --compare
-```
-
-### 4. Export Results
-
-Generate reports in multiple formats:
-```bash
-slowql --input-file sample.sql --export html csv json
-```
-
-### 5. CI/CD Integration
-
-For automated pipelines:
+### CI/CD Mode
 ```bash
 slowql --non-interactive --input-file sql/ --export json
 ```
 
-## Key Features
+## 🔍 Detection Capabilities
 
-### Comprehensive Rule Detection
+### 171 Active Rules
 
-#### 🔒 Security Rules
-- **SQL Injection Detection**: String concatenation patterns
-- **Hardcoded Credentials**: Passwords, API keys, tokens
-- **Excessive Privileges**: GRANT ALL and wildcard permissions
-- **PII Exposure**: Email, SSN, credit card patterns
+| Dimension | Rules | Examples |
+|-----------|-------|----------|
+| 🔒 Security | 45 | SQL injection, hardcoded secrets, privilege escalation, xp_cmdshell |
+| ⚡ Performance | 39 | SELECT *, N+1, non-SARGable, cartesian joins, deep pagination |
+| 💰 Cost | 20 | Full scans, cross-region transfers, unbounded aggregations |
+| 🛡️ Reliability | 19 | Missing WHERE, DROP without CASCADE, transaction safety |
+| 📋 Compliance | 18 | GDPR violations, PII exposure, audit gaps |
+| 📝 Quality | 30 | Code style, naming, deprecated syntax |
 
-#### ⚡ Performance Rules
-- **SELECT ***: Wildcard selection issues
-- **Non-SARGable Queries**: Functions on columns, leading wildcards
-- **Deep Pagination**: Large OFFSET operations
-- **Heavy Operations**: JSON extraction, regex in WHERE
+### Detection Examples
 
-#### 💰 Cost Optimization
-- **Unbounded Scans**: Large table operations without limits
-- **Cross-Region Joins**: Expensive data transfers
-- **Resource-Heavy Operations**: Sorting, hashing overhead
+#### 🔒 Security: SQL Injection
+```sql
+-- ❌ CRITICAL: Dynamic SQL
+EXEC('SELECT * FROM users WHERE id = ' + @userId);
 
-#### 🛡️ Reliability Rules
-- **Data Loss Prevention**: UPDATE/DELETE without WHERE
-- **Schema Safety**: DROP TABLE detection
-- **Transaction Safety**: BEGIN/COMMIT patterns
+-- ❌ HIGH: Tautological condition
+SELECT * FROM users WHERE username = 'admin' OR 1=1;
 
-#### 📋 Quality Rules
-- **Modern SQL**: Explicit JOIN syntax, CTEs
-- **Code Maintainability**: Consistent naming, style
-- **Best Practices**: Query structure optimization
+-- ❌ HIGH: Time-based injection
+SELECT * FROM data WHERE id = 1 AND SLEEP(5);
+```
+*Rules: SEC-INJ-002, SEC-INJ-003, SEC-INJ-004*
 
-### Premium Terminal Experience
+#### ⚡ Performance: Index Killers
+```sql
+-- ❌ Function on indexed column
+SELECT * FROM users WHERE LOWER(email) = 'john@example.com';
 
-#### Dashboard Features
-- **Health Score**: 0-100 score with visual gauge
-- **Severity Heat Map**: Issue distribution by type
-- **Interactive Tables**: Sortable, filterable results
-- **Real-time Analysis**: Live progress indicators
+-- ❌ Leading wildcard
+SELECT * FROM users WHERE email LIKE '%@gmail.com';
 
-#### Animation System
-- **Matrix Rain**: Intro animation
-- **Glitch Transitions**: Smooth state changes
-- **Loading Animations**: Visual feedback during analysis
+-- ❌ Implicit type conversion
+SELECT * FROM users WHERE user_id = '123';  -- user_id is INT
+```
+*Rules: PERF-IDX-001, PERF-IDX-002, PERF-IDX-003*
 
-## Interactive Terminal Experience
+#### 🛡️ Reliability: Data Loss
+```sql
+-- ❌ CRITICAL: Deletes entire table
+DELETE FROM users;
 
-### Navigation Modes
+-- ❌ CRITICAL: Unbounded update
+UPDATE users SET status = 'inactive';
+```
+*Rules: REL-DATA-001, PERF-BATCH-001*
 
-#### 1. Input Mode Selection
-- **Compose**: Interactive SQL editor with syntax highlighting
-- **Paste**: Direct SQL input from clipboard
-- **File**: Browse and select SQL files
-- **Compare**: Side-by-side query comparison
+## 🎨 Terminal Experience
 
-#### 2. Quick Actions Menu
-- **Export Report**: Generate HTML/CSV/JSON reports
-- **Analyze More**: Continue with additional queries
-- **Exit**: Leave the application
-
-#### 3. Export Format Selection
-- **JSON**: Machine-readable results
-- **HTML**: Shareable web reports
-- **CSV**: Spreadsheet-compatible data
-- **All**: Generate all formats
+### Features
+- 🎯 **Health Score**: 0-100 with visual gauge
+- 🔥 **Severity Heat Map**: Issue distribution matrix
+- 📊 **Impact Zones**: Performance/Security/Cost breakdown
+- 🎭 **Matrix Animations**: Cyberpunk-inspired UI
+- ⌨️ **Keyboard Navigation**: Arrow keys & shortcuts
 
 ### Keyboard Shortcuts
+| Key | Action |
+|-----|--------|
+| ↑/↓ | Navigate |
+| Enter | Select |
+| q/Esc | Cancel |
+| A | Analyze more |
+| E | Export |
+| X | Exit |
 
-| Action | Key(s) | Description |
-|--------|--------|-------------|
-| Navigate | ↑/↓ | Move between menu items |
-| Select | Enter | Confirm selection |
-| Cancel | q/Esc | Exit current menu |
-| Quick Actions | A/E/X | Export/Analyze/Exit shortcuts |
+## 📊 Export Formats
 
-### Terminal Fallbacks
-If `readchar` isn't available or terminal isn't interactive:
-- Numeric menu prompts (1, 2, 3...)
-- Standard input/output
-- Non-interactive mode for automation
-
-## CLI Reference
-
-### Usage
 ```bash
-slowql [OPTIONS] [FILE]
+# Single format
+slowql --input-file sql/ --export json
+
+# Multiple formats
+slowql --input-file sql/ --export json html csv
+
+# Custom output directory
+slowql --input-file sql/ --export json --out ./reports
 ```
 
-### Input Options
-| Option | Description | Example |
-|--------|-------------|---------|
-| `FILE` | SQL file to analyze | `slowql queries.sql` |
-| `--input-file PATH` | Input file path | `slowql --input-file queries.sql` |
-| `--mode MODE` | Input mode: auto, paste, compose | `slowql --mode compose` |
-
-### Analysis Options
-| Option | Description | Example |
-|--------|-------------|---------|
-| `--no-cache` | Disable result caching | `slowql --no-cache` |
-| `--compare` | Enable comparison mode | `slowql --compare` |
-
-### Output Options
-| Option | Description | Example |
-|--------|-------------|---------|
-| `--export FORMAT` | Auto-export formats | `slowql --export html csv json` |
-| `--out PATH` | Output directory | `slowql --out ./reports` |
-| `--verbose` | Detailed analyzer output | `slowql --verbose` |
-
-### UI Options
-| Option | Description | Example |
-|--------|-------------|---------|
-| `--no-intro` | Skip intro animation | `slowql --no-intro` |
-| `--fast` | Minimal animations | `slowql --fast` |
-| `--duration SECONDS` | Animation duration | `slowql --duration 1.0` |
-| `--non-interactive` | CI/CD mode | `slowql --non-interactive` |
-
-## Export Formats
-
-### JSON Export
+### JSON (CI/CD Integration)
 ```json
 {
   "statistics": {
-    "total_issues": 3,
-    "by_severity": {
-      "CRITICAL": 1,
-      "HIGH": 1,
-      "MEDIUM": 1
-    }
+    "total_issues": 28,
+    "by_severity": {"CRITICAL": 2, "HIGH": 10, "MEDIUM": 12, "LOW": 4},
+    "by_dimension": {"security": 8, "performance": 15, "cost": 3}
   },
-  "issues": [
-    {
-      "rule_id": "SEC-INJ-001",
-      "severity": "CRITICAL",
-      "message": "Potential SQL injection detected"
-    }
-  ]
+  "issues": [...]
 }
 ```
 
-**Use Cases:**
-- CI/CD integration
-- Custom reporting
-- Data analysis
-- API integration
+### HTML (Shareable Reports)
+- Interactive single-page report
+- Dark neon theme
+- Print-friendly layout
+- Embedded statistics
 
-### HTML Export
-- **Single-page report** with interactive features
-- **Dark neon theme** optimized for sharing
-- **Print-friendly** layout
-- **Embedded statistics** and visualizations
-
-**Use Cases:**
-- Leadership reports
-- Team presentations
-- Code review summaries
-- Documentation
-
-### CSV Export
+### CSV (Spreadsheet Analysis)
 ```csv
-severity,rule_id,dimension,message,impact,fix,location
-CRITICAL,SEC-INJ-001,security,"SQL injection detected","Data breach risk","Use parameterized queries",line 5
+severity,rule_id,dimension,message,impact,fix_guidance,location
+CRITICAL,SEC-INJ-001,security,"SQL injection detected","Data breach","Use parameterized queries",line 5
 ```
 
-**Use Cases:**
-- Spreadsheet analysis
-- Data filtering and sorting
-- External tool integration
-- Compliance reporting
+## 🔧 CLI Reference
+```bash
+# Input
+slowql queries.sql                      # File
+slowql --input-file sql/                # Directory
+slowql --mode paste                     # Interactive paste
+slowql --mode compose                   # Built-in editor
+slowql --compare                        # Compare queries
 
-## Detection Rules
+# Output
+slowql --export json html csv           # Export formats
+slowql --out ./reports                  # Output directory
+slowql --verbose                        # Detailed output
 
-### Security Detection Examples
-
-#### SQL Injection Risk
-```sql
--- ❌ BAD: String concatenation
-SELECT * FROM users WHERE email = 'user@example.com' + user_input;
+# UI
+slowql --no-intro                       # Skip animation
+slowql --fast                           # Minimal animations
+slowql --non-interactive                # CI/CD mode
 ```
-**Detected Issue**: String concatenation indicating potential SQL injection
-**Fix**: Use parameterized queries
 
-#### Hardcoded Credentials
-```sql
--- ❌ BAD: Hardcoded password
-UPDATE users SET password = 'secret123' WHERE id = 1;
-```
-**Detected Issue**: Plaintext password in query
-**Fix**: Use query parameters and secrets management
-
-### Performance Detection Examples
-
-#### SELECT * Usage
-```sql
--- ❌ BAD: Selecting all columns
-SELECT * FROM users WHERE active = true;
-```
-**Detected Issue**: Unnecessary column retrieval
-**Fix**: Specify only needed columns
-
-#### Non-SARGable Query
-```sql
--- ❌ BAD: Function on column prevents indexing
-SELECT * FROM users WHERE LOWER(email) = 'john@example.com';
-```
-**Detected Issue**: Function prevents index usage
-**Fix**: Use case-insensitive collation or full-text search
-
-### Reliability Detection Examples
-
-#### Unbounded DELETE
-```sql
--- ❌ BAD: Deletes all rows
-DELETE FROM users;
-```
-**Detected Issue**: No WHERE clause specified
-**Fix**: Add WHERE clause with proper conditions
-
-## How It Works
-
-### Technical Architecture
-1. **SQL Parsing**: Universal parser handles multiple SQL dialects
-2. **AST Analysis**: Abstract Syntax Tree traversal for deep inspection
-3. **Rule Engine**: Pattern matching and structural analysis
-4. **Result Aggregation**: Issue scoring and categorization
-5. **Report Generation**: Multiple output format support
-
-### Privacy & Security
-- **Offline Analysis**: No database connections required
-- **Local Processing**: All analysis happens on your machine
-- **No Telemetry**: Zero data collection or transmission
-- **Secure by Design**: Your SQL never leaves your environment
-
-### Performance Characteristics
-- **Fast Parsing**: Optimized SQL tokenizer
-- **Efficient Rules**: Compiled regex patterns
-- **Smart Caching**: Query result optimization
-- **Memory Efficient**: Streaming analysis for large files
-
-## CI/CD Integration
+## 🚀 CI/CD Integration
 
 ### GitHub Actions
 ```yaml
-name: SQL Quality Check
+name: SQL Quality Gate
 on: [push, pull_request]
 
 jobs:
-  slowql-analysis:
+  sql-analysis:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       
-      - name: Install SlowQL
-        run: pip install slowql readchar
+      - name: Install & Analyze
+        run: |
+          pip install slowql
+          slowql --non-interactive --input-file sql/ --export json
       
-      - name: Analyze SQL files
-        run: slowql --non-interactive --input-file sql/ --export json
-      
-      - name: Upload reports
+      - name: Upload Reports
         uses: actions/upload-artifact@v4
         with:
           name: slowql-reports
           path: reports/
       
-      - name: Fail on critical issues
+      - name: Quality Gate
         run: |
-          python - <<'PY'
-          import json, glob, sys
-          path = sorted(glob.glob('reports/slowql_results_*.json'))[-1]
-          data = json.load(open(path, encoding='utf-8'))
-          critical = data["statistics"]["by_severity"].get("CRITICAL", 0)
+          python -c "
+          import json, sys
+          from pathlib import Path
+          data = json.loads(sorted(Path('reports').glob('*.json'))[-1].read_text())
+          critical = data['statistics']['by_severity'].get('CRITICAL', 0)
           if critical > 0:
-              print(f"❌ Found {critical} CRITICAL SQL issues!")
+              print(f'❌ {critical} CRITICAL issues')
               sys.exit(1)
-          print("✅ No critical SQL issues found")
-          PY
+          print('✅ No critical issues')
+          "
 ```
 
 ### GitLab CI
 ```yaml
-slowql-check:
+sql-analysis:
   stage: test
-  image: python:3.12
-  before_script:
-    - pip install slowql readchar
+  image: python:3.12-slim
   script:
+    - pip install slowql
     - slowql --non-interactive --input-file sql/ --export json
   artifacts:
-    reports:
-      junit: reports/slowql_results_*.json
-    when: always
-    paths:
-      - reports/
-```
-
-### Jenkins Pipeline
-```groovy
-pipeline {
-    agent any
-    stages {
-        stage('SQL Analysis') {
-            steps {
-                sh 'pip install slowql readchar'
-                sh 'slowql --non-interactive --input-file sql/ --export json'
-            }
-            post {
-                always {
-                    archiveArtifacts artifacts: 'reports/**', fingerprint: true
-                }
-                failure {
-                    archiveArtifacts artifacts: 'reports/**', allowEmptyArchive: true
-                }
-            }
-        }
-    }
-}
+    paths: [reports/]
 ```
 
 ### Pre-commit Hook
@@ -513,229 +280,128 @@ repos:
   - repo: local
     hooks:
       - id: slowql
-        name: SlowQL SQL Analyzer
+        name: SlowQL
         entry: slowql --non-interactive --export json
         language: system
         files: '\.(sql)$'
-        pass_filenames: false
-        args: ['--input-file']
 ```
 
-## Container Deployment
-
-### Docker
+## 🐳 Docker
 ```bash
-# Pull and run
-docker run --rm -v "$PWD":/work makroumi/slowql slowql --input-file /work/queries.sql
+# Quick run
+docker run --rm -v "$PWD:/work" makroumi/slowql \
+  slowql --input-file /work/queries.sql
 
-# Build custom image
-docker build -t my-slowql .
-docker run --rm -v "$PWD":/work my-slowql slowql --input-file /work/queries.sql
-```
-
-### Podman
-```bash
-# Run with Podman
-podman run --rm -v "$PWD":/work -w /work docker.io/makroumi/slowql slowql --input-file queries.sql
-
-# Create local pod
-podman pod create --name slowql-dev
-podman run --pod slowql-dev -v "$PWD":/work -w /work docker.io/makroumi/slowql slowql --help
+# With exports
+docker run --rm -v "$PWD:/work" makroumi/slowql \
+  slowql --input-file /work/sql/ --export json html --out /work/reports
 ```
 
 ### Docker Compose
 ```yaml
-# docker-compose.yml
 version: '3.8'
 services:
   slowql:
-    image: docker.io/makroumi/slowql
+    image: makroumi/slowql:latest
     volumes:
-      - ./sql:/work
-    working_dir: /work
-    command: slowql --input-file queries.sql --export html csv
+      - ./sql:/work/sql:ro
+      - ./reports:/work/reports
+    command: slowql --non-interactive --input-file sql/ --export json html --out reports/
 ```
 
-## Performance & Privacy
+## 🏗️ Architecture
 
-### Analysis Speed
-- **Small files** (< 100 queries): < 1 second
-- **Medium files** (100-1000 queries): 1-5 seconds
-- **Large files** (> 1000 queries): 5-30 seconds
-- **Memory usage**: ~50MB baseline, scales with file size
+### Performance
+| File Size | Queries | Time | Memory |
+|-----------|---------|------|--------|
+| Small | < 100 | < 1s | ~50MB |
+| Medium | 100-1K | 1-5s | ~80MB |
+| Large | 1K-10K | 5-30s | ~150MB |
 
-### Privacy Guarantees
-- ✅ **No network calls**: All processing is local
-- ✅ **No telemetry**: Zero data collection
-- ✅ **No external dependencies**: Offline operation
-- ✅ **Your data stays local**: SQL never transmitted
+### Privacy
+- ✅ **Zero network calls** — 100% offline
+- ✅ **No telemetry** — zero data collection
+- ✅ **Local processing** — SQL never leaves your machine
+- ✅ **Open source** — fully auditable
 
-### Security Considerations
-- **Static analysis only**: No database connections
-- **Read-only operation**: Cannot modify your data
-- **Local execution**: No server-side processing
-- **Open source**: Transparent codebase
-
-## Development & Contributing
-
-### Development Setup
+## 🛠️ Development
 ```bash
-# Clone repository
+# Setup
 git clone https://github.com/makroumi/slowql.git
 cd slowql
-
-# Create virtual environment
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-
-# Install development dependencies
+python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 
-# Run tests
-pytest -q
+# Verify
+pytest -q  # 873 tests
 
-# Check code quality
-ruff check .
-mypy .
-
-# Run linting with auto-fix
-ruff check --fix .
+# Quality
+ruff check . && mypy src/slowql/
 ```
 
 ### Project Structure
+```text
+src/slowql/
+├── analyzers/      # 6 dimension analyzers
+├── rules/          # 171 detection rules
+│   ├── security/   # 45 rules
+│   ├── performance/# 39 rules
+│   ├── cost/       # 20 rules
+│   ├── reliability/# 19 rules
+│   ├── compliance/ # 18 rules
+│   ├── quality/    # 30 rules
+├── cli/            # Terminal UI
+├── core/           # Analysis engine
+├── parser/         # SQL parser
+└── reporters/      # JSON/HTML/CSV
 ```
-slowql/
-├── src/slowql/           # Main source code
-│   ├── analyzers/        # Analysis modules
-│   ├── cli/             # Command-line interface
-│   ├── core/            # Core engine
-│   ├── parser/          # SQL parsing
-│   ├── reporters/       # Output formatters
-│   ├── rules/           # Detection rules
-│   └── utils/           # Utility functions
-├── tests/               # Test suite
-├── docs/                # Documentation
-└── examples/            # Sample SQL files
+
+### Adding Rules
+```python
+# src/slowql/rules/security/my_rule.py
+from slowql.rules.base import PatternRule
+from slowql.core.models import Severity, Dimension
+
+class MyRule(PatternRule):
+    id = "SEC-CUSTOM-001"
+    name = "My Custom Check"
+    severity = Severity.HIGH
+    dimension = Dimension.SECURITY
+    pattern = r"\bDANGEROUS\b"
+    message_template = "Dangerous pattern: {match}"
 ```
 
-### Contributing Guidelines
+## 🗺️ Roadmap
+| Version | Target | Features |
+|---------|--------|----------|
+| v1.4.0 | ✅ Current | 171 rules, modular architecture, premium UI |
+| v1.5.0 | Q2 2026 | VS Code extension, inline analysis |
+| v1.6.0 | Q3 2026 | Advanced AST, query complexity metrics |
+| v2.0.0 | Q4 2026 | Enterprise: custom rule packs, team dashboards |
 
-#### Adding New Rules
-1. **Create rule class** in `src/slowql/rules/catalog.py`
-2. **Add tests** in `tests/unit/test_*.py`
-3. **Update documentation** in `docs/`
-4. **Submit pull request** with test coverage
-
-#### Rule Types
-- **PatternRule**: Regex-based pattern matching
-- **ASTRule**: Abstract Syntax Tree analysis
-- **CompositeRule**: Combination of multiple rules
-
-#### Code Standards
-- **Type hints**: All functions must have type annotations
-- **Documentation**: Docstrings for public APIs
-- **Tests**: Minimum 90% test coverage
-- **Linting**: Pass ruff and mypy checks
-
-### Testing Strategy
+## 🤝 Contributing
 ```bash
-# Run all tests
-pytest
+# Fork → Clone → Branch
+git checkout -b feat/amazing-feature
 
-# Run with coverage
-pytest --cov=slowql --cov-report=html
+# Develop
+pip install -e ".[dev]"
+pytest -q
+ruff check .
 
-# Run specific test categories
-pytest tests/unit/           # Unit tests
-pytest tests/integration/    # Integration tests
-pytest tests/performance/    # Performance benchmarks
-
-# Run tests in parallel
-pytest -n auto
+# Submit PR
+See CONTRIBUTING.md for full guidelines.
 ```
 
-## FAQ
+## 📜 License
+Apache 2.0 — Free for commercial and non-commercial use. See LICENSE.
 
-### General Questions
-
-**Q: Does SlowQL connect to my database?**  
-A: No. SlowQL performs static analysis on SQL text only. No database connections are made.
-
-**Q: Which SQL dialects are supported?**  
-A: PostgreSQL, MySQL, SQLite, SQL Server, Snowflake, BigQuery, and Redshift. Rule coverage varies by dialect.
-
-**Q: How many detection rules are there?**  
-A: 15+ core rules across 6 dimensions (Security, Performance, Cost, Reliability, Compliance, Quality), with more being added regularly.
-
-**Q: Can I write custom rules?**  
-A: Yes! The rule system is modular and extensible. See the [custom rules documentation](docs/development/adding-detectors.md).
-
-### Installation & Usage
-
-**Q: Why am I getting import errors?**  
-A: Ensure you're using Python 3.11+ and have installed all dependencies: `pip install slowql[dev]`
-
-**Q: The interactive menus don't work**  
-A: Install `readchar` for arrow-key navigation: `pip install readchar`. Without it, numeric prompts will be used.
-
-**Q: How do I analyze multiple files?**  
-A: Use the directory input: `slowql --input-file sql/` or `slowql --non-interactive --input-file sql/`
-
-### Integration & Deployment
-
-**Q: How do I integrate with my CI/CD pipeline?**  
-A: Use non-interactive mode: `slowql --non-interactive --input-file sql/ --export json`
-
-**Q: Can I run SlowQL in Docker?**  
-A: Yes! Use: `docker run --rm -v "$PWD":/work makroumi/slowql slowql --input-file /work/queries.sql`
-
-**Q: How do I customize rule behavior?**  
-A: See the [configuration documentation](docs/getting-started/configuration.md) for rule customization options.
-
-### Performance & Limits
-
-**Q: What's the maximum SQL file size?**  
-A: Files up to 10MB are supported. For larger files, consider splitting into smaller chunks.
-
-**Q: How fast is the analysis?**  
-A: Typical analysis completes in under 5 seconds for files with 100+ queries.
-
-**Q: Does SlowQL work offline?**  
-A: Yes, completely offline after installation. No internet connection required.
-
-## Roadmap
-
-### Near Term (Q1 2026)
-- [ ] **Enhanced Issue Browser**: Arrow-key navigation with expandable details
-- [ ] **Multi-select Exports**: Space toggles, Enter confirms
-- [ ] **VS Code Extension**: Inline SQL analysis in the editor
-- [ ] **Rule Configuration UI**: Interactive rule management
-
-### Medium Term (Q2-Q3 2026)
-- [ ] **Dialect-specific Rule Packs**: Optimized rules for each SQL dialect
-- [ ] **AST Expansion**: Deeper structural analysis capabilities
-- [ ] **Pluggable Rule Packs**: Organization-specific rule sets
-- [ ] **Browser Playground**: Web-based SQL analyzer (Pyodide)
-
-### Long Term (Q4 2026+)
-- [ ] **IDE Integrations**: IntelliJ, Visual Studio, Sublime Text
-- [ ] **Database Client Plugins**: Integration with psql, MySQL Workbench
-- [ ] **Cloud Integration**: AWS, GCP, Azure deployment guides
-- [ ] **Enterprise Features**: Team management, audit logging
-
-## License
-
-Apache 2.0 — see [LICENSE](LICENSE) file for details.
-
-## Support
-
-- 📚 **Documentation**: [https://slowql.dev/docs](https://slowql.dev/docs)
+## 📞 Support
 - 🐛 **Issues**: [GitHub Issues](https://github.com/makroumi/slowql/issues)
 - 💬 **Discussions**: [GitHub Discussions](https://github.com/makroumi/slowql/discussions)
 - 📧 **Email**: contact@makroumi.dev
 
-## Star History
-
+<p align="center"> <strong>Stop bad SQL before it costs you money.</strong> <br><br> Made with ❤️ by <a href="https://github.com/makroumi">@makroumi</a> <br><br> <a href="#slowql">⬆ Back to Top</a> </p>
 [![Star History Chart](https://api.star-history.com/svg?repos=makroumi/slowql&type=Date)](https://star-history.com/#makroumi/slowql&Date)
 
 ---
