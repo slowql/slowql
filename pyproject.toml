@@ -146,6 +146,8 @@ ignore = [
     "SIM108",   # ternary operator (style preference)
     "C401",     # unnecessary generator (minor optimization)
     "B007",     # unused loop variable (intentional in some cases)
+    "UP042",    # StrEnum inheritance (keep str,Enum for Python 3.10 compat)
+    "PLW0108",  # unnecessary lambda (needed for factory pattern in tests)
 ]
 
 [tool.ruff.lint.isort]
