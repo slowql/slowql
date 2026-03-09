@@ -189,10 +189,8 @@ parallel = true
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",
-    "raise NotImplementedError",
-    "if TYPE_CHECKING:",
-    "if __name__ == .__main__.:",
-    "@abstractmethod",
 ]
-fail_under = 80
-show_missing = true
+
+[tool.ruff.lint.per-file-ignores]
+# Allow star imports and redefined names in __init__.py files (re-exports)
+"*/__init__.py" = ["F403", "F405", "F811"]
