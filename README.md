@@ -32,10 +32,6 @@ Stop bad SQL before it hits production. SlowQL is a zero-dependency, offline SQL
   <a href="https://github.com/sponsors/makroumi"><img src="https://img.shields.io/github/sponsors/makroumi?logo=github&color=ff69b4" alt="Sponsor"></a>
 </p>
 
-<p align="center">
-  <img src="assets/demo.gif" alt="SlowQL Demo" width="800">
-</p>
-
 ---
 
 ## 🎯 Why SlowQL?
