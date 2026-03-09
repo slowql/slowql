@@ -172,6 +172,14 @@ module = ["yaml"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
+module = [
+    "slowql.rules.catalog",
+    "slowql.rules.quality.schema_design"
+]
+# sqlglot's find_all type signature doesn't support tuple types properly
+disable_error_code = ["var-annotated", "arg-type"]
+
+[[tool.mypy.overrides]]
 module = ["readchar.*"]
 ignore_missing_imports = true
 
