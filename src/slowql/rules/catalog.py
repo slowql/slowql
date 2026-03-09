@@ -5646,8 +5646,13 @@ class LackOfIndexingOnForeignKeyRule(ASTRule):
 
         # Get all indexes/keys
         indexed_cols = set()
-        for idx in table_def.find_all((exp.Index, exp.IndexColumnConstraint)):
+
+        for idx in table_def.find_all(exp.Index):
             for ident in idx.find_all(exp.Identifier):
+                indexed_cols.add(ident.this.lower())
+
+        for idx_constraint in table_def.find_all(exp.IndexColumnConstraint):
+            for ident in idx_constraint.find_all(exp.Identifier):
                 indexed_cols.add(ident.this.lower())
 
         for fk in table_def.find_all(exp.ForeignKey):
