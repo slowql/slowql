@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """
 Quality Modern sql rules.
 """
+
+from __future__ import annotations
 
 from typing import Any
 

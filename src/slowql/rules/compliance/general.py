@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """
 Compliance General rules.
 """
+
+from __future__ import annotations
 
 
 

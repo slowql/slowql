@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """
 Performance Batching rules.
 """
+
+from __future__ import annotations
 
 from typing import Any
 

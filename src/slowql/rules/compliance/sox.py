@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """
 Compliance Sox rules.
 """
+
+from __future__ import annotations
 
 import re
 from typing import Any

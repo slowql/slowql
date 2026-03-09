@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """
 Compliance Pci dss rules.
 """
+
+from __future__ import annotations
 
 
 

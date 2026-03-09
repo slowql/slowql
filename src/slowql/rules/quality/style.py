@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """
 Quality Style rules.
 """
+
+from __future__ import annotations
 
 
 

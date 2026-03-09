@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """
 Performance Hints rules.
 """
+
+from __future__ import annotations
 
 
 

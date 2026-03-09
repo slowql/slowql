@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """
 Performance Memory rules.
 """
+
+from __future__ import annotations
 
 from typing import Any
 

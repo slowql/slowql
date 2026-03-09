@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """
 Reliability Transactions rules.
 """
+
+from __future__ import annotations
 
 
 

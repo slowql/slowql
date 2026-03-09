@@ -1,8 +1,8 @@
-from __future__ import annotations
+"""
+Cost rules.
+"""
 
-"""
-Cost rules module.
-"""
+from __future__ import annotations
 
 from .compute import *
 from .cross_region import *

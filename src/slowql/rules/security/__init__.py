@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """
 Security rules module.
 """
+
+from __future__ import annotations
 
 from .authentication import *
 from .authorization import *

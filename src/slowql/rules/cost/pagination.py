@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """
 Cost Pagination rules.
 """
+
+from __future__ import annotations
 
 import re
 from typing import Any

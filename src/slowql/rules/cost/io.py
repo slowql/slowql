@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """
 Cost Io rules.
 """
+
+from __future__ import annotations
 
 from typing import Any
 

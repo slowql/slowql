@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """
 Security Configuration rules.
 """
+
+from __future__ import annotations
 
 
 

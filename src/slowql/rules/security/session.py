@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """
 Security Session rules.
 """
+
+from __future__ import annotations
 
 
 
