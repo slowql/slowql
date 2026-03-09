@@ -1,37 +1,28 @@
+# Python
 .venv
-
 __pycache__/
 *.pyc
-.coverage
+*.pyo
 *.egg-info/
-sql_analysis_*.json
+.coverage
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
 # Generated files
 htmlcov/
 dist/
 build/
-*.egg-info/
-.coverage
-.pytest_cache/
+site/
 reports/
+
+# Output files
 *.html
 *.json
 *.csv
-
-# Generated
-htmlcov/
-report/
-reports/
-.coverage
-*.egg-info/
-__pycache__/
-
-.coverage
-.pytest_cache/
-htmlcov/
-__pycache__/
 *.xml
-.mypy_cache/
-.ruff_cache/
+
+# IDE
 .aider*
+.vscode/
+.idea/
