@@ -4,14 +4,10 @@ from __future__ import annotations
 Security Logging rules.
 """
 
-import re
-from typing import Any
 
-import sqlglot.expressions as exp
-from sqlglot import exp
 
-from slowql.core.models import Category, Dimension, Fix, Issue, Location, Query, Severity
-from slowql.rules.base import ASTRule, PatternRule, Rule
+from slowql.core.models import Category, Dimension, Severity
+from slowql.rules.base import PatternRule
 
 __all__ = [
     'AuditTrailManipulationRule',

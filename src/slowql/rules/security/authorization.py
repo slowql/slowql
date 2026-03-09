@@ -4,14 +4,13 @@ from __future__ import annotations
 Security Authorization rules.
 """
 
-import re
 from typing import Any
 
 import sqlglot.expressions as exp
 from sqlglot import exp
 
-from slowql.core.models import Category, Dimension, Fix, Issue, Location, Query, Severity
-from slowql.rules.base import ASTRule, PatternRule, Rule
+from slowql.core.models import Category, Dimension, Fix, Issue, Query, Severity
+from slowql.rules.base import ASTRule, PatternRule
 
 __all__ = [
     'HorizontalAuthorizationBypassRule',
