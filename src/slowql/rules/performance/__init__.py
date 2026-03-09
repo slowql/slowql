@@ -1,8 +1,8 @@
-from __future__ import annotations
+"""
+Performance rules.
+"""
 
-"""
-Performance rules module.
-"""
+from __future__ import annotations
 
 from .aggregation import *
 from .batching import *

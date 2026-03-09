@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """
 Security Command rules.
 """
+
+from __future__ import annotations
 
 
 

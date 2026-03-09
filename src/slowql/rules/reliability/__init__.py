@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """
 Reliability rules module.
 """
+
+from __future__ import annotations
 
 from .data_safety import *
 from .deadlocks import *

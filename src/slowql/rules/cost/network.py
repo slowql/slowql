@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """
 Cost Network rules.
 """
+
+from __future__ import annotations
 
 
 

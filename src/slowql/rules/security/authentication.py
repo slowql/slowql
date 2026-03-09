@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """
 Security Authentication rules.
 """
+
+from __future__ import annotations
 
 from typing import Any
 

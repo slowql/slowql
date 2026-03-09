@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """
 Quality Null handling rules.
 """
+
+from __future__ import annotations
 
 
 

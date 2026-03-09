@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """
 Quality rules module.
 """
+
+from __future__ import annotations
 
 from .complexity import *
 from .documentation import *

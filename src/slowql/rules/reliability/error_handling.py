@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """
 Reliability Error handling rules.
 """
+
+from __future__ import annotations
 
 
 

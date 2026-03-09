@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """
 Security Information rules.
 """
+
+from __future__ import annotations
 
 
 

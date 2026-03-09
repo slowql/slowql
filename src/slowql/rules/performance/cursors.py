@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """
 Performance Cursors rules.
 """
+
+from __future__ import annotations
 
 
 

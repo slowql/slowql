@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """
 Quality Dry principles rules.
 """
+
+from __future__ import annotations
 
 
 

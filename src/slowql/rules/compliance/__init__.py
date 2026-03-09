@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """
 Compliance rules module.
 """
+
+from __future__ import annotations
 
 from .ccpa import *
 from .gdpr import *

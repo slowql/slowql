@@ -1,8 +1,8 @@
-from __future__ import annotations
-
 """
 Security Logging rules.
 """
+
+from __future__ import annotations
 
 
 
