@@ -16,7 +16,7 @@ mock_readchar.key.CTRL_C = "CTRL_C_KEY"
 sys.modules["readchar"] = mock_readchar
 sys.modules["readchar.key"] = mock_readchar.key
 
-from slowql.cli.app import (  # noqa: E402
+from slowql.cli.app import (
     QueryCache,
     SessionManager,
     _run_exports,
@@ -28,7 +28,7 @@ from slowql.cli.app import (  # noqa: E402
     safe_path,
     show_quick_actions_menu,
 )
-from slowql.core.models import Severity  # noqa: E402
+from slowql.core.models import Severity
 
 
 def _create_input_side_effect(values, exhaust_action="eof"):
@@ -164,7 +164,7 @@ class TestCompareMode:
         assert mock_engine.analyze.call_count == 2
         assert mock_console.print.call_count >= 1
 
-    def test_compare_mode_empty_queries(self, mock_console):  # noqa: ARG002
+    def test_compare_mode_empty_queries(self, mock_console):
         mock_engine = MagicMock()
         inputs = ["", ""]  # Empty query input (just two empty lines)
 

@@ -7,7 +7,6 @@ from __future__ import annotations
 import re
 from typing import Any
 
-import sqlglot.expressions as exp
 from sqlglot import exp
 
 from slowql.core.models import Category, Dimension, Issue, Query, Severity

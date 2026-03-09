@@ -138,6 +138,10 @@ select = [
 ignore = [
     "PLR0913",  # too many arguments
     "PLR2004",  # magic value comparison
+    "E501",     # line too long (handled by formatter)
+    "RUF012",   # mutable class default (false positives with Pydantic)
+    "SIM105",   # use contextlib.suppress (style preference)
+    "ARG002",   # unused method argument (often intentional in overrides)
 ]
 
 [tool.ruff.lint.isort]
@@ -189,8 +193,14 @@ parallel = true
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+    "@abstractmethod",
+    "pragma: no cover",
+    "def __repr__",
 ]
 
 [tool.ruff.lint.per-file-ignores]
 # Allow star imports and redefined names in __init__.py files (re-exports)
-"*/__init__.py" = ["F403", "F405", "F811"]
+"*/__init__.py" = ["F403", "F405", "F811", "PLC0415"]

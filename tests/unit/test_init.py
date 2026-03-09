@@ -7,7 +7,7 @@ def reload_slowql(monkeypatch, fake_version_func):
     # Reload module to re-execute __init__.py
     if "slowql" in importlib.sys.modules:
         del importlib.sys.modules["slowql"]
-    import slowql  # noqa: PLC0415 - a local import is needed to re-execute __init__.py
+    import slowql
 
     return slowql
 
@@ -45,6 +45,6 @@ def test_importlib_metadata_missing(monkeypatch):
     monkeypatch.setitem(importlib.sys.modules, "importlib.metadata", None)
     if "slowql" in importlib.sys.modules:
         del importlib.sys.modules["slowql"]
-    import slowql  # noqa: PLC0415 - a local import is needed to re-execute __init__.py
+    import slowql
 
     assert slowql.__version__ is None

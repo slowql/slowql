@@ -153,7 +153,7 @@ def get_rule_registry() -> RuleRegistry:
 
 
 def _load_builtin_rules(registry: RuleRegistry) -> None:
-    from slowql.rules.catalog import get_all_rules  # noqa: PLC0415
+    from slowql.rules.catalog import get_all_rules
 
     try:
         for rule in get_all_rules():
