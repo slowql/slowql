@@ -147,6 +147,28 @@ from slowql.rules.catalog import (
     DefaultCredentialUsageRule,
     OverlyPermissiveAccessRule,
 
+    ExcessiveCaseNestingRule,
+    ExcessiveSubqueryNestingRule,
+    GodQueryRule,
+    CyclomaticComplexityRule,
+    LongQueryRule,
+    InconsistentTableNamingRule,
+    AmbiguousAliasRule,
+    HungarianNotationRule,
+    ReservedWordAsColumnRule,
+    MissingColumnCommentsRule,
+    MagicStringWithoutCommentRule,
+    ComplexLogicWithoutExplanationRule,
+    MissingPrimaryKeyRule,
+    MissingForeignKeyRule,
+    LackOfIndexingOnForeignKeyRule,
+    UsingFloatForCurrencyRule,
+    NonDeterministicQueryRule,
+    OrderByMissingForPaginationRule,
+    HardcodedTestDataRule,
+    TodoFixmeCommentRule,
+    TempTableNotCleanedUpRule,
+
     get_all_rules,
 )
 from slowql.rules.registry import RuleRegistry, get_rule_registry
@@ -157,7 +179,7 @@ def _make_query(sql: str) -> Query:
     import sqlglot
     ast = None
     try:
-        ast = sqlglot.parse_one(sql)
+        ast = sqlglot.parse_one(sql, read="mysql")
     except Exception:
         pass
 
@@ -2805,3 +2827,259 @@ class TestOverlyPermissiveAccessRule:
 
     def test_restricted_access_no_trigger(self):
         assert not self.rule.check(_make_query("GRANT ALL ON *.* TO 'webuser'@'10.0.1.5'"))
+
+# =============================================================================
+# BATCH 5: QUALITY & MAINTAINABILITY
+# =============================================================================
+
+class TestExcessiveCaseNestingRule:
+    rule = ExcessiveCaseNestingRule()
+
+    def test_deep_nesting(self):
+        # 4 levels deep
+        sql = "SELECT CASE WHEN a=1 THEN (CASE WHEN b=1 THEN (CASE WHEN c=1 THEN (CASE WHEN d=1 THEN 1 END) END) END) END"
+        assert self.rule.check(_make_query(sql))
+
+    def test_shallow_nesting(self):
+        sql = "SELECT CASE WHEN a=1 THEN (CASE WHEN b=1 THEN 1 END) END"
+        assert not self.rule.check(_make_query(sql))
+
+
+class TestExcessiveSubqueryNestingRule:
+    rule = ExcessiveSubqueryNestingRule()
+
+    def test_deep_subqueries(self):
+        # 4 levels deep
+        sql = "SELECT * FROM (SELECT * FROM (SELECT * FROM (SELECT * FROM users) as s1) as s2) as s3"
+        assert self.rule.check(_make_query(sql))
+
+    def test_shallow_subqueries(self):
+        sql = "SELECT * FROM (SELECT * FROM users) as s1"
+        assert not self.rule.check(_make_query(sql))
+
+
+class TestGodQueryRule:
+    rule = GodQueryRule()
+
+    def test_too_many_joins(self):
+        # 16 tables (15 joins) - should trigger (score: 15*2 = 30 > 25)
+        sql = "SELECT * FROM t1 " + " ".join([f"JOIN t{i} ON 1" for i in range(2, 17)])
+        assert self.rule.check(_make_query(sql))
+
+    def test_normal_joins(self):
+        sql = "SELECT * FROM t1 JOIN t2 ON 1 JOIN t3 ON 1"
+        assert not self.rule.check(_make_query(sql))
+
+
+class TestCyclomaticComplexityRule:
+    rule = CyclomaticComplexityRule()
+
+    def test_high_complexity(self):
+        # 6 conditions in a procedure - should trigger {5,}
+        sql = """
+        CREATE PROCEDURE HighComp()
+        BEGIN
+            IF a=1 THEN SET b=1; END IF;
+            IF c=1 THEN SET d=1; END IF;
+            IF e=1 THEN SET f=1; END IF;
+            IF g=1 THEN SET h=1; END IF;
+            IF i=1 THEN SET j=1; END IF;
+            IF k=1 THEN SET l=1; END IF;
+        END
+        """
+        assert self.rule.check(_make_query(sql))
+
+    def test_low_complexity(self):
+        sql = "SELECT * FROM users WHERE a=1 AND b=1"
+        assert not self.rule.check(_make_query(sql))
+
+
+class TestLongQueryRule:
+    rule = LongQueryRule()
+
+    def test_long_query(self):
+        # 51+ lines
+        sql = "SELECT 1\n" * 51
+        assert self.rule.check(_make_query(sql))
+
+    def test_short_query(self):
+        sql = "SELECT 1"
+        assert not self.rule.check(_make_query(sql))
+
+
+class TestInconsistentTableNamingRule:
+    rule = InconsistentTableNamingRule()
+
+    def test_mixed_naming(self):
+        # users (plural) vs Profile (singular)
+        sql = "SELECT * FROM users JOIN Profile ON users.id = Profile.user_id"
+        assert self.rule.check(_make_query(sql))
+
+    def test_consistent_naming(self):
+        sql = "SELECT * FROM users JOIN user_profiles ON users.id = user_profiles.user_id"
+        assert not self.rule.check(_make_query(sql))
+
+
+class TestAmbiguousAliasRule:
+    rule = AmbiguousAliasRule()
+
+    def test_single_letter_alias(self):
+        assert self.rule.check(_make_query("SELECT * FROM users u"))
+
+    def test_descriptive_alias(self):
+        assert not self.rule.check(_make_query("SELECT * FROM users usr"))
+
+
+class TestHungarianNotationRule:
+    rule = HungarianNotationRule()
+
+    def test_hungarian_prefix(self):
+        assert self.rule.check(_make_query("SELECT str_name, int_age FROM users"))
+
+    def test_normal_naming(self):
+        assert not self.rule.check(_make_query("SELECT username, age FROM users"))
+
+
+class TestReservedWordAsColumnRule:
+    rule = ReservedWordAsColumnRule()
+
+    def test_reserved_word(self):
+        # Using quoted identifiers to ensure parsing, but rule should still flag them
+        assert self.rule.check(_make_query("SELECT `table`, `select`, `from` FROM users"))
+
+    def test_normal_column(self):
+        assert not self.rule.check(_make_query("SELECT user_id, email FROM users"))
+
+
+class TestMissingColumnCommentsRule:
+    rule = MissingColumnCommentsRule()
+
+    def test_missing_comments(self):
+        sql = "CREATE TABLE users (id INT, name TEXT)"
+        assert self.rule.check(_make_query(sql))
+
+    def test_with_comments(self):
+        sql = "CREATE TABLE users (id INT COMMENT 'ID', name TEXT COMMENT 'Name')"
+        assert not self.rule.check(_make_query(sql))
+
+
+class TestMagicStringWithoutCommentRule:
+    rule = MagicStringWithoutCommentRule()
+
+    def test_magic_string(self):
+        sql = "SELECT * FROM users WHERE status = 'ACTIVE_VERIFIED_SPECIAL'"
+        assert self.rule.check(_make_query(sql))
+
+    def test_with_comment(self):
+        sql = "SELECT * FROM users WHERE status = 'ACTIVE' -- status constant"
+        assert not self.rule.check(_make_query(sql))
+
+
+class TestComplexLogicWithoutExplanationRule:
+    rule = ComplexLogicWithoutExplanationRule()
+
+    def test_complex_logic(self):
+        sql = "SELECT * FROM users WHERE (a=1 AND b=2) OR (c=3 AND d=4) OR (e=5 AND f=6)"
+        assert self.rule.check(_make_query(sql))
+
+    def test_with_explanation(self):
+        sql = "-- complex filter for promo\nSELECT * FROM users WHERE a=1 AND b=2"
+        assert not self.rule.check(_make_query(sql))
+
+
+class TestMissingPrimaryKeyRule:
+    rule = MissingPrimaryKeyRule()
+
+    def test_no_pk(self):
+        sql = "CREATE TABLE users (id INT, name TEXT)"
+        assert self.rule.check(_make_query(sql))
+
+    def test_with_pk(self):
+        sql = "CREATE TABLE users (id INT PRIMARY KEY, name TEXT)"
+        assert not self.rule.check(_make_query(sql))
+
+
+class TestMissingForeignKeyRule:
+    rule = MissingForeignKeyRule()
+
+    def test_implicit_fk(self):
+        sql = "CREATE TABLE profiles (id INT PRIMARY KEY, user_id INT)"
+        assert self.rule.check(_make_query(sql))
+
+    def test_explicit_fk(self):
+        sql = "CREATE TABLE profiles (id INT PRIMARY KEY, user_id INT, FOREIGN KEY (user_id) REFERENCES users(id))"
+        assert not self.rule.check(_make_query(sql))
+
+
+class TestLackOfIndexingOnForeignKeyRule:
+    rule = LackOfIndexingOnForeignKeyRule()
+
+    def test_unindexed_fk(self):
+        sql = "CREATE TABLE profiles (user_id INT, FOREIGN KEY (user_id) REFERENCES users(id));"
+        assert self.rule.check(_make_query(sql))
+
+    def test_indexed_fk(self):
+        sql = "CREATE TABLE profiles (user_id INT, FOREIGN KEY (user_id) REFERENCES users(id), INDEX (user_id));"
+        assert not self.rule.check(_make_query(sql))
+
+
+class TestUsingFloatForCurrencyRule:
+    rule = UsingFloatForCurrencyRule()
+
+    def test_float_price(self):
+        assert self.rule.check(_make_query("CREATE TABLE products (price FLOAT)"))
+
+    def test_decimal_price(self):
+        assert not self.rule.check(_make_query("CREATE TABLE products (price DECIMAL(10,2))"))
+
+
+class TestNonDeterministicQueryRule:
+    rule = NonDeterministicQueryRule()
+
+    def test_now_usage(self):
+        assert self.rule.check(_make_query("SELECT * FROM logs WHERE created_at < NOW()"))
+
+    def test_static_date(self):
+        assert not self.rule.check(_make_query("SELECT * FROM logs WHERE created_at < '2023-01-01'"))
+
+
+class TestOrderByMissingForPaginationRule:
+    rule = OrderByMissingForPaginationRule()
+
+    def test_limit_no_order(self):
+        assert self.rule.check(_make_query("SELECT * FROM users LIMIT 10"))
+
+    def test_limit_with_order(self):
+        assert not self.rule.check(_make_query("SELECT * FROM users ORDER BY id LIMIT 10"))
+
+
+class TestHardcodedTestDataRule:
+    rule = HardcodedTestDataRule()
+
+    def test_test_data(self):
+        assert self.rule.check(_make_query("SELECT * FROM users WHERE email = 'testuser@example.com'"))
+
+    def test_real_data(self):
+        assert not self.rule.check(_make_query("SELECT * FROM users WHERE email = 'user@gmail.com'"))
+
+
+class TestTodoFixmeCommentRule:
+    rule = TodoFixmeCommentRule()
+
+    def test_todo(self):
+        assert self.rule.check(_make_query("SELECT 1 -- TODO: fix this"))
+
+    def test_no_todo(self):
+        assert not self.rule.check(_make_query("SELECT 1 -- just a comment"))
+
+
+class TestTempTableNotCleanedUpRule:
+    rule = TempTableNotCleanedUpRule()
+
+    def test_permanent_temp(self):
+        sql = "CREATE TEMPORARY TABLE temp_users (id INT)"
+        assert self.rule.check(_make_query(sql))
+
+    def test_cleaned_temp(self):
+        sql = "CREATE TEMPORARY TABLE temp_users (id INT); DROP TABLE temp_users;"
+        assert not self.rule.check(_make_query(sql))
