@@ -277,7 +277,7 @@ class CoalesceOnIndexedColumnRule(PatternRule):
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_INDEX
 
-    pattern = r"\bWHERE\b[^;]*\b(COALESCE|ISNULL|NVL|NVL2|IFNULL)\s*\(\s*\w+"
+    pattern = r"\bWHERE\b(?:(?!\bGROUP\s+BY\b|\bHAVING\b|\bORDER\s+BY\b|\bLIMIT\b|\bUNION\b|\bINTERSECT\b|\bEXCEPT\b|\bINTO\b|\bFOR\b).)*\b(COALESCE|ISNULL|NVL|NVL2|IFNULL)\s*\(\s*\w+"
     message_template = "Function wrapping column in WHERE clause prevents index seek: {match}"
 
     impact = (
