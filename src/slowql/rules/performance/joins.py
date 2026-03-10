@@ -12,8 +12,8 @@ from slowql.core.models import Category, Dimension, Issue, Query, Severity
 from slowql.rules.base import ASTRule
 
 __all__ = [
-    'CartesianProductRule',
-    'TooManyJoinsRule',
+    "CartesianProductRule",
+    "TooManyJoinsRule",
 ]
 
 

@@ -12,11 +12,11 @@ from slowql.core.models import Category, Dimension, Issue, Query, Severity
 from slowql.rules.base import ASTRule, PatternRule, Rule
 
 __all__ = [
-    'CyclomaticComplexityRule',
-    'ExcessiveCaseNestingRule',
-    'ExcessiveSubqueryNestingRule',
-    'GodQueryRule',
-    'LongQueryRule',
+    "CyclomaticComplexityRule",
+    "ExcessiveCaseNestingRule",
+    "ExcessiveSubqueryNestingRule",
+    "GodQueryRule",
+    "LongQueryRule",
 ]
 
 
@@ -25,9 +25,7 @@ class ExcessiveCaseNestingRule(ASTRule):
 
     id = "QUAL-COMPLEX-001"
     name = "Excessive CASE Nesting"
-    description = (
-        "Detects CASE expressions nested more than 3 levels deep, which are hard to read, test, and maintain."
-    )
+    description = "Detects CASE expressions nested more than 3 levels deep, which are hard to read, test, and maintain."
     severity = Severity.MEDIUM
     dimension = Dimension.QUALITY
     category = Category.QUAL_COMPLEXITY
@@ -50,13 +48,13 @@ class ExcessiveCaseNestingRule(ASTRule):
         for node in ast.walk():
             if isinstance(node, exp.Case):
                 # Only check top-level CASE nodes
-                parent = getattr(node, 'parent', None)
+                parent = getattr(node, "parent", None)
                 is_nested = False
                 while parent:
                     if isinstance(parent, exp.Case):
                         is_nested = True
                         break
-                    parent = getattr(parent, 'parent', None)
+                    parent = getattr(parent, "parent", None)
 
                 if not is_nested:
                     depth = get_case_depth(node)
@@ -85,9 +83,7 @@ class ExcessiveSubqueryNestingRule(ASTRule):
 
     id = "QUAL-COMPLEX-002"
     name = "Excessive Subquery Nesting"
-    description = (
-        "Detects subqueries nested more than 3 levels deep, indicating overly complex query structure."
-    )
+    description = "Detects subqueries nested more than 3 levels deep, indicating overly complex query structure."
     severity = Severity.MEDIUM
     dimension = Dimension.QUALITY
     category = Category.QUAL_COMPLEXITY
@@ -110,13 +106,13 @@ class ExcessiveSubqueryNestingRule(ASTRule):
         for node in ast.walk():
             if isinstance(node, exp.Subquery):
                 # Avoid redundant issues for nested subqueries
-                parent = getattr(node, 'parent', None)
+                parent = getattr(node, "parent", None)
                 is_nested = False
                 while parent:
                     if isinstance(parent, exp.Subquery):
                         is_nested = True
                         break
-                    parent = getattr(parent, 'parent', None)
+                    parent = getattr(parent, "parent", None)
 
                 if not is_nested:
                     depth = get_subquery_depth(node)
@@ -145,9 +141,7 @@ class GodQueryRule(ASTRule):
 
     id = "QUAL-COMPLEX-003"
     name = "God Query"
-    description = (
-        "Detects queries with excessive clauses (10+ JOINs, complex WHERE, GROUP BY, HAVING, ORDER BY)."
-    )
+    description = "Detects queries with excessive clauses (10+ JOINs, complex WHERE, GROUP BY, HAVING, ORDER BY)."
     severity = Severity.MEDIUM
     dimension = Dimension.QUALITY
     category = Category.QUAL_COMPLEXITY
@@ -160,23 +154,23 @@ class GodQueryRule(ASTRule):
                 complexity_score = 0
 
                 # Count JOINs
-                joins = node.args.get('joins') or []
+                joins = node.args.get("joins") or []
                 complexity_score += len(joins) * 2
 
                 # WHERE clause complexity
-                where = node.args.get('where')
+                where = node.args.get("where")
                 if where:
                     complexity_score += 1
                     where_str = str(where).upper()
-                    complexity_score += where_str.count(' AND ')
-                    complexity_score += where_str.count(' OR ')
+                    complexity_score += where_str.count(" AND ")
+                    complexity_score += where_str.count(" OR ")
 
                 # GROUP BY, HAVING, ORDER BY
-                if node.args.get('group'):
+                if node.args.get("group"):
                     complexity_score += 2
-                if node.args.get('having'):
+                if node.args.get("having"):
                     complexity_score += 2
-                if node.args.get('order'):
+                if node.args.get("order"):
                     complexity_score += 1
 
                 # Subqueries
@@ -216,7 +210,7 @@ class CyclomaticComplexityRule(PatternRule):
     dimension = Dimension.QUALITY
     category = Category.QUAL_COMPLEXITY
 
-    pattern = r'\b(CREATE\s+(?:OR\s+REPLACE\s+)?PROCEDURE|CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION)\b[\s\S]*?(?:(?:\bIF\b|\bWHILE\b|\bCASE\b)[\s\S]*?){5,}'
+    pattern = r"\b(CREATE\s+(?:OR\s+REPLACE\s+)?PROCEDURE|CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION)\b[\s\S]*?(?:(?:\bIF\b|\bWHILE\b|\bCASE\b)[\s\S]*?){5,}"
 
     impact = (
         "High cyclomatic complexity means many code paths, making testing exponentially harder. "
@@ -240,7 +234,7 @@ class LongQueryRule(Rule):
 
     def check(self, query: Query) -> list[Issue]:
         issues = []
-        line_count = query.raw.count('\n') + 1
+        line_count = query.raw.count("\n") + 1
 
         if line_count > 50:
             issues.append(

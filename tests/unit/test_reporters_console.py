@@ -53,9 +53,11 @@ class TestConsoleReporterDetails:
         result.add_issue(create_issue(severity=Severity.CRITICAL))
         result.add_issue(create_issue(severity=Severity.HIGH))
 
-        with patch.object(reporter, "_create_health_panel") as mock_health, patch.object(
-            reporter, "_create_severity_panel"
-        ) as mock_sev, patch.object(reporter, "_create_dimension_panel") as mock_dim:
+        with (
+            patch.object(reporter, "_create_health_panel") as mock_health,
+            patch.object(reporter, "_create_severity_panel") as mock_sev,
+            patch.object(reporter, "_create_dimension_panel") as mock_dim,
+        ):
             reporter._show_dashboard_sections(result)
             mock_health.assert_called_once()
             mock_sev.assert_called_once()

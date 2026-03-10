@@ -35,4 +35,5 @@ class QualityAnalyzer(RuleBasedAnalyzer):
     def get_rules(self) -> list[Rule]:
         """Load ALL quality rules from catalog (30 rules)."""
         from slowql.rules.catalog import get_rules_by_dimension
+
         return get_rules_by_dimension(self.dimension.value)

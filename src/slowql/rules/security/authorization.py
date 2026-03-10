@@ -12,9 +12,9 @@ from slowql.core.models import Category, Dimension, Fix, Issue, Query, Severity
 from slowql.rules.base import ASTRule, PatternRule
 
 __all__ = [
-    'HorizontalAuthorizationBypassRule',
-    'PrivilegeEscalationRoleGrantRule',
-    'SchemaOwnershipChangeRule',
+    "HorizontalAuthorizationBypassRule",
+    "PrivilegeEscalationRoleGrantRule",
+    "SchemaOwnershipChangeRule",
 ]
 
 
@@ -43,7 +43,9 @@ class SchemaOwnershipChangeRule(PatternRule):
 
     id = "SEC-AUTHZ-002"
     name = "Schema Ownership Change"
-    description = "Detects transfer of schema or object ownership, which can grant implicit permissions."
+    description = (
+        "Detects transfer of schema or object ownership, which can grant implicit permissions."
+    )
     severity = Severity.HIGH
     dimension = Dimension.SECURITY
     category = Category.SEC_AUTHORIZATION
@@ -76,15 +78,32 @@ class HorizontalAuthorizationBypassRule(ASTRule):
 
         # Tables that typically require user/tenant scoping
         sensitive_tables = {
-            'orders', 'transactions', 'accounts', 'profiles', 'messages',
-            'documents', 'files', 'payments', 'invoices', 'subscriptions',
-            'user_data', 'customer_data', 'private_data'
+            "orders",
+            "transactions",
+            "accounts",
+            "profiles",
+            "messages",
+            "documents",
+            "files",
+            "payments",
+            "invoices",
+            "subscriptions",
+            "user_data",
+            "customer_data",
+            "private_data",
         }
 
         # Columns that indicate proper scoping
         scoping_columns = {
-            'user_id', 'tenant_id', 'account_id', 'owner_id', 'customer_id',
-            'org_id', 'organization_id', 'created_by', 'belongs_to'
+            "user_id",
+            "tenant_id",
+            "account_id",
+            "owner_id",
+            "customer_id",
+            "org_id",
+            "organization_id",
+            "created_by",
+            "belongs_to",
         }
 
         for node in ast.walk():

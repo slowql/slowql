@@ -38,6 +38,7 @@ try:
 except ImportError:
     HAVE_READCHAR = False
 
+
 class MatrixRain:
     """Full-window Matrix rain intro with integrated 3D Pixel-Logo."""
 
@@ -98,9 +99,7 @@ class MatrixRain:
         start_x = (self.width // 2) - (logo_width // 2)
         return start_y, start_x, logo_width
 
-    def _get_char_for_position(
-        self, x: int, y: int, frame: int, frames: int
-    ) -> tuple[str, str]:
+    def _get_char_for_position(self, x: int, y: int, frame: int, frames: int) -> tuple[str, str]:
         """Determine the character and style for a given coordinate."""
         start_y, start_x, logo_width = self._get_logo_position()
         col = self.columns[x]

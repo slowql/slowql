@@ -13,9 +13,9 @@ from slowql.core.models import Category, Dimension, Issue, Query, Severity
 from slowql.rules.base import ASTRule, PatternRule
 
 __all__ = [
-    'PHIAccessWithoutAuditRule',
-    'PHIMinimumNecessaryRule',
-    'UnencryptedPHITransitRule',
+    "PHIAccessWithoutAuditRule",
+    "PHIMinimumNecessaryRule",
+    "UnencryptedPHITransitRule",
 ]
 
 
@@ -33,17 +33,42 @@ class PHIAccessWithoutAuditRule(ASTRule):
     category = Category.COMP_HIPAA
 
     _phi_tables = {
-        "patients", "patient", "medical_records", "diagnoses", "prescriptions",
-        "treatments", "procedures", "lab_results", "radiology", "encounters",
-        "visits", "admissions", "insurance_claims", "billing_records",
-        "health_records", "clinical_data", "ehr", "emr"
+        "patients",
+        "patient",
+        "medical_records",
+        "diagnoses",
+        "prescriptions",
+        "treatments",
+        "procedures",
+        "lab_results",
+        "radiology",
+        "encounters",
+        "visits",
+        "admissions",
+        "insurance_claims",
+        "billing_records",
+        "health_records",
+        "clinical_data",
+        "ehr",
+        "emr",
     }
 
     _phi_columns = {
-        "ssn", "social_security", "mrn", "medical_record_number",
-        "diagnosis", "condition", "medication", "prescription",
-        "treatment", "procedure", "lab_result", "test_result",
-        "health_status", "patient_id", "member_id"
+        "ssn",
+        "social_security",
+        "mrn",
+        "medical_record_number",
+        "diagnosis",
+        "condition",
+        "medication",
+        "prescription",
+        "treatment",
+        "procedure",
+        "lab_result",
+        "test_result",
+        "health_status",
+        "patient_id",
+        "member_id",
     }
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
@@ -65,7 +90,9 @@ class PHIAccessWithoutAuditRule(ASTRule):
             # Simple heuristic: Check if query contains 'AUDIT' or 'LOG' keyword in join or CTE
             # or if it's accompanied by another query in a batch.
             # Here we check for presence of audit-related words in the raw SQL
-            if not re.search(r"\b(audit|access_log|phi_log|compliance_log)\b", query.raw, re.IGNORECASE):
+            if not re.search(
+                r"\b(audit|access_log|phi_log|compliance_log)\b", query.raw, re.IGNORECASE
+            ):
                 issues.append(
                     self.create_issue(
                         query=query,

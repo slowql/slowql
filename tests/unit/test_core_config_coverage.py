@@ -31,9 +31,7 @@ class TestConfigCoverage:
         with patch("slowql.core.config.yaml", mock_yaml):
             cfg = Config.from_file(yaml_path)
             assert cfg.analysis.dialect == "sqlite"
-            mock_yaml.safe_load.assert_called_once_with(
-                "analysis:\n  dialect: sqlite"
-            )
+            mock_yaml.safe_load.assert_called_once_with("analysis:\n  dialect: sqlite")
 
     def test_from_file_errors(self, tmp_path):
         # Missing

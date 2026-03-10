@@ -12,8 +12,8 @@ from slowql.core.models import Category, Dimension, Fix, Issue, Query, Severity
 from slowql.rules.base import ASTRule, PatternRule
 
 __all__ = [
-    'ExpensiveWindowFunctionRule',
-    'FullTableScanRule',
+    "ExpensiveWindowFunctionRule",
+    "FullTableScanRule",
 ]
 
 
@@ -65,7 +65,7 @@ class ExpensiveWindowFunctionRule(ASTRule):
         for node in ast.walk():
             if isinstance(node, exp.Window):
                 args = getattr(node, "args", {})
-                partition = args.get('partition_by')
+                partition = args.get("partition_by")
                 if not partition or (isinstance(partition, list) and len(partition) == 0):
                     issues.append(
                         self.create_issue(

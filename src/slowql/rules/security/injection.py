@@ -12,17 +12,17 @@ from slowql.core.models import Category, Dimension, Fix, Issue, Query, Severity
 from slowql.rules.base import ASTRule, PatternRule
 
 __all__ = [
-    'DynamicSQLExecutionRule',
-    'JSONFunctionInjectionRule',
-    'LDAPInjectionRule',
-    'LikeWildcardInjectionRule',
-    'NoSQLInjectionRule',
-    'SQLInjectionRule',
-    'SecondOrderSQLInjectionRule',
-    'ServerSideTemplateInjectionRule',
-    'TautologicalOrConditionRule',
-    'TimeBasedBlindInjectionRule',
-    'XMLXPathInjectionRule',
+    "DynamicSQLExecutionRule",
+    "JSONFunctionInjectionRule",
+    "LDAPInjectionRule",
+    "LikeWildcardInjectionRule",
+    "NoSQLInjectionRule",
+    "SQLInjectionRule",
+    "SecondOrderSQLInjectionRule",
+    "ServerSideTemplateInjectionRule",
+    "TautologicalOrConditionRule",
+    "TimeBasedBlindInjectionRule",
+    "XMLXPathInjectionRule",
 ]
 
 
@@ -170,10 +170,30 @@ class SecondOrderSQLInjectionRule(ASTRule):
 
         # Columns that commonly store user input later used unsafely
         dangerous_columns = {
-            'username', 'user_name', 'email', 'name', 'first_name', 'last_name',
-            'comment', 'comments', 'description', 'title', 'subject', 'message',
-            'address', 'notes', 'bio', 'about', 'query', 'search', 'filter',
-            'filename', 'filepath', 'url', 'callback', 'redirect'
+            "username",
+            "user_name",
+            "email",
+            "name",
+            "first_name",
+            "last_name",
+            "comment",
+            "comments",
+            "description",
+            "title",
+            "subject",
+            "message",
+            "address",
+            "notes",
+            "bio",
+            "about",
+            "query",
+            "search",
+            "filter",
+            "filename",
+            "filepath",
+            "url",
+            "callback",
+            "redirect",
         }
 
         for node in ast.walk():
@@ -206,14 +226,14 @@ class SecondOrderSQLInjectionRule(ASTRule):
         columns = set()
         # Handle INSERT column list
         if isinstance(node, exp.Insert):
-            if node.this and hasattr(node.this, 'expressions'):
+            if node.this and hasattr(node.this, "expressions"):
                 for col in node.this.expressions:
-                    if hasattr(col, 'name'):
+                    if hasattr(col, "name"):
                         columns.add(col.name.lower())
         # Handle UPDATE SET clauses
         elif isinstance(node, exp.Update):
             for expr in node.expressions:
-                if isinstance(expr, exp.EQ) and hasattr(expr.this, 'name'):
+                if isinstance(expr, exp.EQ) and hasattr(expr.this, "name"):
                     columns.add(expr.this.name.lower())
         return columns
 
@@ -260,7 +280,7 @@ class LikeWildcardInjectionRule(ASTRule):
                 # Check for double wildcards which are especially expensive
                 elif isinstance(pattern, exp.Literal):
                     pattern_str = str(getattr(pattern, "this", ""))
-                    if pattern_str.startswith('%') and pattern_str.endswith('%'):
+                    if pattern_str.startswith("%") and pattern_str.endswith("%"):
                         issues.append(
                             self.create_issue(
                                 query=query,
@@ -294,7 +314,7 @@ class LDAPInjectionRule(PatternRule):
     dimension = Dimension.SECURITY
     category = Category.SEC_INJECTION
 
-    pattern = r'\b(LDAP|AD_|DIRECTORY)\w*\s*\([^)]*(\+|CONCAT|CONCATENATE|\|\|)[^)]*\b(cn=|ou=|dc=|uid=|objectClass=)\b'
+    pattern = r"\b(LDAP|AD_|DIRECTORY)\w*\s*\([^)]*(\+|CONCAT|CONCATENATE|\|\|)[^)]*\b(cn=|ou=|dc=|uid=|objectClass=)\b"
 
     impact = (
         "LDAP injection allows attackers to bypass authentication, enumerate directory structure, "
@@ -320,7 +340,7 @@ class NoSQLInjectionRule(PatternRule):
     dimension = Dimension.SECURITY
     category = Category.SEC_INJECTION
 
-    pattern = r'\b(OPENJSON|JSON_QUERY|JSON_VALUE|FOR\s+JSON|MONGODB|COSMOSDB|mongo_\w*|json_\w*)\b[^;]*(\+|CONCAT|\|\|)[^;]*[{}\[\]$]'
+    pattern = r"\b(OPENJSON|JSON_QUERY|JSON_VALUE|FOR\s+JSON|MONGODB|COSMOSDB|mongo_\w*|json_\w*)\b[^;]*(\+|CONCAT|\|\|)[^;]*[{}\[\]$]"
 
     impact = (
         "NoSQL injection in JSON queries allows filter bypass, data extraction, and denial of service. "
@@ -338,14 +358,12 @@ class XMLXPathInjectionRule(PatternRule):
 
     id = "SEC-INJ-009"
     name = "XML/XPath Injection"
-    description = (
-        "Detects XPath/XQuery construction using string concatenation, enabling XML injection attacks."
-    )
+    description = "Detects XPath/XQuery construction using string concatenation, enabling XML injection attacks."
     severity = Severity.HIGH
     dimension = Dimension.SECURITY
     category = Category.SEC_INJECTION
 
-    pattern = r'\b(XMLQUERY|XMLEXISTS|XPATH|XQUERY|xml_)\b[^;]*(\+|CONCAT|\|\|)[^;]*[/\[\]]'
+    pattern = r"\b(XMLQUERY|XMLEXISTS|XPATH|XQUERY|xml_)\b[^;]*(\+|CONCAT|\|\|)[^;]*[/\[\]]"
 
     impact = (
         "XPath injection allows attackers to manipulate XML queries, bypass authentication, and extract "
@@ -371,7 +389,7 @@ class ServerSideTemplateInjectionRule(PatternRule):
     dimension = Dimension.SECURITY
     category = Category.SEC_INJECTION
 
-    pattern = r'\b(RENDER|TEMPLATE|EVAL|EXECUTE|PROCESS|render_)\w*\b\([^)]*(\+|CONCAT|\|\|)'
+    pattern = r"\b(RENDER|TEMPLATE|EVAL|EXECUTE|PROCESS|render_)\w*\b\([^)]*(\+|CONCAT|\|\|)"
 
     impact = (
         "Template injection allows arbitrary code execution on the server. If user input is embedded "
@@ -396,7 +414,7 @@ class JSONFunctionInjectionRule(PatternRule):
     dimension = Dimension.SECURITY
     category = Category.SEC_INJECTION
 
-    pattern = r'\b(JSON_OBJECT|JSON_ARRAY|JSON_INSERT|JSON_REPLACE|JSON_SET|json_\w*)\b[^;]*(\+|CONCAT|\|\|)'
+    pattern = r"\b(JSON_OBJECT|JSON_ARRAY|JSON_INSERT|JSON_REPLACE|JSON_SET|json_\w*)\b[^;]*(\+|CONCAT|\|\|)"
 
     impact = (
         "Concatenating user input into JSON path expressions allows attackers to modify query logic, "

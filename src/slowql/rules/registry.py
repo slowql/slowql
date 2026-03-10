@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 
     from slowql.rules.base import Rule
 
+
 class RuleRegistry:
     def __init__(self) -> None:
         self._rules: dict[str, Rule] = {}

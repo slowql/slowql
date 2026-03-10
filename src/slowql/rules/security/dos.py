@@ -12,8 +12,8 @@ from slowql.core.models import Category, Dimension, Fix, Issue, Query, Severity
 from slowql.rules.base import ASTRule, PatternRule
 
 __all__ = [
-    'RegexDenialOfServiceRule',
-    'UnboundedRecursiveCTERule',
+    "RegexDenialOfServiceRule",
+    "UnboundedRecursiveCTERule",
 ]
 
 
@@ -22,7 +22,9 @@ class UnboundedRecursiveCTERule(ASTRule):
 
     id = "SEC-DOS-001"
     name = "Unbounded Recursive CTE"
-    description = "Detects recursive CTEs without MAXRECURSION limits, which can consume unlimited resources."
+    description = (
+        "Detects recursive CTEs without MAXRECURSION limits, which can consume unlimited resources."
+    )
     severity = Severity.HIGH
     dimension = Dimension.SECURITY
     category = Category.SEC_DOS
@@ -43,7 +45,7 @@ class UnboundedRecursiveCTERule(ASTRule):
                             # Check if OPTION (MAXRECURSION) exists in outer query
                             # This is a simplified check
                             query_str = query.raw.upper()
-                            if 'MAXRECURSION' not in query_str:
+                            if "MAXRECURSION" not in query_str:
                                 issues.append(
                                     self.create_issue(
                                         query=query,
@@ -78,7 +80,9 @@ class RegexDenialOfServiceRule(PatternRule):
 
     id = "SEC-DOS-002"
     name = "Regex Denial of Service (ReDoS)"
-    description = "Detects regular expressions with patterns known to cause catastrophic backtracking."
+    description = (
+        "Detects regular expressions with patterns known to cause catastrophic backtracking."
+    )
     severity = Severity.MEDIUM
     dimension = Dimension.SECURITY
     category = Category.SEC_DOS

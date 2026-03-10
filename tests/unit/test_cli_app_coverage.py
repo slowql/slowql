@@ -191,24 +191,21 @@ class TestQuickActions:
     def test_menu_interactive_flow(self, mock_analysis_result, tmp_path):
         # Select "Continue" (index 1) -> "2"
         with patch("slowql.cli.app.Prompt.ask", return_value="2"):
-            assert (
-                show_quick_actions_menu(mock_analysis_result, MagicMock(), tmp_path) is True
-            )
+            assert show_quick_actions_menu(mock_analysis_result, MagicMock(), tmp_path) is True
 
     def test_menu_exit(self, mock_analysis_result, tmp_path):
         # Select "Exit" -> "3"
         with patch("slowql.cli.app.Prompt.ask", return_value="3"):
-            assert (
-                show_quick_actions_menu(mock_analysis_result, MagicMock(), tmp_path)
-                is False
-            )
+            assert show_quick_actions_menu(mock_analysis_result, MagicMock(), tmp_path) is False
 
 
 class TestExportInteractive:
     def test_export_interactive_flow(self, mock_analysis_result, tmp_path):
         # Select JSON (default) -> "1"
-        with patch("slowql.cli.app.Prompt.ask", return_value="1"), \
-             patch("slowql.cli.app._run_exports") as mock_run:
+        with (
+            patch("slowql.cli.app.Prompt.ask", return_value="1"),
+            patch("slowql.cli.app._run_exports") as mock_run,
+        ):
             export_interactive(mock_analysis_result, tmp_path)
             mock_run.assert_called_with(mock_analysis_result, ["json"], tmp_path)
 

@@ -32,8 +32,9 @@ class TestUniversalParserCoverage:
     def test_parse_error_handling(self):
         parser = UniversalParser()
         # Mock sqlglot.parse_one to raise SqlglotParseError
-        with patch("sqlglot.parse_one", side_effect=SqlglotParseError("test error")), pytest.raises(
-            ParseError, match="Failed to parse SQL"
+        with (
+            patch("sqlglot.parse_one", side_effect=SqlglotParseError("test error")),
+            pytest.raises(ParseError, match="Failed to parse SQL"),
         ):
             parser.parse("SELECT * FROM t")
 

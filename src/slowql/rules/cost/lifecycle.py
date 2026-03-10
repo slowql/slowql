@@ -12,9 +12,9 @@ from slowql.core.models import Category, Dimension, Issue, Query, Severity
 from slowql.rules.base import ASTRule, PatternRule
 
 __all__ = [
-    'LargeTableWithoutPartitioningRule',
-    'LargeTextColumnWithoutCompressionRule',
-    'OldDataNotArchivedRule',
+    "LargeTableWithoutPartitioningRule",
+    "LargeTextColumnWithoutCompressionRule",
+    "OldDataNotArchivedRule",
 ]
 
 
@@ -32,8 +32,15 @@ class OldDataNotArchivedRule(ASTRule):
     category = Category.COST_ARCHIVAL
 
     _date_columns = {
-        "created_at", "updated_at", "modified_at", "date", "timestamp",
-        "event_date", "order_date", "transaction_date", "posted_at"
+        "created_at",
+        "updated_at",
+        "modified_at",
+        "date",
+        "timestamp",
+        "event_date",
+        "order_date",
+        "transaction_date",
+        "posted_at",
     }
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
@@ -124,8 +131,16 @@ class LargeTableWithoutPartitioningRule(ASTRule):
     category = Category.COST_PARTITIONING
 
     _large_table_patterns = {
-        "events", "logs", "transactions", "clickstream", "analytics",
-        "audit", "history", "archive", "sessions", "metrics"
+        "events",
+        "logs",
+        "transactions",
+        "clickstream",
+        "analytics",
+        "audit",
+        "history",
+        "archive",
+        "sessions",
+        "metrics",
     }
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:

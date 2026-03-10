@@ -12,10 +12,10 @@ from slowql.core.models import Category, Dimension, Issue, Query, Severity
 from slowql.rules.base import ASTRule, PatternRule
 
 __all__ = [
-    'AmbiguousAliasRule',
-    'HungarianNotationRule',
-    'InconsistentTableNamingRule',
-    'ReservedWordAsColumnRule',
+    "AmbiguousAliasRule",
+    "HungarianNotationRule",
+    "InconsistentTableNamingRule",
+    "ReservedWordAsColumnRule",
 ]
 
 
@@ -41,8 +41,8 @@ class InconsistentTableNamingRule(ASTRule):
 
         # Standardize: plural usually ends with 's', but not 'ss' (like 'process')
         # This is a heuristic for detecting mixtures.
-        likely_singular = [t for t in tables if not t.endswith('s') or t.endswith('ss')]
-        likely_plural = [t for t in tables if t.endswith('s') and not t.endswith('ss')]
+        likely_singular = [t for t in tables if not t.endswith("s") or t.endswith("ss")]
+        likely_plural = [t for t in tables if t.endswith("s") and not t.endswith("ss")]
 
         # Only flag if we have a clear mixture of both patterns
         if likely_singular and likely_plural:
@@ -83,9 +83,9 @@ class AmbiguousAliasRule(ASTRule):
         for node in ast.walk():
             alias = None
             if isinstance(node, (exp.Alias, exp.Table)):
-                alias = getattr(node, 'alias', None)
+                alias = getattr(node, "alias", None)
 
-            if alias and len(alias) <= 2 and alias.lower() not in ('as', 'id'):
+            if alias and len(alias) <= 2 and alias.lower() not in ("as", "id"):
                 issues.append(
                     self.create_issue(
                         query=query,
@@ -116,7 +116,7 @@ class HungarianNotationRule(PatternRule):
     dimension = Dimension.QUALITY
     category = Category.QUAL_NAMING
 
-    pattern = r'\b(str_|int_|i_|tbl_|v_|idx_|fk_|pk_)[a-z0-9_]+\b'
+    pattern = r"\b(str_|int_|i_|tbl_|v_|idx_|fk_|pk_)[a-z0-9_]+\b"
 
     impact = (
         "Hungarian notation is redundant in SQL as types are defined in schema. It makes "
@@ -139,8 +139,22 @@ class ReservedWordAsColumnRule(ASTRule):
     category = Category.QUAL_NAMING
 
     RESERVED = {
-        'ORDER', 'GROUP', 'BY', 'SELECT', 'FROM', 'WHERE', 'TABLE', 'INDEX',
-        'USER', 'DATE', 'KEY', 'COLUMN', 'AS', 'JOIN', 'LIMIT', 'OFFSET'
+        "ORDER",
+        "GROUP",
+        "BY",
+        "SELECT",
+        "FROM",
+        "WHERE",
+        "TABLE",
+        "INDEX",
+        "USER",
+        "DATE",
+        "KEY",
+        "COLUMN",
+        "AS",
+        "JOIN",
+        "LIMIT",
+        "OFFSET",
     }
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:

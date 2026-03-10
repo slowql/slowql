@@ -12,10 +12,10 @@ from slowql.core.models import Category, Dimension, Fix, Issue, Query, Severity
 from slowql.rules.base import ASTRule, PatternRule
 
 __all__ = [
-    'AlterTableDestructiveRule',
-    'DropTableRule',
-    'TruncateWithoutTransactionRule',
-    'UnsafeWriteRule',
+    "AlterTableDestructiveRule",
+    "DropTableRule",
+    "TruncateWithoutTransactionRule",
+    "UnsafeWriteRule",
 ]
 
 

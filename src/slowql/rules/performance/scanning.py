@@ -12,11 +12,11 @@ from slowql.core.models import Category, Dimension, Fix, Issue, Query, Severity
 from slowql.rules.base import ASTRule
 
 __all__ = [
-    'DistinctOnLargeSetRule',
-    'MissingWhereRule',
-    'NotInSubqueryRule',
-    'SelectStarRule',
-    'UnboundedSelectRule',
+    "DistinctOnLargeSetRule",
+    "MissingWhereRule",
+    "NotInSubqueryRule",
+    "SelectStarRule",
+    "UnboundedSelectRule",
 ]
 
 

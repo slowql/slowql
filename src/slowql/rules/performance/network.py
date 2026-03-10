@@ -12,8 +12,8 @@ from slowql.core.models import Category, Dimension, Fix, Issue, Query, Severity
 from slowql.rules.base import ASTRule
 
 __all__ = [
-    'ExcessiveColumnCountRule',
-    'LargeObjectUnboundedRule',
+    "ExcessiveColumnCountRule",
+    "LargeObjectUnboundedRule",
 ]
 
 
@@ -38,20 +38,22 @@ class ExcessiveColumnCountRule(ASTRule):
                     continue
 
                 if len(columns) > 20:
-                    issues.append(self.create_issue(
-                        query=query,
-                        message=f"SELECT with {len(columns)} columns - consider reducing or using separate queries",
-                        snippet=str(node)[:100],
-                        impact=(
-                            "Wide result sets waste network bandwidth, consume more memory on both server and client, "
-                            "and often indicate missing projection."
-                        ),
-                        fix=Fix(
-                            description="Select only needed columns. Use DTOs/projections in application layer.",
-                            replacement="",
-                            is_safe=False,
-                        ),
-                    ))
+                    issues.append(
+                        self.create_issue(
+                            query=query,
+                            message=f"SELECT with {len(columns)} columns - consider reducing or using separate queries",
+                            snippet=str(node)[:100],
+                            impact=(
+                                "Wide result sets waste network bandwidth, consume more memory on both server and client, "
+                                "and often indicate missing projection."
+                            ),
+                            fix=Fix(
+                                description="Select only needed columns. Use DTOs/projections in application layer.",
+                                replacement="",
+                                is_safe=False,
+                            ),
+                        )
+                    )
 
         return issues
 
@@ -70,33 +72,45 @@ class LargeObjectUnboundedRule(ASTRule):
         issues = []
 
         blob_columns = {
-            'blob', 'clob', 'text', 'content', 'body', 'data', 'image',
-            'document', 'file', 'attachment', 'payload', 'binary'
+            "blob",
+            "clob",
+            "text",
+            "content",
+            "body",
+            "data",
+            "image",
+            "document",
+            "file",
+            "attachment",
+            "payload",
+            "binary",
         }
 
         for node in ast.walk():
             if isinstance(node, exp.Select):
-                has_where = node.args.get('where') is not None
-                has_limit = node.args.get('limit') is not None
+                has_where = node.args.get("where") is not None
+                has_limit = node.args.get("limit") is not None
 
                 if not has_where and not has_limit:
                     for col in getattr(node, "expressions", []):
                         if isinstance(col, exp.Column):
                             col_name = getattr(col, "name", "").lower()
                             if any(bc in col_name for bc in blob_columns):
-                                issues.append(self.create_issue(
-                                    query=query,
-                                    message=f"Unbounded SELECT of large object column '{col.name}'",
-                                    snippet=str(node)[:100],
-                                    impact=(
-                                        "Selecting BLOB columns without filtering can transfer gigabytes of data. "
-                                        "Each BLOB read may hit slow storage. This crashes applications and saturates networks."
-                                    ),
-                                    fix=Fix(
-                                        description="Exclude large columns from general queries. Fetch BLOB data separately by ID when needed.",
-                                        replacement="",
-                                        is_safe=False,
-                                    ),
-                                ))
+                                issues.append(
+                                    self.create_issue(
+                                        query=query,
+                                        message=f"Unbounded SELECT of large object column '{col.name}'",
+                                        snippet=str(node)[:100],
+                                        impact=(
+                                            "Selecting BLOB columns without filtering can transfer gigabytes of data. "
+                                            "Each BLOB read may hit slow storage. This crashes applications and saturates networks."
+                                        ),
+                                        fix=Fix(
+                                            description="Exclude large columns from general queries. Fetch BLOB data separately by ID when needed.",
+                                            replacement="",
+                                            is_safe=False,
+                                        ),
+                                    )
+                                )
 
         return issues

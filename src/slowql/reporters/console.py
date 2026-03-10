@@ -750,8 +750,12 @@ class ConsoleReporter(BaseReporter):
             entry = fix_map.get(key)
             if entry is None:
                 fix_map[key] = {
-                    "rule_id": issue.rule_id, "message": issue.message, "fix": raw_fix,
-                    "dimension": issue.dimension, "severity": issue.severity, "count": 1,
+                    "rule_id": issue.rule_id,
+                    "message": issue.message,
+                    "fix": raw_fix,
+                    "dimension": issue.dimension,
+                    "severity": issue.severity,
+                    "count": 1,
                 }
             else:
                 entry["count"] += 1

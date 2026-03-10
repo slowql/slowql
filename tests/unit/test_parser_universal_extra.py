@@ -13,9 +13,10 @@ class TestUniversalParserExtra:
         # Test that a generic Exception from sqlglot.parse is correctly wrapped into ParseError.
         # The _split_statements method catches generic exceptions and re-raises them.
         parser = UniversalParser()
-        with patch(
-            "slowql.parser.universal.sqlglot.parse", side_effect=Exception("Boom")
-        ), pytest.raises(ParseError):
+        with (
+            patch("slowql.parser.universal.sqlglot.parse", side_effect=Exception("Boom")),
+            pytest.raises(ParseError),
+        ):
             parser.parse("SELECT 1")
 
     def test_extract_tables_edge_cases(self):

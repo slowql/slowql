@@ -12,10 +12,10 @@ from slowql.core.models import Category, Dimension, Issue, Query, Severity
 from slowql.rules.base import ASTRule, PatternRule
 
 __all__ = [
-    'LackOfIndexingOnForeignKeyRule',
-    'MissingForeignKeyRule',
-    'MissingPrimaryKeyRule',
-    'UsingFloatForCurrencyRule',
+    "LackOfIndexingOnForeignKeyRule",
+    "MissingForeignKeyRule",
+    "MissingPrimaryKeyRule",
+    "UsingFloatForCurrencyRule",
 ]
 
 
@@ -29,7 +29,7 @@ class MissingPrimaryKeyRule(PatternRule):
     dimension = Dimension.QUALITY
     category = Category.QUAL_SCHEMA_DESIGN
 
-    pattern = r'CREATE\s+TABLE\s+(?:(?!PRIMARY\s+KEY).)*?(?:\);|\Z)'
+    pattern = r"CREATE\s+TABLE\s+(?:(?!PRIMARY\s+KEY).)*?(?:\);|\Z)"
 
     impact = (
         "Tables without primary keys are a major design flaw. They prevent row uniqueness, "
@@ -73,7 +73,7 @@ class MissingForeignKeyRule(ASTRule):
                     fks.append(id_node.this.lower())
 
         for col in columns:
-            if col.endswith('_id') and col != 'id' and col not in fks:
+            if col.endswith("_id") and col != "id" and col not in fks:
                 issues.append(
                     self.create_issue(
                         query=query,
@@ -127,12 +127,18 @@ class LackOfIndexingOnForeignKeyRule(ASTRule):
         for fk in table_def.find_all(exp.ForeignKey):
             # expressions contains the local columns (Identifiers)
             local_idents = fk.expressions
-            local_names = {ident.this.lower() for ident in local_idents if isinstance(ident, exp.Identifier)}
+            local_names = {
+                ident.this.lower() for ident in local_idents if isinstance(ident, exp.Identifier)
+            }
 
             for col_name in local_names:
                 if col_name not in indexed_cols:
                     issues.append(
-                        self.create_issue(query=query, message=f"Missing index on FK '{col_name}'", snippet=str(fk))
+                        self.create_issue(
+                            query=query,
+                            message=f"Missing index on FK '{col_name}'",
+                            snippet=str(fk),
+                        )
                     )
 
         return issues
@@ -157,7 +163,7 @@ class UsingFloatForCurrencyRule(PatternRule):
     dimension = Dimension.QUALITY
     category = Category.QUAL_SCHEMA_DESIGN
 
-    pattern = r'\b(price|amount|balance|cost|total|sum)\b.*?\b(FLOAT|REAL|DOUBLE)\b'
+    pattern = r"\b(price|amount|balance|cost|total|sum)\b.*?\b(FLOAT|REAL|DOUBLE)\b"
 
     impact = (
         "Float/Double types use binary floating-point math which leads to rounding errors (e.g., "

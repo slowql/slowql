@@ -12,10 +12,10 @@ from slowql.core.models import Category, Dimension, Fix, Issue, Query, Severity
 from slowql.rules.base import ASTRule, PatternRule
 
 __all__ = [
-    'GroupByHighCardinalityRule',
-    'LargeInClauseRule',
-    'OrderByWithoutLimitInSubqueryRule',
-    'UnboundedTempTableRule',
+    "GroupByHighCardinalityRule",
+    "LargeInClauseRule",
+    "OrderByWithoutLimitInSubqueryRule",
+    "UnboundedTempTableRule",
 ]
 
 
@@ -39,20 +39,22 @@ class LargeInClauseRule(ASTRule):
                     continue  # Subquery, not literal list
 
                 if len(values) > 50:
-                    issues.append(self.create_issue(
-                        query=query,
-                        message=f"IN clause with {len(values)} values - consider using temp table or table-valued parameter",
-                        snippet=str(node)[:100],
-                        impact=(
-                            "Large IN clauses (100+ values) consume memory for query compilation, bloat the plan cache "
-                            "with unique plans, and may force suboptimal execution strategies."
-                        ),
-                        fix=Fix(
-                            description="Load values into a temp table or table-valued parameter (TVP), then JOIN.",
-                            replacement="",
-                            is_safe=False,
-                        ),
-                    ))
+                    issues.append(
+                        self.create_issue(
+                            query=query,
+                            message=f"IN clause with {len(values)} values - consider using temp table or table-valued parameter",
+                            snippet=str(node)[:100],
+                            impact=(
+                                "Large IN clauses (100+ values) consume memory for query compilation, bloat the plan cache "
+                                "with unique plans, and may force suboptimal execution strategies."
+                            ),
+                            fix=Fix(
+                                description="Load values into a temp table or table-valued parameter (TVP), then JOIN.",
+                                replacement="",
+                                is_safe=False,
+                            ),
+                        )
+                    )
 
         return issues
 
@@ -94,24 +96,26 @@ class OrderByWithoutLimitInSubqueryRule(ASTRule):
             if isinstance(node, exp.Subquery):
                 inner = node.this
                 if isinstance(inner, exp.Select):
-                    has_order = inner.args.get('order') is not None
-                    has_limit = inner.args.get('limit') is not None
+                    has_order = inner.args.get("order") is not None
+                    has_limit = inner.args.get("limit") is not None
 
                     if has_order and not has_limit:
-                        issues.append(self.create_issue(
-                            query=query,
-                            message="ORDER BY in subquery without LIMIT is meaningless and wastes resources",
-                            snippet=str(inner)[:100],
-                            impact=(
-                                "Sorting requires memory allocation and CPU. ORDER BY without LIMIT in subqueries "
-                                "does nothing (SQL standard ignores it) but still consumes resources."
-                            ),
-                            fix=Fix(
-                                description="Remove ORDER BY from subqueries unless paired with TOP/LIMIT. Apply ordering in the final outer query only.",
-                                replacement="",
-                                is_safe=False,
-                            ),
-                        ))
+                        issues.append(
+                            self.create_issue(
+                                query=query,
+                                message="ORDER BY in subquery without LIMIT is meaningless and wastes resources",
+                                snippet=str(inner)[:100],
+                                impact=(
+                                    "Sorting requires memory allocation and CPU. ORDER BY without LIMIT in subqueries "
+                                    "does nothing (SQL standard ignores it) but still consumes resources."
+                                ),
+                                fix=Fix(
+                                    description="Remove ORDER BY from subqueries unless paired with TOP/LIMIT. Apply ordering in the final outer query only.",
+                                    replacement="",
+                                    is_safe=False,
+                                ),
+                            )
+                        )
 
         return issues
 
@@ -121,7 +125,9 @@ class GroupByHighCardinalityRule(ASTRule):
 
     id = "PERF-MEM-004"
     name = "GROUP BY on High-Cardinality Expression"
-    description = "Detects GROUP BY on columns likely to have high cardinality (timestamps, IDs, UUIDs)."
+    description = (
+        "Detects GROUP BY on columns likely to have high cardinality (timestamps, IDs, UUIDs)."
+    )
     severity = Severity.LOW
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_MEMORY
@@ -130,33 +136,47 @@ class GroupByHighCardinalityRule(ASTRule):
         issues = []
 
         high_cardinality_patterns = {
-            'timestamp', 'datetime', 'created_at', 'updated_at', 'modified_at',
-            'uuid', 'guid', 'id', 'transaction_id', 'session_id', 'request_id',
-            'email', 'phone', 'ip_address', 'user_agent'
+            "timestamp",
+            "datetime",
+            "created_at",
+            "updated_at",
+            "modified_at",
+            "uuid",
+            "guid",
+            "id",
+            "transaction_id",
+            "session_id",
+            "request_id",
+            "email",
+            "phone",
+            "ip_address",
+            "user_agent",
         }
 
         for node in ast.walk():
             if isinstance(node, exp.Select):
-                group = node.args.get('group')
+                group = node.args.get("group")
                 if group:
                     expressions = getattr(group, "expressions", [group])
                     for expr in expressions:
                         if isinstance(expr, exp.Column):
                             col_name = getattr(expr, "name", "").lower()
                             if any(hc in col_name for hc in high_cardinality_patterns):
-                                issues.append(self.create_issue(
-                                    query=query,
-                                    message=f"GROUP BY on high-cardinality column '{expr.name}' - may create excessive groups",
-                                    snippet=str(node)[:100],
-                                    impact=(
-                                        "Grouping by high-cardinality columns (timestamps, UUIDs) creates millions of groups, "
-                                        "consuming massive memory and producing unusable results."
-                                    ),
-                                    fix=Fix(
-                                        description="Truncate timestamps to meaningful intervals (e.g., DATE_TRUNC). Group by categorical columns.",
-                                        replacement="",
-                                        is_safe=False,
-                                    ),
-                                ))
+                                issues.append(
+                                    self.create_issue(
+                                        query=query,
+                                        message=f"GROUP BY on high-cardinality column '{expr.name}' - may create excessive groups",
+                                        snippet=str(node)[:100],
+                                        impact=(
+                                            "Grouping by high-cardinality columns (timestamps, UUIDs) creates millions of groups, "
+                                            "consuming massive memory and producing unusable results."
+                                        ),
+                                        fix=Fix(
+                                            description="Truncate timestamps to meaningful intervals (e.g., DATE_TRUNC). Group by categorical columns.",
+                                            replacement="",
+                                            is_safe=False,
+                                        ),
+                                    )
+                                )
 
         return issues

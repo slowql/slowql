@@ -8,10 +8,10 @@ from slowql.core.models import Category, Dimension, Severity
 from slowql.rules.base import PatternRule
 
 __all__ = [
-    'CommentedCodeRule',
-    'MissingAliasRule',
-    'SelectWithoutFromRule',
-    'WildcardInColumnListRule',
+    "CommentedCodeRule",
+    "MissingAliasRule",
+    "SelectWithoutFromRule",
+    "WildcardInColumnListRule",
 ]
 
 
@@ -118,7 +118,9 @@ class CommentedCodeRule(PatternRule):
         r"--\s*(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE)\b"
         r"|/\*.*?(SELECT|INSERT|UPDATE|DELETE)\b.*?\*/"
     )
-    message_template = "Commented-out SQL code detected — remove dead code or track in version control: {match}"
+    message_template = (
+        "Commented-out SQL code detected — remove dead code or track in version control: {match}"
+    )
 
     impact = (
         "Commented-out code creates confusion about query intent, may hide "

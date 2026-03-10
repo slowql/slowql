@@ -464,13 +464,21 @@ class Tokenizer:
 
     def _should_skip_token(self, token_type: TokenType) -> bool:
         """Check if a token should be skipped based on tokenizer configuration."""
-        return (self.skip_whitespace and token_type in (
-            TokenType.WHITESPACE,
-            TokenType.NEWLINE,
-        )) or (self.skip_comments and token_type in (
-            TokenType.COMMENT,
-            TokenType.BLOCK_COMMENT,
-        ))
+        return (
+            self.skip_whitespace
+            and token_type
+            in (
+                TokenType.WHITESPACE,
+                TokenType.NEWLINE,
+            )
+        ) or (
+            self.skip_comments
+            and token_type
+            in (
+                TokenType.COMMENT,
+                TokenType.BLOCK_COMMENT,
+            )
+        )
 
     def _process_match(
         self, match: re.Match[str], token_type: TokenType, line: int, col: int

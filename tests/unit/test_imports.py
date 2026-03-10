@@ -30,21 +30,26 @@ def test_import_core():
     assert core.exceptions
     assert core.models
 
+
 def test_import_analyzers():
     assert analyzers_base
     assert analyzers_registry
+
 
 def test_import_parser():
     assert parser_base
     assert tokenizer
     assert universal
 
+
 def test_import_rules():
     assert rules_base
     assert catalog
 
+
 def test_import_cli():
     assert cli_app
+
 
 def test_instantiate_core_classes():
     # Config
@@ -69,7 +74,7 @@ def test_instantiate_core_classes():
         severity=Severity.MEDIUM,
         dimension=Dimension.QUALITY,
         location=location,
-        snippet="code"
+        snippet="code",
     )
     assert issue
 
@@ -77,7 +82,7 @@ def test_instantiate_core_classes():
         raw="SELECT * FROM test",
         normalized="SELECT * FROM test",
         dialect="mysql",
-        location=location
+        location=location,
     )
     assert query
 
@@ -91,6 +96,7 @@ def test_instantiate_core_classes():
     parse_error = ParseError("test")
     assert parse_error
 
+
 def test_instantiate_analyzer_classes():
     # These are abstract, so we can't instantiate directly
     # But we can check they exist
@@ -99,17 +105,20 @@ def test_instantiate_analyzer_classes():
     assert analyzers_base.PatternAnalyzer
     assert analyzers_registry.AnalyzerRegistry
 
+
 def test_instantiate_rule_classes():
     # Abstract classes
     assert rules_base.Rule
     assert rules_base.PatternRule
     assert rules_base.ASTRule
 
+
 def test_instantiate_parser_classes():
     # BaseParser is abstract
     assert parser_base.BaseParser
     assert tokenizer.Tokenizer
     assert universal.UniversalParser
+
 
 def test_main_functions():
     # These are functions

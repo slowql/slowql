@@ -208,7 +208,8 @@ def test_cli_main_entrypoint(sample_sql_file):
             "--input-file",
             str(sample_sql_file),
         ],
-        check=False, capture_output=True,
+        check=False,
+        capture_output=True,
         text=True,
     )
     assert result.returncode == 0

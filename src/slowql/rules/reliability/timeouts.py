@@ -12,9 +12,9 @@ from slowql.core.models import Category, Dimension, Issue, Query, Severity
 from slowql.rules.base import ASTRule, PatternRule
 
 __all__ = [
-    'LongRunningQueryRiskRule',
-    'MissingRetryLogicRule',
-    'StaleReadRiskRule',
+    "LongRunningQueryRiskRule",
+    "MissingRetryLogicRule",
+    "StaleReadRiskRule",
 ]
 
 
@@ -85,7 +85,9 @@ class StaleReadRiskRule(PatternRule):
     category = Category.REL_CONSISTENCY
 
     pattern = r"^(?!.*?\bBEGIN\b).*?(INSERT|UPDATE)\s+[^;]+;\s*SELECT\s+[^;]+FROM\s+(\w+)"
-    message_template = "Potential stale read: SELECT immediately follows UPDATE/INSERT without transaction."
+    message_template = (
+        "Potential stale read: SELECT immediately follows UPDATE/INSERT without transaction."
+    )
 
     impact = (
         "In replicated databases, writes go to primary, reads may hit replicas. SELECT "

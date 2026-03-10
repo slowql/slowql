@@ -11,7 +11,7 @@ from slowql.core.models import Category, Dimension, Issue, Query, Severity
 from slowql.rules.base import ASTRule
 
 __all__ = [
-    'CCPAOptOutRule',
+    "CCPAOptOutRule",
 ]
 
 
@@ -30,9 +30,13 @@ class CCPAOptOutRule(ASTRule):
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
-        if query.query_type == "SELECT" and re.search(r"marketing|sharing|third_party|affiliate", query.raw, re.IGNORECASE):
+        if query.query_type == "SELECT" and re.search(
+            r"marketing|sharing|third_party|affiliate", query.raw, re.IGNORECASE
+        ):
             where_cols = self._get_where_columns(ast)
-            if not any(c in ("do_not_sell", "dns_flag", "opt_out", "ccpa_status") for c in where_cols):
+            if not any(
+                c in ("do_not_sell", "dns_flag", "opt_out", "ccpa_status") for c in where_cols
+            ):
                 issues.append(
                     self.create_issue(
                         query=query,

@@ -12,11 +12,11 @@ from slowql.core.models import Category, Dimension, Issue, Query, Severity
 from slowql.rules.base import ASTRule, PatternRule
 
 __all__ = [
-    'GrantAllRule',
-    'GrantToPublicRule',
-    'HardcodedPasswordRule',
-    'PasswordPolicyBypassRule',
-    'UserCreationWithoutPasswordRule',
+    "GrantAllRule",
+    "GrantToPublicRule",
+    "HardcodedPasswordRule",
+    "PasswordPolicyBypassRule",
+    "UserCreationWithoutPasswordRule",
 ]
 
 

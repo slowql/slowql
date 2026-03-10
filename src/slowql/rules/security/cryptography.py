@@ -8,10 +8,10 @@ from slowql.core.models import Category, Dimension, Severity
 from slowql.rules.base import PatternRule
 
 __all__ = [
-    'HardcodedEncryptionKeyRule',
-    'PlaintextPasswordInQueryRule',
-    'WeakEncryptionAlgorithmRule',
-    'WeakHashingAlgorithmRule',
+    "HardcodedEncryptionKeyRule",
+    "PlaintextPasswordInQueryRule",
+    "WeakEncryptionAlgorithmRule",
+    "WeakHashingAlgorithmRule",
 ]
 
 

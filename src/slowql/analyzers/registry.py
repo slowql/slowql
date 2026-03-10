@@ -169,9 +169,7 @@ class AnalyzerRegistry:
                 analyzer_class = ep.load()
 
                 # Instantiate if it's a class
-                analyzer = (
-                    analyzer_class() if isinstance(analyzer_class, type) else analyzer_class
-                )
+                analyzer = analyzer_class() if isinstance(analyzer_class, type) else analyzer_class
 
                 self.register(analyzer, replace=True)  # Allow entry points to override built-ins
                 count += 1

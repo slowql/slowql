@@ -39,6 +39,7 @@ class SecurityAnalyzer(RuleBasedAnalyzer):
     def get_rules(self) -> list[Rule]:
         """Load ALL security rules from catalog (45 rules)."""
         from slowql.rules.catalog import get_rules_by_dimension
+
         return get_rules_by_dimension(self.dimension.value)
 
     def analyze(self, query: Query, *, config: Config | None = None) -> list[Issue]:

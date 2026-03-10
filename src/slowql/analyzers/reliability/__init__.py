@@ -35,4 +35,5 @@ class ReliabilityAnalyzer(RuleBasedAnalyzer):
     def get_rules(self) -> list[Rule]:
         """Load ALL reliability rules from catalog (19 rules)."""
         from slowql.rules.catalog import get_rules_by_dimension
+
         return get_rules_by_dimension(self.dimension.value)
