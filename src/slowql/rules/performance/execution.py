@@ -12,9 +12,9 @@ from slowql.core.models import Category, Dimension, Fix, Issue, Query, Severity
 from slowql.rules.base import ASTRule, PatternRule
 
 __all__ = [
-    'CorrelatedSubqueryRule',
-    'OrderByNonIndexedColumnRule',
-    'ScalarUdfInQueryRule',
+    "CorrelatedSubqueryRule",
+    "OrderByNonIndexedColumnRule",
+    "ScalarUdfInQueryRule",
 ]
 
 
@@ -35,7 +35,9 @@ class ScalarUdfInQueryRule(PatternRule):
         "Scalar UDFs execute row-by-row, prevent parallelism, and cannot be inlined in most SQL versions. "
         "A single scalar UDF can make queries 100x slower."
     )
-    fix_guidance = "Rewrite as inline table-valued function (iTVF) or move logic to application layer."
+    fix_guidance = (
+        "Rewrite as inline table-valued function (iTVF) or move logic to application layer."
+    )
 
 
 class CorrelatedSubqueryRule(ASTRule):
@@ -60,20 +62,22 @@ class CorrelatedSubqueryRule(ASTRule):
                         inner_refs = self._get_column_table_refs(inner)
 
                         if outer_tables and inner_refs and (outer_tables & inner_refs):
-                            issues.append(self.create_issue(
-                                query=query,
-                                message="Correlated subquery executes once per outer row - consider rewriting as JOIN",
-                                snippet=str(subq)[:100],
-                                impact=(
-                                    "Correlated subqueries execute for every row in the outer query. "
-                                    "For 1 million outer rows, the subquery runs 1 million times."
-                                ),
-                                fix=Fix(
-                                    description="Rewrite as JOIN or use window functions.",
-                                    replacement="",
-                                    is_safe=False,
-                                ),
-                            ))
+                            issues.append(
+                                self.create_issue(
+                                    query=query,
+                                    message="Correlated subquery executes once per outer row - consider rewriting as JOIN",
+                                    snippet=str(subq)[:100],
+                                    impact=(
+                                        "Correlated subqueries execute for every row in the outer query. "
+                                        "For 1 million outer rows, the subquery runs 1 million times."
+                                    ),
+                                    fix=Fix(
+                                        description="Rewrite as JOIN or use window functions.",
+                                        replacement="",
+                                        is_safe=False,
+                                    ),
+                                )
+                            )
 
         return issues
 
@@ -108,14 +112,26 @@ class OrderByNonIndexedColumnRule(ASTRule):
         issues = []
 
         unlikely_indexed = {
-            'description', 'notes', 'comments', 'body', 'content', 'message',
-            'address', 'bio', 'about', 'metadata', 'json_data', 'xml_data',
-            'calculated', 'computed', 'derived'
+            "description",
+            "notes",
+            "comments",
+            "body",
+            "content",
+            "message",
+            "address",
+            "bio",
+            "about",
+            "metadata",
+            "json_data",
+            "xml_data",
+            "calculated",
+            "computed",
+            "derived",
         }
 
         for node in ast.walk():
             if isinstance(node, exp.Select):
-                order = node.args.get('order')
+                order = node.args.get("order")
                 if order:
                     expressions = getattr(order, "expressions", [order])
                     for expr in expressions:
@@ -124,19 +140,21 @@ class OrderByNonIndexedColumnRule(ASTRule):
                             if isinstance(col, exp.Column):
                                 col_name = getattr(col, "name", "").lower()
                                 if any(ui in col_name for ui in unlikely_indexed):
-                                    issues.append(self.create_issue(
-                                        query=query,
-                                        message=f"ORDER BY on likely non-indexed column '{col.name}' - may require expensive sort",
-                                        snippet=str(node)[:100],
-                                        impact=(
-                                            "Sorting without index support requires loading all rows into memory, sorting, then returning. "
-                                            "For large tables, this spills to disk (tempdb), dramatically slowing queries."
-                                        ),
-                                        fix=Fix(
-                                            description="Create covering index including ORDER BY columns. Or add index on frequently sorted columns.",
-                                            replacement="",
-                                            is_safe=False,
-                                        ),
-                                    ))
+                                    issues.append(
+                                        self.create_issue(
+                                            query=query,
+                                            message=f"ORDER BY on likely non-indexed column '{col.name}' - may require expensive sort",
+                                            snippet=str(node)[:100],
+                                            impact=(
+                                                "Sorting without index support requires loading all rows into memory, sorting, then returning. "
+                                                "For large tables, this spills to disk (tempdb), dramatically slowing queries."
+                                            ),
+                                            fix=Fix(
+                                                description="Create covering index including ORDER BY columns. Or add index on frequently sorted columns.",
+                                                replacement="",
+                                                is_safe=False,
+                                            ),
+                                        )
+                                    )
 
         return issues

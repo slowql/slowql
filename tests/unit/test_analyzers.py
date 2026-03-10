@@ -100,6 +100,7 @@ class TestBaseAnalyzerMethods:
 
     def test_check_rule_without_config(self):
         """Test check_rule method without config."""
+
         # Create a simple test rule
         class TestRule(PatternRule):
             id = "TEST-RULE"
@@ -124,6 +125,7 @@ class TestBaseAnalyzerMethods:
 
     def test_check_rule_with_disabled_config(self):
         """Test check_rule with disabled rule config."""
+
         class TestRule(PatternRule):
             id = "TEST-RULE"
             name = "Test Rule"
@@ -150,6 +152,7 @@ class TestBaseAnalyzerMethods:
 
     def test_check_rule_with_enabled_rules_config(self):
         """Test check_rule with enabled rules config."""
+
         class TestRule(PatternRule):
             id = "TEST-RULE"
             name = "Test Rule"
@@ -242,6 +245,7 @@ class TestPatternAnalyzer:
 
     def test_pattern_analyzer_analyze(self):
         """Test PatternAnalyzer analyze method."""
+
         class TestPatternAnalyzer(PatternAnalyzer):
             name = "test-pattern"
             dimension = Dimension.SECURITY
@@ -265,6 +269,7 @@ class TestPatternAnalyzer:
 
     def test_pattern_analyzer_initialize(self):
         """Test PatternAnalyzer initialization compiles patterns."""
+
         class TestPatternAnalyzer(PatternAnalyzer):
             patterns: ClassVar[list] = [
                 (r"test", "TEST-001", "Test pattern", Severity.LOW),

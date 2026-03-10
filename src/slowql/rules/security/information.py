@@ -8,10 +8,10 @@ from slowql.core.models import Category, Dimension, Severity
 from slowql.rules.base import PatternRule
 
 __all__ = [
-    'DatabaseVersionDisclosureRule',
-    'SchemaInformationDisclosureRule',
-    'TimingAttackPatternRule',
-    'VerboseErrorMessageDisclosureRule',
+    "DatabaseVersionDisclosureRule",
+    "SchemaInformationDisclosureRule",
+    "TimingAttackPatternRule",
+    "VerboseErrorMessageDisclosureRule",
 ]
 
 
@@ -28,7 +28,7 @@ class DatabaseVersionDisclosureRule(PatternRule):
     dimension = Dimension.SECURITY
     category = Category.SEC_DATA_EXPOSURE
 
-    pattern = r'(?:@@VERSION|VERSION\(\)|SERVERPROPERTY\(\'ProductVersion\'\)|pg_version\(\)|BANNER|v\$version)'
+    pattern = r"(?:@@VERSION|VERSION\(\)|SERVERPROPERTY\(\'ProductVersion\'\)|pg_version\(\)|BANNER|v\$version)"
 
     impact = (
         "Exposing database version helps attackers identify known vulnerabilities (CVEs) specific to that "
@@ -45,14 +45,12 @@ class SchemaInformationDisclosureRule(PatternRule):
 
     id = "SEC-INFO-002"
     name = "Schema Information Disclosure"
-    description = (
-        "Detects queries accessing system catalog tables that expose schema information to potential attackers."
-    )
+    description = "Detects queries accessing system catalog tables that expose schema information to potential attackers."
     severity = Severity.MEDIUM
     dimension = Dimension.SECURITY
     category = Category.SEC_DATA_EXPOSURE
 
-    pattern = r'\b(INFORMATION_SCHEMA|sys\.|pg_catalog|ALL_TABLES|USER_TABLES|DBA_TABLES|SHOW\s+TABLES|SHOW\s+COLUMNS|DESCRIBE|syscolumns|sysobjects)\b'
+    pattern = r"\b(INFORMATION_SCHEMA|sys\.|pg_catalog|ALL_TABLES|USER_TABLES|DBA_TABLES|SHOW\s+TABLES|SHOW\s+COLUMNS|DESCRIBE|syscolumns|sysobjects)\b"
 
     impact = (
         "Schema enumeration reveals table names, column names, and relationships. Attackers use this for "
@@ -69,14 +67,12 @@ class TimingAttackPatternRule(PatternRule):
 
     id = "SEC-INFO-003"
     name = "Timing Attack Pattern"
-    description = (
-        "Detects password/authentication queries without constant-time comparison, enabling timing attacks."
-    )
+    description = "Detects password/authentication queries without constant-time comparison, enabling timing attacks."
     severity = Severity.MEDIUM
     dimension = Dimension.SECURITY
     category = Category.SEC_DATA_EXPOSURE
 
-    pattern = r'\b(SLEEP|WAITFOR\s+DELAY|DBMS_LOCK\.SLEEP|PG_SLEEP)\b\s*\(\s*\d+\s*\)'
+    pattern = r"\b(SLEEP|WAITFOR\s+DELAY|DBMS_LOCK\.SLEEP|PG_SLEEP)\b\s*\(\s*\d+\s*\)"
 
     impact = (
         "String comparison of passwords has variable timing based on match length. Attackers can infer "
@@ -93,14 +89,12 @@ class VerboseErrorMessageDisclosureRule(PatternRule):
 
     id = "SEC-INFO-004"
     name = "Verbose Error Messages"
-    description = (
-        "Detects error handling that may expose sensitive information (stack traces, query text, schema details)."
-    )
+    description = "Detects error handling that may expose sensitive information (stack traces, query text, schema details)."
     severity = Severity.MEDIUM
     dimension = Dimension.SECURITY
     category = Category.SEC_DATA_EXPOSURE
 
-    pattern = r'\b(RAISERROR|THROW|SIGNAL)\b[^;]*\b(@@ERROR|ERROR_MESSAGE|SQLERRM|SQLSTATE)|\bCAST\s*\(\s*(?:@@VERSION|VERSION\(\)|BANNER)'
+    pattern = r"\b(RAISERROR|THROW|SIGNAL)\b[^;]*\b(@@ERROR|ERROR_MESSAGE|SQLERRM|SQLSTATE)|\bCAST\s*\(\s*(?:@@VERSION|VERSION\(\)|BANNER)"
 
     impact = (
         "Error messages containing schema names, query fragments, or stack traces help attackers "

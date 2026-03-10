@@ -8,8 +8,8 @@ from slowql.core.models import Category, Dimension, Severity
 from slowql.rules.base import PatternRule
 
 __all__ = [
-    'TempTableNotCleanedUpRule',
-    'TodoFixmeCommentRule',
+    "TempTableNotCleanedUpRule",
+    "TodoFixmeCommentRule",
 ]
 
 
@@ -23,7 +23,7 @@ class TodoFixmeCommentRule(PatternRule):
     dimension = Dimension.QUALITY
     category = Category.QUAL_TECH_DEBT
 
-    pattern = r'\b(TODO|FIXME|XXX|HACK)\b'
+    pattern = r"\b(TODO|FIXME|XXX|HACK)\b"
 
     impact = (
         "TODO/FIXME markers represent known bugs or missing features that haven't been "
@@ -45,7 +45,7 @@ class TempTableNotCleanedUpRule(PatternRule):
     dimension = Dimension.QUALITY
     category = Category.QUAL_TECH_DEBT
 
-    pattern = r'CREATE\s+(?:TEMPORARY|TEMP)\s+TABLE\s+(\w+)(?:(?!DROP\s+TABLE\s+\1).)*\Z'
+    pattern = r"CREATE\s+(?:TEMPORARY|TEMP)\s+TABLE\s+(\w+)(?:(?!DROP\s+TABLE\s+\1).)*\Z"
 
     impact = (
         "Temporary tables that aren't dropped consume memory and disk space in the temporary "

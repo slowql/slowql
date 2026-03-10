@@ -436,10 +436,7 @@ def _get_sql_input(
         editor = CyberpunkSQLEditor()
         return editor.get_queries() or ""
 
-    console.print(
-        "\n[bold cyan]Enter SQL queries[/bold cyan] "
-        "(Ctrl+D to finish, 'quit' to exit):"
-    )
+    console.print("\n[bold cyan]Enter SQL queries[/bold cyan] (Ctrl+D to finish, 'quit' to exit):")
     lines: list[str] = []
     try:
         while True:
@@ -578,7 +575,8 @@ def run_analysis_loop(
     out_dir: Path | None = None,
     fast: bool = False,
     _verbose: bool = False,
-    verbose: bool = False, non_interactive: bool = False,
+    verbose: bool = False,
+    non_interactive: bool = False,
     enable_cache: bool = True,
     enable_comparison: bool = False,
 ) -> None:

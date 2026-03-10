@@ -8,9 +8,9 @@ from slowql.core.models import Category, Dimension, Severity
 from slowql.rules.base import PatternRule
 
 __all__ = [
-    'CursorDeclarationRule',
-    'NestedLoopJoinHintRule',
-    'WhileLoopPatternRule',
+    "CursorDeclarationRule",
+    "NestedLoopJoinHintRule",
+    "WhileLoopPatternRule",
 ]
 
 
@@ -64,11 +64,15 @@ class NestedLoopJoinHintRule(PatternRule):
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_CURSOR
 
-    pattern = r"\b(LOOP\s+JOIN|INNER\s+LOOP\s+JOIN|LEFT\s+LOOP\s+JOIN|OPTION\s*\(\s*LOOP\s+JOIN\s*\))"
+    pattern = (
+        r"\b(LOOP\s+JOIN|INNER\s+LOOP\s+JOIN|LEFT\s+LOOP\s+JOIN|OPTION\s*\(\s*LOOP\s+JOIN\s*\))"
+    )
     message_template = "Nested loop join hint detected: {match}"
 
     impact = (
         "Forced nested loop joins perform O(n*m) comparisons. For large tables, this is catastrophic. "
         "The optimizer usually knows better."
     )
-    fix_guidance = "Remove join hints and let the optimizer choose. If hint is necessary, document why."
+    fix_guidance = (
+        "Remove join hints and let the optimizer choose. If hint is necessary, document why."
+    )

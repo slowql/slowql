@@ -8,9 +8,9 @@ from slowql.core.models import Category, Dimension, Issue, Query, Severity
 from slowql.rules.base import PatternRule, Rule
 
 __all__ = [
-    'ComplexLogicWithoutExplanationRule',
-    'MagicStringWithoutCommentRule',
-    'MissingColumnCommentsRule',
+    "ComplexLogicWithoutExplanationRule",
+    "MagicStringWithoutCommentRule",
+    "MissingColumnCommentsRule",
 ]
 
 
@@ -24,7 +24,7 @@ class MissingColumnCommentsRule(PatternRule):
     dimension = Dimension.QUALITY
     category = Category.QUAL_DOCUMENTATION
 
-    pattern = r'CREATE\s+TABLE\s+(?:(?!COMMENT).)*?(?:\);|\Z)'
+    pattern = r"CREATE\s+TABLE\s+(?:(?!COMMENT).)*?(?:\);|\Z)"
 
     impact = (
         "Missing comments mean the business meaning of columns must be reverse-engineered "
@@ -71,7 +71,7 @@ class ComplexLogicWithoutExplanationRule(Rule):
     def check(self, query: Query) -> list[Issue]:
         issues = []
         # Count complex components in raw query
-        score = query.raw.count('AND') + query.raw.count('OR') + query.raw.count('CASE')
+        score = query.raw.count("AND") + query.raw.count("OR") + query.raw.count("CASE")
         has_comment = "--" in query.raw or "/*" in query.raw
 
         if score >= 5 and not has_comment:
@@ -79,7 +79,7 @@ class ComplexLogicWithoutExplanationRule(Rule):
                 self.create_issue(
                     query=query,
                     message=f"Complex logic (score: {score}) without explanation.",
-                    snippet=query.raw[:50]
+                    snippet=query.raw[:50],
                 )
             )
         return issues

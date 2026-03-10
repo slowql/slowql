@@ -434,10 +434,7 @@ class PatternAnalyzer(RuleBasedAnalyzer):
         sql = query.raw
 
         for pattern, rule_id, message, severity in self._compiled_patterns:
-            if (
-                config is not None
-                and rule_id in config.analysis.disabled_rules
-            ):
+            if config is not None and rule_id in config.analysis.disabled_rules:
                 continue
 
             match = pattern.search(sql)

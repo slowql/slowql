@@ -12,9 +12,9 @@ from slowql.core.models import Category, Dimension, Issue, Query, Severity
 from slowql.rules.base import ASTRule, PatternRule
 
 __all__ = [
-    'HardcodedTestDataRule',
-    'NonDeterministicQueryRule',
-    'OrderByMissingForPaginationRule',
+    "HardcodedTestDataRule",
+    "NonDeterministicQueryRule",
+    "OrderByMissingForPaginationRule",
 ]
 
 
@@ -28,7 +28,7 @@ class NonDeterministicQueryRule(ASTRule):
     dimension = Dimension.QUALITY
     category = Category.QUAL_TESTING
 
-    NON_DET = {'NOW', 'RAND', 'RANDOM', 'CURRENT_TIMESTAMP', 'GETDATE', 'CLOCK_TIMESTAMP'}
+    NON_DET = {"NOW", "RAND", "RANDOM", "CURRENT_TIMESTAMP", "GETDATE", "CLOCK_TIMESTAMP"}
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
@@ -66,7 +66,9 @@ class OrderByMissingForPaginationRule(ASTRule):
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
         for select in ast.find_all(exp.Select):
-            if (select.args.get('limit') or select.args.get('offset')) and not select.args.get('order'):
+            if (select.args.get("limit") or select.args.get("offset")) and not select.args.get(
+                "order"
+            ):
                 issues.append(
                     self.create_issue(
                         query=query,
@@ -91,7 +93,9 @@ class HardcodedTestDataRule(PatternRule):
 
     id = "QUAL-TEST-003"
     name = "Hardcoded Test Data"
-    description = "Detects obvious test data patterns (test, dummy, fake, temp, asdf, qwerty) in queries."
+    description = (
+        "Detects obvious test data patterns (test, dummy, fake, temp, asdf, qwerty) in queries."
+    )
     severity = Severity.LOW
     dimension = Dimension.QUALITY
     category = Category.QUAL_TESTING

@@ -12,7 +12,7 @@ from slowql.core.models import Category, Dimension, Fix, Issue, Query, Severity
 from slowql.rules.base import ASTRule
 
 __all__ = [
-    'SelectStarInETLRule',
+    "SelectStarInETLRule",
 ]
 
 
@@ -40,7 +40,7 @@ class SelectStarInETLRule(ASTRule):
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
         for node in ast.walk():
-            is_ctas = isinstance(node, exp.Create) and getattr(node, "kind", "") == 'TABLE'
+            is_ctas = isinstance(node, exp.Create) and getattr(node, "kind", "") == "TABLE"
             is_insert = isinstance(node, exp.Insert)
 
             if is_ctas or is_insert:

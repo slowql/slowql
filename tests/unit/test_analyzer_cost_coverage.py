@@ -7,7 +7,9 @@ from slowql.core.models import Location
 class TestCostAnalyzerCoverage:
     def test_get_rules(self):
         analyzer = CostAnalyzer()
-        assert len(analyzer.get_rules()) == 20  # Updated after modular refactoring - now loads all cost rules
+        assert (
+            len(analyzer.get_rules()) == 20
+        )  # Updated after modular refactoring - now loads all cost rules
 
     def test_analyze_fallback_is_select(self):
         analyzer = CostAnalyzer()

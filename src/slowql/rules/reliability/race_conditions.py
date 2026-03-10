@@ -10,8 +10,8 @@ from slowql.core.models import Category, Dimension, Issue, Query, Severity
 from slowql.rules.base import ASTRule, PatternRule
 
 __all__ = [
-    'ReadModifyWriteLockingRule',
-    'TOCTOUPatternRule',
+    "ReadModifyWriteLockingRule",
+    "TOCTOUPatternRule",
 ]
 
 
@@ -75,7 +75,9 @@ class TOCTOUPatternRule(PatternRule):
     category = Category.REL_RACE_CONDITION
 
     pattern = r"\bIF\s+(NOT\s+)?EXISTS\s*\(\s*SELECT[^)]+\)[^;]*\b(INSERT|UPDATE|DELETE)\b"
-    message_template = "Potential TOCTOU race condition detected: IF EXISTS check followed by modification."
+    message_template = (
+        "Potential TOCTOU race condition detected: IF EXISTS check followed by modification."
+    )
 
     impact = (
         "TOCTOU vulnerabilities allow race conditions: checking if row exists, then acting, "

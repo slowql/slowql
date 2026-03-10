@@ -12,9 +12,9 @@ from slowql.core.models import Category, Dimension, Fix, Issue, Query, Severity
 from slowql.rules.base import ASTRule, PatternRule
 
 __all__ = [
-    'HardcodedDateRule',
-    'ImplicitJoinRule',
-    'UnionWithoutAllRule',
+    "HardcodedDateRule",
+    "ImplicitJoinRule",
+    "UnionWithoutAllRule",
 ]
 
 
@@ -65,10 +65,10 @@ class HardcodedDateRule(PatternRule):
     dimension = Dimension.QUALITY
     category = Category.QUAL_MODERN
 
-    pattern = (
-        r"\bWHERE\b.+['\"](\d{4}-\d{2}-\d{2})['\"]"
+    pattern = r"\bWHERE\b.+['\"](\d{4}-\d{2}-\d{2})['\"]"
+    message_template = (
+        "Hardcoded date literal detected in WHERE clause — consider using parameters: {match}"
     )
-    message_template = "Hardcoded date literal detected in WHERE clause — consider using parameters: {match}"
 
     impact = (
         "Hardcoded dates become stale and cause queries to return unexpected "
@@ -96,7 +96,9 @@ class UnionWithoutAllRule(PatternRule):
     category = Category.QUAL_MODERN
 
     pattern = r"\bUNION\b(?!\s+ALL\b)"
-    message_template = "UNION without ALL detected — use UNION ALL if duplicates are not a concern: {match}"
+    message_template = (
+        "UNION without ALL detected — use UNION ALL if duplicates are not a concern: {match}"
+    )
 
     impact = (
         "UNION deduplicates results using an expensive sort or hash operation. "

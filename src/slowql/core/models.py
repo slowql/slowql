@@ -225,7 +225,6 @@ class Category(str, Enum):
     COMP_SOC2 = "soc2"
     COMP_CCPA = "ccpa"
 
-
     # Cost categories
     COST_CLOUD = "cloud"
     COST_STORAGE = "storage"

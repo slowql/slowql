@@ -8,9 +8,9 @@ from slowql.core.models import Category, Dimension, Severity
 from slowql.rules.base import PatternRule
 
 __all__ = [
-    'CVVStorageRule',
-    'CardholderDataRetentionRule',
-    'PANExposureRule',
+    "CVVStorageRule",
+    "CardholderDataRetentionRule",
+    "PANExposureRule",
 ]
 
 
@@ -57,7 +57,9 @@ class CVVStorageRule(PatternRule):
     category = Category.COMP_PCI
 
     pattern = r"\b(INSERT|CREATE)\b.*?\b(cvv|cvc|cid|security_code|card_verification)\b"
-    message_template = "Illegal storage of sensitive authentication data (CVV/CVC) detected: {match}"
+    message_template = (
+        "Illegal storage of sensitive authentication data (CVV/CVC) detected: {match}"
+    )
 
     impact = (
         "Storing CVV/CVC is a major PCI-DSS violation. It makes the database a prime target "

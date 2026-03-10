@@ -12,15 +12,15 @@ from slowql.core.models import Category, Dimension, Fix, Issue, Query, Severity
 from slowql.rules.base import ASTRule, PatternRule
 
 __all__ = [
-    'CoalesceOnIndexedColumnRule',
-    'CompositeIndexOrderViolationRule',
-    'DeepOffsetPaginationRule',
-    'FunctionOnIndexedColumnRule',
-    'ImplicitTypeConversionRule',
-    'LeadingWildcardRule',
-    'NegationOnIndexedColumnRule',
-    'NonSargableOrConditionRule',
-    'OrOnIndexedColumnsRule',
+    "CoalesceOnIndexedColumnRule",
+    "CompositeIndexOrderViolationRule",
+    "DeepOffsetPaginationRule",
+    "FunctionOnIndexedColumnRule",
+    "ImplicitTypeConversionRule",
+    "LeadingWildcardRule",
+    "NegationOnIndexedColumnRule",
+    "NonSargableOrConditionRule",
+    "OrOnIndexedColumnsRule",
 ]
 
 
@@ -48,7 +48,9 @@ class FunctionOnIndexedColumnRule(ASTRule):
 
     id = "PERF-IDX-001"
     name = "Function on Indexed Column"
-    description = "Detects functions applied to columns in WHERE predicates (e.g. WHERE LOWER(email) = ...)."
+    description = (
+        "Detects functions applied to columns in WHERE predicates (e.g. WHERE LOWER(email) = ...)."
+    )
     severity = Severity.MEDIUM
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_INDEX
@@ -134,43 +136,69 @@ class ImplicitTypeConversionRule(ASTRule):
                 if isinstance(left, exp.Column) and isinstance(right, exp.Literal):
                     col_name = left.name.lower()
 
-                    numeric_columns = {'id', 'user_id', 'account_id', 'order_id', 'product_id',
-                                       'amount', 'quantity', 'price', 'count', 'total', 'age'}
-                    string_columns = {'name', 'email', 'phone', 'address', 'code', 'status',
-                                      'type', 'category', 'description', 'title', 'sku'}
+                    numeric_columns = {
+                        "id",
+                        "user_id",
+                        "account_id",
+                        "order_id",
+                        "product_id",
+                        "amount",
+                        "quantity",
+                        "price",
+                        "count",
+                        "total",
+                        "age",
+                    }
+                    string_columns = {
+                        "name",
+                        "email",
+                        "phone",
+                        "address",
+                        "code",
+                        "status",
+                        "type",
+                        "category",
+                        "description",
+                        "title",
+                        "sku",
+                    }
 
                     is_string_literal = right.is_string
 
                     if any(nc in col_name for nc in numeric_columns) and is_string_literal:
-                        issues.append(self.create_issue(
-                            query=query,
-                            message=f"Implicit type conversion: numeric column '{left.name}' compared with string literal",
-                            snippet=str(node)[:100],
-                            impact=(
-                                "Implicit type conversion (e.g., WHERE varchar_col = 123) forces SQL Server to convert every row, "
-                                "turning index seeks into full scans. This is one of the most common hidden performance killers."
-                            ),
-                            fix=Fix(
-                                description="Match literal types to column types. Use WHERE id = 123 not WHERE id = '123'.",
-                                replacement="",
-                                is_safe=False,
-                            ),
-                        ))
+                        issues.append(
+                            self.create_issue(
+                                query=query,
+                                message=f"Implicit type conversion: numeric column '{left.name}' compared with string literal",
+                                snippet=str(node)[:100],
+                                impact=(
+                                    "Implicit type conversion (e.g., WHERE varchar_col = 123) forces SQL Server to convert every row, "
+                                    "turning index seeks into full scans. This is one of the most common hidden performance killers."
+                                ),
+                                fix=Fix(
+                                    description="Match literal types to column types. Use WHERE id = 123 not WHERE id = '123'.",
+                                    replacement="",
+                                    is_safe=False,
+                                ),
+                            )
+                        )
                     elif any(sc in col_name for sc in string_columns) and not is_string_literal:
-                        issues.append(self.create_issue(
-                            query=query,
-                            message=f"Implicit type conversion: string column '{left.name}' compared with numeric literal",
-                            snippet=str(node)[:100],
-                            impact=(
-                                "Implicit type conversion (e.g., WHERE varchar_col = 123) forces SQL Server to convert every row, "
-                                "turning index seeks into full scans. This is one of the most common hidden performance killers."
-                            ),
-                            fix=Fix(
-                                description="Match literal types to column types. For strings, always quote: WHERE status = 'active' not WHERE status = active.",
-                                replacement="",
-                                is_safe=False,
-                            ),
-                        ))
+                        issues.append(
+                            self.create_issue(
+                                query=query,
+                                message=f"Implicit type conversion: string column '{left.name}' compared with numeric literal",
+                                snippet=str(node)[:100],
+                                impact=(
+                                    "Implicit type conversion (e.g., WHERE varchar_col = 123) forces SQL Server to convert every row, "
+                                    "turning index seeks into full scans. This is one of the most common hidden performance killers."
+                                ),
+                                fix=Fix(
+                                    description="Match literal types to column types. For strings, always quote: WHERE status = 'active' not WHERE status = active.",
+                                    replacement="",
+                                    is_safe=False,
+                                ),
+                            )
+                        )
 
         return issues
 
@@ -192,14 +220,14 @@ class CompositeIndexOrderViolationRule(ASTRule):
         issues = []
 
         composite_patterns = {
-            ('tenant_id', 'user_id'): 'tenant_id',
-            ('tenant_id', 'created_at'): 'tenant_id',
-            ('user_id', 'created_at'): 'user_id',
-            ('account_id', 'transaction_date'): 'account_id',
-            ('store_id', 'product_id'): 'store_id',
-            ('category_id', 'subcategory_id'): 'category_id',
-            ('parent_id', 'child_id'): 'parent_id',
-            ('org_id', 'department_id'): 'org_id',
+            ("tenant_id", "user_id"): "tenant_id",
+            ("tenant_id", "created_at"): "tenant_id",
+            ("user_id", "created_at"): "user_id",
+            ("account_id", "transaction_date"): "account_id",
+            ("store_id", "product_id"): "store_id",
+            ("category_id", "subcategory_id"): "category_id",
+            ("parent_id", "child_id"): "parent_id",
+            ("org_id", "department_id"): "org_id",
         }
 
         for node in ast.walk():
@@ -208,20 +236,22 @@ class CompositeIndexOrderViolationRule(ASTRule):
 
                 for (lead, secondary), required_lead in composite_patterns.items():
                     if secondary in where_cols and lead not in where_cols:
-                        issues.append(self.create_issue(
-                            query=query,
-                            message=f"Filtering on '{secondary}' without leading column '{lead}' - composite index cannot be used efficiently",
-                            snippet=str(node)[:100],
-                            impact=(
-                                "Composite indexes require the leading column in WHERE to enable index seek. "
-                                "Filtering only on the secondary column forces a full index scan, often slower than a table scan."
-                            ),
-                            fix=Fix(
-                                description="Include leading index columns in WHERE clause. Create additional indexes or reorder columns if needed.",
-                                replacement="",
-                                is_safe=False,
-                            ),
-                        ))
+                        issues.append(
+                            self.create_issue(
+                                query=query,
+                                message=f"Filtering on '{secondary}' without leading column '{lead}' - composite index cannot be used efficiently",
+                                snippet=str(node)[:100],
+                                impact=(
+                                    "Composite indexes require the leading column in WHERE to enable index seek. "
+                                    "Filtering only on the secondary column forces a full index scan, often slower than a table scan."
+                                ),
+                                fix=Fix(
+                                    description="Include leading index columns in WHERE clause. Create additional indexes or reorder columns if needed.",
+                                    replacement="",
+                                    is_safe=False,
+                                ),
+                            )
+                        )
 
         return issues
 
@@ -231,7 +261,9 @@ class NonSargableOrConditionRule(ASTRule):
 
     id = "PERF-IDX-007"
     name = "Non-SARGable OR Condition"
-    description = "Detects OR conditions across different columns that prevent index usage (non-SARGable)."
+    description = (
+        "Detects OR conditions across different columns that prevent index usage (non-SARGable)."
+    )
     severity = Severity.MEDIUM
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_INDEX
@@ -245,17 +277,19 @@ class NonSargableOrConditionRule(ASTRule):
                 right_cols = self._get_columns(getattr(node, "expression", None))
 
                 if left_cols and right_cols and left_cols != right_cols:
-                    issues.append(self.create_issue(
-                        query=query,
-                        message=f"OR condition across different columns ({', '.join(left_cols)} OR {', '.join(right_cols)}) prevents index usage",
-                        snippet=str(node)[:100],
-                        impact="OR conditions across columns force the optimizer to scan all rows. Neither index can be fully utilized.",
-                        fix=Fix(
-                            description="Rewrite as UNION ALL of two queries, each using its own index.",
-                            replacement="",
-                            is_safe=False,
-                        ),
-                    ))
+                    issues.append(
+                        self.create_issue(
+                            query=query,
+                            message=f"OR condition across different columns ({', '.join(left_cols)} OR {', '.join(right_cols)}) prevents index usage",
+                            snippet=str(node)[:100],
+                            impact="OR conditions across columns force the optimizer to scan all rows. Neither index can be fully utilized.",
+                            fix=Fix(
+                                description="Rewrite as UNION ALL of two queries, each using its own index.",
+                                replacement="",
+                                is_safe=False,
+                            ),
+                        )
+                    )
 
         return issues
 
@@ -305,34 +339,38 @@ class NegationOnIndexedColumnRule(ASTRule):
 
         for node in ast.walk():
             if isinstance(node, exp.Not):
-                issues.append(self.create_issue(
-                    query=query,
-                    message="NOT condition may prevent efficient index usage",
-                    snippet=str(node)[:100],
-                    impact=(
-                        "Negation conditions force scanning all non-matching rows. "
-                        "If 99% of rows match, you scan 99% of the table."
-                    ),
-                    fix=Fix(
-                        description="Rewrite to positive condition if possible. Consider filtered indexes.",
-                        replacement="",
-                        is_safe=False,
-                    ),
-                ))
+                issues.append(
+                    self.create_issue(
+                        query=query,
+                        message="NOT condition may prevent efficient index usage",
+                        snippet=str(node)[:100],
+                        impact=(
+                            "Negation conditions force scanning all non-matching rows. "
+                            "If 99% of rows match, you scan 99% of the table."
+                        ),
+                        fix=Fix(
+                            description="Rewrite to positive condition if possible. Consider filtered indexes.",
+                            replacement="",
+                            is_safe=False,
+                        ),
+                    )
+                )
 
             if isinstance(node, exp.NEQ):
-                issues.append(self.create_issue(
-                    query=query,
-                    message="Not-equal condition (<>, !=) typically cannot use index seek",
-                    snippet=str(node)[:100],
-                    impact=(
-                        "Negation conditions typically prevent the query optimizer from performing efficient index seeks."
-                    ),
-                    fix=Fix(
-                        description="Rewrite to IN or positive equality if values are known and limited.",
-                        replacement="",
-                        is_safe=False,
-                    ),
-                ))
+                issues.append(
+                    self.create_issue(
+                        query=query,
+                        message="Not-equal condition (<>, !=) typically cannot use index seek",
+                        snippet=str(node)[:100],
+                        impact=(
+                            "Negation conditions typically prevent the query optimizer from performing efficient index seeks."
+                        ),
+                        fix=Fix(
+                            description="Rewrite to IN or positive equality if values are known and limited.",
+                            replacement="",
+                            is_safe=False,
+                        ),
+                    )
+                )
 
         return issues

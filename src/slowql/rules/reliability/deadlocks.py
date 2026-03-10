@@ -12,8 +12,8 @@ from slowql.core.models import Category, Dimension, Issue, Query, Severity
 from slowql.rules.base import ASTRule, PatternRule
 
 __all__ = [
-    'DeadlockPatternRule',
-    'LockEscalationRiskRule',
+    "DeadlockPatternRule",
+    "LockEscalationRiskRule",
 ]
 
 
@@ -30,7 +30,9 @@ class DeadlockPatternRule(PatternRule):
     dimension = Dimension.RELIABILITY
     category = Category.REL_DEADLOCK
 
-    pattern = r"\bBEGIN\b[\s\S]*?\bUPDATE\s+(\w+)\b[\s\S]*?\bUPDATE\s+(?!\1)(\w+)\b[\s\S]*?\bCOMMIT\b"
+    pattern = (
+        r"\bBEGIN\b[\s\S]*?\bUPDATE\s+(\w+)\b[\s\S]*?\bUPDATE\s+(?!\1)(\w+)\b[\s\S]*?\bCOMMIT\b"
+    )
     message_template = "Potential deadlock pattern: Multiple table updates within a transaction."
 
     impact = (
@@ -94,9 +96,7 @@ class LockEscalationRiskRule(ASTRule):
                     has_limit = "TOP" in query_upper or "LIMIT" in query_upper
 
                     if not has_likely_pk and not has_limit:
-                        stmt_type = (
-                            "UPDATE" if isinstance(node, exp.Update) else "DELETE"
-                        )
+                        stmt_type = "UPDATE" if isinstance(node, exp.Update) else "DELETE"
                         issues.append(
                             self.create_issue(
                                 query=query,

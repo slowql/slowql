@@ -8,7 +8,7 @@ from slowql.core.models import Category, Dimension, Severity
 from slowql.rules.base import PatternRule
 
 __all__ = [
-    'DuplicateConditionRule',
+    "DuplicateConditionRule",
 ]
 
 
@@ -27,9 +27,7 @@ class DuplicateConditionRule(PatternRule):
     dimension = Dimension.QUALITY
     category = Category.QUAL_DRY
 
-    pattern = (
-        r"\bWHERE\b.+\b(\w+)\s*=\s*('[^']*'|\d+)\s+AND\s+\1\s*=\s*\2"
-    )
+    pattern = r"\bWHERE\b.+\b(\w+)\s*=\s*('[^']*'|\d+)\s+AND\s+\1\s*=\s*\2"
     message_template = "Duplicate WHERE condition detected — possible copy-paste error: {match}"
 
     impact = (

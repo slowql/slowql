@@ -14,7 +14,7 @@ def verify_rules():
         "quality": 30,
         "cost": 20,
         "reliability": 19,
-        "compliance": 18
+        "compliance": 18,
     }
 
     total_loaded = 0
@@ -31,7 +31,9 @@ def verify_rules():
         if count != expected:
             all_passed = False
 
-        print(f"Analyzer: {analyzer.name:12} | Rules: {count:3} | Expected: {expected:3} | {status}")
+        print(
+            f"Analyzer: {analyzer.name:12} | Rules: {count:3} | Expected: {expected:3} | {status}"
+        )
 
     print("-" * 45)
     print(f"Total Rules Loaded: {total_loaded}")
@@ -43,6 +45,7 @@ def verify_rules():
     else:
         print("\n⚠️ FAILURE: Rule counts do not match expectations.")
         return 1
+
 
 if __name__ == "__main__":
     sys.exit(verify_rules())

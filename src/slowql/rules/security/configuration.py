@@ -8,12 +8,12 @@ from slowql.core.models import Category, Dimension, Severity
 from slowql.rules.base import PatternRule
 
 __all__ = [
-    'DangerousServerConfigRule',
-    'DefaultCredentialUsageRule',
-    'HardcodedCredentialsRule',
-    'OverlyPermissiveAccessRule',
-    'OverprivilegedExecutionContextRule',
-    'WeakSSLConfigRule',
+    "DangerousServerConfigRule",
+    "DefaultCredentialUsageRule",
+    "HardcodedCredentialsRule",
+    "OverlyPermissiveAccessRule",
+    "OverprivilegedExecutionContextRule",
+    "WeakSSLConfigRule",
 ]
 
 
@@ -120,14 +120,12 @@ class WeakSSLConfigRule(PatternRule):
 
     id = "SEC-CONFIG-002"
     name = "Weak SSL/TLS Configuration"
-    description = (
-        "Detects connection settings that disable encryption or use weak protocols."
-    )
+    description = "Detects connection settings that disable encryption or use weak protocols."
     severity = Severity.HIGH
     dimension = Dimension.SECURITY
     category = Category.SEC_AUTHENTICATION
 
-    pattern = r'(Encrypt\s*=\s*(false|no|0)|TrustServerCertificate\s*=\s*true|sslmode\s*=\s*(disable|allow|prefer)|ssl\s*=\s*(false|0))'
+    pattern = r"(Encrypt\s*=\s*(false|no|0)|TrustServerCertificate\s*=\s*true|sslmode\s*=\s*(disable|allow|prefer)|ssl\s*=\s*(false|0))"
 
     impact = (
         "Disabling SSL/TLS exposes all data in transit to interception. Man-in-the-middle attacks can "
@@ -182,6 +180,6 @@ class OverlyPermissiveAccessRule(PatternRule):
         "Attackers can brute-force credentials from anywhere. Should be limited to application server IPs only."
     )
     fix_guidance = (
-        "Restrict access to specific IP addresses: @\'10.0.1.5\'. Use firewall rules. Implement VPC/private "
+        "Restrict access to specific IP addresses: @'10.0.1.5'. Use firewall rules. Implement VPC/private "
         "networking. For cloud databases, use private endpoints only."
     )

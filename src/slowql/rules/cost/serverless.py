@@ -8,8 +8,8 @@ from slowql.core.models import Category, Dimension, Severity
 from slowql.rules.base import PatternRule
 
 __all__ = [
-    'ColdStartQueryPatternRule',
-    'UnnecessaryConnectionPoolingRule',
+    "ColdStartQueryPatternRule",
+    "UnnecessaryConnectionPoolingRule",
 ]
 
 
@@ -27,7 +27,9 @@ class ColdStartQueryPatternRule(PatternRule):
     category = Category.COST_SERVERLESS
 
     pattern = r"\bSELECT\b.*\b(JOIN|UNION|INTERSECT|EXCEPT)\b.*\b(GROUP\s+BY|ORDER\s+BY|DISTINCT)\b"
-    message_template = "Complex query in serverless environment: potential cold start and scaling cost: {match}"
+    message_template = (
+        "Complex query in serverless environment: potential cold start and scaling cost: {match}"
+    )
 
     impact = (
         "Complex queries trigger Aurora Capacity Unit (ACU) scaling. Each scale-up "
@@ -52,7 +54,9 @@ class UnnecessaryConnectionPoolingRule(PatternRule):
     dimension = Dimension.COST
     category = Category.COST_SERVERLESS
 
-    pattern = r"\b(SET\s+SESSION|CONNECTION\s+TIMEOUT\s*=\s*\d{4,}|KEEP\s+ALIVE|POOLING\s*=\s*TRUE)\b"
+    pattern = (
+        r"\b(SET\s+SESSION|CONNECTION\s+TIMEOUT\s*=\s*\d{4,}|KEEP\s+ALIVE|POOLING\s*=\s*TRUE)\b"
+    )
     message_template = " wasteful connection management found: {match}"
 
     impact = (

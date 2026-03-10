@@ -8,9 +8,9 @@ from slowql.core.models import Category, Dimension, Severity
 from slowql.rules.base import PatternRule
 
 __all__ = [
-    'IndexHintRule',
-    'ParallelQueryHintRule',
-    'QueryOptimizerHintRule',
+    "IndexHintRule",
+    "ParallelQueryHintRule",
+    "QueryOptimizerHintRule",
 ]
 
 
@@ -31,7 +31,9 @@ class QueryOptimizerHintRule(PatternRule):
         "Query hints freeze execution plans. As data grows and distribution changes, hinted plans become suboptimal. "
         "Hints hide underlying issues (missing indexes, bad statistics)."
     )
-    fix_guidance = "Remove hints and fix root cause: update statistics, add indexes, simplify query."
+    fix_guidance = (
+        "Remove hints and fix root cause: update statistics, add indexes, simplify query."
+    )
 
 
 class IndexHintRule(PatternRule):
@@ -71,4 +73,6 @@ class ParallelQueryHintRule(PatternRule):
         "MAXDOP hints override server-level parallelism. MAXDOP 1 forces single-threaded execution. "
         "High MAXDOP values can starve other queries of CPU."
     )
-    fix_guidance = "Use server or database-level MAXDOP settings. Per-query hints are rarely justified."
+    fix_guidance = (
+        "Use server or database-level MAXDOP settings. Per-query hints are rarely justified."
+    )

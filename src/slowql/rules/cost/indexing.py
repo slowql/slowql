@@ -12,10 +12,10 @@ from slowql.core.models import Category, Dimension, Issue, Query, Severity
 from slowql.rules.base import ASTRule, PatternRule
 
 __all__ = [
-    'DuplicateIndexSignalRule',
-    'MissingCoveringIndexOpportunityRule',
-    'OverIndexedTableSignalRule',
-    'RedundantIndexColumnOrderRule',
+    "DuplicateIndexSignalRule",
+    "MissingCoveringIndexOpportunityRule",
+    "OverIndexedTableSignalRule",
+    "RedundantIndexColumnOrderRule",
 ]
 
 
@@ -61,7 +61,9 @@ class OverIndexedTableSignalRule(PatternRule):
     category = Category.COST_INDEX_WASTE
 
     pattern = r"(CREATE\s+INDEX\s+\w+\s+ON\s+(\w+)[\s\S]*?){3,}"
-    message_template = "Over-indexed table signal: multiple CREATE INDEX statements found for the same table."
+    message_template = (
+        "Over-indexed table signal: multiple CREATE INDEX statements found for the same table."
+    )
 
     impact = (
         "Tables with 10+ indexes pay massive write penalties. Each INSERT updates all "
@@ -69,8 +71,7 @@ class OverIndexedTableSignalRule(PatternRule):
         "consumed by index maintenance."
     )
     fix_guidance = (
-        "Audit index usage and drop unused indexes. Consolidate into composite or "
-        "covering indexes."
+        "Audit index usage and drop unused indexes. Consolidate into composite or covering indexes."
     )
 
 
@@ -144,7 +145,9 @@ class RedundantIndexColumnOrderRule(PatternRule):
     category = Category.COST_INDEX_OPTIMIZATION
 
     pattern = r"\bCREATE\s+INDEX\s+\w+\s+ON\s+\w+\s*\((\w+)\s*,\s*(\w+)"
-    message_template = "Composite index column order signal: check if order matches query patterns: {match}"
+    message_template = (
+        "Composite index column order signal: check if order matches query patterns: {match}"
+    )
 
     impact = (
         "Index (col_B, col_A) cannot optimize WHERE col_A = ?. Column order matters. "

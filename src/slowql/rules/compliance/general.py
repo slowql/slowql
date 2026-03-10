@@ -8,9 +8,9 @@ from slowql.core.models import Category, Dimension, Severity
 from slowql.rules.base import PatternRule
 
 __all__ = [
-    'AuditLogTamperingRule',
-    'RetentionPolicyMissingRule',
-    'UnencryptedSensitiveColumnRule',
+    "AuditLogTamperingRule",
+    "RetentionPolicyMissingRule",
+    "UnencryptedSensitiveColumnRule",
 ]
 
 
@@ -33,7 +33,9 @@ class UnencryptedSensitiveColumnRule(PatternRule):
         r"\bCREATE\s+TABLE\b.+\b(password|secret|token|ssn|credit_card|cvv|pin)\b"
         r".+\b(VARCHAR|TEXT|CHAR)\b"
     )
-    message_template = "Sensitive column defined with plain text type — consider encryption: {match}"
+    message_template = (
+        "Sensitive column defined with plain text type — consider encryption: {match}"
+    )
 
     impact = (
         "Storing sensitive values in plain text columns violates PCI-DSS, HIPAA, "
@@ -65,7 +67,9 @@ class RetentionPolicyMissingRule(PatternRule):
         r"\bCREATE\s+TABLE\b.+\b(audit|audits|audit_log|event_log|history|"
         r"logs|access_log|activity_log)\b"
     )
-    message_template = "Table with audit/log naming detected — verify retention policy exists: {match}"
+    message_template = (
+        "Table with audit/log naming detected — verify retention policy exists: {match}"
+    )
 
     impact = (
         "Indefinite retention of audit and log data violates GDPR storage "
@@ -96,7 +100,9 @@ class AuditLogTamperingRule(PatternRule):
         r"\b(DELETE\s+FROM|UPDATE)\s+\w*(audit|audit_log|event_log|access_log|"
         r"activity_log|audit_trail|system_log)\w*\b"
     )
-    message_template = "Modification of audit/log table detected — potential compliance violation: {match}"
+    message_template = (
+        "Modification of audit/log table detected — potential compliance violation: {match}"
+    )
 
     impact = (
         "Modifying audit logs violates regulatory non-repudiation requirements "

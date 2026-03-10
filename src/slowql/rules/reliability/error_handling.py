@@ -8,8 +8,8 @@ from slowql.core.models import Category, Dimension, Severity
 from slowql.rules.base import PatternRule
 
 __all__ = [
-    'ExceptionSwallowedRule',
-    'LongTransactionWithoutSavepointRule',
+    "ExceptionSwallowedRule",
+    "LongTransactionWithoutSavepointRule",
 ]
 
 
@@ -59,7 +59,9 @@ class LongTransactionWithoutSavepointRule(PatternRule):
     category = Category.REL_RECOVERY
 
     pattern = r"\bSAVEPOINT\b"
-    message_template = "Long transaction detected — consider using SAVEPOINTs for partial recovery: {match}"
+    message_template = (
+        "Long transaction detected — consider using SAVEPOINTs for partial recovery: {match}"
+    )
     impact = (
         "A failure in step 10 of a 10-step transaction forces rollback of all "
         "previous steps. Savepoints allow partial recovery and reduce re-work cost."

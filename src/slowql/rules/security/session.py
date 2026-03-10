@@ -8,8 +8,8 @@ from slowql.core.models import Category, Dimension, Severity
 from slowql.rules.base import PatternRule
 
 __all__ = [
-    'InsecureSessionTokenStorageRule',
-    'SessionTimeoutNotEnforcedRule',
+    "InsecureSessionTokenStorageRule",
+    "SessionTimeoutNotEnforcedRule",
 ]
 
 

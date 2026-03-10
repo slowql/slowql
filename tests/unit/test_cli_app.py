@@ -236,9 +236,7 @@ class TestExportFunctions:
     @patch("slowql.cli.app.export_interactive")
     @patch("slowql.cli.app.console")
     @patch("slowql.cli.app.Prompt")
-    def test_show_quick_actions_menu_export_fallback(
-        self, mock_prompt, _mock_console, mock_export
-    ):
+    def test_show_quick_actions_menu_export_fallback(self, mock_prompt, _mock_console, mock_export):
         """Test show_quick_actions_menu fallback with export selection."""
         # Mock Prompt.ask to return "1" (export option)
         mock_prompt.ask.return_value = "1"
@@ -275,9 +273,7 @@ class TestExportFunctions:
 
     @patch("slowql.cli.app.console")
     @patch("slowql.cli.app.Prompt")
-    def test_show_quick_actions_menu_continue_fallback(
-        self, mock_prompt, _mock_console
-    ):
+    def test_show_quick_actions_menu_continue_fallback(self, mock_prompt, _mock_console):
         """Test show_quick_actions_menu fallback with continue selection."""
         # Mock Prompt.ask to return "2" (continue option)
         mock_prompt.ask.return_value = "2"
@@ -292,9 +288,7 @@ class TestExportFunctions:
 
     @patch("slowql.cli.app.console")
     @patch("slowql.cli.app.Prompt")
-    def test_show_quick_actions_menu_exit_fallback(
-        self, mock_prompt, _mock_console
-    ):
+    def test_show_quick_actions_menu_exit_fallback(self, mock_prompt, _mock_console):
         """Test show_quick_actions_menu fallback with exit selection."""
         # Mock Prompt.ask to return "3" (exit option)
         mock_prompt.ask.return_value = "3"
@@ -310,9 +304,7 @@ class TestExportFunctions:
     @patch("slowql.cli.app._run_exports")
     @patch("slowql.cli.app.console")
     @patch("slowql.cli.app.Prompt")
-    def test_export_interactive_json_fallback(
-        self, mock_prompt, _mock_console, mock_run_exports
-    ):
+    def test_export_interactive_json_fallback(self, mock_prompt, _mock_console, mock_run_exports):
         """Test export_interactive fallback with JSON selection."""
         mock_prompt.ask.return_value = "1"
 
@@ -327,9 +319,7 @@ class TestExportFunctions:
     @patch("slowql.cli.app._run_exports")
     @patch("slowql.cli.app.console")
     @patch("slowql.cli.app.Prompt")
-    def test_export_interactive_all_fallback(
-        self, mock_prompt, _mock_console, mock_run_exports
-    ):
+    def test_export_interactive_all_fallback(self, mock_prompt, _mock_console, mock_run_exports):
         """Test export_interactive fallback with All selection."""
         mock_prompt.ask.return_value = "4"
 
@@ -394,9 +384,7 @@ class TestCompareMode:
     @patch("builtins.input")
     @patch("slowql.cli.app.console")
     @patch("slowql.cli.app.Progress")
-    def test_compare_mode_eof_error(
-        self, _mock_progress, _mock_console, mock_input
-    ):
+    def test_compare_mode_eof_error(self, _mock_progress, _mock_console, mock_input):
         """Test compare mode with EOFError."""
         # First input succeeds, then EOFError
         mock_input.side_effect = ["SELECT * FROM test1", "", EOFError(), "", "", ""]
@@ -410,9 +398,7 @@ class TestCompareMode:
     @patch("builtins.input")
     @patch("slowql.cli.app.console")
     @patch("slowql.cli.app.Progress")
-    def test_compare_mode_second_query_eof_error(
-        self, _mock_progress, _mock_console, mock_input
-    ):
+    def test_compare_mode_second_query_eof_error(self, _mock_progress, _mock_console, mock_input):
         """Test compare mode with EOFError on second query."""
         # First query succeeds, second gets EOFError
         mock_input.side_effect = ["SELECT * FROM test1", "", "", EOFError()]
@@ -844,7 +830,7 @@ class TestRunAnalysisLoop:
 
         def increment_queries_analyzed(_result):
             mock_session.queries_analyzed += 1
-            if hasattr(_result, 'issues'):
+            if hasattr(_result, "issues"):
                 mock_session.total_issues += len(_result.issues)
 
         mock_session.add_analysis.side_effect = increment_queries_analyzed

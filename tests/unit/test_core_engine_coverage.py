@@ -65,9 +65,10 @@ class TestSlowQLEngineCoverage:
         engine = SlowQL(config=mock_config)
 
         # specific SlowQLError re-raise
-        with patch.object(
-            engine, "analyze_file", side_effect=SlowQLError("Slow error")
-        ), pytest.raises(SlowQLError):
+        with (
+            patch.object(engine, "analyze_file", side_effect=SlowQLError("Slow error")),
+            pytest.raises(SlowQLError),
+        ):
             engine.analyze_files(["a.sql"])
 
         # generic Exception wrapping

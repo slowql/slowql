@@ -11,12 +11,12 @@ from slowql.core.models import Category, Dimension, Issue, Query, Severity
 from slowql.rules.base import ASTRule, PatternRule
 
 __all__ = [
-    'ConsentTableMissingRule',
-    'ConsentWithdrawalRule',
-    'CrossBorderDataTransferRule',
-    'DataExportCompletenessRule',
-    'PIIExposureRule',
-    'RightToErasureRule',
+    "ConsentTableMissingRule",
+    "ConsentWithdrawalRule",
+    "CrossBorderDataTransferRule",
+    "DataExportCompletenessRule",
+    "PIIExposureRule",
+    "RightToErasureRule",
 ]
 
 
@@ -55,7 +55,9 @@ class CrossBorderDataTransferRule(PatternRule):
         r"|\bCREATE\s+SERVER\b"
         r"|\bCREATE\s+FOREIGN\s+TABLE\b"
     )
-    message_template = "Cross-database or foreign data access detected — verify GDPR transfer compliance: {match}"
+    message_template = (
+        "Cross-database or foreign data access detected — verify GDPR transfer compliance: {match}"
+    )
 
     impact = (
         "Transferring personal data to foreign servers in non-adequate countries "
@@ -120,7 +122,9 @@ class ConsentTableMissingRule(PatternRule):
         r"\bINSERT\s+INTO\s+\w*(marketing|newsletter|mailing_list|campaign|"
         r"subscribers|email_list)\w*\b"
     )
-    message_template = "INSERT into marketing/communication table — verify GDPR consent was recorded: {match}"
+    message_template = (
+        "INSERT into marketing/communication table — verify GDPR consent was recorded: {match}"
+    )
 
     impact = (
         "Adding users to marketing lists without recorded consent violates GDPR "
@@ -150,11 +154,16 @@ class DataExportCompletenessRule(ASTRule):
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []
         # Look for export-like queries
-        if query.query_type == "SELECT" and re.search(r"\b(export|dsar|access_request|subject_data)\b", query.raw, re.IGNORECASE):
+        if query.query_type == "SELECT" and re.search(
+            r"\b(export|dsar|access_request|subject_data)\b", query.raw, re.IGNORECASE
+        ):
             tables = self._get_tables(ast)
             # If exporting from 'users' but not joining 'activity_logs' or similar
             if any(t.lower() == "users" for t in tables):
-                if not any(t.lower() in ("activity_logs", "user_logs", "audit_log", "metadata") for t in tables):
+                if not any(
+                    t.lower() in ("activity_logs", "user_logs", "audit_log", "metadata")
+                    for t in tables
+                ):
                     issues.append(
                         self.create_issue(
                             query=query,
@@ -196,7 +205,9 @@ class ConsentWithdrawalRule(ASTRule):
             tables = self._get_tables(ast)
             if any(t.lower() in self._pii_tables for t in tables):
                 where_cols = self._get_where_columns(ast)
-                if not any(c in ("consent", "consent_status", "opt_in", "active") for c in where_cols):
+                if not any(
+                    c in ("consent", "consent_status", "opt_in", "active") for c in where_cols
+                ):
                     issues.append(
                         self.create_issue(
                             query=query,

@@ -12,9 +12,9 @@ from slowql.core.models import Category, Dimension, Issue, Query, Severity
 from slowql.rules.base import ASTRule, PatternRule
 
 __all__ = [
-    'CrossDatabaseJoinRule',
-    'DistributedTransactionOverheadRule',
-    'MultiRegionQueryLatencyRule',
+    "CrossDatabaseJoinRule",
+    "DistributedTransactionOverheadRule",
+    "MultiRegionQueryLatencyRule",
 ]
 
 
@@ -109,7 +109,9 @@ class DistributedTransactionOverheadRule(PatternRule):
     category = Category.COST_DISTRIBUTED
 
     pattern = r"\b(BEGIN\s+DISTRIBUTED\s+TRANSACTION|XA\s+START|START\s+TRANSACTION\s+WITH\s+CONSISTENT\s+SNAPSHOT)\b"
-    message_template = "Distributed transaction detected: major performance and cost overhead: {match}"
+    message_template = (
+        "Distributed transaction detected: major performance and cost overhead: {match}"
+    )
 
     impact = (
         "Distributed transactions require 2-phase commit across nodes, holding locks "

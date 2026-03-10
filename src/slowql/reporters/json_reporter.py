@@ -20,6 +20,7 @@ from slowql.reporters.base import BaseReporter
 if TYPE_CHECKING:
     from slowql.core.models import AnalysisResult
 
+
 class JSONReporter(BaseReporter):
     """
     Renders analysis results as JSON.

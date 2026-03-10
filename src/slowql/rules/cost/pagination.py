@@ -13,9 +13,9 @@ from slowql.core.models import Category, Dimension, Issue, Query, Severity
 from slowql.rules.base import ASTRule, PatternRule
 
 __all__ = [
-    'CountStarForPaginationRule',
-    'DeepPaginationWithoutCursorRule',
-    'OffsetPaginationWithoutCoveringIndexRule',
+    "CountStarForPaginationRule",
+    "DeepPaginationWithoutCursorRule",
+    "OffsetPaginationWithoutCoveringIndexRule",
 ]
 
 
@@ -54,7 +54,9 @@ class OffsetPaginationWithoutCoveringIndexRule(ASTRule):
                                         order_cols.append(col.name.lower())
 
                         likely_indexed = {"id", "created_at", "updated_at", "timestamp", "date"}
-                        uses_pk = any(col in likely_indexed or col.endswith("_id") for col in order_cols)
+                        uses_pk = any(
+                            col in likely_indexed or col.endswith("_id") for col in order_cols
+                        )
 
                         if not uses_pk:
                             issues.append(
@@ -112,13 +114,13 @@ class DeepPaginationWithoutCursorRule(ASTRule):
                             offset_value = int(offset_expr.this)
                         except (ValueError, AttributeError):
                             pass
-                    elif isinstance(offset_obj, exp.Literal): # Fallback
+                    elif isinstance(offset_obj, exp.Literal):  # Fallback
                         try:
                             offset_value = int(offset_obj.this)
                         except (ValueError, AttributeError):
                             pass
                 else:
-                    match = re.search(r'OFFSET\s+(\d+)', query.raw, re.IGNORECASE)
+                    match = re.search(r"OFFSET\s+(\d+)", query.raw, re.IGNORECASE)
                     if match:
                         try:
                             offset_value = int(match.group(1))

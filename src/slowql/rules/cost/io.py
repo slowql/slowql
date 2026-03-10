@@ -12,7 +12,7 @@ from slowql.core.models import Category, Dimension, Fix, Issue, Query, Severity
 from slowql.rules.base import ASTRule
 
 __all__ = [
-    'RedundantOrderByRule',
+    "RedundantOrderByRule",
 ]
 
 
@@ -37,8 +37,8 @@ class RedundantOrderByRule(ASTRule):
                 inner_select = getattr(node, "this", None)
                 if isinstance(inner_select, exp.Select):
                     args = getattr(inner_select, "args", {})
-                    if args.get('order'):
-                        has_limit = args.get('limit') is not None
+                    if args.get("order"):
+                        has_limit = args.get("limit") is not None
                         if not has_limit:
                             issues.append(
                                 self.create_issue(

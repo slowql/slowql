@@ -8,10 +8,10 @@ from slowql.core.models import Category, Dimension, Severity
 from slowql.rules.base import PatternRule
 
 __all__ = [
-    'LocalFileInclusionRule',
-    'OSCommandInjectionRule',
-    'PathTraversalRule',
-    'SSRFViaDatabaseRule',
+    "LocalFileInclusionRule",
+    "OSCommandInjectionRule",
+    "PathTraversalRule",
+    "SSRFViaDatabaseRule",
 ]
 
 
@@ -28,7 +28,7 @@ class OSCommandInjectionRule(PatternRule):
     dimension = Dimension.SECURITY
     category = Category.SEC_INJECTION
 
-    pattern = r'\b(xp_cmdshell|sp_OACreate|sp_OAMethod|SHELL|EXEC\s+master\.\.xp_cmdshell|pg_read_file|pg_execute_server_program)\b'
+    pattern = r"\b(xp_cmdshell|sp_OACreate|sp_OAMethod|SHELL|EXEC\s+master\.\.xp_cmdshell|pg_read_file|pg_execute_server_program)\b"
 
     impact = (
         "OS command execution from SQL gives attackers full server access. xp_cmdshell with user input "
@@ -46,9 +46,7 @@ class PathTraversalRule(PatternRule):
 
     id = "SEC-PATH-001"
     name = "Path Traversal in File Operations"
-    description = (
-        "Detects file operations with user input that could enable directory traversal attacks (../, ..)."
-    )
+    description = "Detects file operations with user input that could enable directory traversal attacks (../, ..)."
     severity = Severity.HIGH
     dimension = Dimension.SECURITY
     category = Category.SEC_ACCESS
@@ -70,14 +68,12 @@ class LocalFileInclusionRule(PatternRule):
 
     id = "SEC-PATH-002"
     name = "Local File Inclusion"
-    description = (
-        "Detects dynamic loading of SQL files or stored procedures that could enable arbitrary code execution."
-    )
+    description = "Detects dynamic loading of SQL files or stored procedures that could enable arbitrary code execution."
     severity = Severity.HIGH
     dimension = Dimension.SECURITY
     category = Category.SEC_INJECTION
 
-    pattern = r'\b(EXECUTE|EXEC|SOURCE|\\i|@)\b[^;]*(\+|CONCAT|\|\|)[^;]*\.sql\b'
+    pattern = r"\b(EXECUTE|EXEC|SOURCE|\\i|@)\b[^;]*(\+|CONCAT|\|\|)[^;]*\.sql\b"
 
     impact = (
         "Including SQL files based on user input allows attackers to execute arbitrary SQL code. "

@@ -10,10 +10,10 @@ from slowql.core.models import Category, Dimension, Fix, Issue, Query, Severity
 from slowql.rules.base import ASTRule, PatternRule
 
 __all__ = [
-    'LongTransactionPatternRule',
-    'MissingTransactionIsolationRule',
-    'ReadUncommittedHintRule',
-    'TableLockHintRule',
+    "LongTransactionPatternRule",
+    "MissingTransactionIsolationRule",
+    "ReadUncommittedHintRule",
+    "TableLockHintRule",
 ]
 
 
@@ -27,7 +27,9 @@ class TableLockHintRule(PatternRule):
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_LOCK
 
-    pattern = r"\bWITH\s*\(\s*(TABLOCK|TABLOCKX|HOLDLOCK|XLOCK|PAGLOCK|ROWLOCK|UPDLOCK|SERIALIZABLE)\s*\)"
+    pattern = (
+        r"\bWITH\s*\(\s*(TABLOCK|TABLOCKX|HOLDLOCK|XLOCK|PAGLOCK|ROWLOCK|UPDLOCK|SERIALIZABLE)\s*\)"
+    )
     message_template = "Extremely restrictive locking hint detected: {match}"
 
     impact = (
@@ -54,7 +56,9 @@ class ReadUncommittedHintRule(PatternRule):
         "NOLOCK reads uncommitted data (dirty reads), can skip rows, read rows twice, "
         "or return phantom data. It's not 'faster' — it's 'wrong'."
     )
-    fix_guidance = "Use READ COMMITTED SNAPSHOT ISOLATION (RCSI) for non-blocking reads without dirty reads."
+    fix_guidance = (
+        "Use READ COMMITTED SNAPSHOT ISOLATION (RCSI) for non-blocking reads without dirty reads."
+    )
 
 
 class LongTransactionPatternRule(PatternRule):
@@ -62,7 +66,9 @@ class LongTransactionPatternRule(PatternRule):
 
     id = "PERF-LOCK-003"
     name = "Long Transaction Pattern"
-    description = "Detects patterns indicating potentially long-running transactions that hold locks."
+    description = (
+        "Detects patterns indicating potentially long-running transactions that hold locks."
+    )
     severity = Severity.HIGH
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_LOCK
@@ -91,23 +97,25 @@ class MissingTransactionIsolationRule(ASTRule):
         issues = []
         query_upper = query.raw.upper()
 
-        has_begin_tran = 'BEGIN TRAN' in query_upper or 'BEGIN TRANSACTION' in query_upper
-        has_isolation = 'ISOLATION LEVEL' in query_upper
+        has_begin_tran = "BEGIN TRAN" in query_upper or "BEGIN TRANSACTION" in query_upper
+        has_isolation = "ISOLATION LEVEL" in query_upper
 
         if has_begin_tran and not has_isolation:
-            issues.append(self.create_issue(
-                query=query,
-                message="Transaction without explicit isolation level - behavior depends on server defaults",
-                snippet=query.raw[:100],
-                impact=(
-                    "Default isolation levels vary by database and configuration. Code that works in development "
-                    "may behave differently in production, causing subtle bugs or blocking."
-                ),
-                fix=Fix(
-                    description="Explicitly set isolation level: SET TRANSACTION ISOLATION LEVEL READ COMMITTED.",
-                    replacement="",
-                    is_safe=False,
-                ),
-            ))
+            issues.append(
+                self.create_issue(
+                    query=query,
+                    message="Transaction without explicit isolation level - behavior depends on server defaults",
+                    snippet=query.raw[:100],
+                    impact=(
+                        "Default isolation levels vary by database and configuration. Code that works in development "
+                        "may behave differently in production, causing subtle bugs or blocking."
+                    ),
+                    fix=Fix(
+                        description="Explicitly set isolation level: SET TRANSACTION ISOLATION LEVEL READ COMMITTED.",
+                        replacement="",
+                        is_safe=False,
+                    ),
+                )
+            )
 
         return issues

@@ -20,9 +20,10 @@ class MockEp:
 class TestAnalyzerRegistryCoverage:
     def test_discover_py39(self) -> None:
         # Mock sys.version_info to be 3.9
-        with patch("sys.version_info", (3, 9)), patch(
-            "importlib.metadata.entry_points"
-        ) as mock_eps:
+        with (
+            patch("sys.version_info", (3, 9)),
+            patch("importlib.metadata.entry_points") as mock_eps,
+        ):
             # Python < 3.10 returns dict of lists
             mock_analyzer_cls = MagicMock()
             mock_analyzer_cls.name = "mock_ana"
@@ -93,8 +94,9 @@ class TestAnalyzerRegistryCoverage:
 
     def test_load_builtins_exception(self) -> None:
         registry = AnalyzerRegistry()
-        with patch("builtins.__import__", side_effect=Exception("Crash")), patch(
-            "sys.stderr.write"
+        with (
+            patch("builtins.__import__", side_effect=Exception("Crash")),
+            patch("sys.stderr.write"),
         ):
             count = registry._load_builtin_analyzers()
             assert count == 0

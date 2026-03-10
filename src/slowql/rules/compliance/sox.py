@@ -11,8 +11,8 @@ from slowql.core.models import Category, Dimension, Issue, Query, Severity
 from slowql.rules.base import ASTRule, PatternRule
 
 __all__ = [
-    'FinancialChangeTrackingRule',
-    'SegregationOfDutiesRule',
+    "FinancialChangeTrackingRule",
+    "SegregationOfDutiesRule",
 ]
 
 
@@ -31,8 +31,16 @@ class FinancialChangeTrackingRule(ASTRule):
     category = Category.COMP_SOX
 
     _financial_tables = {
-        "ledger", "accounts", "payments", "salaries", "payroll", "revenue",
-        "expenses", "general_ledger", "trial_balance", "balance_sheet"
+        "ledger",
+        "accounts",
+        "payments",
+        "salaries",
+        "payroll",
+        "revenue",
+        "expenses",
+        "general_ledger",
+        "trial_balance",
+        "balance_sheet",
     }
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
@@ -41,7 +49,11 @@ class FinancialChangeTrackingRule(ASTRule):
             tables = self._get_tables(ast)
             if any(t.lower() in self._financial_tables for t in tables):
                 # Check for ticket/reason in query string (raw) as it's often in comments
-                if not re.search(r"\b(ticket|req|reason|change_id|ref|bug|jira)\s*[:=]?\s*\w+\b", query.raw, re.IGNORECASE):
+                if not re.search(
+                    r"\b(ticket|req|reason|change_id|ref|bug|jira)\s*[:=]?\s*\w+\b",
+                    query.raw,
+                    re.IGNORECASE,
+                ):
                     issues.append(
                         self.create_issue(
                             query=query,
@@ -75,9 +87,7 @@ class SegregationOfDutiesRule(PatternRule):
     dimension = Dimension.COMPLIANCE
     category = Category.COMP_SOX
 
-    pattern = (
-        r"\bUPDATE\s+.*?\bSET\s+.*?\b(approved_by|status)\b.*?\bWHERE\b.*?\bcreated_by\b"
-    )
+    pattern = r"\bUPDATE\s+.*?\bSET\s+.*?\b(approved_by|status)\b.*?\bWHERE\b.*?\bcreated_by\b"
     message_template = "Potential Segregation of Duties violation: User attempting to approve their own creation: {match}"
 
     impact = (
