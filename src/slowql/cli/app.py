@@ -544,7 +544,8 @@ def _handle_loop_end(
         console.print("\n")
         session.display_summary()
 
-        if Confirm.ask("\n[cyan]Export session history?[/cyan]", default=False):
+        # Auto-export in non-interactive mode, no prompt
+        if out_dir:
             session_file = session.export_session()
             console.print(f"[green]✓ Session exported:[/green] {session_file}")
 
