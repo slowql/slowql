@@ -519,7 +519,19 @@ def _handle_sql_input(
     """Get SQL payload from file or user input and update first_run status."""
     sql_payload: str | None = ""
     if input_file and first_run:
-        sql_payload = input_file.read_text(encoding="utf-8")
+        if input_file.is_dir():
+            # Read all .sql files in directory
+            sql_files = sorted(input_file.glob("*.sql"))
+            if not sql_files:
+                console.print(f"[yellow]No .sql files found in {input_file}[/yellow]")
+                return None, True
+            sql_parts = []
+            for sf in sql_files:
+                console.print(f"[dim]Reading {sf.name}...[/dim]")
+                sql_parts.append(sf.read_text(encoding="utf-8"))
+            sql_payload = "\n;\n".join(sql_parts)
+        else:
+            sql_payload = input_file.read_text(encoding="utf-8")
         if not sql_payload.strip():
             console.print("[yellow]Input file is empty[/yellow]")
             return None, True  # Continue loop, but don't process
