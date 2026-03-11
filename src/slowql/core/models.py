@@ -435,6 +435,8 @@ class Query:
     normalized: str
     dialect: str
     location: Location
+    start_offset: int | None = None
+    end_offset: int | None = None
     ast: Any = None
     tables: tuple[str, ...] = field(default_factory=tuple)
     columns: tuple[str, ...] = field(default_factory=tuple)
