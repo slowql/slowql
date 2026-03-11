@@ -927,10 +927,15 @@ def main(argv: list[str] | None = None) -> None:
     # Handle positional file arg compatibility
     input_file = args.file or args.input_file
 
-    if args.diff and args.fix:
+    args_dict = getattr(args, "__dict__", {})
+    diff_enabled = bool(args_dict.get("diff", False))
+    fix_enabled = bool(args_dict.get("fix", False))
+    export_session_enabled = bool(args_dict.get("export_session", False))
+
+    if diff_enabled and fix_enabled:
         parser.error("--diff and --fix cannot be used together")
 
-    if args.fix:
+    if fix_enabled:
         if input_file is None:
             parser.error("--fix currently requires --input-file or a positional file")
         if not input_file.exists():
@@ -939,22 +944,28 @@ def main(argv: list[str] | None = None) -> None:
             parser.error("--fix currently supports only a single file, not a directory")
 
     # Run analysis loop
-    run_analysis_loop(
-        intro_enabled=not args.no_intro,
-        intro_duration=args.duration,
-        mode=args.mode,
-        initial_input_file=input_file,
-        export_formats=args.export,
-        out_dir=args.out,
-        fast=args.fast,
-        verbose=args.verbose,
-        non_interactive=args.non_interactive,
-        enable_cache=not args.no_cache,
-        enable_comparison=args.compare,
-        show_diff=args.diff,
-        export_session_history=args.export_session,
-        apply_fixes=args.fix,
-    )
+    loop_kwargs = {
+        "intro_enabled": not args.no_intro,
+        "intro_duration": args.duration,
+        "mode": args.mode,
+        "initial_input_file": input_file,
+        "export_formats": args.export,
+        "out_dir": args.out,
+        "fast": args.fast,
+        "verbose": args.verbose,
+        "non_interactive": args.non_interactive,
+        "enable_cache": not args.no_cache,
+        "enable_comparison": args.compare,
+    }
+
+    if diff_enabled:
+        loop_kwargs["show_diff"] = True
+    if export_session_enabled:
+        loop_kwargs["export_session_history"] = True
+    if fix_enabled:
+        loop_kwargs["apply_fixes"] = True
+
+    run_analysis_loop(**loop_kwargs)
 
 
 if __name__ == "__main__":

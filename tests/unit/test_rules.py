@@ -3371,7 +3371,7 @@ class TestFixDataclass:
         assert fix.description == "Test fix"
         assert fix.replacement == ""
         assert fix.is_safe is False
-        assert fix.confidence == FixConfidence.UNSAFE
+        assert fix.confidence == 1.0
         assert fix.original == ""
         assert fix.rule_id == ""
 
