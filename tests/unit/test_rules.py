@@ -1547,6 +1547,38 @@ class TestWildcardInColumnListRule:
     def test_regular_select_star(self):
         assert not self.rule.check(_make_query("SELECT * FROM users"))
 
+    def test_suggest_fix_exists_select_star(self):
+        sql = "SELECT id FROM users WHERE EXISTS (SELECT * FROM orders WHERE orders.user_id = users.id)"
+        query = _make_query(sql)
+        fix = self.rule.suggest_fix(query)
+        assert fix is not None
+        assert fix.confidence == FixConfidence.SAFE
+        assert fix.rule_id == "QUAL-STYLE-002"
+        assert fix.original == "SELECT *"
+        assert fix.replacement == "SELECT 1"
+        assert fix.is_safe is True
+        assert fix.start is not None
+        assert fix.end is not None
+        assert sql[fix.start:fix.end] == "SELECT *"
+
+    def test_suggest_fix_exists_select_one(self):
+        query = _make_query(
+            "SELECT id FROM users WHERE EXISTS (SELECT 1 FROM orders WHERE orders.user_id = users.id)"
+        )
+        fix = self.rule.suggest_fix(query)
+        assert fix is None
+
+    def test_suggest_fix_targets_inner_select_star_only(self):
+        sql = "SELECT * FROM users WHERE EXISTS (SELECT * FROM orders WHERE orders.user_id = users.id)"
+        query = _make_query(sql)
+        fix = self.rule.suggest_fix(query)
+        assert fix is not None
+        assert fix.original == "SELECT *"
+        assert fix.start is not None
+        assert fix.end is not None
+        assert sql[fix.start:fix.end] == "SELECT *"
+        assert fix.start > 0
+
 
 class TestDuplicateConditionRule:
     def setup_method(self):

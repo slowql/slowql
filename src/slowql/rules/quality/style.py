@@ -4,7 +4,9 @@ Quality Style rules.
 
 from __future__ import annotations
 
-from slowql.core.models import Category, Dimension, Severity
+import re
+
+from slowql.core.models import Category, Dimension, Fix, FixConfidence, Query, Severity
 from slowql.rules.base import PatternRule
 
 __all__ = [
@@ -69,6 +71,36 @@ class WildcardInColumnListRule(PatternRule):
         "Replace 'EXISTS (SELECT * FROM ...)' with 'EXISTS (SELECT 1 FROM ...)'. "
         "SELECT 1 clearly signals intent and is universally optimized."
     )
+
+    def suggest_fix(self, query: Query) -> Fix | None:
+        """
+        Suggest a safe fix for SELECT * inside EXISTS subqueries.
+
+        The fix targets only the exact inner SELECT * span inside EXISTS(...).
+        """
+        match = re.search(self.pattern, query.raw, re.IGNORECASE)
+        if not match:
+            return None
+
+        segment = query.raw[match.start():]
+        select_match = re.search(r"(?i)\bSELECT\s+\*", segment)
+        if not select_match:
+            return None
+
+        span_start = match.start() + select_match.start()
+        span_end = match.start() + select_match.end()
+
+        return Fix(
+            description="Replace SELECT * with SELECT 1 inside EXISTS subquery",
+            original=query.raw[span_start:span_end],
+            replacement="SELECT 1",
+            confidence=FixConfidence.SAFE,
+            rule_id=self.id,
+            is_safe=True,
+            start=span_start,
+            end=span_end,
+        )
+
 
 class MissingAliasRule(PatternRule):
     """Detects subqueries in FROM without an alias."""
