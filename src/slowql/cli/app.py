@@ -700,6 +700,24 @@ def _handle_result_output(
         export_session_history=export_session_history,
     )
 
+def _compute_fail_exit_code(result: AnalysisResult, fail_on: str | None) -> int:
+    """
+    Compute exit code for a result based on an explicit fail threshold.
+
+    Returns 0 when no explicit threshold is provided or when the threshold is not met.
+    Returns result.exit_code when the threshold is met.
+    """
+    if not fail_on or fail_on == "never":
+        return 0
+
+    threshold_weight = Severity(fail_on).weight
+    max_weight = max((issue.severity.weight for issue in result.issues), default=0)
+
+    if max_weight >= threshold_weight:
+        return result.exit_code
+
+    return 0
+
 
 def _handle_loop_end(
     non_interactive: bool,
@@ -747,7 +765,8 @@ def run_analysis_loop(
     show_diff: bool = False,
     export_session_history: bool = False,
     apply_fixes: bool = False,
-) -> None:
+    fail_on: str | None = None,
+) -> int:
     """
     Main execution pipeline with interactive loop
     """
@@ -756,7 +775,10 @@ def run_analysis_loop(
 
     # Initialize Engine
     config = Config.find_and_load()
-    engine = SlowQL(config=config.with_overrides(output={"verbose": verbose}))
+    overrides: dict[str, Any] = {"output": {"verbose": verbose}}
+    if fail_on:
+        overrides["severity"] = {"fail_on": fail_on}
+    engine = SlowQL(config=config.with_overrides(**overrides))
     formatter = ConsoleReporter()
     out_dir = safe_path(out_dir)
 
@@ -765,6 +787,7 @@ def run_analysis_loop(
 
     first_run = True
     input_file = initial_input_file
+    highest_exit_code = 0
 
     # Main analysis loop
     while True:
@@ -787,6 +810,11 @@ def run_analysis_loop(
             result = _run_analysis(sql_payload, engine, cache, fast)
             if not result:
                 continue
+
+            highest_exit_code = max(
+                highest_exit_code,
+                _compute_fail_exit_code(result, fail_on),
+            )
 
             if not _handle_result_output(
                 session=session,
@@ -827,6 +855,8 @@ def run_analysis_loop(
         )
     )
 
+    return highest_exit_code
+
 
 # -------------------------------
 # Argument Parser
@@ -865,6 +895,11 @@ def build_argparser() -> argparse.ArgumentParser:
     )
     analysis_group.add_argument(
         "--compare", action="store_true", help="Enable query comparison mode"
+    )
+    analysis_group.add_argument(
+        "--fail-on",
+        choices=["critical", "high", "medium", "low", "info", "never"],
+        help="Set failure threshold based on issue severity",
     )
 
     # Output options
@@ -916,7 +951,7 @@ def build_argparser() -> argparse.ArgumentParser:
 # -------------------------------
 
 
-def main(argv: list[str] | None = None) -> None:
+def main(argv: list[str] | None = None) -> int:
     """
     Enhanced CLI entry point with analysis loop
     """
@@ -965,8 +1000,12 @@ def main(argv: list[str] | None = None) -> None:
     if fix_enabled:
         loop_kwargs["apply_fixes"] = True
 
-    run_analysis_loop(**loop_kwargs)
+    fail_on = args_dict.get("fail_on", None)
+    if fail_on:
+        loop_kwargs["fail_on"] = fail_on
+
+    return run_analysis_loop(**loop_kwargs)
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
