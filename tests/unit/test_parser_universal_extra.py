@@ -10,11 +10,10 @@ from slowql.parser.universal import UniversalParser
 
 class TestUniversalParserExtra:
     def test_parse_exception(self):
-        # Test that a generic Exception from sqlglot.parse is correctly wrapped into ParseError.
-        # The _split_statements method catches generic exceptions and re-raises them.
+        # Generic exceptions from statement splitting should be wrapped in ParseError.
         parser = UniversalParser()
         with (
-            patch("slowql.parser.universal.sqlglot.parse", side_effect=Exception("Boom")),
+            patch("slowql.parser.universal.SourceSplitter.split", side_effect=Exception("Boom")),
             pytest.raises(ParseError),
         ):
             parser.parse("SELECT 1")

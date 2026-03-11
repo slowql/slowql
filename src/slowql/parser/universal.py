@@ -18,6 +18,7 @@ from sqlglot.errors import ParseError as SqlglotParseError
 from slowql.core.exceptions import ParseError, UnsupportedDialectError
 from slowql.core.models import Location, Query
 from slowql.parser.base import BaseParser
+from slowql.parser.source_splitter import SourceSplitter
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -77,34 +78,42 @@ class UniversalParser(BaseParser):
         Raises:
             ParseError: If parsing fails.
         """
-        statements = self._split_statements(sql)
+        splitter = SourceSplitter()
+        try:
+            statements = splitter.split(sql)
+        except Exception as e:
+            raise ParseError(
+                "An unexpected error occurred during SQL splitting.", details=str(e)
+            ) from e
         queries = []
 
-        for i, (statement_sql, location) in enumerate(statements):
+        for i, stmt in enumerate(statements):
             try:
                 # Use provided dialect, then default, then auto-detect
                 effective_dialect = (
-                    dialect or self.default_dialect or self.detect_dialect(statement_sql)
+                    dialect or self.default_dialect or self.detect_dialect(stmt.raw)
                 )
 
                 # Parse the single statement
                 parsed = sqlglot.parse_one(
-                    statement_sql,
+                    stmt.raw,
                     dialect=effective_dialect,
                     error_level=sqlglot.errors.ErrorLevel.WARN,
                 )
 
                 # Create Query object
                 query = Query(
-                    raw=statement_sql,
+                    raw=stmt.raw,
                     normalized=self.normalize(parsed, dialect=effective_dialect),
                     dialect=effective_dialect or "unknown",
                     location=Location(
-                        line=location[0],
-                        column=location[1],
+                        line=stmt.line,
+                        column=stmt.column,
                         file=str(file_path) if file_path else None,
                         query_index=i,
                     ),
+                    start_offset=stmt.start_offset,
+                    end_offset=stmt.end_offset,
                     ast=parsed,
                     tables=tuple(self._extract_tables_from_ast(parsed)),
                     columns=tuple(self._extract_columns_from_ast(parsed)),
@@ -115,7 +124,7 @@ class UniversalParser(BaseParser):
             except SqlglotParseError as e:
                 raise ParseError(
                     f"Failed to parse SQL statement: {e}",
-                    sql=statement_sql,
+                    sql=stmt.raw,
                     details=str(e),
                 ) from e
 
