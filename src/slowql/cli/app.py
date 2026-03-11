@@ -39,7 +39,7 @@ from slowql.cli.ui.animations import AnimatedAnalyzer, CyberpunkSQLEditor, Matri
 from slowql.core.autofixer import AutoFixer
 from slowql.core.config import Config
 from slowql.core.engine import SlowQL
-from slowql.core.models import AnalysisResult, FixConfidence, Severity
+from slowql.core.models import AnalysisResult, Fix, FixConfidence, Query, Severity
 from slowql.reporters.console import ConsoleReporter
 from slowql.reporters.json_reporter import CSVReporter, HTMLReporter, JSONReporter
 
@@ -209,6 +209,48 @@ def _run_exports(result: AnalysisResult, formats: list[str], out_dir: Path) -> N
             console.print(f"[red]✗ Failed to export {fmt}:[/red] {e}")
 
 
+
+def _collect_safe_fixes(
+    engine: SlowQL, result: AnalysisResult
+) -> list[tuple[Query, list[Fix]]]:
+    """
+    Collect SAFE fixes for rules that actually matched each query.
+
+    Returns:
+        A list of (query, fixes) pairs.
+    """
+    collected: list[tuple[Query, list[Fix]]] = []
+
+    for query in result.queries:
+        safe_fixes: list[Fix] = []
+        seen: set[tuple[str, str, str, str]] = set()
+
+        for analyzer in engine.analyzers:
+            for rule in analyzer.rules:
+                try:
+                    rule_issues = analyzer.check_rule(query, rule, config=engine.config)
+                except Exception:
+                    continue
+
+                if not rule_issues:
+                    continue
+
+                fix = rule.suggest_fix(query)
+                if fix is None or fix.confidence != FixConfidence.SAFE:
+                    continue
+
+                key = (fix.rule_id, fix.original, fix.replacement, fix.description)
+                if key in seen:
+                    continue
+                seen.add(key)
+                safe_fixes.append(fix)
+
+        if safe_fixes:
+            collected.append((query, safe_fixes))
+
+    return collected
+
+
 def _preview_safe_fixes(engine: SlowQL, result: AnalysisResult) -> None:
     """
     Preview SAFE autofixes for rules that matched the analyzed queries.
@@ -219,28 +261,7 @@ def _preview_safe_fixes(engine: SlowQL, result: AnalysisResult) -> None:
     autofixer = AutoFixer()
     any_preview = False
 
-    for idx, query in enumerate(result.queries, start=1):
-        safe_fixes = []
-
-        for analyzer in engine.analyzers:
-            for rule in analyzer.rules:
-                try:
-                    rule_issues = analyzer.check_rule(query, rule, config=engine.config)
-                except Exception:
-                    # Analysis already surfaced rule failures; skip repeating them
-                    # during diff preview.
-                    continue
-
-                if not rule_issues:
-                    continue
-
-                fix = rule.suggest_fix(query)
-                if fix is not None and fix.confidence == FixConfidence.SAFE:
-                    safe_fixes.append(fix)
-
-        if not safe_fixes:
-            continue
-
+    for idx, (query, safe_fixes) in enumerate(_collect_safe_fixes(engine, result), start=1):
         diff = autofixer.preview_fixes(query.raw, safe_fixes)
         if not diff:
             continue
@@ -593,6 +614,45 @@ def _handle_sql_input(
     return sql_payload, False
 
 
+
+def _apply_safe_fixes_to_file(
+    *,
+    input_file: Path | None,
+    sql_payload: str,
+    engine: SlowQL,
+    result: AnalysisResult,
+) -> None:
+    """
+    Apply SAFE fixes to a single input file.
+
+    This is intentionally conservative:
+    - only file input is supported
+    - only SAFE fixes are applied
+    - a .bak backup is always created before writing
+    """
+    if input_file is None or not input_file.is_file():
+        console.print("[yellow]--fix currently supports only a single input file.[/yellow]")
+        return
+
+    autofixer = AutoFixer()
+    collected = _collect_safe_fixes(engine, result)
+    all_safe_fixes = [fix for _, fixes in collected for fix in fixes]
+
+    if not all_safe_fixes:
+        console.print("[dim]No safe fixes available to apply.[/dim]")
+        return
+
+    updated = autofixer.apply_all_fixes(sql_payload, all_safe_fixes)
+    if updated == sql_payload:
+        console.print("[dim]No applicable safe fixes were applied.[/dim]")
+        return
+
+    backup_path = input_file.with_name(input_file.name + ".bak")
+    backup_path.write_text(sql_payload, encoding="utf-8")
+    input_file.write_text(updated, encoding="utf-8")
+
+    console.print(f"[green]✓ Applied safe fixes:[/green] {input_file}")
+    console.print(f"[green]✓ Backup created:[/green] {backup_path}")
 def _handle_result_output(
     *,
     session: SessionManager,
@@ -604,6 +664,9 @@ def _handle_result_output(
     out_dir: Path,
     non_interactive: bool,
     export_session_history: bool,
+    input_file: Path | None,
+    sql_payload: str,
+    apply_fixes: bool,
 ) -> bool:
     """
     Handle result reporting, preview, optional exports, and loop continuation.
@@ -617,6 +680,14 @@ def _handle_result_output(
 
     if show_diff:
         _preview_safe_fixes(engine, result)
+
+    if apply_fixes:
+        _apply_safe_fixes_to_file(
+            input_file=input_file,
+            sql_payload=sql_payload,
+            engine=engine,
+            result=result,
+        )
 
     if export_formats:
         _run_exports(result, export_formats, out_dir)
@@ -675,6 +746,7 @@ def run_analysis_loop(
     enable_comparison: bool = False,
     show_diff: bool = False,
     export_session_history: bool = False,
+    apply_fixes: bool = False,
 ) -> None:
     """
     Main execution pipeline with interactive loop
@@ -726,6 +798,9 @@ def run_analysis_loop(
                 out_dir=out_dir,
                 non_interactive=non_interactive,
                 export_session_history=export_session_history,
+                input_file=input_file,
+                sql_payload=sql_payload,
+                apply_fixes=apply_fixes,
             ):
                 break
 
@@ -812,6 +887,11 @@ def build_argparser() -> argparse.ArgumentParser:
         help="Preview safe autofix diff without modifying files",
     )
     output_group.add_argument(
+        "--fix",
+        action="store_true",
+        help="Apply SAFE autofixes to a single input file and create a .bak backup",
+    )
+    output_group.add_argument(
         "--export-session",
         action="store_true",
         help="Export session history explicitly (especially for non-interactive mode)",
@@ -847,6 +927,17 @@ def main(argv: list[str] | None = None) -> None:
     # Handle positional file arg compatibility
     input_file = args.file or args.input_file
 
+    if args.diff and args.fix:
+        parser.error("--diff and --fix cannot be used together")
+
+    if args.fix:
+        if input_file is None:
+            parser.error("--fix currently requires --input-file or a positional file")
+        if not input_file.exists():
+            parser.error(f"input file not found: {input_file}")
+        if input_file.is_dir():
+            parser.error("--fix currently supports only a single file, not a directory")
+
     # Run analysis loop
     run_analysis_loop(
         intro_enabled=not args.no_intro,
@@ -862,6 +953,7 @@ def main(argv: list[str] | None = None) -> None:
         enable_comparison=args.compare,
         show_diff=args.diff,
         export_session_history=args.export_session,
+        apply_fixes=args.fix,
     )
 
 
