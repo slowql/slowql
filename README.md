@@ -282,6 +282,24 @@ fail_on: high
 
 ---
 
+# Pre-commit Hook
+
+SlowQL can be used as a pre-commit hook to analyze SQL files automatically before they are committed. 
+
+Add the following to your `.pre-commit-config.yaml`:
+
+```yaml
+repos:
+  - repo: https://github.com/makroumi/slowql
+    rev: v2.0.0 # replace with actual version
+    hooks:
+      - id: slowql
+        # Optional: override default arguments
+        args: ["--non-interactive", "--fail-on", "medium"]
+```
+
+---
+
 # CI Integration
 
 SlowQL supports automated quality gates.

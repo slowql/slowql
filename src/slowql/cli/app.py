@@ -633,34 +633,57 @@ def _show_intro(intro_enabled: bool, fast: bool, is_tty: bool, intro_duration: f
     )
 
 
-def _handle_sql_input(
+def _handle_sql_input(  # noqa: PLR0912
     first_run: bool,
-    input_file: Path | None,
+    input_files: list[Path] | None,
     non_interactive: bool,
     mode: str,
     is_tty: bool,
     engine: SlowQL,
     enable_comparison: bool,
 ) -> tuple[str | None, bool]:
-    """Get SQL payload from file or user input and update first_run status."""
+    """Get SQL payload from files or user input and update first_run status."""
     sql_payload: str | None = ""
-    if input_file and first_run:
-        if input_file.is_dir():
-            # Read all .sql files in directory
-            sql_files = sorted(input_file.glob("*.sql"))
-            if not sql_files:
-                console.print(f"[yellow]No .sql files found in {input_file}[/yellow]")
-                return None, True
-            sql_parts = []
-            for sf in sql_files:
-                console.print(f"[dim]Reading {sf.name}...[/dim]")
-                sql_parts.append(sf.read_text(encoding="utf-8"))
-            sql_payload = "\n;\n".join(sql_parts)
-        else:
-            sql_payload = input_file.read_text(encoding="utf-8")
-        if not sql_payload.strip():
-            console.print("[yellow]Input file is empty[/yellow]")
+    if input_files and first_run:
+        sql_parts = []
+        is_single_file_arg = len(input_files) == 1 and not input_files[0].is_dir()
+        is_single_dir_arg = len(input_files) == 1 and input_files[0].is_dir()
+
+        for path in input_files:
+            if path.is_dir():
+                # Read all .sql files in directory
+                sql_files = sorted(path.glob("*.sql"))
+                for sf in sql_files:
+                    console.print(f"[dim]Reading {sf.name}...[/dim]")
+                    sql_parts.append(sf.read_text(encoding="utf-8"))
+            else:
+                sql_parts.append(path.read_text(encoding="utf-8"))
+
+        if not sql_parts:
+            if is_single_dir_arg:
+                console.print(f"[yellow]No .sql files found in {input_files[0]}[/yellow]")
+            else:
+                console.print("[yellow]No input files found[/yellow]")
+            return None, True
+
+        valid_parts = [p for p in sql_parts if p.strip()]
+        if not valid_parts:
+            msg = "Input file is empty" if is_single_file_arg else "Input files are empty"
+            console.print(f"[yellow]{msg}[/yellow]")
             return None, True  # Continue loop, but don't process
+
+        if is_single_file_arg or (is_single_dir_arg and len(valid_parts) == 1):
+            sql_payload = valid_parts[0]
+        else:
+            joined_parts = []
+            for i, part in enumerate(valid_parts):
+                joined_parts.append(part)
+                if i < len(valid_parts) - 1 and not part.rstrip().endswith(";"):
+                    joined_parts.append(";\n")
+                elif i < len(valid_parts) - 1:
+                    joined_parts.append("\n")
+
+            sql_payload = "".join(joined_parts)
     else:
         if non_interactive:
             return None, False  # Break loop
@@ -820,7 +843,7 @@ def _handle_loop_end(
 # -------------------------------
 
 
-def run_analysis_loop(  # noqa: PLR0912
+def run_analysis_loop(  # noqa: PLR0912, PLR0915
     intro_enabled: bool = True,
     intro_duration: float = 3.0,
     mode: str = "auto",
@@ -839,6 +862,8 @@ def run_analysis_loop(  # noqa: PLR0912
     fail_on: str | None = None,
     fix_report: Path | None = None,
     report_format: str = "console",
+    *,
+    initial_input_files: list[Path] | None = None,
 ) -> int:
     """
     Main execution pipeline with interactive loop
@@ -865,7 +890,9 @@ def run_analysis_loop(  # noqa: PLR0912
     _show_intro(intro_enabled, fast, is_tty, intro_duration)
 
     first_run = True
-    input_file = initial_input_file
+    current_input_files: list[Path] | None = initial_input_files
+    if current_input_files is None and initial_input_file is not None:
+        current_input_files = [initial_input_file]
     highest_exit_code = 0
 
     # Main analysis loop
@@ -873,11 +900,11 @@ def run_analysis_loop(  # noqa: PLR0912
         try:
             sql_payload: str | None
             sql_payload, should_continue = _handle_sql_input(
-                first_run, input_file, non_interactive, mode, is_tty, engine, enable_comparison
+                first_run, current_input_files, non_interactive, mode, is_tty, engine, enable_comparison
             )
 
             if should_continue:
-                input_file = None
+                current_input_files = None
                 continue
             if sql_payload is None:
                 break
@@ -905,7 +932,7 @@ def run_analysis_loop(  # noqa: PLR0912
                 out_dir=out_dir,
                 non_interactive=non_interactive,
                 export_session_history=export_session_history,
-                input_file=input_file,
+                input_file=current_input_files[0] if current_input_files is not None and len(current_input_files) == 1 else None,
                 sql_payload=sql_payload,
                 apply_fixes=apply_fixes,
                 fix_report=fix_report,
@@ -959,6 +986,9 @@ def build_argparser() -> argparse.ArgumentParser:
     input_group = p.add_argument_group("Input Options")
     input_group.add_argument(
         "file", nargs="?", type=Path, help="Input SQL file (optional positional)"
+    )
+    input_group.add_argument(
+        "extra_files", nargs="*", type=Path, help="Additional input SQL files (for pre-commit)"
     )
     input_group.add_argument("--input-file", type=Path, help="Read SQL from file")
     input_group.add_argument(
@@ -1042,7 +1072,7 @@ def build_argparser() -> argparse.ArgumentParser:
 # -------------------------------
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None) -> int:  # noqa: PLR0912, PLR0915
     """
     Enhanced CLI entry point with analysis loop
     """
@@ -1051,7 +1081,29 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     # Handle positional file arg compatibility
-    input_file = args.file or args.input_file
+    input_files_list: list[Path] = []
+
+    # Priority 1: explicitly passed --input-file
+    if args.input_file:
+        input_files_list.append(args.input_file)
+
+    # Priority 2: main positional file
+    if args.file:
+        input_files_list.append(args.file)
+
+    # Priority 3: any extra positional files (e.g. from pre-commit)
+    if hasattr(args, "extra_files") and args.extra_files:
+        input_files_list.extend(args.extra_files)
+
+    # Determine what to pass to keep backward compatibility
+    # Single file mode -> pass initial_input_file
+    # Multi file mode -> pass initial_input_files
+    initial_file = None
+    initial_files = None
+    if len(input_files_list) == 1:
+        initial_file = input_files_list[0]
+    elif len(input_files_list) > 1:
+        initial_files = input_files_list
 
     args_dict = getattr(args, "__dict__", {})
     diff_enabled = bool(args_dict.get("diff", False))
@@ -1062,11 +1114,15 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--diff and --fix cannot be used together")
 
     if fix_enabled:
-        if input_file is None:
+        if not input_files_list:
             parser.error("--fix currently requires --input-file or a positional file")
-        if not input_file.exists():
-            parser.error(f"input file not found: {input_file}")
-        if input_file.is_dir():
+        if len(input_files_list) > 1:
+            parser.error("--fix currently supports only a single file")
+
+        fix_target = input_files_list[0]
+        if not fix_target.exists():
+            parser.error(f"input file not found: {fix_target}")
+        if fix_target.is_dir():
             parser.error("--fix currently supports only a single file, not a directory")
 
     # Run analysis loop
@@ -1074,7 +1130,7 @@ def main(argv: list[str] | None = None) -> int:
         "intro_enabled": not args.no_intro,
         "intro_duration": args.duration,
         "mode": args.mode,
-        "initial_input_file": input_file,
+        "initial_input_file": initial_file,
         "export_formats": args.export,
         "out_dir": args.out,
         "fast": args.fast,
@@ -1083,6 +1139,9 @@ def main(argv: list[str] | None = None) -> int:
         "enable_cache": not args.no_cache,
         "enable_comparison": args.compare,
     }
+
+    if initial_files is not None:
+        loop_kwargs["initial_input_files"] = initial_files
 
     report_format = args_dict.get("format", None)
     if report_format and report_format != "console":
