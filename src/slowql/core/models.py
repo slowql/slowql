@@ -253,6 +253,14 @@ class Category(str, Enum):
     QUAL_TECH_DEBT = "technical_debt"
 
 
+class FixConfidence(str, Enum):
+    """Confidence level for an automatic fix."""
+
+    SAFE = "safe"
+    PROBABLE = "probable"
+    UNSAFE = "unsafe"
+
+
 @dataclass(frozen=True, slots=True)
 class Location:
     """
@@ -311,13 +319,21 @@ class Fix:
         description: Human-readable description of the fix.
         replacement: The SQL code to replace the problematic code.
         is_safe: Whether the fix can be safely auto-applied.
-        confidence: Confidence level (0.0 to 1.0) in the fix.
+        confidence: Confidence level of the fix.
+        original: The original problematic SQL code.
+        rule_id: ID of the rule that generated this fix.
+        start: Optional start offset for exact replacement.
+        end: Optional end offset for exact replacement.
     """
 
     description: str
-    replacement: str
+    replacement: str = ""
     is_safe: bool = False
-    confidence: float = 1.0
+    confidence: FixConfidence | float = FixConfidence.UNSAFE
+    original: str = ""
+    rule_id: str = ""
+    start: int | None = None
+    end: int | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
@@ -325,7 +341,11 @@ class Fix:
             "description": self.description,
             "replacement": self.replacement,
             "is_safe": self.is_safe,
-            "confidence": self.confidence,
+            "confidence": self.confidence.value if isinstance(self.confidence, FixConfidence) else self.confidence,
+            "original": self.original,
+            "rule_id": self.rule_id,
+            "start": self.start,
+            "end": self.end,
         }
 
 

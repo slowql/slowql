@@ -294,6 +294,22 @@ class Rule(ABC):
         return f"[{self.id}] {self.name}"
 
 
+    def suggest_fix(self, query: Query) -> Fix | None:
+        """
+        Suggest a fix for the detected issue.
+
+        Subclasses can override this to provide an automatic fix.
+        The default implementation returns None.
+
+        Args:
+            query: The parsed query.
+
+        Returns:
+            A Fix object if an automatic fix is available, otherwise None.
+        """
+        return None
+
+
 class PatternRule(Rule):
     r"""
     A rule that uses regex pattern matching.

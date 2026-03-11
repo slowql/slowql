@@ -30,7 +30,7 @@ class SelectWithoutFromRule(PatternRule):
     dimension = Dimension.QUALITY
     category = Category.QUAL_READABILITY
 
-    pattern = r"^\s*SELECT\s+.+(?<!\bFROM\b.+)$"
+    pattern = r"^\s*SELECT\b(?![\s\S]*\bFROM\b)[\s\S]+$"
     message_template = "SELECT without FROM detected — verify this is intentional: {match}"
 
     impact = (
@@ -69,7 +69,6 @@ class WildcardInColumnListRule(PatternRule):
         "Replace 'EXISTS (SELECT * FROM ...)' with 'EXISTS (SELECT 1 FROM ...)'. "
         "SELECT 1 clearly signals intent and is universally optimized."
     )
-
 
 class MissingAliasRule(PatternRule):
     """Detects subqueries in FROM without an alias."""

@@ -24,6 +24,7 @@ from slowql.core.models import (
     Category,
     Dimension,
     Fix,
+    FixConfidence,
     Issue,
     Query,
     Severity,
@@ -2317,6 +2318,51 @@ class NullComparisonRule(PatternRule):
         "'IS NOT NULL'. Use COALESCE() if a default value is needed instead of NULL handling."
     )
 
+    def suggest_fix(self, query: Query) -> Fix | None:
+        """
+        Suggest a safe fix for incorrect NULL comparison.
+
+        Supported exact rewrites:
+        - = NULL   -> IS NULL
+        - != NULL  -> IS NOT NULL
+        - <> NULL  -> IS NOT NULL
+
+        The reversed form NULL = column is intentionally not auto-fixed yet.
+        """
+        raw_upper = query.raw.upper()
+
+        if "!= NULL" in raw_upper:
+            return Fix(
+                description="Replace '!= NULL' with 'IS NOT NULL'",
+                original="!= NULL",
+                replacement="IS NOT NULL",
+                confidence=FixConfidence.SAFE,
+                rule_id=self.id,
+                is_safe=True,
+            )
+
+        if "<> NULL" in raw_upper:
+            return Fix(
+                description="Replace '<> NULL' with 'IS NOT NULL'",
+                original="<> NULL",
+                replacement="IS NOT NULL",
+                confidence=FixConfidence.SAFE,
+                rule_id=self.id,
+                is_safe=True,
+            )
+
+        if "= NULL" in raw_upper:
+            return Fix(
+                description="Replace '= NULL' with 'IS NULL'",
+                original="= NULL",
+                replacement="IS NULL",
+                confidence=FixConfidence.SAFE,
+                rule_id=self.id,
+                is_safe=True,
+            )
+
+        return None
+
 
 class SelectWithoutFromRule(PatternRule):
     """Detects SELECT statements used as constants without FROM — often a sign of poor quality."""
@@ -2333,7 +2379,7 @@ class SelectWithoutFromRule(PatternRule):
     dimension = Dimension.QUALITY
     category = Category.QUAL_READABILITY
 
-    pattern = r"^\s*SELECT\s+.+(?<!\bFROM\b.+)$"
+    pattern = r"^\s*SELECT\b(?![\s\S]*\bFROM\b)[\s\S]+$"
     message_template = "SELECT without FROM detected — verify this is intentional: {match}"
 
     impact = (
@@ -2402,7 +2448,6 @@ class WildcardInColumnListRule(PatternRule):
         "Replace 'EXISTS (SELECT * FROM ...)' with 'EXISTS (SELECT 1 FROM ...)'. "
         "SELECT 1 clearly signals intent and is universally optimized."
     )
-
 
 class DuplicateConditionRule(PatternRule):
     """Detects obvious duplicate WHERE conditions."""
