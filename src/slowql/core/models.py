@@ -319,7 +319,7 @@ class Fix:
         description: Human-readable description of the fix.
         replacement: The SQL code to replace the problematic code.
         is_safe: Whether the fix can be safely auto-applied.
-        confidence: Confidence level of the fix.
+        confidence: Confidence level of the fix. Numeric values are supported for backward compatibility.
         original: The original problematic SQL code.
         rule_id: ID of the rule that generated this fix.
         start: Optional start offset for exact replacement.
@@ -329,7 +329,7 @@ class Fix:
     description: str
     replacement: str = ""
     is_safe: bool = False
-    confidence: FixConfidence | float = FixConfidence.UNSAFE
+    confidence: FixConfidence | float = 1.0
     original: str = ""
     rule_id: str = ""
     start: int | None = None
