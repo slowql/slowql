@@ -40,7 +40,9 @@ from slowql.core.autofixer import AutoFixer
 from slowql.core.config import Config
 from slowql.core.engine import SlowQL
 from slowql.core.models import AnalysisResult, Fix, FixConfidence, Query, Severity
+from slowql.reporters.base import BaseReporter
 from slowql.reporters.console import ConsoleReporter
+from slowql.reporters.github_actions_reporter import GithubActionsReporter
 from slowql.reporters.json_reporter import CSVReporter, HTMLReporter, JSONReporter
 
 logging.basicConfig(level=logging.INFO)
@@ -724,7 +726,7 @@ def _handle_result_output(
     *,
     session: SessionManager,
     result: AnalysisResult,
-    formatter: ConsoleReporter,
+    formatter: BaseReporter,
     engine: SlowQL,
     show_diff: bool,
     export_formats: list[str] | None,
@@ -818,7 +820,7 @@ def _handle_loop_end(
 # -------------------------------
 
 
-def run_analysis_loop(
+def run_analysis_loop(  # noqa: PLR0912
     intro_enabled: bool = True,
     intro_duration: float = 3.0,
     mode: str = "auto",
@@ -836,6 +838,7 @@ def run_analysis_loop(
     apply_fixes: bool = False,
     fail_on: str | None = None,
     fix_report: Path | None = None,
+    report_format: str = "console",
 ) -> int:
     """
     Main execution pipeline with interactive loop
@@ -849,7 +852,13 @@ def run_analysis_loop(
     if fail_on:
         overrides["severity"] = {"fail_on": fail_on}
     engine = SlowQL(config=config.with_overrides(**overrides))
-    formatter = ConsoleReporter()
+
+    formatter: BaseReporter
+    if report_format == "github-actions":
+        formatter = GithubActionsReporter()
+    else:
+        formatter = ConsoleReporter()
+
     out_dir = safe_path(out_dir)
 
     is_tty = sys.stdin.isatty() and sys.stdout.isatty()
@@ -976,6 +985,12 @@ def build_argparser() -> argparse.ArgumentParser:
     # Output options
     output_group = p.add_argument_group("Output Options")
     output_group.add_argument(
+        "--format",
+        choices=["console", "github-actions"],
+        default="console",
+        help="Output format for analysis results (default: console)",
+    )
+    output_group.add_argument(
         "--export",
         nargs="*",
         choices=["html", "csv", "json"],
@@ -1068,6 +1083,10 @@ def main(argv: list[str] | None = None) -> int:
         "enable_cache": not args.no_cache,
         "enable_comparison": args.compare,
     }
+
+    report_format = args_dict.get("format", None)
+    if report_format and report_format != "console":
+        loop_kwargs["report_format"] = report_format
 
     if diff_enabled:
         loop_kwargs["show_diff"] = True
