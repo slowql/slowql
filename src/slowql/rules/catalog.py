@@ -2449,7 +2449,6 @@ class WildcardInColumnListRule(PatternRule):
         "SELECT 1 clearly signals intent and is universally optimized."
     )
 
-
 class DuplicateConditionRule(PatternRule):
     """Detects obvious duplicate WHERE conditions."""
 

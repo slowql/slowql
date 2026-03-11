@@ -70,7 +70,6 @@ class WildcardInColumnListRule(PatternRule):
         "SELECT 1 clearly signals intent and is universally optimized."
     )
 
-
 class MissingAliasRule(PatternRule):
     """Detects subqueries in FROM without an alias."""
 
