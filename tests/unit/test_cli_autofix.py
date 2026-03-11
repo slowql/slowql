@@ -128,3 +128,73 @@ def test_fix_applies_safe_null_fix_and_creates_backup(tmp_path, monkeypatch):
     backup_file = tmp_path / "query.sql.bak"
     assert backup_file.exists()
     assert backup_file.read_text(encoding="utf-8") == original
+
+def test_diff_with_fix_report(tmp_path):
+    sql_file = tmp_path / "query.sql"
+    sql_file.write_text("SELECT * FROM users WHERE deleted_at = NULL;\n", encoding="utf-8")
+    report_file = tmp_path / "report.json"
+
+    cli_app.main([
+        "--non-interactive", "--no-intro",
+        "--input-file", str(sql_file),
+        "--diff",
+        "--fix-report", str(report_file)
+    ])
+
+    import json
+    assert report_file.exists()
+    data = json.loads(report_file.read_text(encoding="utf-8"))
+    assert data["mode"] == "diff"
+    assert data["input_file"] == str(sql_file.resolve())
+    assert data["backup_file"] is None
+    assert data["total_fixes"] > 0
+    fix = data["fixes"][0]
+    assert "remediation_mode" in fix
+    assert fix["remediation_mode"] == "safe_apply"
+    assert fix["is_safe"] is True
+    assert fix["rule_id"] == "QUAL-NULL-001"
+
+
+def test_fix_with_fix_report(tmp_path, monkeypatch):
+    sql_file = tmp_path / "query.sql"
+    sql_file.write_text("SELECT * FROM users WHERE deleted_at = NULL;\n", encoding="utf-8")
+    report_file = tmp_path / "report.json"
+
+    def fail_if_export_called(_self, _filename=None):
+        raise AssertionError("session export should not be called without --export-session")
+
+    monkeypatch.setattr(cli_app.SessionManager, "export_session", fail_if_export_called)
+
+    cli_app.main([
+        "--non-interactive", "--no-intro",
+        "--input-file", str(sql_file),
+        "--fix",
+        "--fix-report", str(report_file)
+    ])
+
+    import json
+    assert report_file.exists()
+    data = json.loads(report_file.read_text(encoding="utf-8"))
+    assert data["mode"] == "fix"
+    assert data["input_file"] == str(sql_file.resolve())
+    assert data["backup_file"] == str(sql_file.with_name(sql_file.name + ".bak").resolve())
+    assert data["total_fixes"] > 0
+    fix = data["fixes"][0]
+    assert "remediation_mode" in fix
+    assert fix["remediation_mode"] == "safe_apply"
+    assert fix["is_safe"] is True
+    assert fix["rule_id"] == "QUAL-NULL-001"
+
+
+def test_no_fix_report_created_unless_explicitly_passed(tmp_path):
+    sql_file = tmp_path / "query.sql"
+    sql_file.write_text("SELECT * FROM users WHERE deleted_at = NULL;\n", encoding="utf-8")
+    report_file = tmp_path / "should_not_exist.json"
+
+    cli_app.main([
+        "--non-interactive", "--no-intro",
+        "--input-file", str(sql_file),
+        "--diff"
+    ])
+
+    assert not report_file.exists()

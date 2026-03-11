@@ -212,17 +212,17 @@ def _run_exports(result: AnalysisResult, formats: list[str], out_dir: Path) -> N
 
 def _collect_safe_fixes(
     engine: SlowQL, result: AnalysisResult
-) -> list[tuple[Query, list[Fix]]]:
+) -> list[tuple[Query, list[tuple[Fix, str | None]]]]:
     """
     Collect SAFE fixes for rules that actually matched each query.
 
     Returns:
-        A list of (query, fixes) pairs.
+        A list of (query, fixes_with_mode) pairs.
     """
-    collected: list[tuple[Query, list[Fix]]] = []
+    collected: list[tuple[Query, list[tuple[Fix, str | None]]]] = []
 
     for query in result.queries:
-        safe_fixes: list[Fix] = []
+        safe_fixes: list[tuple[Fix, str | None]] = []
         seen: set[tuple[str, str, str, str]] = set()
 
         for analyzer in engine.analyzers:
@@ -243,7 +243,10 @@ def _collect_safe_fixes(
                 if key in seen:
                     continue
                 seen.add(key)
-                safe_fixes.append(fix)
+
+                rmode = getattr(rule, "remediation_mode", None)
+                rmode_val = rmode.value if rmode else None
+                safe_fixes.append((fix, rmode_val))
 
         if safe_fixes:
             collected.append((query, safe_fixes))
@@ -251,7 +254,12 @@ def _collect_safe_fixes(
     return collected
 
 
-def _preview_safe_fixes(engine: SlowQL, result: AnalysisResult) -> None:
+def _preview_safe_fixes(
+    engine: SlowQL,
+    result: AnalysisResult,
+    fix_report: Path | None = None,
+    input_file: Path | None = None,
+) -> None:
     """
     Preview SAFE autofixes for rules that matched the analyzed queries.
 
@@ -261,7 +269,11 @@ def _preview_safe_fixes(engine: SlowQL, result: AnalysisResult) -> None:
     autofixer = AutoFixer()
     any_preview = False
 
-    for idx, (query, safe_fixes) in enumerate(_collect_safe_fixes(engine, result), start=1):
+    all_safe_fixes_with_modes: list[tuple[Fix, str | None]] = []
+
+    for idx, (query, safe_fixes_with_modes) in enumerate(_collect_safe_fixes(engine, result), start=1):
+        safe_fixes = [f for f, m in safe_fixes_with_modes]
+        all_safe_fixes_with_modes.extend(safe_fixes_with_modes)
         diff = autofixer.preview_fixes(query.raw, safe_fixes)
         if not diff:
             continue
@@ -278,6 +290,49 @@ def _preview_safe_fixes(engine: SlowQL, result: AnalysisResult) -> None:
 
     if not any_preview:
         console.print("[dim]No safe autofix preview available for the analyzed query/queries.[/dim]")
+
+    if fix_report is not None:
+        assert fix_report is not None
+        _write_fix_report(
+            path=fix_report,
+            mode="diff",
+            fixes_with_modes=all_safe_fixes_with_modes,
+            input_file=input_file,
+            backup_file=None,
+        )
+
+
+def _write_fix_report(
+    path: Path,
+    mode: str,
+    fixes_with_modes: list[tuple[Fix, str | None]],
+    input_file: Path | None,
+    backup_file: Path | None,
+) -> None:
+    data = {
+        "mode": mode,
+        "timestamp": datetime.now().isoformat(),
+        "input_file": str(input_file) if input_file else None,
+        "backup_file": str(backup_file) if backup_file else None,
+        "total_fixes": len(fixes_with_modes),
+        "fixes": [
+            {
+                "rule_id": f.rule_id,
+                "description": f.description,
+                "confidence": f.confidence.value if isinstance(f.confidence, FixConfidence) else f.confidence,
+                "remediation_mode": rm,
+                "original": f.original,
+                "replacement": f.replacement,
+                "start": f.start,
+                "end": f.end,
+                "is_safe": f.is_safe,
+            }
+            for f, rm in fixes_with_modes
+        ]
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as file:
+        json.dump(data, file, indent=2)
 
 
 def show_quick_actions_menu(
@@ -621,6 +676,7 @@ def _apply_safe_fixes_to_file(
     sql_payload: str,
     engine: SlowQL,
     result: AnalysisResult,
+    fix_report: Path | None = None,
 ) -> None:
     """
     Apply SAFE fixes to a single input file.
@@ -636,7 +692,8 @@ def _apply_safe_fixes_to_file(
 
     autofixer = AutoFixer()
     collected = _collect_safe_fixes(engine, result)
-    all_safe_fixes = [fix for _, fixes in collected for fix in fixes]
+    all_safe_fixes_with_modes = [fm for _, fixes in collected for fm in fixes]
+    all_safe_fixes = [f for f, m in all_safe_fixes_with_modes]
 
     if not all_safe_fixes:
         console.print("[dim]No safe fixes available to apply.[/dim]")
@@ -647,9 +704,19 @@ def _apply_safe_fixes_to_file(
         console.print("[dim]No applicable safe fixes were applied.[/dim]")
         return
 
+    assert input_file is not None
     backup_path = input_file.with_name(input_file.name + ".bak")
     backup_path.write_text(sql_payload, encoding="utf-8")
     input_file.write_text(updated, encoding="utf-8")
+
+    if fix_report:
+        _write_fix_report(
+            path=fix_report,
+            mode="fix",
+            fixes_with_modes=all_safe_fixes_with_modes,
+            input_file=input_file,
+            backup_file=backup_path,
+        )
 
     console.print(f"[green]✓ Applied safe fixes:[/green] {input_file}")
     console.print(f"[green]✓ Backup created:[/green] {backup_path}")
@@ -667,6 +734,7 @@ def _handle_result_output(
     input_file: Path | None,
     sql_payload: str,
     apply_fixes: bool,
+    fix_report: Path | None = None,
 ) -> bool:
     """
     Handle result reporting, preview, optional exports, and loop continuation.
@@ -679,7 +747,7 @@ def _handle_result_output(
     formatter.report(result)
 
     if show_diff:
-        _preview_safe_fixes(engine, result)
+        _preview_safe_fixes(engine, result, fix_report, input_file)
 
     if apply_fixes:
         _apply_safe_fixes_to_file(
@@ -687,6 +755,7 @@ def _handle_result_output(
             sql_payload=sql_payload,
             engine=engine,
             result=result,
+            fix_report=fix_report,
         )
 
     if export_formats:
@@ -766,6 +835,7 @@ def run_analysis_loop(
     export_session_history: bool = False,
     apply_fixes: bool = False,
     fail_on: str | None = None,
+    fix_report: Path | None = None,
 ) -> int:
     """
     Main execution pipeline with interactive loop
@@ -829,6 +899,7 @@ def run_analysis_loop(
                 input_file=input_file,
                 sql_payload=sql_payload,
                 apply_fixes=apply_fixes,
+                fix_report=fix_report,
             ):
                 break
 
@@ -931,6 +1002,11 @@ def build_argparser() -> argparse.ArgumentParser:
         action="store_true",
         help="Export session history explicitly (especially for non-interactive mode)",
     )
+    output_group.add_argument(
+        "--fix-report",
+        type=Path,
+        help="Write JSON report of previewed or applied safe fixes",
+    )
 
     # UI options
     ui_group = p.add_argument_group("UI Options")
@@ -979,7 +1055,7 @@ def main(argv: list[str] | None = None) -> int:
             parser.error("--fix currently supports only a single file, not a directory")
 
     # Run analysis loop
-    loop_kwargs = {
+    loop_kwargs: dict[str, Any] = {
         "intro_enabled": not args.no_intro,
         "intro_duration": args.duration,
         "mode": args.mode,
@@ -1003,6 +1079,10 @@ def main(argv: list[str] | None = None) -> int:
     fail_on = args_dict.get("fail_on", None)
     if fail_on:
         loop_kwargs["fail_on"] = fail_on
+
+    fix_report = args_dict.get("fix_report", None)
+    if fix_report:
+        loop_kwargs["fix_report"] = fix_report
 
     return run_analysis_loop(**loop_kwargs)
 

@@ -27,6 +27,7 @@ from slowql.core.models import (
     FixConfidence,
     Issue,
     Query,
+    RemediationMode,
     Severity,
 )
 from slowql.rules.base import ASTRule, PatternRule, Rule
@@ -2300,6 +2301,7 @@ class NullComparisonRule(PatternRule):
     severity = Severity.HIGH
     dimension = Dimension.QUALITY
     category = Category.QUAL_READABILITY
+    remediation_mode = RemediationMode.SAFE_APPLY
 
     pattern = (
         r"(?<![A-Z_])\s*=\s*NULL\b"
@@ -2436,6 +2438,7 @@ class WildcardInColumnListRule(PatternRule):
     severity = Severity.INFO
     dimension = Dimension.QUALITY
     category = Category.QUAL_READABILITY
+    remediation_mode = RemediationMode.SAFE_APPLY
 
     pattern = r"\bEXISTS\s*\(\s*SELECT\s+\*"
     message_template = "SELECT * inside EXISTS subquery — use SELECT 1 instead: {match}"
