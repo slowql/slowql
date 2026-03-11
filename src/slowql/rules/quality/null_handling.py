@@ -4,7 +4,15 @@ Quality Null handling rules.
 
 from __future__ import annotations
 
-from slowql.core.models import Category, Dimension, Fix, FixConfidence, Query, Severity
+from slowql.core.models import (
+    Category,
+    Dimension,
+    Fix,
+    FixConfidence,
+    Query,
+    RemediationMode,
+    Severity,
+)
 from slowql.rules.base import PatternRule
 
 __all__ = [
@@ -25,6 +33,7 @@ class NullComparisonRule(PatternRule):
     severity = Severity.HIGH
     dimension = Dimension.QUALITY
     category = Category.QUAL_READABILITY
+    remediation_mode = RemediationMode.SAFE_APPLY
 
     pattern = (
         r"(?<![A-Z_])\s*=\s*NULL\b"

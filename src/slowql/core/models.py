@@ -261,6 +261,14 @@ class FixConfidence(str, Enum):
     UNSAFE = "unsafe"
 
 
+class RemediationMode(str, Enum):
+    """How a rule should be remediated by default."""
+
+    SAFE_APPLY = "safe_apply"
+    PREVIEW_ONLY = "preview_only"
+    GUIDANCE_ONLY = "guidance_only"
+
+
 @dataclass(frozen=True, slots=True)
 class Location:
     """

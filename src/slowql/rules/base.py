@@ -22,6 +22,7 @@ from slowql.core.models import (
     Fix,
     Issue,
     Location,
+    RemediationMode,
     Severity,
 )
 from slowql.rules.registry import RuleRegistry, get_rule_registry
@@ -138,6 +139,7 @@ class Rule(ABC):
     severity: ClassVar[Severity] = Severity.MEDIUM
     dimension: ClassVar[Dimension] = Dimension.QUALITY
     category: ClassVar[Category | None] = None
+    remediation_mode: ClassVar[RemediationMode] = RemediationMode.GUIDANCE_ONLY
     enabled: ClassVar[bool] = True
     tags: ClassVar[tuple[str, ...]] = ()
 
@@ -496,6 +498,7 @@ def create_rule(
     DynamicRule.severity = severity
     DynamicRule.dimension = dimension
     DynamicRule.category = category
+    DynamicRule.remediation_mode = RemediationMode.GUIDANCE_ONLY
     DynamicRule.enabled = enabled
     DynamicRule.tags = tags
     DynamicRule.impact = impact

@@ -6,7 +6,15 @@ from __future__ import annotations
 
 import re
 
-from slowql.core.models import Category, Dimension, Fix, FixConfidence, Query, Severity
+from slowql.core.models import (
+    Category,
+    Dimension,
+    Fix,
+    FixConfidence,
+    Query,
+    RemediationMode,
+    Severity,
+)
 from slowql.rules.base import PatternRule
 
 __all__ = [
@@ -59,6 +67,7 @@ class WildcardInColumnListRule(PatternRule):
     severity = Severity.INFO
     dimension = Dimension.QUALITY
     category = Category.QUAL_READABILITY
+    remediation_mode = RemediationMode.SAFE_APPLY
 
     pattern = r"\bEXISTS\s*\(\s*SELECT\s+\*"
     message_template = "SELECT * inside EXISTS subquery — use SELECT 1 instead: {match}"
