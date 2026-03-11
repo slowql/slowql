@@ -24,6 +24,7 @@ from slowql.core.models import (
     Category,
     Dimension,
     Fix,
+    FixConfidence,
     Issue,
     Query,
     Severity,
@@ -2316,6 +2317,51 @@ class NullComparisonRule(PatternRule):
         "Replace '= NULL' with 'IS NULL' and '!= NULL' or '<> NULL' with "
         "'IS NOT NULL'. Use COALESCE() if a default value is needed instead of NULL handling."
     )
+
+    def suggest_fix(self, query: Query) -> Fix | None:
+        """
+        Suggest a safe fix for incorrect NULL comparison.
+
+        Supported exact rewrites:
+        - = NULL   -> IS NULL
+        - != NULL  -> IS NOT NULL
+        - <> NULL  -> IS NOT NULL
+
+        The reversed form NULL = column is intentionally not auto-fixed yet.
+        """
+        raw_upper = query.raw.upper()
+
+        if "!= NULL" in raw_upper:
+            return Fix(
+                description="Replace '!= NULL' with 'IS NOT NULL'",
+                original="!= NULL",
+                replacement="IS NOT NULL",
+                confidence=FixConfidence.SAFE,
+                rule_id=self.id,
+                is_safe=True,
+            )
+
+        if "<> NULL" in raw_upper:
+            return Fix(
+                description="Replace '<> NULL' with 'IS NOT NULL'",
+                original="<> NULL",
+                replacement="IS NOT NULL",
+                confidence=FixConfidence.SAFE,
+                rule_id=self.id,
+                is_safe=True,
+            )
+
+        if "= NULL" in raw_upper:
+            return Fix(
+                description="Replace '= NULL' with 'IS NULL'",
+                original="= NULL",
+                replacement="IS NULL",
+                confidence=FixConfidence.SAFE,
+                rule_id=self.id,
+                is_safe=True,
+            )
+
+        return None
 
 
 class SelectWithoutFromRule(PatternRule):

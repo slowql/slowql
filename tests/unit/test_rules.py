@@ -1451,6 +1451,37 @@ class TestNullComparisonRule:
     def test_is_not_null_correct(self):
         assert not self.rule.check(_make_query("SELECT * FROM users WHERE deleted_at IS NOT NULL"))
 
+    def test_suggest_fix_eq_null(self):
+        query = _make_query("SELECT * FROM users WHERE deleted_at = NULL")
+        fix = self.rule.suggest_fix(query)
+        assert fix is not None
+        assert fix.original == "= NULL"
+        assert fix.replacement == "IS NULL"
+        assert fix.confidence == FixConfidence.SAFE
+        assert fix.rule_id == "QUAL-NULL-001"
+        assert fix.is_safe is True
+
+    def test_suggest_fix_not_eq_null(self):
+        query = _make_query("SELECT * FROM users WHERE deleted_at != NULL")
+        fix = self.rule.suggest_fix(query)
+        assert fix is not None
+        assert fix.original == "!= NULL"
+        assert fix.replacement == "IS NOT NULL"
+        assert fix.confidence == FixConfidence.SAFE
+
+    def test_suggest_fix_angle_bracket_null(self):
+        query = _make_query("SELECT * FROM users WHERE deleted_at <> NULL")
+        fix = self.rule.suggest_fix(query)
+        assert fix is not None
+        assert fix.original == "<> NULL"
+        assert fix.replacement == "IS NOT NULL"
+        assert fix.confidence == FixConfidence.SAFE
+
+    def test_suggest_fix_reversed_null_comparison_not_supported(self):
+        query = _make_query("SELECT * FROM users WHERE NULL = deleted_at")
+        fix = self.rule.suggest_fix(query)
+        assert fix is None
+
 
 class TestHardcodedDateRule:
     def setup_method(self):
