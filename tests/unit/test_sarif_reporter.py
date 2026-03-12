@@ -2,8 +2,6 @@ import json
 from datetime import UTC, datetime
 from io import StringIO
 
-import pytest
-
 from slowql.core.models import (
     AnalysisResult,
     Dimension,
@@ -13,6 +11,7 @@ from slowql.core.models import (
     Statistics,
 )
 from slowql.reporters.sarif_reporter import SARIFReporter
+
 
 def _create_mock_result() -> AnalysisResult:
     issues = [
@@ -54,28 +53,28 @@ def test_sarif_reporter_structure_and_mapping() -> None:
     output = StringIO()
     reporter = SARIFReporter(output_file=output)
     reporter.report(result)
-    
+
     json_output = output.getvalue()
     data = json.loads(json_output)
-    
+
     assert data["version"] == "2.1.0"
     assert data["$schema"] == "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json"
     assert len(data["runs"]) == 1
-    
+
     run = data["runs"][0]
     assert run["tool"]["driver"]["name"] == "SlowQL"
     assert run["tool"]["driver"]["version"] == "2.1.0"
-    
+
     # Check rules metadata collection
     rules = run["tool"]["driver"]["rules"]
     assert len(rules) == 3
     rule_ids = {r["id"] for r in rules}
     assert rule_ids == {"SEC-INJ-001", "QUAL-STYLE-002", "PERF-INDEX-003"}
-    
+
     # Check issue mappings
     results = run["results"]
     assert len(results) == 3
-    
+
     # Critical mapped to error
     assert results[0]["ruleId"] == "SEC-INJ-001"
     assert results[0]["level"] == "error"
@@ -85,14 +84,14 @@ def test_sarif_reporter_structure_and_mapping() -> None:
     assert loc1["region"]["endLine"] == 10
     assert loc1["region"]["startColumn"] == 5
     assert loc1["region"]["endColumn"] == 20
-    
+
     # Medium mapped to warning
     assert results[1]["ruleId"] == "QUAL-STYLE-002"
     assert results[1]["level"] == "warning"
     loc2 = results[1]["locations"][0]["physicalLocation"]
     assert "endLine" not in loc2["region"]
     assert loc2["region"]["startColumn"] == 2
-    
+
     # Low mapped to note
     assert results[2]["ruleId"] == "PERF-INDEX-003"
     assert results[2]["level"] == "note"
