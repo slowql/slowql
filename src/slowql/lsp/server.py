@@ -8,8 +8,19 @@ from slowql.core.models import Issue, Severity
 logger = logging.getLogger(__name__)
 
 try:
-    from lsprotocol.types import Diagnostic, DiagnosticSeverity, Position, Range
-    from pygls.server import LanguageServer  # type: ignore[attr-defined]
+    from lsprotocol.types import (
+        TEXT_DOCUMENT_DID_CHANGE,
+        TEXT_DOCUMENT_DID_OPEN,
+        TEXT_DOCUMENT_DID_SAVE,
+        Diagnostic,
+        DiagnosticSeverity,
+        DidChangeTextDocumentParams,
+        DidOpenTextDocumentParams,
+        DidSaveTextDocumentParams,
+        Position,
+        Range,
+    )
+    from pygls.server import LanguageServer
 
     HAS_PYGLS = True
 except ImportError:
@@ -22,7 +33,7 @@ except ImportError:
                 "Install it with: pip install slowql[lsp]"
             )
 
-    # Dummy classes to make mypy happy when pygls is missing
+    # Dummy classes so helpers work without pygls installed
     class DiagnosticSeverity:  # type: ignore[no-redef]
         Error = 1
         Warning = 2
@@ -55,6 +66,11 @@ except ImportError:
             self.code = code
 
 
+# ---------------------------------------------------------------------------
+# Helpers - always importable (no pygls required)
+# ---------------------------------------------------------------------------
+
+
 def map_severity(severity: Severity) -> int:
     """Map SlowQL Severity to LSP DiagnosticSeverity."""
     if severity in (Severity.CRITICAL, Severity.HIGH):
@@ -68,17 +84,16 @@ def map_severity(severity: Severity) -> int:
 
 def issue_to_diagnostic(issue: Issue) -> Diagnostic:
     """Convert a SlowQL Issue into an LSP Diagnostic."""
-    # Note: LSP lines and characters are 0-indexed, SlowQL is 1-indexed.
     start_line = (issue.location.line - 1) if issue.location and issue.location.line else 0
     start_col = (issue.location.column - 1) if issue.location and issue.location.column else 0
 
     return Diagnostic(
         range=Range(
             start=Position(line=start_line, character=start_col),
-            end=Position(line=start_line, character=start_col + 1),  # Minimum 1 character length
+            end=Position(line=start_line, character=start_col + 1),
         ),
         message=issue.message,
-        severity=map_severity(issue.severity),  # type: ignore[arg-type]
+        severity=map_severity(issue.severity),
         code=issue.rule_id,
         source="SlowQL",
     )
@@ -98,3 +113,66 @@ class SlowQLLanguageServer(LanguageServer):
             )
         super().__init__(*args, **kwargs)
         self.logger = logger
+
+
+# ---------------------------------------------------------------------------
+# Diagnostics helper
+# ---------------------------------------------------------------------------
+
+
+def _validate_document(server: SlowQLLanguageServer, uri: str, source: str) -> None:
+    """Run SlowQL analysis on *source* and publish diagnostics for *uri*."""
+    from slowql.core.engine import SlowQL  # noqa: PLC0415
+
+    try:
+        engine = SlowQL()
+        result = engine.analyze(source, file_path=uri)
+        diagnostics = [issue_to_diagnostic(issue) for issue in result.issues]
+    except Exception:
+        server.logger.exception("SlowQL analysis failed for %s", uri)
+        diagnostics = []
+
+    server.publish_diagnostics(uri, diagnostics)
+
+
+# ---------------------------------------------------------------------------
+# Factory — build a fully-wired server instance (requires pygls)
+# ---------------------------------------------------------------------------
+
+
+def create_server() -> SlowQLLanguageServer:
+    """Create and return a SlowQLLanguageServer with diagnostics handlers."""
+    srv = SlowQLLanguageServer("slowql-lsp", "v0.0.1")
+
+    @srv.feature(TEXT_DOCUMENT_DID_OPEN)
+    def did_open(ls: SlowQLLanguageServer, params: DidOpenTextDocumentParams) -> None:
+        """Analyse a document when it is first opened."""
+        _validate_document(ls, params.text_document.uri, params.text_document.text)
+
+    @srv.feature(TEXT_DOCUMENT_DID_CHANGE)
+    def did_change(ls: SlowQLLanguageServer, params: DidChangeTextDocumentParams) -> None:
+        """Re-analyse a document whenever its content changes."""
+        text = params.content_changes[-1].text
+        _validate_document(ls, params.text_document.uri, text)
+
+    @srv.feature(TEXT_DOCUMENT_DID_SAVE)
+    def did_save(ls: SlowQLLanguageServer, params: DidSaveTextDocumentParams) -> None:
+        """Re-analyse on save (if the client sends the text)."""
+        if params.text is not None:
+            _validate_document(ls, params.text_document.uri, params.text)
+
+    return srv
+
+
+def main() -> None:
+    """Entry-point: create the server and start it in stdio mode."""
+    srv = create_server()
+    srv.start_io()
+
+
+# ---------------------------------------------------------------------------
+# python -m slowql.lsp.server
+# ---------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    main()
