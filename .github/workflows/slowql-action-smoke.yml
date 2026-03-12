@@ -1,0 +1,31 @@
+---
+name: SlowQL Action Smoke Test
+
+"on":
+  workflow_dispatch: {}
+  pull_request:
+    paths:
+      - '.github/actions/slowql/**'
+      - '.github/workflows/slowql-action-smoke.yml'
+      - 'src/**'
+
+jobs:
+  test-action:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Create Dummy SQL File
+        run: |
+          mkdir -p tests/smoke
+          echo 'SELECT id FROM users WHERE id = 1;' > tests/smoke/test_query.sql
+
+      - name: Run SlowQL Action
+        uses: ./.github/actions/slowql
+        with:
+          path: tests/smoke/*.sql
+          fail-on: 'never'
+          format: 'console'
+          python-version: '3.12'
+          extra-args: '--fast'
