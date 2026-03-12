@@ -87,7 +87,11 @@ interactive = [
     "readchar>=4.0.0",
 ]
 
-all = ["slowql[dev,docs,interactive]"]
+lsp = [
+    "pygls>=1.3.1",
+]
+
+all = ["slowql[dev,docs,interactive,lsp]"]
 
 [project.urls]
 Homepage = "https://github.com/makroumi/slowql"
