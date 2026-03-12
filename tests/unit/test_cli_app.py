@@ -321,7 +321,7 @@ class TestExportFunctions:
     @patch("slowql.cli.app.Prompt")
     def test_export_interactive_all_fallback(self, mock_prompt, _mock_console, mock_run_exports):
         """Test export_interactive fallback with All selection."""
-        mock_prompt.ask.return_value = "4"
+        mock_prompt.ask.return_value = "5"
 
         result = MagicMock()
         out_dir = Path("/tmp")
@@ -329,7 +329,7 @@ class TestExportFunctions:
         with patch.dict("sys.modules", {"readchar": None}):
             export_interactive(result, out_dir)
 
-            mock_run_exports.assert_called_once_with(result, ["json", "html", "csv"], out_dir)
+            mock_run_exports.assert_called_once_with(result, ["json", "html", "csv", "sarif"], out_dir)
 
 
 class TestCompareMode:

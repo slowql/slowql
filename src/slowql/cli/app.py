@@ -44,8 +44,9 @@ from slowql.reporters.base import BaseReporter
 from slowql.reporters.console import ConsoleReporter
 from slowql.reporters.github_actions_reporter import GithubActionsReporter
 from slowql.reporters.json_reporter import CSVReporter, HTMLReporter, JSONReporter
+from slowql.reporters.sarif_reporter import SARIFReporter
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger("slowql")
 
 console = Console()
@@ -60,6 +61,7 @@ class SessionManager:
         self.session_start = datetime.now()
         self.history: list[dict[str, Any]] = []
         self.severity_breakdown = {"critical": 0, "high": 0, "medium": 0, "low": 0}
+        self._machine_readable = False
 
     def add_analysis(self, result: AnalysisResult) -> None:
         """Record an analysis run"""
@@ -152,9 +154,16 @@ class QueryCache:
         self.cache.clear()
 
 
-def init_cli() -> None:
+def init_cli(machine_readable: bool = False) -> None:
     """Initialize CLI logging."""
-    logger.info("SlowQL CLI started")
+    if not machine_readable:
+        logger.setLevel(logging.INFO)
+        logger.info("SlowQL CLI started")
+    else:
+        # Mute all logging in machine readable mode so it doesn't corrupt stdout
+        logging.getLogger().setLevel(logging.CRITICAL)
+        logging.getLogger("sqlglot").setLevel(logging.CRITICAL)
+        logger.setLevel(logging.CRITICAL)
 
 
 # -------------------------------
@@ -206,6 +215,12 @@ def _run_exports(result: AnalysisResult, formats: list[str], out_dir: Path) -> N
                 with path.open("w", encoding="utf-8", newline="") as f:
                     CSVReporter(output_file=f).report(result)
                 console.print(f"[green]✓ Exported CSV:[/green] {path}")
+
+            elif fmt == "sarif":
+                path = out_dir / f"slowql_report_{timestamp}.sarif"
+                with path.open("w", encoding="utf-8") as f:
+                    SARIFReporter(output_file=f).report(result)
+                console.print(f"[green]✓ Exported SARIF:[/green] {path}")
 
         except Exception as e:
             console.print(f"[red]✗ Failed to export {fmt}:[/red] {e}")
@@ -429,7 +444,8 @@ def export_interactive(result: AnalysisResult, out_dir: Path) -> None:
         ("📄 JSON", ["json"]),
         ("🌐 HTML", ["html"]),
         ("📑 CSV", ["csv"]),
-        ("🧰 All (JSON + HTML + CSV)", ["json", "html", "csv"]),
+        ("🛡️ SARIF", ["sarif"]),
+        ("🧰 All (JSON + HTML + CSV + SARIF)", ["json", "html", "csv", "sarif"]),
     ]
     index = 0
 
@@ -461,7 +477,7 @@ def export_interactive(result: AnalysisResult, out_dir: Path) -> None:
     # Fallback to numeric prompt if readchar isn't available
     if not HAVE_READCHAR or not sys.stdin.isatty():
         console.print(render_menu())
-        choice = Prompt.ask("Select format [1/2/3/4]", choices=["1", "2", "3", "4"], default="1")
+        choice = Prompt.ask("Select format [1/2/3/4/5]", choices=["1", "2", "3", "4", "5"], default="1")
         _run_exports(result, options[int(choice) - 1][1], out_dir)
         return
 
@@ -584,31 +600,35 @@ def _get_sql_input(
 
 
 def _run_analysis(
-    sql_payload: str, engine: SlowQL, cache: QueryCache | None, fast: bool
+    sql_payload: str, engine: SlowQL, cache: QueryCache | None, fast: bool, machine_readable: bool = False
 ) -> AnalysisResult | None:
     """Runs analysis, using cache if available, with animations."""
     result = None
     if cache:
         result = cache.get(sql_payload)
-        if result is not None:
+        if result is not None and not machine_readable:
             console.print("[dim]Using cached results...[/dim]")
 
     if result is None:
-        aa = AnimatedAnalyzer()
-        with contextlib.suppress(Exception):
-            if not fast:
-                aa.particle_loading("ANALYZING QUERIES")
-                aa.glitch_transition(duration=0.25)
-
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            console=console,
-        ) as progress:
-            task = progress.add_task("[cyan]Analyzing...", total=1)
+        if machine_readable:
+            # Just run the analysis synchronously with no feedback
             result = engine.analyze(sql_payload)
-            progress.update(task, advance=1)
+        else:
+            aa = AnimatedAnalyzer()
+            with contextlib.suppress(Exception):
+                if not fast:
+                    aa.particle_loading("ANALYZING QUERIES")
+                    aa.glitch_transition(duration=0.25)
+
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                console=console,
+            ) as progress:
+                task = progress.add_task("[cyan]Analyzing...", total=1)
+                result = engine.analyze(sql_payload)
+                progress.update(task, advance=1)
 
         if cache and result:
             cache.set(sql_payload, result)
@@ -616,8 +636,11 @@ def _run_analysis(
     return result
 
 
-def _show_intro(intro_enabled: bool, fast: bool, is_tty: bool, intro_duration: float) -> None:
+def _show_intro(intro_enabled: bool, fast: bool, is_tty: bool, intro_duration: float, machine_readable: bool = False) -> None:
     """Displays the intro animation and welcome banner."""
+    if machine_readable:
+        return
+
     if intro_enabled and not fast and is_tty:
         with contextlib.suppress(Exception):
             MatrixRain().run(duration=intro_duration)
@@ -768,7 +791,13 @@ def _handle_result_output(
         True if analysis should continue, False if loop should stop.
     """
     session.add_analysis(result)
-    console.print("\n")
+
+    machine_readable = isinstance(formatter, SARIFReporter) and not out_dir
+    machine_readable = machine_readable or (hasattr(formatter, "output_file") and formatter.output_file is None)
+
+    if not machine_readable:
+        console.print("\n")
+
     formatter.report(result)
 
     if show_diff:
@@ -825,8 +854,9 @@ def _handle_loop_end(
         if not show_quick_actions_menu(result, None, out_dir):
             return False  # Break loop
     else:
-        console.print("\n")
-        session.display_summary()
+        if not hasattr(session, "_machine_readable") or not session._machine_readable:
+            console.print("\n")
+            session.display_summary()
 
         # Export session only when explicitly requested
         if export_session_history:
@@ -881,13 +911,18 @@ def run_analysis_loop(  # noqa: PLR0912, PLR0915
     formatter: BaseReporter
     if report_format == "github-actions":
         formatter = GithubActionsReporter()
+    elif report_format == "sarif":
+        formatter = SARIFReporter()
     else:
         formatter = ConsoleReporter()
 
     out_dir = safe_path(out_dir)
 
+    machine_readable = report_format == "sarif"
+    session._machine_readable = machine_readable
+
     is_tty = sys.stdin.isatty() and sys.stdout.isatty()
-    _show_intro(intro_enabled, fast, is_tty, intro_duration)
+    _show_intro(intro_enabled, fast, is_tty, intro_duration, machine_readable=machine_readable)
 
     first_run = True
     current_input_files: list[Path] | None = initial_input_files
@@ -913,7 +948,7 @@ def run_analysis_loop(  # noqa: PLR0912, PLR0915
                 continue
 
             first_run = False
-            result = _run_analysis(sql_payload, engine, cache, fast)
+            result = _run_analysis(sql_payload, engine, cache, fast, machine_readable=machine_readable)
             if not result:
                 continue
 
@@ -951,16 +986,17 @@ def run_analysis_loop(  # noqa: PLR0912, PLR0915
                 break
 
     # Final message
-    console.print("\n")
-    console.print(
-        Panel(
-            "[bold green]Thank you for using SlowQL![/bold green]\n"
-            f"[dim]Analyzed {session.queries_analyzed} queries | "
-            f"Found {session.total_issues} issues[/dim]",
-            border_style="green",
-            box=box.DOUBLE,
+    if not machine_readable:
+        console.print("\n")
+        console.print(
+            Panel(
+                "[bold green]Thank you for using SlowQL![/bold green]\n"
+                f"[dim]Analyzed {session.queries_analyzed} queries | "
+                f"Found {session.total_issues} issues[/dim]",
+                border_style="green",
+                box=box.DOUBLE,
+            )
         )
-    )
 
     return highest_exit_code
 
@@ -1016,14 +1052,14 @@ def build_argparser() -> argparse.ArgumentParser:
     output_group = p.add_argument_group("Output Options")
     output_group.add_argument(
         "--format",
-        choices=["console", "github-actions"],
+        choices=["console", "github-actions", "sarif"],
         default="console",
         help="Output format for analysis results (default: console)",
     )
     output_group.add_argument(
         "--export",
         nargs="*",
-        choices=["html", "csv", "json"],
+        choices=["html", "csv", "json", "sarif"],
         help="Auto-export formats after each analysis",
     )
     output_group.add_argument(
@@ -1076,7 +1112,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0912, PLR0915
     """
     Enhanced CLI entry point with analysis loop
     """
-    init_cli()
+
     parser = build_argparser()
     args = parser.parse_args(argv)
 
@@ -1109,6 +1145,9 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0912, PLR0915
     diff_enabled = bool(args_dict.get("diff", False))
     fix_enabled = bool(args_dict.get("fix", False))
     export_session_enabled = bool(args_dict.get("export_session", False))
+    report_format = args_dict.get("format", None)
+
+    init_cli(machine_readable=(report_format == "sarif"))
 
     if diff_enabled and fix_enabled:
         parser.error("--diff and --fix cannot be used together")
