@@ -1,0 +1,57 @@
+---
+name: 'SlowQL Action'
+description: 'Run SlowQL SQL static analysis directly in GitHub Actions'
+
+inputs:
+  path:
+    description: 'Glob or file path for SQL files to analyze (e.g., "**/*.sql")'
+    required: true
+  fail-on:
+    description: 'Severity threshold to fail the action'
+    required: false
+    default: 'high'
+  format:
+    description: 'Output format (console or github-actions)'
+    required: false
+    default: 'github-actions'
+  python-version:
+    description: 'Python version to use'
+    required: false
+    default: '3.12'
+  extra-args:
+    description: 'Additional arguments to pass to the slowql cli'
+    required: false
+    default: ''
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install SlowQL
+      shell: bash
+      run: |
+        set -euo pipefail
+        python -m pip install --upgrade pip
+        pip install -e .
+
+    - name: Run SlowQL Analysis
+      shell: bash
+      run: |
+        set -euo pipefail
+        # Use shopt nullglob to handle no matches gracefully
+        shopt -s globstar nullglob
+        FILES=(${{ inputs.path }})
+        if [ ${#FILES[@]} -eq 0 ]; then
+          echo "::error::No SQL files found matching path: ${{ inputs.path }}"
+          exit 1
+        fi
+        echo "Running SlowQL on ${#FILES[@]} files..."
+        slowql --non-interactive \
+               --fail-on ${{ inputs.fail-on }} \
+               --format ${{ inputs.format }} \
+               ${{ inputs.extra-args }} \
+               "${FILES[@]}"
