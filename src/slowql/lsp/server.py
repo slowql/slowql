@@ -18,9 +18,10 @@ try:
         DidOpenTextDocumentParams,
         DidSaveTextDocumentParams,
         Position,
+        PublishDiagnosticsParams,
         Range,
     )
-    from pygls.server import LanguageServer
+    from pygls.lsp.server import LanguageServer
 
     HAS_PYGLS = True
 except ImportError:
@@ -71,15 +72,15 @@ except ImportError:
 # ---------------------------------------------------------------------------
 
 
-def map_severity(severity: Severity) -> int:
+def map_severity(severity: Severity) -> DiagnosticSeverity:
     """Map SlowQL Severity to LSP DiagnosticSeverity."""
     if severity in (Severity.CRITICAL, Severity.HIGH):
-        return int(DiagnosticSeverity.Error)
+        return DiagnosticSeverity.Error
     if severity == Severity.MEDIUM:
-        return int(DiagnosticSeverity.Warning)
+        return DiagnosticSeverity.Warning
     if severity == Severity.LOW:
-        return int(DiagnosticSeverity.Information)
-    return int(DiagnosticSeverity.Hint)
+        return DiagnosticSeverity.Information
+    return DiagnosticSeverity.Hint
 
 
 def issue_to_diagnostic(issue: Issue) -> Diagnostic:
@@ -132,7 +133,9 @@ def _validate_document(server: SlowQLLanguageServer, uri: str, source: str) -> N
         server.logger.exception("SlowQL analysis failed for %s", uri)
         diagnostics = []
 
-    server.publish_diagnostics(uri, diagnostics)
+    server.text_document_publish_diagnostics(
+        PublishDiagnosticsParams(uri=uri, diagnostics=diagnostics)
+    )
 
 
 # ---------------------------------------------------------------------------

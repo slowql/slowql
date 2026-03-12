@@ -16,13 +16,27 @@ build/
 site/
 reports/
 
-# Output files
-*.html
-*.json
-*.csv
-*.xml
+# Generated report/output files
+coverage.xml
+junit.xml
+slowql_session_*.json
+slowql_results_*.json
+slowql_report_*.json
+slowql_report_*.csv
+slowql_report_*.html
+slowql_report_*.sarif
 
 # IDE
-.aider*
-.vscode/
 .idea/
+
+# VS Code extension build artifacts
+editors/vscode/node_modules/
+editors/vscode/out/
+editors/vscode/.vscode-test/
+*.vsix
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS/editor noise
+.DS_Store
