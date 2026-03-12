@@ -16,7 +16,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 import tomli
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -26,7 +26,7 @@ from slowql.core.exceptions import ConfigurationError
 try:
     import yaml
 except ImportError:
-    yaml = None  # type: ignore[assignment]
+    yaml = cast("Any", None)
 
 
 class SeverityThresholds(BaseModel):

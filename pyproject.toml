@@ -73,6 +73,7 @@ dev = [
     "pytest-xdist>=3.5.0",
     "pandas>=2.0.0",
     "mypy>=1.8.0",
+    "types-PyYAML>=6.0.12",
     "ruff>=0.3.0",
     "pre-commit>=3.6.0",
 ]
