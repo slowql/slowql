@@ -33,3 +33,23 @@ All notable changes to this project will be documented here.
 
 ### Fixed
 - MkDocs strict build errors
+
+
+## 1.5.0
+
+### Added
+- Conservative autofix foundation
+- `--diff` preview mode
+- `--fix` safe apply mode with backup support
+- `--fail-on` severity threshold support
+- `github-actions` output format
+- `--fix-report` JSON output
+- Source-anchored parser support
+- Remediation mode classification
+- Safe autofixes for:
+  - `QUAL-NULL-001`
+  - `QUAL-STYLE-002`
+
+### Changed
+- Non-interactive session export now requires explicit `--export-session`
+- Multi-file CLI input improved for automation/pre-commit style use
