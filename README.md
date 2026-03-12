@@ -123,6 +123,24 @@ Run in CI mode:
 slowql --non-interactive --input-file sql/ --export json
 ```
 
+Fail on high severity issues:
+
+```bash
+slowql --fail-on high
+```
+
+Preview safe fixes:
+
+```bash
+slowql --diff
+```
+
+Automatically apply safe fixes:
+
+```bash
+slowql --fix
+```
+
 ---
 
 # Example
@@ -212,7 +230,7 @@ slowql --compare
 
 # Safe Autofix
 
-Some rules support automated remediation.
+Only a small subset of rules currently supports safe automated remediation.
 
 Examples:
 
@@ -254,6 +272,10 @@ Self-contained report suitable for sharing or archiving.
 
 Spreadsheet-friendly export.
 
+### GitHub Actions
+
+Emits machine-readable GitHub annotation output for CI pipelines (`--format github-actions`).
+
 ---
 
 # Configuration
@@ -282,7 +304,7 @@ fail_on: high
 
 ---
 
-# Pre-commit Hook
+# Pre-commit
 
 SlowQL can be used as a pre-commit hook to analyze SQL files automatically before they are committed. 
 
@@ -291,11 +313,24 @@ Add the following to your `.pre-commit-config.yaml`:
 ```yaml
 repos:
   - repo: https://github.com/makroumi/slowql
-    rev: v2.0.0 # replace with actual version
+    rev: v1.5.0
     hooks:
       - id: slowql
-        # Optional: override default arguments
         args: ["--non-interactive", "--fail-on", "medium"]
+```
+
+---
+
+# GitHub Action
+
+You can easily run SlowQL in your CI pipeline using the official GitHub Action.
+
+```yaml
+- uses: makroumi/slowql-action@v1
+  with:
+    path: "./sql/**/*.sql"
+    fail-on: high
+    format: github-actions
 ```
 
 ---
@@ -304,7 +339,9 @@ repos:
 
 SlowQL supports automated quality gates.
 
-Example GitHub Actions workflow:
+### Option 1: GitHub Action (recommended)
+
+For GitHub Actions, the easiest approach is the [makroumi/slowql-action](https://github.com/makroumi/slowql-action):
 
 ```yaml
 name: SQL Analysis
@@ -314,24 +351,55 @@ on: [push, pull_request]
 jobs:
   slowql:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
+      - uses: makroumi/slowql-action@v1
+        with:
+          path: "./sql/**/*.sql"
+          fail-on: high
+          format: github-actions
+```
 
+### Option 2: Direct CLI usage
+
+If you are not using GitHub Actions, or prefer direct CLI control, install `slowql` from PyPI:
+
+```yaml
+name: SQL Analysis
+
+on: [push, pull_request]
+
+jobs:
+  slowql:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-
       - run: pip install slowql
-
-      - run: slowql --non-interactive --input-file sql/ --export json
+      - run: slowql --non-interactive --input-file sql/ --fail-on high --format github-actions
 ```
 
-Fail build on critical issues:
+## Useful CI/autofix flags
 
 ```bash
+slowql --non-interactive
 slowql --fail-on critical
+slowql --fail-on high
+slowql --format github-actions
+slowql --diff
+slowql --fix
+slowql --fix-report report.json
 ```
+
+### Notes
+
+- `--fail-on` controls failure threshold
+- `--format github-actions` emits GitHub annotations
+- `--diff` previews safe fixes
+- `--fix` applies safe fixes and writes a `.bak`
+- `--fix-report` writes a machine-readable fix report
 
 ---
 
