@@ -316,7 +316,7 @@ repos:
     rev: v1.5.0
     hooks:
       - id: slowql
-        args: ["--non-interactive", "--fail-on", "medium"]
+        args: ["--fail-on", "medium"]
 ```
 
 ---
