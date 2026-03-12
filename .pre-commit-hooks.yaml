@@ -1,0 +1,7 @@
+- id: slowql
+  name: SlowQL
+  description: "Analyze SQL files for anti-patterns and code quality issues"
+  entry: slowql --non-interactive
+  language: python
+  types: [sql]
+  pass_filenames: true
