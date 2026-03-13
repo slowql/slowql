@@ -294,3 +294,226 @@ def test_has_index_on_integration(parser):
     assert table.has_index_on(["email"]) is True
     assert table.has_index_on(["id"]) is False
     assert table.has_index_on(["email", "id"]) is False
+
+
+def test_parse_ddl_invalid_sql_raises_value_error(parser):
+    """Test that malformed DDL raises ValueError."""
+    with pytest.raises(ValueError, match="Failed to parse DDL"):
+        parser.parse_ddl("CREATE TABLE (")
+
+
+def test_parse_ddl_statement_exception_logs_and_continues(parser, monkeypatch, caplog):
+    """Test that statement-level exceptions are caught, logged, and processing continues."""
+
+    def mock_parse_create_table(*_, **__):
+        raise RuntimeError("Something went wrong")
+
+    monkeypatch.setattr(parser, "_parse_create_table", mock_parse_create_table)
+
+    ddl = """
+    CREATE TABLE users (id INTEGER);
+    """
+
+    schema = parser.parse_ddl(ddl)
+
+    assert "Failed to parse statement" in caplog.text
+    assert "Something went wrong" in caplog.text
+    assert len(schema.tables) == 0
+
+
+def test_get_table_info_unknown_expression_returns_none(parser):
+    """Test _get_table_info with unsupported expression types."""
+    from sqlglot import exp
+
+    table_obj, exprs = parser._get_table_info(exp.Star())
+    assert table_obj is None
+    assert exprs == []
+
+
+def test_parse_create_table_without_name_returns_none(parser, monkeypatch):
+    """Test _parse_create_table with an unnamed table."""
+    from sqlglot import exp
+
+    # Monkeypatch to simulate a table object without a name
+    monkeypatch.setattr(parser, "_get_table_info", lambda _: (exp.Table(this=exp.Identifier(this="")), []))
+
+    stmt = exp.Create(this=exp.Table(this=exp.Identifier(this="")), kind="TABLE")
+    assert parser._parse_create_table(stmt) is None
+
+
+def test_parse_table_elements_table_level_primary_key(parser):
+    """Test parsing table-level PRIMARY KEY constraint."""
+    ddl = "CREATE TABLE users (id INTEGER, PRIMARY KEY (id));"
+    schema = parser.parse_ddl(ddl)
+    table = schema.get_table("users")
+    assert "id" in table.primary_key
+
+
+def test_parse_column_without_name_returns_none(parser):
+    """Test _parse_column with a ColumnDef lacking a name."""
+    from sqlglot import exp
+
+    col_def = exp.ColumnDef(this=None, kind=exp.DataType.build("int"))
+    assert parser._parse_column(col_def) is None
+
+
+def test_parse_column_default_falls_back_to_args_default(parser):
+    """Test that column default falls back to args['default'] if no constraint exists."""
+    from sqlglot import exp
+
+    # Construct a ColumnDef and manually set the default arg
+    col_def = exp.ColumnDef(
+        this=exp.Identifier(this="col", quoted=False),
+        kind=exp.DataType.build("int"),
+    )
+    col_def.set("default", exp.Literal.number(42))
+
+    column = parser._parse_column(col_def)
+    assert column.default == "42"
+
+
+def test_extract_foreign_key_invalid_reference_returns_none(parser):
+    """Test _extract_foreign_key with malformed reference."""
+    from sqlglot import exp
+
+    # Reference expects 'this' to be a Schema for the current implementation
+    ref = exp.Reference(this=exp.Table(this=exp.Identifier(this="other", quoted=False)))
+    assert parser._extract_foreign_key(ref) is None
+
+
+def test_parse_create_index_non_index_returns_none(parser):
+    """Test _parse_create_index when stmt.this is not an Index."""
+    from sqlglot import exp
+
+    stmt = exp.Create(this=exp.Table(this=exp.Identifier(this="tbl", quoted=False)), kind="INDEX")
+    assert parser._parse_create_index(stmt) is None
+
+
+def test_parse_create_index_missing_name_returns_none(parser):
+    """Test _parse_create_index when index name cannot be determined."""
+    from sqlglot import exp
+
+    # Index with no name and no 'this' identifier
+    index_expr = exp.Index()
+    stmt = exp.Create(this=index_expr, kind="INDEX")
+    assert parser._parse_create_index(stmt) is None
+
+
+def test_parse_create_index_missing_table_returns_none(parser):
+    """Test _parse_create_index when table is missing."""
+    from sqlglot import exp
+
+    index_expr = exp.Index(this=exp.Identifier(this="idx", quoted=False))
+    stmt = exp.Create(this=index_expr, kind="INDEX")
+    # No Table node in stmt
+    assert parser._parse_create_index(stmt) is None
+
+
+def test_parse_create_index_without_columns_returns_none(parser):
+    """Test _parse_create_index when no columns are specified."""
+    from sqlglot import exp
+
+    index_expr = exp.Index(this=exp.Identifier(this="idx", quoted=False))
+    stmt = exp.Create(this=index_expr, kind="INDEX")
+    # Manually append a table node so it passes the table check but fails the column check
+    stmt.append("expressions", exp.Table(this=exp.Identifier(this="tbl", quoted=False)))
+
+    assert parser._parse_create_index(stmt) is None
+
+
+def test_map_sql_type_none_returns_unknown(parser):
+    """Test _map_sql_type with None input."""
+    assert parser._map_sql_type(None) == ColumnType.UNKNOWN
+
+
+def test_map_sql_type_malformed_object_returns_unknown(parser):
+    """Test _map_sql_type with an object that lacks expected attributes."""
+
+    class Malformed:
+        pass
+
+    assert parser._map_sql_type(Malformed()) == ColumnType.UNKNOWN
+
+
+def test_map_sql_type_malformed_object_raises_attribute_error(parser):
+    """Test _map_sql_type when accessing attributes raises AttributeError."""
+
+    class Evil:
+        @property
+        def this(self):
+            raise AttributeError("Evil attribute")
+
+    assert parser._map_sql_type(Evil()) == ColumnType.UNKNOWN
+
+
+def test_map_sql_type_array_suffix_returns_array(parser):
+    """Test _map_sql_type with '[]' suffix in type name."""
+
+    # Using a string representation that includes []
+    class MockType:
+        def __init__(self):
+            self.this = type("this", (), {"name": "MYTYPE[]"})()
+
+    assert parser._map_sql_type(MockType()) == ColumnType.ARRAY
+
+
+def test_map_sql_type_array_flag_returns_array(parser):
+    """Test _map_sql_type with is_array flag for a type not in mapping."""
+    from sqlglot import exp
+
+    # Use a type that is NOT in the mapping
+    data_type = exp.DataType(this=exp.DataType.Type.UNKNOWN)
+    data_type.args["is_array"] = True
+    assert parser._map_sql_type(data_type) == ColumnType.ARRAY
+
+
+def test_get_table_info_plain_table(parser):
+    """Test _get_table_info with a plain Table expression."""
+    from sqlglot import exp
+
+    table = exp.Table(this=exp.Identifier(this="tbl", quoted=False))
+    table_obj, exprs = parser._get_table_info(table)
+    assert table_obj is table
+    assert exprs == []
+
+
+def test_extract_foreign_key_missing_expressions_returns_none(parser):
+    """Test _extract_foreign_key when reference has table but no column expressions."""
+    from sqlglot import exp
+
+    # Mocking a Schema node with a Table node but no expressions
+    ref_schema = exp.Schema(this=exp.Table(this=exp.Identifier(this="other", quoted=False)), expressions=[])
+    ref = exp.Reference(this=ref_schema)
+    assert parser._extract_foreign_key(ref) is None
+
+
+def test_parse_create_index_use_identifier_as_name(parser):
+    """Test _parse_create_index when name is empty but this exists."""
+    from sqlglot import exp
+
+    # Index with no name but this=Identifier
+    index_expr = exp.Index(this=exp.Identifier(this="idx_ident", quoted=False))
+    stmt = exp.Create(this=index_expr, kind="INDEX")
+    stmt.append("expressions", exp.Table(this=exp.Identifier(this="tbl", quoted=False)))
+    # Need a column too
+    col = exp.Column(this=exp.Identifier(this="col", quoted=False))
+    stmt.append("expressions", col)
+
+    result = parser._parse_create_index(stmt)
+    assert result[1].name == "idx_ident"
+
+
+def test_parse_ddl_skips_none_table(parser, monkeypatch):
+    """Test parse_ddl skips when _parse_create_table returns None."""
+    monkeypatch.setattr(parser, "_parse_create_table", lambda _: None)
+    ddl = "CREATE TABLE users (id int);"
+    schema = parser.parse_ddl(ddl)
+    assert len(schema.tables) == 0
+
+
+def test_parse_ddl_skips_none_index(parser, monkeypatch):
+    """Test parse_ddl skips when _parse_create_index returns None."""
+    monkeypatch.setattr(parser, "_parse_create_index", lambda _: None)
+    ddl = "CREATE INDEX idx ON users(id);"
+    schema = parser.parse_ddl(ddl)
+    assert len(schema.tables) == 0
