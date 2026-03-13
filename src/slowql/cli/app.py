@@ -894,6 +894,7 @@ def run_analysis_loop(  # noqa: PLR0912, PLR0915
     report_format: str = "console",
     *,
     initial_input_files: list[Path] | None = None,
+    schema_file: Path | None = None,
 ) -> int:
     """
     Main execution pipeline with interactive loop
@@ -906,7 +907,17 @@ def run_analysis_loop(  # noqa: PLR0912, PLR0915
     overrides: dict[str, Any] = {"output": {"verbose": verbose}}
     if fail_on:
         overrides["severity"] = {"fail_on": fail_on}
-    engine = SlowQL(config=config.with_overrides(**overrides))
+
+    loaded_schema = None
+    if schema_file is not None:
+        from slowql.schema.inspector import SchemaInspector  # noqa: PLC0415
+
+        loaded_schema = SchemaInspector.from_ddl_file(
+            schema_file,
+            dialect=config.analysis.dialect or "postgresql",
+        )
+
+    engine = SlowQL(config=config.with_overrides(**overrides), schema=loaded_schema)
 
     formatter: BaseReporter
     if report_format == "github-actions":
@@ -1047,6 +1058,12 @@ def build_argparser() -> argparse.ArgumentParser:
         choices=["critical", "high", "medium", "low", "info", "never"],
         help="Set failure threshold based on issue severity",
     )
+    analysis_group.add_argument(
+        "--schema",
+        "-s",
+        type=Path,
+        help="Path to DDL schema file for schema-aware validation",
+    )
 
     # Output options
     output_group = p.add_argument_group("Output Options")
@@ -1178,6 +1195,9 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0912, PLR0915
         "enable_cache": not args.no_cache,
         "enable_comparison": args.compare,
     }
+
+    if args.schema:
+        loop_kwargs["schema_file"] = args.schema
 
     if initial_files is not None:
         loop_kwargs["initial_input_files"] = initial_files

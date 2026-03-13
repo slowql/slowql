@@ -8,6 +8,7 @@ It orchestrates parsing, analysis, and result aggregation.
 
 from __future__ import annotations
 
+import logging
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -22,9 +23,12 @@ from slowql.core.models import (
 )
 from slowql.parser.universal import UniversalParser
 
+logger = logging.getLogger(__name__)
+
 if TYPE_CHECKING:
     from slowql.analyzers.base import BaseAnalyzer
     from slowql.parser.base import BaseParser
+    from slowql.schema.models import Schema
 
 
 class SlowQL:
@@ -56,6 +60,8 @@ class SlowQL:
         config: Config | None = None,
         *,
         auto_discover: bool = True,
+        schema: Schema | None = None,
+        schema_path: str | Path | None = None,
     ) -> None:
         """
         Initialize the SlowQL engine.
@@ -64,12 +70,21 @@ class SlowQL:
             config: Configuration to use. If None, will attempt to find
                    and load a configuration file, or use defaults.
             auto_discover: Whether to auto-discover analyzers via entry points.
+            schema: Optional pre-loaded Schema object.
+            schema_path: Optional path to a DDL file to load schema from.
         """
         self.config = config or Config.find_and_load()
         self._parser: BaseParser | None = None
         self._analyzers: list[BaseAnalyzer] = []
         self._analyzers_loaded = False
         self._auto_discover = auto_discover
+        self._schema: Schema | None = None
+
+        # Load schema if provided
+        if schema is not None:
+            self._schema = schema
+        elif schema_path is not None:
+            self._schema = self._load_schema(schema_path)
 
     @property
     def parser(self) -> BaseParser:
@@ -85,6 +100,34 @@ class SlowQL:
             self._load_analyzers()
             self._analyzers_loaded = True
         return self._analyzers
+
+    @property
+    def schema(self) -> Schema | None:
+        """Get the loaded schema, if any."""
+        return self._schema
+
+    @schema.setter
+    def schema(self, value: Schema | None) -> None:
+        """Set the schema for validation."""
+        self._schema = value
+
+    def _load_schema(self, path: str | Path) -> Schema:
+        """Load schema from DDL file."""
+        from slowql.schema.inspector import SchemaInspector  # noqa: PLC0415
+
+        return SchemaInspector.from_ddl_file(
+            path, dialect=self.config.analysis.dialect or "postgresql"
+        )
+
+    def with_schema(
+        self, schema: Schema | None = None, schema_path: str | Path | None = None
+    ) -> SlowQL:
+        """Return a new engine instance with schema loaded."""
+        if schema is not None:
+            self._schema = schema
+        elif schema_path is not None:
+            self._schema = self._load_schema(schema_path)
+        return self
 
     def _load_analyzers(self) -> None:
         """Load all enabled analyzers."""
@@ -258,6 +301,46 @@ class SlowQL:
                 for issue in analyzer_issues:
                     if self._should_report_issue(issue):
                         issues.append(issue)
+
+        # Run schema-aware rules if schema is loaded
+        if self._schema is not None:
+            schema_issues = self._run_schema_rules(queries)
+            issues.extend(schema_issues)
+
+        return issues
+
+    def _run_schema_rules(self, queries: list[Query]) -> list[Issue]:
+        """Run schema-aware validation rules."""
+        if self._schema is None:
+            return []
+
+        # Help mypy understand _schema is not None
+        schema = self._schema
+
+        from slowql.rules.schema import (  # noqa: PLC0415
+            ColumnExistsRule,
+            MissingIndexRule,
+            TableExistsRule,
+        )
+
+        issues: list[Issue] = []
+
+        rules = [
+            TableExistsRule(schema),
+            ColumnExistsRule(schema),
+            MissingIndexRule(schema),
+        ]
+
+        for query in queries:
+            for rule in rules:
+                try:
+                    rule_issues = rule.check(query)
+                    for issue in rule_issues:
+                        if self._should_report_issue(issue):
+                            issues.append(issue)
+                except Exception as e:
+                    # Log but don't crash on rule errors
+                    logger.warning(f"Schema rule {rule.id} failed: {e}")
 
         return issues
 
