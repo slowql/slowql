@@ -20,7 +20,37 @@
         "aliases": ["SQL", "sql"],
         "extensions": [".sql"]
       }
-    ]
+    ],
+    "commands": [
+      {
+        "command": "slowql.restartLanguageServer",
+        "title": "SlowQL: Restart Language Server"
+      }
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "SlowQL",
+      "properties": {
+        "slowql.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable the SlowQL language server"
+        },
+        "slowql.command": {
+          "type": "string",
+          "default": "python",
+          "description": "Command used to launch the SlowQL language server"
+        },
+        "slowql.args": {
+          "type": "array",
+          "default": ["-m", "slowql.lsp.server"],
+          "items": {
+            "type": "string"
+          },
+          "description": "Arguments passed to the SlowQL language server command"
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
