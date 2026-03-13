@@ -85,6 +85,8 @@ class SlowQL:
             self._schema = schema
         elif schema_path is not None:
             self._schema = self._load_schema(schema_path)
+        elif self.config.schema_config.path is not None:
+            self._schema = self._load_schema(self.config.schema_config.path)
 
     @property
     def parser(self) -> BaseParser:

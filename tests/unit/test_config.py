@@ -9,6 +9,7 @@ from slowql.core.config import (
     Config,
     CostConfig,
     OutputConfig,
+    SchemaConfig,
     SeverityThresholds,
 )
 
@@ -89,6 +90,16 @@ class TestCostConfig:
         assert config.storage_cost_per_gb == 0.1
 
 
+class TestSchemaConfig:
+    def test_schema_config_creation(self):
+        config = SchemaConfig()
+        assert config.path is None
+
+    def test_schema_config_custom(self):
+        config = SchemaConfig(path="db/schema.sql")
+        assert config.path == "db/schema.sql"
+
+
 class TestConfig:
     def test_config_creation(self):
         config = Config()
@@ -96,6 +107,17 @@ class TestConfig:
         assert isinstance(config.output, OutputConfig)
         assert isinstance(config.compliance, ComplianceConfig)
         assert isinstance(config.cost, CostConfig)
+        assert isinstance(config.schema_config, SchemaConfig)
+
+    def test_config_schema(self):
+        """Test config with schema path."""
+        config = Config(schema_config=SchemaConfig(path="db/schema.sql"))
+        assert config.schema_config.path == "db/schema.sql"
+
+        # Test loading from dict
+        data = {"schema": {"path": "db/schema.sql"}}
+        config = Config.model_validate(data)
+        assert config.schema_config.path == "db/schema.sql"
 
     def test_config_hash(self):
         config1 = Config()

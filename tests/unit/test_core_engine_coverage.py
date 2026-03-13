@@ -19,6 +19,8 @@ class TestSlowQLEngineCoverage:
         config.analysis.enabled_dimensions = [d.value for d in Dimension]
         config.analysis.enabled_rules = None
         config.analysis.disabled_rules = []
+        config.schema_config = MagicMock()
+        config.schema_config.path = None
         return config
 
     def test_init_and_properties(self, mock_config):
@@ -340,6 +342,36 @@ class TestSlowQLEngineCoverage:
         monkeypatch.setattr(SlowQL, "_load_schema", lambda _s, _p: mock_schema)
         engine = SlowQL(config=mock_config, schema_path="path/to/schema.sql")
         assert engine.schema == mock_schema
+
+    def test_init_with_config_schema_fallback(self, mock_config, monkeypatch):
+        mock_schema = MagicMock(spec=Schema)
+        monkeypatch.setattr(SlowQL, "_load_schema", lambda _s, _p: mock_schema)
+
+        # Mock config with schema.path
+        mock_config.schema_config = MagicMock()
+        mock_config.schema_config.path = "config/schema.sql"
+
+        # 1. Fallback to config when no explicit args
+        engine = SlowQL(config=mock_config)
+        assert engine.schema == mock_schema
+
+        # 2. Explicit schema_path overrides config
+        mock_schema_explicit = MagicMock(spec=Schema)
+
+        def mock_load_multi(_instance, path):
+            if path == "explicit.sql":
+                return mock_schema_explicit
+            return mock_schema
+
+        monkeypatch.setattr(SlowQL, "_load_schema", mock_load_multi)
+
+        engine2 = SlowQL(config=mock_config, schema_path="explicit.sql")
+        assert engine2.schema == mock_schema_explicit
+
+        # 3. Explicit schema object overrides both
+        mock_schema_obj = MagicMock(spec=Schema)
+        engine3 = SlowQL(config=mock_config, schema=mock_schema_obj, schema_path="ignored.sql")
+        assert engine3.schema == mock_schema_obj
 
     def test_load_schema_delegation(self, mock_config, monkeypatch):
         engine = SlowQL(config=mock_config)

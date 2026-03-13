@@ -433,6 +433,9 @@ class TestRunAnalysisLoop:
         mock_sys.stdout.isatty.return_value = True
 
         config = MagicMock()
+        config.schema_config.path = None
+        config.with_overrides.return_value = config
+        config.schema_config.path = None
         mock_config.find_and_load.return_value = config
         engine = MagicMock()
         mock_slowql.return_value = engine
@@ -478,6 +481,8 @@ class TestRunAnalysisLoop:
         mock_editor.return_value = mock_editor_instance
 
         config = MagicMock()
+        config.schema_config.path = None
+        config.with_overrides.return_value = config
         mock_config.find_and_load.return_value = config
         engine = MagicMock()
         result = MagicMock()
@@ -524,6 +529,8 @@ class TestRunAnalysisLoop:
 
         try:
             config = MagicMock()
+            config.schema_config.path = None
+            config.with_overrides.return_value = config
             mock_config.find_and_load.return_value = config
             engine = MagicMock()
             result = MagicMock()
@@ -572,6 +579,9 @@ class TestRunAnalysisLoop:
         mock_editor.return_value.get_queries.return_value = "SELECT * FROM test"
 
         config = MagicMock()
+        config.schema_config.path = None
+        config.with_overrides.return_value = config
+        config.schema_config.path = None
         mock_config.find_and_load.return_value = config
         engine = MagicMock()
         cached_result = MagicMock()
@@ -614,6 +624,8 @@ class TestRunAnalysisLoop:
         mock_sys.stdout.isatty.return_value = True
 
         config = MagicMock()
+        config.schema_config.path = None
+        config.with_overrides.return_value = config
         mock_config.find_and_load.return_value = config
         engine = MagicMock()
         mock_slowql.return_value = engine
@@ -660,6 +672,8 @@ class TestRunAnalysisLoop:
         mock_animator.return_value.particle_loading.side_effect = Exception("Animation failed")
 
         config = MagicMock()
+        config.schema_config.path = None
+        config.with_overrides.return_value = config
         mock_config.find_and_load.return_value = config
         engine = MagicMock()
         result = MagicMock()
@@ -712,6 +726,8 @@ class TestRunAnalysisLoop:
         mock_matrix.return_value.run.side_effect = Exception("Intro failed")
 
         config = MagicMock()
+        config.schema_config.path = None
+        config.with_overrides.return_value = config
         mock_config.find_and_load.return_value = config
         engine = MagicMock()
         result = MagicMock()
@@ -764,6 +780,9 @@ class TestRunAnalysisLoop:
         mock_confirm.ask.return_value = True  # Continue after error
 
         config = MagicMock()
+        config.schema_config.path = None
+        config.with_overrides.return_value = config
+        config.schema_config.path = None
         mock_config.find_and_load.return_value = config
         engine = MagicMock()
         result = MagicMock()
@@ -813,6 +832,8 @@ class TestRunAnalysisLoop:
         mock_confirm.ask.return_value = True  # Export session
 
         config = MagicMock()
+        config.schema_config.path = None
+        config.with_overrides.return_value = config
         mock_config.find_and_load.return_value = config
         engine = MagicMock()
         result = MagicMock()

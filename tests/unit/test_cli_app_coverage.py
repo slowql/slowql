@@ -218,7 +218,9 @@ class TestAnalysisLoop:
             patch("slowql.cli.app.ConsoleReporter"),
             patch("slowql.cli.app.CyberpunkSQLEditor") as MockEditor,
         ):
-            MockConfig.find_and_load.return_value = MagicMock()
+            config = MagicMock()
+            config.schema_config.path = None
+            MockConfig.find_and_load.return_value = config
             MockEngine.return_value.analyze.side_effect = Exception("TestCrash")
 
             # Editor returns one query then None to exit
@@ -236,9 +238,13 @@ class TestAnalysisLoop:
     def test_loop_handle_sql_input_continue(self, mock_console):
         with (
             patch("slowql.cli.app.SlowQL"),
-            patch("slowql.cli.app.Config"),
+            patch("slowql.cli.app.Config") as mock_config,
             patch("slowql.cli.app._handle_sql_input") as mock_input,
         ):
+            config = MagicMock()
+            config.schema_config.path = None
+            config.with_overrides.return_value = config
+            mock_config.find_and_load.return_value = config
             # _handle_sql_input returns (None, True) -> should_continue=True
             # then returns (None, False) to exit
             mock_input.side_effect = [(None, True), (None, False)]
