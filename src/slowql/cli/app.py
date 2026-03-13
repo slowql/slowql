@@ -171,6 +171,11 @@ def init_cli(machine_readable: bool = False) -> None:
 # -------------------------------
 
 
+def _is_machine_readable_format(report_format: str) -> bool:
+    """Return True when the selected report format is intended for machine parsing."""
+    return report_format in {"sarif", "github-actions"}
+
+
 def ensure_reports_dir(path: Path) -> Path:
     """Ensure reports directory exists"""
     path.mkdir(parents=True, exist_ok=True)
@@ -782,6 +787,7 @@ def _handle_result_output(
     input_file: Path | None,
     sql_payload: str,
     apply_fixes: bool,
+    machine_readable: bool,
     fix_report: Path | None = None,
 ) -> bool:
     """
@@ -791,9 +797,6 @@ def _handle_result_output(
         True if analysis should continue, False if loop should stop.
     """
     session.add_analysis(result)
-
-    machine_readable = isinstance(formatter, SARIFReporter) and not out_dir
-    machine_readable = machine_readable or (hasattr(formatter, "output_file") and formatter.output_file is None)
 
     if not machine_readable:
         console.print("\n")
@@ -828,7 +831,7 @@ def _compute_fail_exit_code(result: AnalysisResult, fail_on: str | None) -> int:
     Compute exit code for a result based on an explicit fail threshold.
 
     Returns 0 when no explicit threshold is provided or when the threshold is not met.
-    Returns result.exit_code when the threshold is met.
+    Returns 2 (policy failure) when the threshold is met.
     """
     if not fail_on or fail_on == "never":
         return 0
@@ -837,7 +840,7 @@ def _compute_fail_exit_code(result: AnalysisResult, fail_on: str | None) -> int:
     max_weight = max((issue.severity.weight for issue in result.issues), default=0)
 
     if max_weight >= threshold_weight:
-        return result.exit_code
+        return 2
 
     return 0
 
@@ -929,7 +932,7 @@ def run_analysis_loop(  # noqa: PLR0912, PLR0915
 
     out_dir = safe_path(out_dir)
 
-    machine_readable = report_format == "sarif"
+    machine_readable = _is_machine_readable_format(report_format)
     session._machine_readable = machine_readable
 
     is_tty = sys.stdin.isatty() and sys.stdout.isatty()
@@ -981,6 +984,7 @@ def run_analysis_loop(  # noqa: PLR0912, PLR0915
                 input_file=current_input_files[0] if current_input_files is not None and len(current_input_files) == 1 else None,
                 sql_payload=sql_payload,
                 apply_fixes=apply_fixes,
+                machine_readable=machine_readable,
                 fix_report=fix_report,
             ):
                 break
@@ -1162,9 +1166,10 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0912, PLR0915
     diff_enabled = bool(args_dict.get("diff", False))
     fix_enabled = bool(args_dict.get("fix", False))
     export_session_enabled = bool(args_dict.get("export_session", False))
-    report_format = args_dict.get("format", None)
+    report_format_raw = args_dict.get("format", "console")
+    report_format = report_format_raw if isinstance(report_format_raw, str) else "console"
 
-    init_cli(machine_readable=(report_format == "sarif"))
+    init_cli(machine_readable=_is_machine_readable_format(report_format))
 
     if diff_enabled and fix_enabled:
         parser.error("--diff and --fix cannot be used together")
@@ -1202,8 +1207,9 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0912, PLR0915
     if initial_files is not None:
         loop_kwargs["initial_input_files"] = initial_files
 
-    report_format = args_dict.get("format", None)
-    if report_format and report_format != "console":
+    report_format_raw = args_dict.get("format", "console")
+    report_format = report_format_raw if isinstance(report_format_raw, str) else "console"
+    if report_format != "console":
         loop_kwargs["report_format"] = report_format
 
     if diff_enabled:

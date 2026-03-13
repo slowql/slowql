@@ -1,10 +1,8 @@
 # SlowQL
 
-SlowQL is a static analyzer for SQL.
+SlowQL is a **production-focused offline SQL static analyzer** designed to catch security vulnerabilities, performance regressions, reliability issues, compliance risks, cost inefficiencies, and code quality problems before they reach production.
 
-It scans SQL files and detects patterns associated with production incidents, performance regressions, security vulnerabilities, and data integrity risks.
-
-The analyzer runs locally, requires **no external services**, and is suitable for development workflows, CI pipelines, and automated quality gates.
+It performs safe static analysis of your SQL source code, requiring **no database connection**. SlowQL is built for modern engineering teams, supporting CI/CD pipelines, pre-commit hooks, GitHub Actions, SARIF output, and automated fixes.
 
 ---
 
@@ -44,6 +42,8 @@ The analyzer runs locally, requires **no external services**, and is suitable fo
   <a href="https://github.com/makroumi/slowql/issues"><img src="https://img.shields.io/github/issues/makroumi/slowql?logo=github" alt="Issues"></a>
   <a href="https://github.com/makroumi/slowql/discussions"><img src="https://img.shields.io/github/discussions/makroumi/slowql?logo=github" alt="Discussions"></a>
   <a href="https://github.com/makroumi/slowql/graphs/contributors"><img src="https://img.shields.io/github/contributors/makroumi/slowql?logo=github&color=success" alt="Contributors"></a>
+  <a href="https://github.com/sponsors/makroumi"><img src="https://img.shields.io/badge/Sponsor-GitHub%20Sponsors-ea4aaa?logo=githubsponsors&logoColor=white" alt="Sponsor"></a>
+  <a href="https://snyk.io/test/github/makroumi/slowql"><img src="https://snyk.io/test/github/makroumi/slowql/badge.svg" alt="Known Vulnerabilities"></a>
 </p>
 
 ---
@@ -54,25 +54,14 @@ The analyzer runs locally, requires **no external services**, and is suitable fo
 
 ---
 
-# Overview
+## Why SlowQL
 
-SlowQL analyzes SQL source code and detects patterns associated with:
-
-- security vulnerabilities
-- performance regressions
-- reliability issues
-- inefficient query patterns
-- compliance risks
-- code quality problems
-
-The analyzer works entirely offline and performs static inspection of SQL queries without executing them.
-
-Typical use cases include:
-
-- developer workflows
-- CI/CD quality checks
-- SQL governance in repositories
-- automated query review
+- **Offline-First Analysis**: Catch bugs without ever connecting to a live database.
+- **Deep Visibility**: 171 built-in rules covering performance, security, and reliability.
+- **Schema-Aware**: Optionally validate against your DDL files to catch missing tables and columns.
+- **Safe Autofix**: Automatically remediate common anti-patterns with one command.
+- **Native Context**: Native workflow integrations including pre-commit, GitHub Actions, SARIF, and foundational LSP/VS Code support.
+- **Actionable Reporting**: Results through console output, GitHub annotations, SARIF, and exported JSON/HTML reports.
 
 ---
 
@@ -90,421 +79,184 @@ pipx install slowql
 pip install slowql
 ```
 
-Requirements:
-
-- Python 3.11+
-- Linux / macOS / Windows
-
-Verify installation:
-
-```bash
-slowql --version
-```
+Requirements: Python 3.11+, Linux / macOS / Windows.
 
 ---
 
 # Quick Start
 
 Analyze a SQL file:
-
 ```bash
 slowql queries.sql
 ```
 
-Analyze a directory:
-
+Analyze with schema validation:
 ```bash
-slowql --input-file sql/
+slowql queries.sql --schema schema.sql
 ```
 
-Run in CI mode:
-
+Run in CI mode with failure thresholds:
 ```bash
-slowql --non-interactive --input-file sql/ --export json
+slowql --non-interactive --input-file sql/ --fail-on high --format github-actions
 ```
 
-Fail on high severity issues:
-
+Preview and apply safe fixes:
 ```bash
-slowql --fail-on high
-```
-
-Preview safe fixes:
-
-```bash
-slowql --diff
-```
-
-Automatically apply safe fixes:
-
-```bash
-slowql --fix
+slowql queries.sql --diff
+slowql queries.sql --fix --fix-report fix-report.json
 ```
 
 ---
 
-# Example
+# Schema-Aware Validation
 
-Input SQL:
+SlowQL can perform optional schema-aware validation by inspecting your DDL files. This allows the analyzer to catch structural issues that generic static analysis might miss.
 
-```sql
-SELECT * FROM users WHERE email LIKE '%@gmail.com';
-DELETE FROM logs;
+- **Tables/Columns**: Detect references to non-existent tables or columns.
+- **Index Suggestions**: Identify filtered columns that lack corresponding indexes.
+
+```bash
+# Pass a single DDL file
+slowql queries.sql --schema database/schema.sql
+
+# Fail CI if schema issues are found
+slowql migrations/ --schema schema.sql --fail-on critical
 ```
 
-Output:
-
-```
-CRITICAL  REL-DATA-001   DELETE without WHERE clause
-HIGH      PERF-IDX-002   Leading wildcard prevents index usage
-MEDIUM    PERF-SCAN-001  SELECT * may trigger full scans
-```
+### Example Schema Findings
+- `SCHEMA-TBL-001`: Table referenced but not defined in schema.
+- `SCHEMA-COL-001`: Column referenced but not present in table definition.
+- `SCHEMA-IDX-001`: Missing index suggested for highly-filtered column.
 
 ---
 
 # Rule Coverage
 
-SlowQL currently ships with **171 rules** across six dimensions.
+SlowQL ships with **171 rules** across six core dimensions:
 
-| Dimension | Rules |
-|-----------|------|
-| Security | 45 |
-| Performance | 39 |
-| Quality | 30 |
-| Cost | 20 |
-| Reliability | 19 |
-| Compliance | 18 |
-
-Each issue contains:
-
-- rule identifier
-- severity
-- dimension
-- location in source
-- contextual snippet
-- remediation guidance
-
-Severity levels:
-
-```
-critical
-high
-medium
-low
-info
-```
+| Dimension | Focus | Rules |
+|-----------|-------|-------|
+| Security | SQL injection, permission risks, sensitive data | 45 |
+| Performance | Full scans, leading wildcards, N+1 patterns | 39 |
+| Quality | Style, readability, anti-patterns | 30 |
+| Cost | Inefficient cloud-warehouse patterns | 20 |
+| Reliability | Null handling, data integrity, lock risks | 19 |
+| Compliance | GDPR, PII handling, data sovereignty | 18 |
 
 ---
 
 # CLI Usage
 
-Basic usage:
+### Primary Flags
+- `--input-file` : Path to SQL file or directory.
+- `--schema`: Path to DDL schema file.
+- `--fail-on`: Set exit failure threshold (`critical`, `high`, `medium`, `low`, `info`, `never`).
+- `--non-interactive`: Suppress spinners and interactive prompts.
 
-```bash
-slowql queries.sql
-slowql --input-file sql/
-```
+### Output Control
+- `--format`: Controls the primary output stream (`console`, `github-actions`, `sarif`).
+- `--export`: Writes detailed reports to disk (`json`, `html`, `csv`).
+- `--out /`: Directory for exported reports.
 
-Export reports:
-
-```bash
-slowql --export json
-slowql --export json html csv
-slowql --out reports/
-```
-
-CI mode:
-
-```bash
-slowql --non-interactive
-slowql --fail-on high
-```
-
-Query comparison:
-
-```bash
-slowql --compare
-```
-
----
-
-# Safe Autofix
-
-Only a small subset of rules currently supports safe automated remediation.
-
-Examples:
-
-| Rule | Fix |
-|-----|-----|
-| QUAL-NULL-001 | `= NULL` → `IS NULL` |
-| QUAL-NULL-001 | `!= NULL` → `IS NOT NULL` |
-| QUAL-STYLE-002 | `EXISTS (SELECT *)` → `EXISTS (SELECT 1)` |
-
-Preview fixes:
-
-```bash
-slowql --diff
-```
-
-Apply fixes:
-
-```bash
-slowql --fix
-```
-
-Backup files are created automatically before modification.
-
----
-
-# Output Formats
-
-SlowQL supports multiple output formats.
-
-### JSON
-
-Machine-readable format for CI systems.
-
-### HTML
-
-Self-contained report suitable for sharing or archiving.
-
-### CSV
-
-Spreadsheet-friendly export.
-
-### GitHub Actions
-
-Emits machine-readable GitHub annotation output for CI pipelines (`--format github-actions`).
+### Exit Codes
+- `0`: No issues found or issues below failure threshold.
+- `2`: Issues found meet or exceed the `--fail-on` threshold.
+- `3`: Runtime error or tool failure.
 
 ---
 
 # Configuration
 
-SlowQL automatically discovers configuration files.
-
-Supported files:
-
-```
-slowql.yaml
-.slowql.yaml
-```
-
-Example configuration:
+SlowQL automatically discovers configuration from `slowql.toml`, `.slowql.toml`, `slowql.yaml`, `.slowql.yaml`, or `pyproject.toml` (under `[tool.slowql]`).
 
 ```yaml
-enabled_dimensions:
-  - security
-  - performance
+# slowql.yaml example
+severity:
+  fail_on: high
+  warn_on: medium
 
-disabled_rules:
-  - PERF-SCAN-001
+analysis:
+  dialect: postgresql
+  enabled_dimensions:
+    - security
+    - performance
+    - reliability
+  disabled_rules:
+    - PERF-SCAN-001
 
-fail_on: high
-```
+output:
+  format: console
+  verbose: false
+  show_fixes: true
 
----
+cost:
+  cloud_provider: none
 
-# Pre-commit
-
-SlowQL can be used as a pre-commit hook to analyze SQL files automatically before they are committed. 
-
-Add the following to your `.pre-commit-config.yaml`:
-
-```yaml
-repos:
-  - repo: https://github.com/makroumi/slowql
-    rev: v1.5.0
-    hooks:
-      - id: slowql
-        args: ["--fail-on", "medium"]
-```
-
----
-
-# GitHub Action
-
-You can easily run SlowQL in your CI pipeline using the official GitHub Action.
-
-```yaml
-- uses: makroumi/slowql-action@v1
-  with:
-    path: "./sql/**/*.sql"
-    fail-on: high
-    format: github-actions
+compliance:
+  frameworks:
+    - gdpr
 ```
 
 ---
 
 # CI Integration
 
-SlowQL supports automated quality gates.
-
-### Option 1: GitHub Action (recommended)
-
-For GitHub Actions, the easiest approach is the [makroumi/slowql-action](https://github.com/makroumi/slowql-action):
+### GitHub Action (Official)
 
 ```yaml
-name: SQL Analysis
-
-on: [push, pull_request]
-
-jobs:
-  slowql:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: makroumi/slowql-action@v1
-        with:
-          path: "./sql/**/*.sql"
-          fail-on: high
-          format: github-actions
+- uses: makroumi/slowql-action@v1
+  with:
+    path: "./sql/**/*.sql"
+    schema: "db/schema.sql"
+    fail-on: high
+    format: github-actions
 ```
 
-### Option 2: Direct CLI usage
-
-If you are not using GitHub Actions, or prefer direct CLI control, install `slowql` from PyPI:
+### Direct CLI Usage
 
 ```yaml
-name: SQL Analysis
-
-on: [push, pull_request]
-
-jobs:
-  slowql:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - run: pip install slowql
-      - run: slowql --non-interactive --input-file sql/ --fail-on high --format github-actions
-```
-
-## Useful CI/autofix flags
-
-```bash
-slowql --non-interactive
-slowql --fail-on critical
-slowql --fail-on high
-slowql --format github-actions
-slowql --diff
-slowql --fix
-slowql --fix-report report.json
-```
-
-### Notes
-
-- `--fail-on` controls failure threshold
-- `--format github-actions` emits GitHub annotations
-- `--diff` previews safe fixes
-- `--fix` applies safe fixes and writes a `.bak`
-- `--fix-report` writes a machine-readable fix report
-
----
-
-# Docker
-
-Run SlowQL without installing Python.
-
-```bash
-docker run --rm -v "$PWD:/work" makroumi/slowql \
-  slowql --input-file /work/sql
+- name: SlowQL Analysis
+  run: |
+    pip install slowql
+    # Direct CLI usage with schema validation
+    slowql --non-interactive --input-file sql/ --schema db/schema.sql --fail-on high --format github-actions
 ```
 
 ---
 
 # Architecture
 
-Project structure:
+SlowQL is designed as a modular pipeline for SQL analysis:
 
-```
-src/slowql/
-  analyzers/
-  rules/
-  parser/
-  core/
-  reporters/
-  cli/
-```
-
-Core components:
-
-| Component | Description |
-|-----------|-------------|
-| parser | SQL parsing and AST generation |
-| engine | rule execution and orchestration |
-| analyzers | dimension-specific rule groups |
-| rules | detection logic |
-| reporters | output formats |
-| cli | command-line interface |
-
-SQL parsing and AST generation are powered by **sqlglot**.
+- **Parser**: Leverages [sqlglot](https://github.com/tobymao/sqlglot) for robust SQL AST generation.
+- **Engine**: Orchestrates rule execution and cross-query analysis.
+- **Analyzers**: Domain-specific logic controllers (Security, Perf, etc.).
+- **Inspector**: Handles schema loading and metadata resolution.
+- **Reporters**: Transforms results into actionable formats (SARIF, HTML, etc.).
 
 ---
 
 # Development
 
-Clone the repository:
-
 ```bash
 git clone https://github.com/makroumi/slowql.git
-cd slowql
-```
-
-Create development environment:
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
 pip install -e ".[dev]"
-```
 
-Run tests:
-
-```bash
+# Run comprehensive test suite
 pytest
-```
 
-Static checks:
-
-```bash
+# Static analysis
 ruff check .
 mypy src/slowql
 ```
 
 ---
 
-# Contributing
+# License & Support
 
-Contributions are welcome.
-
-Typical workflow:
-
-1. Fork repository
-2. Create feature branch
-3. Add tests
-4. Submit pull request
-
-See `CONTRIBUTING.md` for full guidelines.
-
----
-
-# License
-
-Apache License 2.0.
-
-See `LICENSE` for details.
-
----
-
-# Support
-
-Issues:  
-https://github.com/makroumi/slowql/issues
-
-Discussions:  
-https://github.com/makroumi/slowql/discussions
+- **License**: Apache License 2.0.
+- **Issues**: [GitHub Issues](https://github.com/makroumi/slowql/issues)
+- **Discussions**: [Community Discussions](https://github.com/makroumi/slowql/discussions)
 
 ---
 
