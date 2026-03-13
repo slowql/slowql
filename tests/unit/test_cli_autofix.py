@@ -1,4 +1,5 @@
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -198,3 +199,102 @@ def test_no_fix_report_created_unless_explicitly_passed(tmp_path):
     ])
 
     assert not report_file.exists()
+
+
+class TestAutofixOrchestrationGaps:
+    def test_collect_safe_fixes_analyzer_exception(self, monkeypatch):
+        mock_engine = MagicMock()
+        mock_analyzer = MagicMock()
+        mock_rule = MagicMock()
+        mock_analyzer.rules = [mock_rule]
+        mock_analyzer.check_rule.side_effect = Exception("Analyzer crash")
+        mock_engine.analyzers = [mock_analyzer]
+
+        result = MagicMock()
+        result.queries = [MagicMock()]
+
+        fixes = cli_app._collect_safe_fixes(mock_engine, result)
+        assert fixes == []
+
+    def test_collect_safe_fixes_dedupe_and_no_remediation_mode(self, monkeypatch):
+        from slowql.core.models import Fix, FixConfidence
+        mock_engine = MagicMock()
+        mock_analyzer = MagicMock()
+
+        rule = MagicMock()
+        # Rule has no remediation_mode attribute
+        if hasattr(rule, "remediation_mode"):
+            delattr(rule, "remediation_mode")
+
+        fix = Fix(
+            rule_id="RULE1",
+            original="old",
+            replacement="new",
+            description="fix it",
+            confidence=FixConfidence.SAFE
+        )
+        rule.suggest_fix.return_value = fix
+        mock_analyzer.rules = [rule]
+        mock_analyzer.check_rule.return_value = [MagicMock()]
+        mock_engine.analyzers = [mock_analyzer]
+
+        query = MagicMock()
+        query.raw = "old"
+        result = MagicMock()
+        result.queries = [query]
+
+        # Test dedupe: same fix twice
+        fixes = cli_app._collect_safe_fixes(mock_engine, result)
+        assert len(fixes) == 1
+        assert len(fixes[0][1]) == 1
+        assert fixes[0][1][0][1] is None  # remediation_mode is None
+
+    def test_preview_safe_fixes_no_diff(self, monkeypatch):
+        with patch("slowql.cli.app.AutoFixer") as MockAutofixer:
+            MockAutofixer.return_value.preview_fixes.return_value = ""
+
+            mock_engine = MagicMock()
+            result = MagicMock()
+            query = MagicMock()
+            result.queries = [query]
+
+            with (patch("slowql.cli.app._collect_safe_fixes") as mock_collect,
+                  patch("slowql.cli.app.console") as mock_console):
+                mock_collect.return_value = [(query, [(MagicMock(), "safe_apply")])]
+                cli_app._preview_safe_fixes(mock_engine, result)
+
+                calls = [str(c) for c in mock_console.print.call_args_list]
+                assert any("No safe autofix preview available" in c for c in calls)
+
+    def test_apply_safe_fixes_to_file_early_returns(self, tmp_path):
+        mock_engine = MagicMock()
+        result = MagicMock()
+
+        with patch("slowql.cli.app.console") as mock_console:
+            # 1. input_file is None
+            cli_app._apply_safe_fixes_to_file(
+                input_file=None, sql_payload="select 1", engine=mock_engine, result=result
+            )
+            calls = [str(c) for c in mock_console.print.call_args_list]
+            assert any("--fix currently supports only a single input file" in c for c in calls)
+
+            # 2. no safe fixes
+            f = tmp_path / "test.sql"
+            f.write_text("select 1")
+            with patch("slowql.cli.app._collect_safe_fixes", return_value=[]):
+                cli_app._apply_safe_fixes_to_file(
+                    input_file=f, sql_payload="select 1", engine=mock_engine, result=result
+                )
+                calls = [str(c) for c in mock_console.print.call_args_list]
+                assert any("No safe fixes available to apply" in c for c in calls)
+
+            # 3. updated == original
+            with (patch("slowql.cli.app._collect_safe_fixes") as mock_collect,
+                  patch("slowql.cli.app.AutoFixer") as MockAutofixer):
+                mock_collect.return_value = [(MagicMock(), [(MagicMock(), "safe_apply")])]
+                MockAutofixer.return_value.apply_all_fixes.return_value = "select 1"
+                cli_app._apply_safe_fixes_to_file(
+                    input_file=f, sql_payload="select 1", engine=mock_engine, result=result
+                )
+                calls = [str(c) for c in mock_console.print.call_args_list]
+                assert any("No applicable safe fixes were applied" in c for c in calls)

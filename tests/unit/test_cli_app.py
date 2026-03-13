@@ -909,3 +909,16 @@ class TestMainFunction:
             enable_cache=True,
             enable_comparison=False,
         )
+    @patch("slowql.cli.app.run_analysis_loop")
+    def test_main_with_multiple_positional_files(self, mock_loop):
+        """Test main with multiple positional files (like pre-commit)."""
+        file1 = Path("file1.sql")
+        file2 = Path("file2.sql")
+
+        # Simulating sys.argv behavior
+        with patch("slowql.cli.app.init_cli"):
+            main(["file1.sql", "file2.sql"])
+
+        kwargs = mock_loop.call_args[1]
+        assert kwargs["initial_input_files"] == [file1, file2]
+        assert kwargs["initial_input_file"] is None
