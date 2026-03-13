@@ -148,6 +148,15 @@ class CostConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
+class SchemaConfig(BaseModel):
+    """Configuration for schema-aware validation."""
+
+    path: str | None = None
+    """Optional path to a DDL schema file for schema-aware validation."""
+
+    model_config = ConfigDict(frozen=True)
+
+
 class Config(BaseModel):
     """
     Main configuration for SlowQL.
@@ -176,9 +185,14 @@ class Config(BaseModel):
     cost: CostConfig = Field(default_factory=CostConfig)
     """Cost estimation configuration."""
 
+    schema_config: SchemaConfig = Field(default_factory=SchemaConfig, alias="schema")
+    """Schema configuration."""
+
     model_config = ConfigDict(
         frozen=True,
         extra="forbid",
+        arbitrary_types_allowed=True,
+        populate_by_name=True,
     )
 
     @classmethod

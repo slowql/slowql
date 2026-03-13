@@ -184,6 +184,9 @@ analysis:
   disabled_rules:
     - PERF-SCAN-001
 
+schema:
+  path: db/schema.sql
+
 output:
   format: console
   verbose: false

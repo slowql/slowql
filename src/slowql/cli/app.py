@@ -907,16 +907,21 @@ def run_analysis_loop(  # noqa: PLR0912, PLR0915
 
     # Initialize Engine
     config = Config.find_and_load()
+
+    resolved_schema_file = schema_file
+    if resolved_schema_file is None and config.schema_config.path is not None:
+        resolved_schema_file = Path(config.schema_config.path)
+
     overrides: dict[str, Any] = {"output": {"verbose": verbose}}
     if fail_on:
         overrides["severity"] = {"fail_on": fail_on}
 
     loaded_schema = None
-    if schema_file is not None:
+    if resolved_schema_file is not None:
         from slowql.schema.inspector import SchemaInspector  # noqa: PLC0415
 
         loaded_schema = SchemaInspector.from_ddl_file(
-            schema_file,
+            resolved_schema_file,
             dialect=config.analysis.dialect or "postgresql",
         )
 
