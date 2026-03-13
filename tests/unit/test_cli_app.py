@@ -441,7 +441,7 @@ class TestRunAnalysisLoop:
 
         # Should initialize components
         mock_config.find_and_load.assert_called_once()
-        mock_slowql.assert_called_once_with(config=config.with_overrides())
+        mock_slowql.assert_called_once_with(config=config.with_overrides(), schema=None)
         mock_reporter.assert_called_once()
 
     @patch("slowql.cli.app.sys")
@@ -887,6 +887,7 @@ class TestMainFunction:
         mock_args.non_interactive = False
         mock_args.no_cache = False
         mock_args.compare = False
+        mock_args.schema = None
 
         mock_parser.parse_args.return_value = mock_args
         mock_build_parser.return_value = mock_parser
