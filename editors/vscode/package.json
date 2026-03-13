@@ -2,8 +2,16 @@
   "name": "slowql-vscode",
   "displayName": "SlowQL",
   "description": "VS Code extension for SlowQL LSP diagnostics",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "publisher": "makroumi",
+  "icon": "icon.png",
+  "galleryBanner": {
+    "color": "#1a1a2e",
+    "theme": "dark"
+  },
+  "badges": [],
+  "markdown": "github",
+  "qna": "marketplace",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -15,21 +23,25 @@
   },
   "keywords": [
     "sql",
+    "linter",
     "static-analysis",
-    "lsp",
+    "database",
     "diagnostics",
-    "database"
+    "postgresql",
+    "mysql"
   ],
   "engines": {
     "vscode": "^1.80.0"
   },
   "categories": [
-    "Programming Languages"
+    "Programming Languages",
+    "Linters"
   ],
   "activationEvents": [
     "onLanguage:sql",
     "onCommand:slowql.restartLanguageServer",
-    "onCommand:slowql.showStatus"
+    "onCommand:slowql.showStatus",
+    "onStartupFinished"
   ],
   "main": "./out/extension.js",
   "contributes": {
