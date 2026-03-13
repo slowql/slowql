@@ -8,6 +8,9 @@ real-time diagnostics for SQL files.
 - Activates on `*.sql` files.
 - Starts the SlowQL LSP server (`python -m slowql.lsp.server`) via stdio.
 - Shows diagnostics in the **Problems** panel.
+- Provides commands in the **Command Palette**:
+  - `SlowQL: Restart Language Server`
+  - `SlowQL: Show Extension Status`
 
 ## Configuration
 
@@ -24,6 +27,11 @@ This extension provides the following settings under the `slowql` namespace:
 From the repository root:
 
 ```bash
+# Create and activate a virtual environment
+python -m venv .venv
+source .venv/bin/activate
+
+# Install SlowQL in editable mode with LSP support
 pip install -e ".[lsp]"
 ```
 
@@ -58,7 +66,24 @@ npm run compile
 - Make sure `python -m slowql.lsp.server` runs without errors in a terminal
   before launching the extension.
 
+## Packaging / Local Install
+
+To package the extension into a `.vsix` file for local installation:
+
+```bash
+cd editors/vscode
+npm install
+npm run compile
+npm run package
+```
+
+You can then install the generated `.vsix` in VS Code:
+- **Extensions view** → **“Install from VSIX...”**
+- Or via command line:
+  ```bash
+  code --install-extension slowql-vscode-0.0.1.vsix
+  ```
+
 ## Notes
 
-- This extension does **not** publish to the VS Code Marketplace yet.
-- No Marketplace-specific polish (icon, changelog, etc.) has been added.
+- This extension is ready for local packaging but is not yet published to the VS Code Marketplace.

@@ -13,13 +13,15 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(outputChannel);
 
   outputChannel.appendLine("SlowQL extension activated.");
+  vscode.window.showInformationMessage("SlowQL extension activated");
 
   const restartCommand = vscode.commands.registerCommand(
     "slowql.restartLanguageServer",
     async () => {
-      outputChannel.appendLine("Restarting SlowQL language server...");
+      outputChannel.appendLine("Restart requested.");
       try {
         await stopClient();
+        outputChannel.appendLine("Stop complete.");
         await startClient();
         vscode.window.showInformationMessage("SlowQL language server restarted.");
       } catch (err) {
@@ -29,6 +31,20 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
   context.subscriptions.push(restartCommand);
+
+  const showStatusCommand = vscode.commands.registerCommand(
+    "slowql.showStatus",
+    () => {
+      outputChannel.appendLine("Status report requested.");
+      vscode.window.showInformationMessage("SlowQL extension is installed and activated.");
+      if (client) {
+        outputChannel.appendLine("Language client is initialized.");
+      } else {
+        outputChannel.appendLine("Language client is not initialized yet.");
+      }
+    }
+  );
+  context.subscriptions.push(showStatusCommand);
 
   // Initial start
   startClient().catch((err) => {
@@ -40,13 +56,17 @@ async function startClient() {
   const config = vscode.workspace.getConfiguration("slowql");
   const enabled = config.get<boolean>("enable", true);
 
+  outputChannel.appendLine(`SlowQL enabled: ${enabled}`);
+
   if (!enabled) {
-    outputChannel.appendLine("SlowQL is disabled in settings.");
     return;
   }
 
   const command = config.get<string>("command", "python");
   const args = config.get<string[]>("args", ["-m", "slowql.lsp.server"]);
+
+  outputChannel.appendLine(`Command: ${command}`);
+  outputChannel.appendLine(`Args: ${args.join(" ")}`);
 
   const serverOptions: ServerOptions = {
     command,
@@ -66,7 +86,7 @@ async function startClient() {
     clientOptions
   );
 
-  outputChannel.appendLine(`Starting SlowQL with command: ${command} ${args.join(" ")}`);
+  outputChannel.appendLine("Startup attempt...");
 
   try {
     await client.start();
@@ -74,7 +94,12 @@ async function startClient() {
     vscode.window.showErrorMessage(
       "Failed to start SlowQL language server. Check SlowQL installation and extension settings."
     );
-    outputChannel.appendLine(`Startup error: ${err}`);
+    outputChannel.appendLine(`Startup failure: ${err}`);
+    outputChannel.appendLine(`Command: ${command}`);
+    outputChannel.appendLine(`Args: ${args.join(" ")}`);
+    outputChannel.appendLine(
+      "Hint: Try setting slowql.command to the full path of your Python interpreter."
+    );
   }
 }
 

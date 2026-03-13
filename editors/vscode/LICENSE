@@ -1,0 +1,53 @@
+# License
+
+SlowQL is released under the Apache License, Version 2.0.
+
+---
+
+## Apache License
+Version 2.0, January 2004  
+http://www.apache.org/licenses/
+
+### TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+
+**1. Definitions.**  
+"License" shall mean the terms and conditions for use, reproduction, and distribution as defined by Sections 1 through 9 of this document.  
+"Licensor" shall mean the copyright owner or entity authorized by the copyright owner.  
+"Legal Entity" shall mean the union of the acting entity and all other entities that control, are controlled by, or are under common control with that entity.  
+"Source" form shall mean the preferred form for making modifications.  
+"Object" form shall mean any form resulting from mechanical transformation or translation of a Source form.  
+
+**2. Grant of Copyright License.**  
+Subject to the terms and conditions of this License, each Contributor hereby grants You a perpetual, worldwide, non‑exclusive, no‑charge, royalty‑free, irrevocable copyright license to reproduce, prepare derivative works of, publicly display, publicly perform, sublicense, and distribute the Work and Derivative Works in Source or Object form.
+
+**3. Grant of Patent License.**  
+Each Contributor grants You a perpetual, worldwide, non‑exclusive, no‑charge, royalty‑free, irrevocable patent license to make, use, sell, offer to sell, import, and otherwise transfer the Work.
+
+**4. Redistribution.**  
+You may reproduce and distribute copies of the Work or Derivative Works in any medium, with or without modifications, provided that You meet the following conditions:  
+- Include a copy of this License in each copy.  
+- Provide prominent notices stating that You have changed the files if modifications were made.  
+- Retain all copyright, patent, trademark, and attribution notices.  
+- Include a NOTICE file with attribution if applicable.  
+
+**5. Disclaimer of Warranty.**  
+Unless required by applicable law or agreed to in writing, Licensor provides the Work (and each Contributor provides its Contributions) on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND.
+
+**6. Limitation of Liability.**  
+In no event shall the Licensor or Contributors be liable for damages arising in any way out of the use of the Work.
+
+---
+
+## NOTICE
+
+Copyright © 2025 El Mehdi Makroumi 
+
+Licensed under the Apache License, Version 2.0 (the "License");  
+you may not use this file except in compliance with the License.  
+You may obtain a copy of the License at:
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS,  
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  
+See the License for the specific language governing permissions and limitations under the License.
