@@ -151,14 +151,19 @@ class DDLParser:
         if not col_name:
             return None
 
-        # Extract type and default
+        # Extract type
         col_type = self._map_sql_type(col_def.args.get("kind"))
-        default_expr = col_def.args.get("default")
 
         # Parse constraints
-        nullable, primary_key, unique, foreign_key = self._parse_column_constraints(
+        nullable, primary_key, unique, foreign_key, default_val = self._parse_column_constraints(
             getattr(col_def, "constraints", [])
         )
+
+        # fallback to args.get("default") if not in constraints
+        if default_val is None:
+            default_expr = col_def.args.get("default")
+            if default_expr:
+                default_val = default_expr.sql()
 
         return Column(
             name=col_name,
@@ -167,17 +172,18 @@ class DDLParser:
             primary_key=primary_key,
             unique=unique,
             foreign_key=foreign_key,
-            default=default_expr.sql() if default_expr else None,
+            default=default_val,
         )
 
     def _parse_column_constraints(
         self, constraints: list[exp.ColumnConstraint]
-    ) -> tuple[bool, bool, bool, str | None]:
-        """Parse column-level constraints. Returns (nullable, primary_key, unique, foreign_key)."""
+    ) -> tuple[bool, bool, bool, str | None, str | None]:
+        """Parse column-level constraints. Returns (nullable, primary_key, unique, foreign_key, default)."""
         nullable = True
         primary_key = False
         unique = False
         foreign_key = None
+        default_val = None
 
         for constraint in constraints:
             kind = getattr(constraint, "kind", constraint)
@@ -190,8 +196,11 @@ class DDLParser:
                 unique = True
             elif isinstance(kind, exp.Reference):
                 foreign_key = self._extract_foreign_key(kind)
+            elif isinstance(kind, exp.DefaultColumnConstraint):
+                if hasattr(kind, "this"):
+                    default_val = kind.this.sql()
 
-        return nullable, primary_key, unique, foreign_key
+        return nullable, primary_key, unique, foreign_key, default_val
 
     def _extract_foreign_key(self, ref: exp.Reference) -> str | None:
         """Extract foreign key reference in 'table.column' format."""
