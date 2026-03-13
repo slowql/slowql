@@ -1,11 +1,18 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from slowql.core.models import Issue, Severity
 
 logger = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    from lsprotocol.types import (
+        DidChangeTextDocumentParams,
+        DidOpenTextDocumentParams,
+        DidSaveTextDocumentParams,
+    )
 
 try:
     from lsprotocol.types import (
@@ -14,9 +21,6 @@ try:
         TEXT_DOCUMENT_DID_SAVE,
         Diagnostic,
         DiagnosticSeverity,
-        DidChangeTextDocumentParams,
-        DidOpenTextDocumentParams,
-        DidSaveTextDocumentParams,
         Position,
         PublishDiagnosticsParams,
         Range,
@@ -65,6 +69,15 @@ except ImportError:
             self.severity = severity
             self.source = source
             self.code = code
+
+    class PublishDiagnosticsParams:  # type: ignore[no-redef]
+        def __init__(self, uri: str, diagnostics: list[Diagnostic]) -> None:
+            self.uri = uri
+            self.diagnostics = diagnostics
+
+    TEXT_DOCUMENT_DID_OPEN = "textDocument/didOpen"
+    TEXT_DOCUMENT_DID_CHANGE = "textDocument/didChange"
+    TEXT_DOCUMENT_DID_SAVE = "textDocument/didSave"
 
 
 # ---------------------------------------------------------------------------
