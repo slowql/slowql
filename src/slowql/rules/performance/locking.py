@@ -1,12 +1,20 @@
 """
 Performance Locking rules.
 """
-
 from __future__ import annotations
 
+import re
 from typing import Any
 
-from slowql.core.models import Category, Dimension, Fix, Issue, Query, Severity
+from slowql.core.models import (
+    Category,
+    Dimension,
+    Fix,
+    FixConfidence,
+    Issue,
+    Query,
+    Severity,
+)
 from slowql.rules.base import ASTRule, PatternRule
 
 __all__ = [
@@ -59,6 +67,30 @@ class ReadUncommittedHintRule(PatternRule):
     fix_guidance = (
         "Use READ COMMITTED SNAPSHOT ISOLATION (RCSI) for non-blocking reads without dirty reads."
     )
+
+    def suggest_fix(self, query: Query) -> Fix | None:
+        """
+        Suggests a fix to remove the WITH (NOLOCK) or WITH (READUNCOMMITTED) hint.
+        Only fires on the WITH (...) hint form to avoid changing transaction semantics.
+        """
+        try:
+            match = re.search(
+                r"\bWITH\s*\(\s*(NOLOCK|READUNCOMMITTED)\s*\)",
+                query.raw,
+                re.IGNORECASE,
+            )
+            if not match:
+                return None
+            return Fix(
+                description="Remove NOLOCK/READUNCOMMITTED hint to prevent dirty reads",
+                original=match.group(0),
+                replacement="",
+                confidence=FixConfidence.SAFE,
+                rule_id=self.id,
+                is_safe=True,
+            )
+        except Exception:
+            return None
 
 
 class LongTransactionPatternRule(PatternRule):
