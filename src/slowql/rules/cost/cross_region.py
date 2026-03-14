@@ -38,8 +38,8 @@ class CrossDatabaseJoinRule(ASTRule):
                 databases = set()
                 for table in node.find_all(exp.Table):
                     db_name = None
-                    if hasattr(table, "catalog") and table.catalog:
-                        db_name = str(table.catalog)
+                    if hasattr(table, "db") and table.db:
+                        db_name = str(table.db)
                     elif "." in str(table):
                         parts = str(table).split(".")
                         if len(parts) >= 3:
