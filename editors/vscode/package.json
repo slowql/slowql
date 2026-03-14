@@ -2,7 +2,7 @@
   "name": "slowql-vscode",
   "displayName": "SlowQL",
   "description": "VS Code extension for SlowQL LSP diagnostics",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "makroumi",
   "icon": "icon.png",
   "galleryBanner": {
