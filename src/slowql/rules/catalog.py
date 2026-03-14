@@ -9,15 +9,18 @@ every available rule.
 
 from __future__ import annotations
 
-from slowql.rules.base import Rule
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from slowql.rules.base import Rule
 from slowql.rules.compliance import (
     AuditLogTamperingRule,
-    CCPAOptOutRule,
-    CVVStorageRule,
     CardholderDataRetentionRule,
+    CCPAOptOutRule,
     ConsentTableMissingRule,
     ConsentWithdrawalRule,
     CrossBorderDataTransferRule,
+    CVVStorageRule,
     DataExportCompletenessRule,
     FinancialChangeTrackingRule,
     PANExposureRule,
@@ -77,10 +80,10 @@ from slowql.rules.performance import (
     NestedLoopJoinHintRule,
     NonSargableOrConditionRule,
     NotInSubqueryRule,
-    OrOnIndexedColumnsRule,
     OrderByInSubqueryRule,
     OrderByNonIndexedColumnRule,
     OrderByWithoutLimitInSubqueryRule,
+    OrOnIndexedColumnsRule,
     ParallelQueryHintRule,
     QueryOptimizerHintRule,
     ReadUncommittedHintRule,
@@ -149,8 +152,8 @@ from slowql.rules.reliability import (
 from slowql.rules.security import (
     AuditTrailManipulationRule,
     DangerousServerConfigRule,
-    DataExfiltrationViaFileRule,
     DatabaseVersionDisclosureRule,
+    DataExfiltrationViaFileRule,
     DefaultCredentialUsageRule,
     DynamicSQLExecutionRule,
     GrantAllRule,
@@ -174,14 +177,14 @@ from slowql.rules.security import (
     PrivilegeEscalationRoleGrantRule,
     RegexDenialOfServiceRule,
     RemoteDataAccessRule,
-    SQLInjectionRule,
-    SSRFViaDatabaseRule,
     SchemaInformationDisclosureRule,
     SchemaOwnershipChangeRule,
     SecondOrderSQLInjectionRule,
     SensitiveDataInErrorOutputRule,
     ServerSideTemplateInjectionRule,
     SessionTimeoutNotEnforcedRule,
+    SQLInjectionRule,
+    SSRFViaDatabaseRule,
     TautologicalOrConditionRule,
     TimeBasedBlindInjectionRule,
     TimingAttackPatternRule,
