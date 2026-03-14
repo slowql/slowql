@@ -9,6 +9,7 @@ It orchestrates parsing, analysis, and result aggregation.
 from __future__ import annotations
 
 import logging
+import re
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -22,6 +23,7 @@ from slowql.core.models import (
     Query,
 )
 from slowql.parser.universal import UniversalParser
+from slowql.schema.inspector import SchemaInspector
 
 logger = logging.getLogger(__name__)
 
@@ -115,11 +117,31 @@ class SlowQL:
 
     def _load_schema(self, path: str | Path) -> Schema:
         """Load schema from DDL file."""
-        from slowql.schema.inspector import SchemaInspector  # noqa: PLC0415
-
         return SchemaInspector.from_ddl_file(
             path, dialect=self.config.analysis.dialect or "postgresql"
         )
+
+    def _extract_ddl_schema(self, sql: str, dialect: str | None = None) -> Schema | None:
+        """
+        Extract schema from DDL statements embedded in sql.
+
+        Scans the sql string for CREATE TABLE statements using a simple
+        regex. If any are found, parses them with DDLParser and returns
+        a Schema. Returns None if no CREATE TABLE statements are found.
+
+        This is intentionally conservative — it only triggers on
+        CREATE TABLE, not CREATE VIEW, CREATE INDEX, etc.
+        """
+        if not re.search(r"\bCREATE\s+TABLE\b", sql, re.IGNORECASE):
+            return None
+
+        try:
+            effective_dialect = dialect or self.config.analysis.dialect or "postgresql"
+            return SchemaInspector.from_ddl_string(sql, dialect=effective_dialect)
+        except Exception:
+            # Never crash analysis because DDL parsing failed
+            logger.warning("DDL auto-detection failed — schema rules will not run")
+            return None
 
     def with_schema(
         self, schema: Schema | None = None, schema_path: str | Path | None = None
@@ -175,6 +197,12 @@ class SlowQL:
         parse_start = time.perf_counter()
         queries = self._parse_sql(sql, dialect=effective_dialect, file_path=file_path)
         parse_time_ms = (time.perf_counter() - parse_start) * 1000
+
+        # Auto-detect schema from DDL statements in the input
+        if self._schema is None:
+            detected = self._extract_ddl_schema(sql, dialect=effective_dialect)
+            if detected is not None:
+                self._schema = detected
 
         # Create result container
         result = AnalysisResult(
