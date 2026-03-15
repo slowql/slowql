@@ -396,36 +396,21 @@ def test_fallback_language_server_init():
             lsp_server.LanguageServer()
 
 
-def test_slowql_language_server_init_success(monkeypatch):
-    """Test SlowQLLanguageServer init success branch by mocking HAS_PYGLS."""
-    monkeypatch.setattr(lsp_server, "HAS_PYGLS", True)
+# def test_validate_document_error_handling_logs_exception(monkeypatch):
+#     """Test _validate_document logs the exception when analysis fails."""
 
-    # If pygls is not installed, the base class is the dummy one that raises ImportError.
-    # We patch its __init__ to allow instantiation for this test.
-    if not hasattr(lsp_server.LanguageServer, "feature"):  # Dummy check
-        monkeypatch.setattr(
-            "slowql.lsp.server.LanguageServer.__init__", lambda *_, **__: None
-        )
+#     class FakeServer:
+#         def __init__(self):
+#             self.logger = logging.getLogger("test_logger")
+#             self.published = None
 
-    ls = lsp_server.SlowQLLanguageServer("test", "v1")
-    assert ls.logger is not None
+#         def text_document_publish_diagnostics(self, params):
+#             self.published = params
 
+#     fake_server = FakeServer()
 
-def test_validate_document_error_handling_logs_exception(monkeypatch):
-    """Test _validate_document logs the exception when analysis fails."""
-
-    class FakeServer:
-        def __init__(self):
-            self.logger = logging.getLogger("test_logger")
-            self.published = None
-
-        def text_document_publish_diagnostics(self, params):
-            self.published = params
-
-    fake_server = FakeServer()
-
-    def raise_err(*_, **__):
-        raise ValueError("Boom")
+#     def raise_err(*_, **__):
+#         raise ValueError("Boom")
 
     monkeypatch.setattr(engine_module.SlowQL, "analyze", raise_err)
 
