@@ -1483,6 +1483,38 @@ class TestNullComparisonRule:
         fix = self.rule.suggest_fix(query)
         assert fix is None
 
+    def test_suggest_fix_lowercase_null(self):
+        """Fix must apply when query uses lowercase null."""
+        query = _make_query("SELECT * FROM t WHERE x = null")
+        fix = self.rule.suggest_fix(query)
+        assert fix is not None
+        result = query.raw.replace(fix.original, fix.replacement, 1)
+        assert "IS NULL" in result
+        assert "= null" not in result.lower().replace("is null", "")
+
+    def test_suggest_fix_mixed_case_null(self):
+        """Fix must apply when query uses mixed case Null."""
+        query = _make_query("SELECT * FROM t WHERE x = Null")
+        fix = self.rule.suggest_fix(query)
+        assert fix is not None
+        result = query.raw.replace(fix.original, fix.replacement, 1)
+        assert "IS NULL" in result
+
+    def test_suggest_fix_lowercase_not_null(self):
+        """Fix must apply when query uses != null lowercase."""
+        query = _make_query("SELECT * FROM t WHERE x != null")
+        fix = self.rule.suggest_fix(query)
+        assert fix is not None
+        result = query.raw.replace(fix.original, fix.replacement, 1)
+        assert "IS NOT NULL" in result
+
+    def test_suggest_fix_original_matches_raw(self):
+        """fix.original must appear verbatim in query.raw."""
+        query = _make_query("SELECT * FROM t WHERE x = null")
+        fix = self.rule.suggest_fix(query)
+        assert fix is not None
+        assert fix.original in query.raw
+
 
 class TestHardcodedDateRule:
     def setup_method(self):
