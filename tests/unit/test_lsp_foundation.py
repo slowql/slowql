@@ -396,21 +396,21 @@ def test_fallback_language_server_init():
             lsp_server.LanguageServer()
 
 
-# def test_validate_document_error_handling_logs_exception(monkeypatch):
-#     """Test _validate_document logs the exception when analysis fails."""
+def test_validate_document_error_handling_logs_exception(monkeypatch):
+    """Test _validate_document logs the exception when analysis fails."""
 
-#     class FakeServer:
-#         def __init__(self):
-#             self.logger = logging.getLogger("test_logger")
-#             self.published = None
+    class FakeServer:
+        def __init__(self):
+            self.logger = logging.getLogger("test_logger")
+            self.published = None
 
-#         def text_document_publish_diagnostics(self, params):
-#             self.published = params
+        def text_document_publish_diagnostics(self, params):
+            self.published = params
 
-#     fake_server = FakeServer()
+    fake_server = FakeServer()
 
-#     def raise_err(*_, **__):
-#         raise ValueError("Boom")
+    def raise_err(*_, **__):
+        raise ValueError("Boom")
 
     monkeypatch.setattr(engine_module.SlowQL, "analyze", raise_err)
 
