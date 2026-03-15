@@ -4,6 +4,8 @@ Quality Null handling rules.
 
 from __future__ import annotations
 
+import re
+
 from slowql.core.models import (
     Category,
     Dimension,
@@ -53,47 +55,30 @@ class NullComparisonRule(PatternRule):
     )
 
     def suggest_fix(self, query: Query) -> Fix | None:
-        """
-        Suggest a safe fix for incorrect NULL comparison.
-
-        Supported exact rewrites:
-        - = NULL   -> IS NULL
-        - != NULL  -> IS NOT NULL
-        - <> NULL  -> IS NOT NULL
-
-        The reversed form NULL = column is intentionally not auto-fixed yet.
-        """
-        raw_upper = query.raw.upper()
-
-        if "!= NULL" in raw_upper:
-            return Fix(
-                description="Replace '!= NULL' with 'IS NOT NULL'",
-                original="!= NULL",
-                replacement="IS NOT NULL",
-                confidence=FixConfidence.SAFE,
-                rule_id=self.id,
-                is_safe=True,
-            )
-
-        if "<> NULL" in raw_upper:
-            return Fix(
-                description="Replace '<> NULL' with 'IS NOT NULL'",
-                original="<> NULL",
-                replacement="IS NOT NULL",
-                confidence=FixConfidence.SAFE,
-                rule_id=self.id,
-                is_safe=True,
-            )
-
-        if "= NULL" in raw_upper:
-            return Fix(
-                description="Replace '= NULL' with 'IS NULL'",
-                original="= NULL",
-                replacement="IS NULL",
-                confidence=FixConfidence.SAFE,
-                rule_id=self.id,
-                is_safe=True,
-            )
-
+        try:
+            # != NULL / <> NULL → IS NOT NULL
+            m = re.search(r"(!= NULL|<> NULL)", query.raw, re.IGNORECASE)
+            if m:
+                return Fix(
+                    description="Replace '!= NULL' / '<> NULL' with 'IS NOT NULL'",
+                    original=m.group(0),
+                    replacement="IS NOT NULL",
+                    confidence=FixConfidence.SAFE,
+                    rule_id=self.id,
+                    is_safe=True,
+                )
+            # = NULL → IS NULL (must come after != check to avoid partial match)
+            m = re.search(r"(?<![!<>])=\s*NULL\b", query.raw, re.IGNORECASE)
+            if m:
+                return Fix(
+                    description="Replace '= NULL' with 'IS NULL'",
+                    original=m.group(0),
+                    replacement="IS NULL",
+                    confidence=FixConfidence.SAFE,
+                    rule_id=self.id,
+                    is_safe=True,
+                )
+        except Exception:
+            return None
         return None
 
