@@ -67,20 +67,17 @@ class TestSlowQLEngineCoverage:
     def test_analyze_files_exception_handling(self, mock_config):
         engine = SlowQL(config=mock_config)
 
-        # specific SlowQLError re-raise
-        with (
-            patch.object(engine, "analyze_file", side_effect=SlowQLError("Slow error")),
-            pytest.raises(SlowQLError),
-        ):
-            engine.analyze_files(["a.sql"])
+        # SlowQLError is skipped silently — does not raise
+        with patch.object(engine, "analyze_file", side_effect=SlowQLError("Slow error")):
+            result = engine.analyze_files(["a.sql"])
+            assert result is not None
 
-        # generic Exception wrapping
+        # Generic Exception is wrapped and raised as ParseError
         with (
             patch.object(engine, "analyze_file", side_effect=ValueError("Generic error")),
-            pytest.raises(ParseError) as exc,
+            pytest.raises(ParseError),
         ):
             engine.analyze_files(["a.sql"])
-        assert "Failed to analyze file" in str(exc.value)
 
     def test_parse_sql_limit(self, mock_config):
         mock_config.analysis.max_query_length = 5

@@ -22,6 +22,8 @@ except Exception:
 __author__ = "makroumi"
 __license__ = "Apache-2.0"
 
+from typing import TYPE_CHECKING
+
 from slowql.core.config import Config
 from slowql.core.engine import SlowQL
 from slowql.core.models import (
@@ -46,6 +48,7 @@ __all__ = [
     "__version__",
     "analyze",
     "analyze_file",
+    "analyze_files",
 ]
 
 
@@ -67,3 +70,13 @@ def analyze_file(
 ) -> AnalysisResult:
     engine = SlowQL(config=config)
     return engine.analyze_file(path, dialect=dialect)
+
+
+def analyze_files(
+    paths: list[str | Path],
+    *,
+    dialect: str | None = None,
+    config: Config | None = None,
+) -> AnalysisResult:
+    engine = SlowQL(config=config)
+    return engine.analyze_files(paths, dialect=dialect)
