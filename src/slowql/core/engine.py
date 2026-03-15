@@ -274,6 +274,23 @@ class SlowQL:
             config_hash=self.config.hash(),
         )
 
+        # First pass: accumulate all SQL to extract schema across files
+        if self._schema is None:
+            all_sql_parts = []
+            for path in paths:
+                try:
+                    all_sql_parts.append(Path(path).read_text(encoding="utf-8"))
+                except Exception:
+                    pass
+            if all_sql_parts:
+                detected = self._extract_ddl_schema(
+                    "\n".join(all_sql_parts),
+                    dialect=dialect or self.config.analysis.dialect,
+                )
+                if detected is not None:
+                    self._schema = detected
+
+        # Second pass: analyze each file with shared schema
         for path in paths:
             try:
                 result = self.analyze_file(path, dialect=dialect)
@@ -281,9 +298,10 @@ class SlowQL:
                 for issue in result.issues:
                     combined_result.add_issue(issue)
                 combined_result.statistics.parse_time_ms += result.statistics.parse_time_ms
-            except SlowQLError:
-                # Re-raise SlowQL errors
-                raise
+            except (SlowQLError, FileNotFoundError):
+                # Skip files that don't exist or have known errors during batch analysis
+                logger.warning(f"Skipping file due to error: {path}")
+                continue
             except Exception as e:
                 # Wrap unexpected errors
                 raise ParseError(
