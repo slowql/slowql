@@ -83,6 +83,16 @@
             "type": "string"
           },
           "description": "Arguments passed to the SlowQL language server command"
+        },
+        "slowql.schemaFile": {
+          "type": "string",
+          "default": "",
+          "description": "Path to a DDL schema file (.sql) for column and table existence validation. Absolute path or relative to workspace root."
+        },
+        "slowql.databaseUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Database connection string for live schema validation. Example: postgresql://user:pass@localhost:5432/mydb. Requires: pip install slowql[postgres]"
         }
       }
     }
