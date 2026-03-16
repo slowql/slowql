@@ -909,6 +909,8 @@ class TestMainFunction:
         mock_args.no_cache = False
         mock_args.compare = False
         mock_args.schema = None
+        mock_args.dialect = None
+        mock_args.extra_files = []
 
         mock_parser.parse_args.return_value = mock_args
         mock_build_parser.return_value = mock_parser

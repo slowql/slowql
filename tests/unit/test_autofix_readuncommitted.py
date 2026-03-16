@@ -5,7 +5,9 @@ from slowql.rules.performance.locking import ReadUncommittedHintRule
 parser = UniversalParser()
 
 def _parse(sql):
-    return parser.parse(sql)[0]
+    q = parser.parse(sql)[0]
+    object.__setattr__(q, "dialect", "tsql")
+    return q
 
 def test_fires_on_nolock():
     q = _parse("SELECT * FROM t WITH (NOLOCK)")

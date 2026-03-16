@@ -35,21 +35,21 @@ def test_dialect_does_not_match_wrong_dialect():
     assert rule._dialect_matches(_make_query("SELECT 1", "mysql")) is False
 
 def test_unknown_dialect_always_matches():
-    """When dialect is unknown, rules always fire (conservative)."""
+    """When dialect is unknown, dialect-specific rules are skipped."""
     rule = ReadUncommittedHintRule()
-    assert rule._dialect_matches(_make_query("SELECT 1", "unknown")) is True
+    assert rule._dialect_matches(_make_query("SELECT 1", "unknown")) is False
 
 def test_none_dialect_always_matches():
     rule = ReadUncommittedHintRule()
     q = _make_query("SELECT 1", "unknown")
     object.__setattr__(q, "dialect", None)
-    assert rule._dialect_matches(q) is True
+    assert rule._dialect_matches(q) is False
 
 def test_empty_string_dialect_always_matches():
     rule = ReadUncommittedHintRule()
     q = _make_query("SELECT 1", "unknown")
     object.__setattr__(q, "dialect", "")
-    assert rule._dialect_matches(q) is True
+    assert rule._dialect_matches(q) is False
 
 # ── end-to-end: rule skips on wrong dialect ──────────────────────
 
@@ -66,10 +66,10 @@ def test_nolock_rule_fires_on_tsql():
     assert len(rule.check(q)) > 0
 
 def test_nolock_rule_fires_on_unknown_dialect():
-    """ReadUncommittedHintRule fires when dialect is unknown (conservative)."""
+    """ReadUncommittedHintRule skips when dialect is unknown."""
     rule = ReadUncommittedHintRule()
     q = _make_query("SELECT * FROM t WITH (NOLOCK)", "unknown")
-    assert len(rule.check(q)) > 0
+    assert len(rule.check(q)) == 0
 
 def test_sp_configure_rule_skips_on_postgresql():
     """DangerousServerConfigRule must not fire on PostgreSQL queries."""
@@ -84,10 +84,10 @@ def test_sp_configure_rule_fires_on_tsql():
     assert len(rule.check(q)) > 0
 
 def test_sp_configure_rule_fires_on_unknown():
-    """DangerousServerConfigRule fires on unknown dialect (conservative)."""
+    """DangerousServerConfigRule skips on unknown dialect."""
     rule = DangerousServerConfigRule()
     q = _make_query("EXEC sp_configure 'xp_cmdshell', 1", "unknown")
-    assert len(rule.check(q)) > 0
+    assert len(rule.check(q)) == 0
 
 # ── suggest_fix respects dialect guard ───────────────────────────
 
