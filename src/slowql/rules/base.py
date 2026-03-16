@@ -204,13 +204,14 @@ class Rule(ABC):
         Rules with an empty ``dialects`` tuple run on all dialects.
         Rules with a non-empty ``dialects`` tuple only run when the
         query dialect matches one of the entries (after normalisation).
-        If the query dialect is unknown we conservatively return True.
+        If the query dialect is unknown or unset, dialect-specific rules
+        are skipped — only universal rules fire.
         """
         if not self.dialects:
             return True
         query_dialect = normalize_dialect(query.dialect)
         if not query_dialect or query_dialect == "unknown":
-            return True
+            return False
         normalized_rule_dialects = {normalize_dialect(d) for d in self.dialects}
         return query_dialect in normalized_rule_dialects
 
