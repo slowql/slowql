@@ -9,11 +9,12 @@ from typing import Any
 from sqlglot import exp
 
 from slowql.core.models import Category, Dimension, Fix, Issue, Query, Severity
-from slowql.rules.base import ASTRule
+from slowql.rules.base import ASTRule, Rule
 
 __all__ = [
     "ExcessiveColumnCountRule",
     "LargeObjectUnboundedRule",
+    "MissingSetNocountRule",
 ]
 
 
@@ -114,3 +115,46 @@ class LargeObjectUnboundedRule(ASTRule):
                                 )
 
         return issues
+
+
+class MissingSetNocountRule(Rule):
+    """Detects T-SQL stored procedures without SET NOCOUNT ON."""
+
+    id = "PERF-TSQL-001"
+    name = "Missing SET NOCOUNT ON"
+    description = (
+        "T-SQL stored procedures without SET NOCOUNT ON send row count "
+        "messages for every DML statement back to the client, generating "
+        "unnecessary network traffic and interfering with some ORMs and "
+        "client libraries."
+    )
+    severity = Severity.INFO
+    dimension = Dimension.PERFORMANCE
+    category = Category.PERF_NETWORK
+    dialects = ("tsql",)
+
+    impact = (
+        "Each INSERT, UPDATE, DELETE inside the procedure sends a 'N rows "
+        "affected' message to the client. This adds network overhead and can "
+        "cause ADO.NET and other drivers to misinterpret result sets."
+    )
+    fix_guidance = (
+        "Add SET NOCOUNT ON as the first statement in every stored procedure "
+        "and trigger. This is a universal T-SQL best practice."
+    )
+
+    def check(self, query: Query) -> list[Issue]:
+        if not self._dialect_matches(query):
+            return []
+        if not self._has_pattern(query.raw, r"\bCREATE\s+(?:OR\s+ALTER\s+)?PROC(?:EDURE)?\b"):
+            return []
+        raw_upper = query.raw.upper()
+        if "SET NOCOUNT ON" in raw_upper:
+            return []
+        return [
+            self.create_issue(
+                query=query,
+                message="Stored procedure without SET NOCOUNT ON — unnecessary network overhead.",
+                snippet=query.raw[:80],
+            )
+        ]

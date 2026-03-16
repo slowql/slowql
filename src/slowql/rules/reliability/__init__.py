@@ -15,8 +15,10 @@ from .transactions import *
 
 __all__ = [
     "AlterTableDestructiveRule",
+    "AtAtIdentityRule",
     "AutocommitDisabledRule",
     "CascadeDeleteRiskRule",
+    "ConnectByWithoutNocycleRule",
     "DeadlockPatternRule",
     "DropTableRule",
     "ExceptionSwallowedRule",
@@ -24,6 +26,7 @@ __all__ = [
     "LockEscalationRiskRule",
     "LongRunningQueryRiskRule",
     "LongTransactionWithoutSavepointRule",
+    "MergeWithoutHoldlockRule",
     "MissingRetryLogicRule",
     "MissingRollbackRule",
     "NonIdempotentInsertRule",
@@ -35,4 +38,5 @@ __all__ = [
     "TOCTOUPatternRule",
     "TruncateWithoutTransactionRule",
     "UnsafeWriteRule",
+    "Utf8InsteadOfUtf8mb4Rule",
 ]

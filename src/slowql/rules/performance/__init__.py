@@ -36,6 +36,7 @@ __all__ = [
     "LeadingWildcardRule",
     "LongTransactionPatternRule",
     "MissingBatchSizeInLoopRule",
+    "MissingSetNocountRule",
     "MissingTransactionIsolationRule",
     "MissingWhereRule",
     "NegationOnIndexedColumnRule",

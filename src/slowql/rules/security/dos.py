@@ -12,6 +12,8 @@ from slowql.core.models import Category, Dimension, Fix, Issue, Query, Severity
 from slowql.rules.base import ASTRule, PatternRule
 
 __all__ = [
+    "PgSleepUsageRule",
+    "PgSleepUsageRule",
     "RegexDenialOfServiceRule",
     "UnboundedRecursiveCTERule",
 ]
@@ -95,3 +97,32 @@ class RegexDenialOfServiceRule(PatternRule):
         "A single malicious input can hang database threads for hours."
     )
     fix_guidance = "Use RE2-compatible patterns only (no backreferences, atomic groups). Set regex timeouts. Validate regex patterns before accepting user input."
+
+
+class PgSleepUsageRule(PatternRule):
+    """Detects pg_sleep() calls which may indicate DoS vectors or testing artifacts."""
+
+    id = "SEC-PG-001"
+    name = "pg_sleep Usage Detected"
+    description = (
+        "Detects calls to pg_sleep() which is a PostgreSQL-specific function. "
+        "In production code this is almost always a testing artifact or a "
+        "deliberate denial-of-service vector used to verify blind SQL injection."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.SECURITY
+    category = Category.SEC_DOS
+    dialects = ("postgresql",)
+
+    pattern = r"\bpg_sleep\s*\("
+    message_template = "pg_sleep() call detected — potential DoS vector or testing artifact: {match}"
+
+    impact = (
+        "pg_sleep() ties up a database connection for the specified duration. "
+        "An attacker can use it to confirm blind SQL injection or exhaust the "
+        "connection pool, causing denial of service."
+    )
+    fix_guidance = (
+        "Remove pg_sleep() calls from production code. If used for testing, "
+        "guard behind a feature flag or test-only configuration."
+    )
