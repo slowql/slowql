@@ -4,6 +4,8 @@ Security Command rules.
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 from slowql.core.models import Category, Dimension, Severity
 from slowql.rules.base import PatternRule
 
@@ -28,7 +30,7 @@ class OSCommandInjectionTsqlRule(PatternRule):
     severity = Severity.CRITICAL
     dimension = Dimension.SECURITY
     category = Category.SEC_INJECTION
-    dialects = ("tsql",)
+    dialects: ClassVar[tuple[str, ...]] = ("tsql",)
 
     pattern = r"\b(xp_cmdshell|sp_OACreate|sp_OAMethod|EXEC\s+master\.\.xp_cmdshell)\b"
 
@@ -51,7 +53,7 @@ class OSCommandInjectionPostgresRule(PatternRule):
     description = (
         "Detects use of system command execution procedures which can lead to OS-level compromise."
     )
-    dialects = ("postgres",)
+    dialects: ClassVar[tuple[str, ...]] = ("postgresql",)
     pattern = r"\b(pg_read_file|pg_execute_server_program|pg_ls_dir|pg_read_binary_file|FROM\s+PROGRAM|libc\.so)\b"
     message_template = "PostgreSQL OS command function detected: {match}"
     severity = Severity.CRITICAL

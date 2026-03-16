@@ -4,6 +4,8 @@ Security Configuration rules.
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 from slowql.core.models import Category, Dimension, Severity
 from slowql.rules.base import PatternRule
 
@@ -31,7 +33,7 @@ class DangerousServerConfigRule(PatternRule):
     severity = Severity.HIGH
     dimension = Dimension.SECURITY
     category = Category.SEC_ACCESS
-    dialects = ("tsql",)
+    dialects: ClassVar[tuple[str, ...]] = ("tsql",)
 
     pattern = (
         r"\bsp_configure\b.+\bxp_cmdshell\b"

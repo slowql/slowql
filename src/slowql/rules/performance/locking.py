@@ -4,7 +4,7 @@ Performance Locking rules.
 from __future__ import annotations
 
 import re
-from typing import Any
+from typing import Any, ClassVar
 
 from slowql.core.models import (
     Category,
@@ -34,7 +34,7 @@ class TableLockHintRule(PatternRule):
     severity = Severity.HIGH
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_LOCK
-    dialects = ("tsql",)
+    dialects: ClassVar[tuple[str, ...]] = ("tsql",)
 
     pattern = (
         r"\bWITH\s*\(\s*(TABLOCK|TABLOCKX|HOLDLOCK|XLOCK|PAGLOCK|ROWLOCK|UPDLOCK|SERIALIZABLE)\s*\)"
@@ -57,7 +57,7 @@ class ReadUncommittedHintRule(PatternRule):
     severity = Severity.MEDIUM
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_LOCK
-    dialects = ("tsql",)
+    dialects: ClassVar[tuple[str, ...]] = ("tsql",)
 
     pattern = r"\bWITH\s*\(\s*(NOLOCK|READUNCOMMITTED)\s*\)|\bREAD\s+UNCOMMITTED\b|\bSET\s+TRANSACTION\s+ISOLATION\s+LEVEL\s+READ\s+UNCOMMITTED\b"
     message_template = "NOLOCK or READ UNCOMMITTED hint detected: {match}"

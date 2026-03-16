@@ -1,6 +1,8 @@
 """Snowflake-specific cost rules."""
 from __future__ import annotations
 
+from typing import ClassVar
+
 from slowql.core.models import Category, Dimension, Severity
 from slowql.rules.base import PatternRule
 
@@ -11,7 +13,7 @@ class SnowflakeSelectStarCostRule(PatternRule):
 
     id = "COST-SF-001"
     name = "SELECT * Wastes Snowflake Credits"
-    dialects = ("snowflake",)
+    dialects: ClassVar[tuple[str, ...]] = ("snowflake",)
     severity = Severity.MEDIUM
     dimension = Dimension.COST
     category = Category.COST_COMPUTE
@@ -32,7 +34,7 @@ class SnowflakeCopyIntoWithoutFileFormatRule(PatternRule):
 
     id = "COST-SF-002"
     name = "COPY INTO Without Explicit File Format"
-    dialects = ("snowflake",)
+    dialects: ClassVar[tuple[str, ...]] = ("snowflake",)
     severity = Severity.MEDIUM
     dimension = Dimension.RELIABILITY
     category = Category.REL_DATA_INTEGRITY

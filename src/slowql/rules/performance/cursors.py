@@ -4,6 +4,8 @@ Performance Cursors rules.
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 from slowql.core.models import Category, Dimension, Severity
 from slowql.rules.base import PatternRule
 
@@ -43,6 +45,7 @@ class WhileLoopPatternRule(PatternRule):
     severity = Severity.MEDIUM
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_CURSOR
+    dialects: ClassVar[tuple[str, ...]] = ("tsql",)
 
     pattern = r"\bWHILE\s+[\(@].*\bBEGIN\b"
     message_template = "WHILE loop detected: {match}"
@@ -63,6 +66,7 @@ class NestedLoopJoinHintRule(PatternRule):
     severity = Severity.LOW
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_CURSOR
+    dialects: ClassVar[tuple[str, ...]] = ("tsql",)
 
     pattern = (
         r"\b(LOOP\s+JOIN|INNER\s+LOOP\s+JOIN|LEFT\s+LOOP\s+JOIN|OPTION\s*\(\s*LOOP\s+JOIN\s*\))"

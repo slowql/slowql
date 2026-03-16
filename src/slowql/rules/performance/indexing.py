@@ -382,7 +382,7 @@ class IlikeOnIndexedColumnRule(PatternRule):
 
     id = "PERF-PG-001"
     name = "ILIKE Disables Index"
-    dialects = ("postgres",)
+    dialects = ("postgresql",)
     severity = Severity.MEDIUM
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_INDEX

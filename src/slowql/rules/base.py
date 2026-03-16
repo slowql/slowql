@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 from sqlglot import exp
 
+from slowql.core.dialects import normalize_dialect
 from slowql.core.models import (
     Category,
     Dimension,
@@ -200,17 +201,18 @@ class Rule(ABC):
         """
         Return True if this rule should run for the given query dialect.
 
-        Rules with empty dialects tuple run on all dialects.
-        Rules with a non-empty dialects tuple only run on matching dialects.
-        If query.dialect is None, empty string, or 'unknown', always return
-        True — we cannot skip rules when dialect is undetected.
+        Rules with an empty ``dialects`` tuple run on all dialects.
+        Rules with a non-empty ``dialects`` tuple only run when the
+        query dialect matches one of the entries (after normalisation).
+        If the query dialect is unknown we conservatively return True.
         """
         if not self.dialects:
             return True
-        query_dialect = (query.dialect or "").lower().strip()
+        query_dialect = normalize_dialect(query.dialect)
         if not query_dialect or query_dialect == "unknown":
             return True
-        return query_dialect in self.dialects
+        normalized_rule_dialects = {normalize_dialect(d) for d in self.dialects}
+        return query_dialect in normalized_rule_dialects
 
     def create_issue(
         self,

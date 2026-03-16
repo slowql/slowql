@@ -2235,7 +2235,7 @@ class TestWhileLoopPatternRule:
         self.rule = WhileLoopPatternRule()
 
     def test_while_loop(self):
-        assert self.rule.check(_make_query("WHILE @i < 10 BEGIN SELECT 1; SET @i = @i + 1; END"))
+        assert self.rule.check(_make_query("WHILE @i < 10 BEGIN SELECT 1; SET @i = @i + 1; END", dialect="tsql"))
 
     def test_no_while_loop(self):
         assert not self.rule.check(_make_query("SELECT 1"))
@@ -2246,7 +2246,7 @@ class TestNestedLoopJoinHintRule:
         self.rule = NestedLoopJoinHintRule()
 
     def test_nested_loop_join(self):
-        assert self.rule.check(_make_query("SELECT * FROM a INNER LOOP JOIN b ON a.id = b.id"))
+        assert self.rule.check(_make_query("SELECT * FROM a INNER LOOP JOIN b ON a.id = b.id", dialect="tsql"))
 
     def test_regular_join(self):
         assert not self.rule.check(_make_query("SELECT * FROM a INNER JOIN b ON a.id = b.id"))

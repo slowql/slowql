@@ -1,6 +1,8 @@
 """BigQuery-specific cost rules."""
 from __future__ import annotations
 
+from typing import ClassVar
+
 from slowql.core.models import Category, Dimension, Severity
 from slowql.rules.base import PatternRule
 
@@ -11,7 +13,7 @@ class BigQuerySelectStarCostRule(PatternRule):
 
     id = "COST-BQ-001"
     name = "SELECT * in BigQuery Scans All Columns"
-    dialects = ("bigquery",)
+    dialects: ClassVar[tuple[str, ...]] = ("bigquery",)
     severity = Severity.HIGH
     dimension = Dimension.COST
     category = Category.COST_COMPUTE
@@ -33,7 +35,7 @@ class BigQueryMissingLimitRule(PatternRule):
 
     id = "COST-BQ-002"
     name = "BigQuery Query Without LIMIT"
-    dialects = ("bigquery",)
+    dialects: ClassVar[tuple[str, ...]] = ("bigquery",)
     severity = Severity.MEDIUM
     dimension = Dimension.COST
     category = Category.COST_COMPUTE
