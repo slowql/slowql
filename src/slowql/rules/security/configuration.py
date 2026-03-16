@@ -15,6 +15,7 @@ __all__ = [
     "HardcodedCredentialsRule",
     "OverlyPermissiveAccessRule",
     "OverprivilegedExecutionContextRule",
+    "SearchPathManipulationRule",
     "WeakSSLConfigRule",
 ]
 
@@ -185,4 +186,34 @@ class OverlyPermissiveAccessRule(PatternRule):
     fix_guidance = (
         "Restrict access to specific IP addresses: @'10.0.1.5'. Use firewall rules. Implement VPC/private "
         "networking. For cloud databases, use private endpoints only."
+    )
+
+
+class SearchPathManipulationRule(PatternRule):
+    """Detects SET search_path statements that may redirect object resolution."""
+
+    id = "SEC-PG-002"
+    name = "Search Path Manipulation"
+    description = (
+        "Detects SET search_path statements in PostgreSQL. Manipulating the "
+        "search_path can redirect unqualified table and function references to "
+        "attacker-controlled schemas, enabling privilege escalation."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.SECURITY
+    category = Category.SEC_ACCESS
+    dialects = ("postgresql",)
+
+    pattern = r"\bSET\s+search_path\b"
+    message_template = "search_path manipulation detected: {match}"
+
+    impact = (
+        "An attacker who can SET search_path can place a trojan function or "
+        "table in a schema that appears earlier in the path, hijacking queries "
+        "that use unqualified names."
+    )
+    fix_guidance = (
+        "Always use schema-qualified names (schema.table, schema.function). "
+        "Restrict SET search_path permissions using REVOKE. Use "
+        "ALTER ROLE ... SET search_path for controlled defaults."
     )

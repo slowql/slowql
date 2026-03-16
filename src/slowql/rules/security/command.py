@@ -13,6 +13,7 @@ __all__ = [
     "LocalFileInclusionRule",
     "OSCommandInjectionPostgresRule",
     "OSCommandInjectionTsqlRule",
+    "OracleUtlAccessRule",
     "PathTraversalRule",
     "SSRFViaDatabaseRule",
 ]
@@ -134,4 +135,35 @@ class SSRFViaDatabaseRule(PatternRule):
     fix_guidance = (
         "Disable HTTP functions in database. If needed, use allowlist of approved URLs. Block access to "
         "private IP ranges (10.0.0.0/8, 169.254.0.0/16). Validate and sanitize all URLs."
+    )
+
+
+class OracleUtlAccessRule(PatternRule):
+    """Detects Oracle UTL_HTTP/UTL_FILE/UTL_SMTP package access."""
+
+    id = "SEC-ORA-001"
+    name = "Oracle UTL Package Access"
+    description = (
+        "Detects usage of Oracle UTL packages (UTL_HTTP, UTL_FILE, UTL_SMTP, "
+        "UTL_TCP, UTL_INADDR) which provide network and file system access "
+        "from within the database. These are common vectors for SSRF, data "
+        "exfiltration, and lateral movement."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.SECURITY
+    category = Category.SEC_DATA_EXPOSURE
+    dialects = ("oracle",)
+
+    pattern = r"\bUTL_(?:HTTP|FILE|SMTP|TCP|INADDR)\b"
+    message_template = "Oracle UTL package access detected — potential SSRF or data exfiltration: {match}"
+
+    impact = (
+        "UTL_HTTP enables server-side request forgery (SSRF) from the database. "
+        "UTL_FILE enables reading and writing files on the database server. "
+        "Both can be used for data exfiltration and lateral movement."
+    )
+    fix_guidance = (
+        "Restrict UTL package access using REVOKE EXECUTE. Use fine-grained "
+        "access control lists (ACLs) via DBMS_NETWORK_ACL_ADMIN to limit "
+        "network destinations. Audit all UTL usage."
     )

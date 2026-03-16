@@ -9,9 +9,10 @@ from typing import Any
 from sqlglot import exp
 
 from slowql.core.models import Category, Dimension, Issue, Query, Severity
-from slowql.rules.base import ASTRule, PatternRule
+from slowql.rules.base import ASTRule, PatternRule, Rule
 
 __all__ = [
+    "ConnectByWithoutNocycleRule",
     "LongRunningQueryRiskRule",
     "MissingRetryLogicRule",
     "StaleReadRiskRule",
@@ -128,3 +129,46 @@ class MissingRetryLogicRule(PatternRule):
         "timeouts. Use TRY...CATCH block. Limit retry attempts (3-5). Log failures "
         "for monitoring."
     )
+
+
+class ConnectByWithoutNocycleRule(Rule):
+    """Detects Oracle CONNECT BY without NOCYCLE guard."""
+
+    id = "REL-ORA-001"
+    name = "CONNECT BY Without NOCYCLE"
+    description = (
+        "Oracle's CONNECT BY clause for hierarchical queries can enter an "
+        "infinite loop if the data contains cycles. Without the NOCYCLE "
+        "keyword the query will run until it hits ORA-01436 or exhausts "
+        "resources."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.RELIABILITY
+    category = Category.REL_TIMEOUT
+    dialects = ("oracle",)
+
+    impact = (
+        "A cyclic reference in hierarchical data causes CONNECT BY to loop "
+        "indefinitely, consuming CPU and memory until the session is killed "
+        "or the server runs out of resources."
+    )
+    fix_guidance = (
+        "Add NOCYCLE keyword: CONNECT BY NOCYCLE PRIOR parent_id = id. "
+        "Use CONNECT_BY_ISCYCLE pseudo-column to detect and handle cycles."
+    )
+
+    def check(self, query: Query) -> list[Issue]:
+        if not self._dialect_matches(query):
+            return []
+        if not self._has_pattern(query.raw, r"\bCONNECT\s+BY\b"):
+            return []
+        raw_upper = query.raw.upper()
+        if "NOCYCLE" in raw_upper:
+            return []
+        return [
+            self.create_issue(
+                query=query,
+                message="CONNECT BY without NOCYCLE — cyclic data will cause infinite loop.",
+                snippet=query.raw[:80],
+            )
+        ]

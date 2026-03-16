@@ -7,9 +7,10 @@ from __future__ import annotations
 from typing import Any
 
 from slowql.core.models import Category, Dimension, Issue, Query, Severity
-from slowql.rules.base import ASTRule, PatternRule
+from slowql.rules.base import ASTRule, PatternRule, Rule
 
 __all__ = [
+    "MergeWithoutHoldlockRule",
     "ReadModifyWriteLockingRule",
     "TOCTOUPatternRule",
 ]
@@ -89,3 +90,47 @@ class TOCTOUPatternRule(PatternRule):
         "EXISTS as single statement. If IF is required, wrap in SERIALIZABLE "
         "transaction or use advisory locks."
     )
+
+
+class MergeWithoutHoldlockRule(Rule):
+    """Detects MERGE statements without HOLDLOCK hint in T-SQL."""
+
+    id = "REL-TSQL-002"
+    name = "MERGE Without HOLDLOCK"
+    description = (
+        "In SQL Server the MERGE statement is not atomic by default. Without "
+        "WITH (HOLDLOCK) on the target table, concurrent MERGE executions can "
+        "cause primary key violations or lost updates due to a race between "
+        "the matched/not-matched evaluation and the actual DML."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.RELIABILITY
+    category = Category.REL_RACE_CONDITION
+    dialects = ("tsql",)
+
+    impact = (
+        "Concurrent MERGE statements can both evaluate NOT MATCHED and attempt "
+        "INSERT, causing duplicate key errors. Or both evaluate MATCHED and "
+        "overwrite each other's updates."
+    )
+    fix_guidance = (
+        "Add WITH (HOLDLOCK) to the MERGE target: "
+        "MERGE INTO target WITH (HOLDLOCK) USING ... "
+        "Or wrap in SERIALIZABLE transaction."
+    )
+
+    def check(self, query: Query) -> list[Issue]:
+        if not self._dialect_matches(query):
+            return []
+        if not self._has_pattern(query.raw, r"\bMERGE\b"):
+            return []
+        raw_upper = query.raw.upper()
+        if "HOLDLOCK" in raw_upper or "SERIALIZABLE" in raw_upper:
+            return []
+        return [
+            self.create_issue(
+                query=query,
+                message="MERGE without HOLDLOCK — concurrent execution may cause race conditions.",
+                snippet=query.raw[:80],
+            )
+        ]

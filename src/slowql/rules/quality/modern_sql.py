@@ -16,6 +16,7 @@ __all__ = [
     "ImplicitJoinRule",
     "RownumWithoutOrderByRule",
     "SelectFromDualRule",
+    "SqlCalcFoundRowsRule",
     "UnionWithoutAllRule",
 ]
 
@@ -156,4 +157,34 @@ class UnionWithoutAllRule(PatternRule):
         "If the result sets cannot contain meaningful duplicates, replace UNION "
         "with UNION ALL. If deduplication is required, keep UNION and add a "
         "comment explaining why to prevent future 'optimization' regressions."
+    )
+
+
+class SqlCalcFoundRowsRule(PatternRule):
+    """Detects deprecated SQL_CALC_FOUND_ROWS usage in MySQL."""
+
+    id = "QUAL-MYSQL-001"
+    name = "Deprecated SQL_CALC_FOUND_ROWS"
+    description = (
+        "SQL_CALC_FOUND_ROWS is deprecated as of MySQL 8.0.17. It forces the "
+        "server to compute the full result set size even when LIMIT is used, "
+        "causing unnecessary overhead."
+    )
+    severity = Severity.LOW
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_MODERN
+    dialects = ("mysql",)
+
+    pattern = r"\bSQL_CALC_FOUND_ROWS\b"
+    message_template = "Deprecated SQL_CALC_FOUND_ROWS usage: {match}"
+
+    impact = (
+        "SQL_CALC_FOUND_ROWS disables LIMIT optimisations and forces a full "
+        "table scan to count all matching rows. It is deprecated and will be "
+        "removed in a future MySQL version."
+    )
+    fix_guidance = (
+        "Replace with two separate queries: one with LIMIT for the page and "
+        "one COUNT(*) query for the total. Use covering indexes to make the "
+        "COUNT(*) query fast."
     )

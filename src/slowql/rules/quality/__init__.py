@@ -43,6 +43,7 @@ __all__ = [
     "RownumWithoutOrderByRule",
     "SelectFromDualRule",
     "SelectWithoutFromRule",
+    "SqlCalcFoundRowsRule",
     "TempTableNotCleanedUpRule",
     "TodoFixmeCommentRule",
     "UnionWithoutAllRule",
