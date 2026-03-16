@@ -1,15 +1,21 @@
 {
   "name": "slowql-vscode",
-  "displayName": "SlowQL",
-  "description": "VS Code extension for SlowQL LSP diagnostics",
-  "version": "0.1.1",
+  "displayName": "SlowQL: Offline SQL Static Analyzer",
+  "description": "272 rules, 14 dialects. Catch SQL security, performance, reliability, compliance, cost, and quality issues as you type. No database connection required.",
+  "version": "0.2.0",
   "publisher": "makroumi",
   "icon": "icon.png",
   "galleryBanner": {
-    "color": "#1a1a2e",
+    "color": "#0d1117",
     "theme": "dark"
   },
-  "badges": [],
+  "badges": [
+    {
+      "url": "https://img.shields.io/pypi/v/slowql?label=SlowQL%20CLI",
+      "href": "https://pypi.org/project/slowql/",
+      "description": "SlowQL CLI version"
+    }
+  ],
   "markdown": "github",
   "qna": "marketplace",
   "license": "Apache-2.0",
@@ -28,14 +34,34 @@
     "database",
     "diagnostics",
     "postgresql",
-    "mysql"
+    "mysql",
+    "oracle",
+    "sqlite",
+    "snowflake",
+    "bigquery",
+    "redshift",
+    "clickhouse",
+    "duckdb",
+    "sql-server",
+    "tsql",
+    "presto",
+    "trino",
+    "spark",
+    "databricks",
+    "security",
+    "performance",
+    "compliance",
+    "gdpr",
+    "sql-injection",
+    "code-quality"
   ],
   "engines": {
     "vscode": "^1.80.0"
   },
   "categories": [
     "Programming Languages",
-    "Linters"
+    "Linters",
+    "Other"
   ],
   "activationEvents": [
     "onLanguage:sql",
@@ -55,11 +81,13 @@
     "commands": [
       {
         "command": "slowql.restartLanguageServer",
-        "title": "SlowQL: Restart Language Server"
+        "title": "SlowQL: Restart Language Server",
+        "icon": "$(refresh)"
       },
       {
         "command": "slowql.showStatus",
-        "title": "SlowQL: Show Extension Status"
+        "title": "SlowQL: Show Status",
+        "icon": "$(info)"
       }
     ],
     "configuration": {
@@ -69,12 +97,54 @@
         "slowql.enable": {
           "type": "boolean",
           "default": true,
-          "description": "Enable the SlowQL language server"
+          "description": "Enable or disable the SlowQL language server.",
+          "order": 1
+        },
+        "slowql.dialect": {
+          "type": "string",
+          "default": "",
+          "enum": [
+            "",
+            "postgresql",
+            "mysql",
+            "tsql",
+            "oracle",
+            "sqlite",
+            "snowflake",
+            "bigquery",
+            "redshift",
+            "clickhouse",
+            "duckdb",
+            "presto",
+            "trino",
+            "spark",
+            "databricks"
+          ],
+          "enumDescriptions": [
+            "Auto-detect dialect",
+            "PostgreSQL",
+            "MySQL / MariaDB",
+            "SQL Server (T-SQL)",
+            "Oracle Database",
+            "SQLite",
+            "Snowflake",
+            "Google BigQuery",
+            "Amazon Redshift",
+            "ClickHouse",
+            "DuckDB",
+            "Presto",
+            "Trino",
+            "Apache Spark SQL",
+            "Databricks SQL"
+          ],
+          "description": "SQL dialect for dialect-specific rule filtering. Leave empty for auto-detection.",
+          "order": 2
         },
         "slowql.command": {
           "type": "string",
           "default": "python",
-          "description": "Command used to launch the SlowQL language server"
+          "description": "Path to the Python executable used to launch the SlowQL language server.",
+          "order": 3
         },
         "slowql.args": {
           "type": "array",
@@ -82,17 +152,27 @@
           "items": {
             "type": "string"
           },
-          "description": "Arguments passed to the SlowQL language server command"
+          "description": "Arguments passed to the language server command.",
+          "order": 4
         },
         "slowql.schemaFile": {
           "type": "string",
           "default": "",
-          "description": "Path to a DDL schema file (.sql) for column and table existence validation. Absolute path or relative to workspace root."
+          "description": "Path to a DDL schema file (.sql) for schema-aware validation. Absolute path or relative to workspace root.",
+          "order": 5
         },
         "slowql.databaseUrl": {
           "type": "string",
           "default": "",
-          "description": "Database connection string for live schema validation. Example: postgresql://user:pass@localhost:5432/mydb. Requires: pip install slowql[postgres]"
+          "description": "Database connection string for live schema inference (e.g., postgresql://user:pass@localhost:5432/mydb).",
+          "order": 6
+        },
+        "slowql.trace.server": {
+          "type": "string",
+          "default": "off",
+          "enum": ["off", "messages", "verbose"],
+          "description": "Trace communication between VS Code and the SlowQL language server.",
+          "order": 7
         }
       }
     }
