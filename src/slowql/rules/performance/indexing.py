@@ -16,6 +16,7 @@ __all__ = [
     "CompositeIndexOrderViolationRule",
     "DeepOffsetPaginationRule",
     "FunctionOnIndexedColumnRule",
+    "IlikeOnIndexedColumnRule",
     "ImplicitTypeConversionRule",
     "LeadingWildcardRule",
     "NegationOnIndexedColumnRule",
@@ -374,3 +375,29 @@ class NegationOnIndexedColumnRule(ASTRule):
                 )
 
         return issues
+
+
+class IlikeOnIndexedColumnRule(PatternRule):
+    """Detects ILIKE on indexed columns which disables B-tree indexes."""
+
+    id = "PERF-PG-001"
+    name = "ILIKE Disables Index"
+    dialects = ("postgres",)
+    severity = Severity.MEDIUM
+    dimension = Dimension.PERFORMANCE
+    category = Category.PERF_INDEX
+    pattern = r"\bILIKE\b"
+    message_template = (
+        "ILIKE detected — case-insensitive LIKE cannot use standard B-tree indexes: {match}"
+    )
+    impact = (
+        "ILIKE performs case-insensitive matching but cannot use standard B-tree indexes. "
+        "This causes full table scans on large tables. "
+        "A query on a million-row table with ILIKE can be 1000x slower than with a proper index."
+    )
+    fix_guidance = (
+        "Create a citext column type or a functional index: "
+        "CREATE INDEX idx ON table (lower(column)). "
+        "Then use: WHERE lower(column) LIKE lower('value%'). "
+        "Or use pg_trgm extension with GIN index for arbitrary substring matching."
+    )

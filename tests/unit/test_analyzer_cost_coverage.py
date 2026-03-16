@@ -8,8 +8,8 @@ class TestCostAnalyzerCoverage:
     def test_get_rules(self):
         analyzer = CostAnalyzer()
         assert (
-            len(analyzer.get_rules()) == 20
-        )  # Updated after modular refactoring - now loads all cost rules
+            len(analyzer.get_rules()) == 23
+        )  # Updated after adding dialect-specific cost rules
 
     def test_analyze_fallback_is_select(self):
         analyzer = CostAnalyzer()

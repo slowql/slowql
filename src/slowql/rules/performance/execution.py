@@ -27,6 +27,7 @@ class ScalarUdfInQueryRule(PatternRule):
     severity = Severity.HIGH
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_EXECUTION
+    dialects = ("tsql",)
 
     pattern = r"\b(SELECT|WHERE)\b[^;]*\bdbo\.\w+\s*\([^)]*\)"
     message_template = "Scalar UDF detected: {match}"

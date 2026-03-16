@@ -105,7 +105,8 @@ from slowql.rules.catalog import (
     OrderByNonIndexedColumnRule,
     OrderByWithoutLimitInSubqueryRule,
     OrphanRecordRiskRule,
-    OSCommandInjectionRule,
+    OSCommandInjectionPostgresRule,
+    OSCommandInjectionTsqlRule,
     OverIndexedTableSignalRule,
     OverlyPermissiveAccessRule,
     OverprivilegedExecutionContextRule,
@@ -2268,7 +2269,7 @@ class TestUnboundedTempTableRule:
         self.rule = UnboundedTempTableRule()
 
     def test_unbounded_temp_table(self):
-        assert self.rule.check(_make_query("SELECT * INTO #temp_users FROM users"))
+        assert self.rule.check(_make_query("SELECT * INTO #temp_users FROM users", dialect="tsql"))
 
     def test_bounded_temp_table(self):
         assert not self.rule.check(
@@ -2319,7 +2320,7 @@ class TestQueryOptimizerHintRule:
         self.rule = QueryOptimizerHintRule()
 
     def test_optimizer_hint(self):
-        assert self.rule.check(_make_query("SELECT * FROM users OPTION (FORCE ORDER)"))
+        assert self.rule.check(_make_query("SELECT * FROM users OPTION (FORCE ORDER)", dialect="tsql"))
 
     def test_no_hint(self):
         assert not self.rule.check(_make_query("SELECT * FROM users"))
@@ -2330,7 +2331,9 @@ class TestIndexHintRule:
         self.rule = IndexHintRule()
 
     def test_index_hint(self):
-        assert self.rule.check(_make_query("SELECT * FROM users WITH (INDEX(idx_user_id))"))
+        assert self.rule.check(
+            _make_query("SELECT * FROM users WITH (INDEX(idx_user_id))", dialect="tsql")
+        )
 
     def test_no_index_hint(self):
         assert not self.rule.check(_make_query("SELECT * FROM users"))
@@ -2341,7 +2344,7 @@ class TestParallelQueryHintRule:
         self.rule = ParallelQueryHintRule()
 
     def test_maxdop_hint(self):
-        assert self.rule.check(_make_query("SELECT * FROM users OPTION (MAXDOP 1)"))
+        assert self.rule.check(_make_query("SELECT * FROM users OPTION (MAXDOP 1)", dialect="tsql"))
 
     def test_no_parallel_hint(self):
         assert not self.rule.check(_make_query("SELECT * FROM users"))
@@ -2352,11 +2355,13 @@ class TestScalarUdfInQueryRule:
         self.rule = ScalarUdfInQueryRule()
 
     def test_scalar_udf_in_select(self):
-        assert self.rule.check(_make_query("SELECT dbo.GetStatus(id) FROM users"))
+        assert self.rule.check(_make_query("SELECT dbo.GetStatus(id) FROM users", dialect="tsql"))
 
     def test_scalar_udf_in_where(self):
         assert self.rule.check(
-            _make_query("SELECT * FROM users WHERE dbo.GetStatus(id) = 'active'")
+            _make_query(
+                "SELECT * FROM users WHERE dbo.GetStatus(id) = 'active'", dialect="tsql"
+            )
         )
 
     def test_built_in_function(self):
@@ -3058,15 +3063,30 @@ class TestVerboseErrorMessageDisclosureRule:
         assert not self.rule.check(_make_query("SELECT CAST('123' AS INT)"))
 
 
-class TestOSCommandInjectionRule:
+class TestOSCommandInjectionTsqlRule:
     def setup_method(self):
-        self.rule = OSCommandInjectionRule()
+        self.rule = OSCommandInjectionTsqlRule()
 
     def test_xp_cmdshell_triggers(self):
-        assert self.rule.check(_make_query("EXEC xp_cmdshell 'whoami'"))
+        assert self.rule.check(_make_query("EXEC xp_cmdshell 'whoami'", dialect="tsql"))
 
-    def test_normal_exec_no_trigger(self):
-        assert not self.rule.check(_make_query("EXEC sp_my_proc"))
+
+class TestOSCommandInjectionPostgresRule:
+    def setup_method(self):
+        self.rule = OSCommandInjectionPostgresRule()
+
+    def test_PROGRAM_triggers(self):
+        assert self.rule.check(
+            _make_query("COPY t FROM PROGRAM 'whoami'", dialect="postgres")
+        )
+
+    def test_libc_triggers(self):
+        assert self.rule.check(
+            _make_query(
+                "CREATE OR REPLACE FUNCTION exec(text) RETURNS void AS 'libc.so', 'system' LANGUAGE C STRICT;",
+                dialect="postgres",
+            )
+        )
 
 
 class TestPathTraversalRule:

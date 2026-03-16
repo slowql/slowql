@@ -40,6 +40,8 @@ __all__ = [
     "NullComparisonRule",
     "OrderByMissingForPaginationRule",
     "ReservedWordAsColumnRule",
+    "RownumWithoutOrderByRule",
+    "SelectFromDualRule",
     "SelectWithoutFromRule",
     "TempTableNotCleanedUpRule",
     "TodoFixmeCommentRule",

@@ -9,26 +9,28 @@ from slowql.rules.base import PatternRule
 
 __all__ = [
     "LocalFileInclusionRule",
-    "OSCommandInjectionRule",
+    "OSCommandInjectionPostgresRule",
+    "OSCommandInjectionTsqlRule",
     "PathTraversalRule",
     "SSRFViaDatabaseRule",
 ]
 
 
-class OSCommandInjectionRule(PatternRule):
-    """Detects use of system command execution procedures."""
+class OSCommandInjectionTsqlRule(PatternRule):
+    """Detects use of system command execution procedures in SQL Server."""
 
     id = "SEC-CMD-001"
-    name = "OS Command Injection"
+    name = "OS Command Injection (SQL Server)"
     description = (
-        "Detects use of system command execution procedures (xp_cmdshell, SHELL, etc.) "
+        "Detects use of system command execution procedures (xp_cmdshell, etc.) "
         "which can lead to OS-level compromise."
     )
     severity = Severity.CRITICAL
     dimension = Dimension.SECURITY
     category = Category.SEC_INJECTION
+    dialects = ("tsql",)
 
-    pattern = r"\b(xp_cmdshell|sp_OACreate|sp_OAMethod|SHELL|EXEC\s+master\.\.xp_cmdshell|pg_read_file|pg_execute_server_program)\b"
+    pattern = r"\b(xp_cmdshell|sp_OACreate|sp_OAMethod|EXEC\s+master\.\.xp_cmdshell)\b"
 
     impact = (
         "OS command execution from SQL gives attackers full server access. xp_cmdshell with user input "
@@ -38,6 +40,30 @@ class OSCommandInjectionRule(PatternRule):
         "NEVER use xp_cmdshell. Disable it: sp_configure 'xp_cmdshell', 0. Move system operations to "
         "application layer with proper input validation. If absolutely required, use whitelisted "
         "commands only and strict validation."
+    )
+
+
+class OSCommandInjectionPostgresRule(PatternRule):
+    """Detects use of system command execution procedures in PostgreSQL."""
+
+    id = "SEC-CMD-001-PG"
+    name = "OS Command Injection (PostgreSQL)"
+    description = (
+        "Detects use of system command execution procedures which can lead to OS-level compromise."
+    )
+    dialects = ("postgres",)
+    pattern = r"\b(pg_read_file|pg_execute_server_program|pg_ls_dir|pg_read_binary_file|FROM\s+PROGRAM|libc\.so)\b"
+    message_template = "PostgreSQL OS command function detected: {match}"
+    severity = Severity.CRITICAL
+    dimension = Dimension.SECURITY
+    category = Category.SEC_INJECTION
+    impact = (
+        "pg_read_file and pg_execute_server_program allow reading arbitrary files "
+        "and executing OS commands. Requires superuser — indicates privilege abuse."
+    )
+    fix_guidance = (
+        "Revoke superuser from application accounts. Never call pg_execute_server_program "
+        "from application SQL. Use application-layer file operations instead."
     )
 
 

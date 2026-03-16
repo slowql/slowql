@@ -68,6 +68,7 @@ class UnboundedTempTableRule(PatternRule):
     severity = Severity.MEDIUM
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_MEMORY
+    dialects = ("tsql",)
 
     pattern = r"\bSELECT\b(?!.*\b(WHERE|TOP|LIMIT)\b)[^;]*\bINTO\s+[#@\w]+"
     message_template = "Unbounded SELECT INTO temp table detected: {match}"

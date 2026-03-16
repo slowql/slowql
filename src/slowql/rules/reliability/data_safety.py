@@ -14,6 +14,8 @@ from slowql.rules.base import ASTRule, PatternRule
 __all__ = [
     "AlterTableDestructiveRule",
     "DropTableRule",
+    "InsertIgnoreRule",
+    "ReplaceIntoRule",
     "TruncateWithoutTransactionRule",
     "UnsafeWriteRule",
 ]
@@ -139,4 +141,48 @@ class AlterTableDestructiveRule(PatternRule):
         "Always take a full backup before destructive ALTER operations. Use "
         "expand-contract pattern for zero-downtime schema changes: add new column, "
         "migrate data, update application, then drop old column. Test in staging first."
+    )
+
+
+class InsertIgnoreRule(PatternRule):
+    """Detects INSERT IGNORE which silences errors."""
+
+    id = "REL-MYSQL-001"
+    name = "INSERT IGNORE Silences Errors"
+    dialects = ("mysql",)
+    severity = Severity.HIGH
+    dimension = Dimension.RELIABILITY
+    category = Category.REL_DATA_INTEGRITY
+    pattern = r"\bINSERT\s+IGNORE\b"
+    message_template = "INSERT IGNORE detected — errors are silently suppressed: {match}"
+    impact = (
+        "INSERT IGNORE silently discards duplicate key errors, data truncation warnings, "
+        "and constraint violations. Failed inserts are invisible — data loss goes undetected."
+    )
+    fix_guidance = (
+        "Use INSERT ... ON DUPLICATE KEY UPDATE for intentional upserts. "
+        "Use explicit duplicate checking for insert-only logic. "
+        "Never use INSERT IGNORE where data integrity matters."
+    )
+
+
+class ReplaceIntoRule(PatternRule):
+    """Detects REPLACE INTO which deletes and reinserts rows."""
+
+    id = "REL-MYSQL-002"
+    name = "REPLACE INTO Deletes and Reinserts"
+    dialects = ("mysql",)
+    severity = Severity.HIGH
+    dimension = Dimension.RELIABILITY
+    category = Category.REL_DATA_INTEGRITY
+    pattern = r"\bREPLACE\s+INTO\b"
+    message_template = "REPLACE INTO detected — silently deletes and reinserts rows: {match}"
+    impact = (
+        "REPLACE INTO deletes the existing row and inserts a new one when a duplicate key "
+        "is found. This resets AUTO_INCREMENT IDs, fires DELETE triggers unexpectedly, "
+        "and breaks foreign key references silently."
+    )
+    fix_guidance = (
+        "Use INSERT ... ON DUPLICATE KEY UPDATE instead. It updates only specified columns "
+        "without deleting the row, preserving IDs, timestamps, and foreign key integrity."
     )

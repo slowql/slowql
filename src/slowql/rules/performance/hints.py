@@ -23,6 +23,7 @@ class QueryOptimizerHintRule(PatternRule):
     severity = Severity.LOW
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_HINTS
+    dialects = ("tsql",)
 
     pattern = r"\bOPTION\s*\(\s*(FORCE\s+ORDER|HASH\s+JOIN|MERGE\s+JOIN|LOOP\s+JOIN|FAST\s+\d+|RECOMPILE|OPTIMIZE\s+FOR|MAXDOP|QUERYTRACEON|USE\s+PLAN)\b"
     message_template = "Query optimizer hint detected: {match}"
@@ -45,6 +46,7 @@ class IndexHintRule(PatternRule):
     severity = Severity.LOW
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_HINTS
+    dialects = ("mysql", "tsql")
 
     pattern = r"\b(FORCE\s+INDEX|USE\s+INDEX|IGNORE\s+INDEX|WITH\s*\(\s*INDEX\s*[=(])\b"
     message_template = "Index hint detected: {match}"
@@ -65,6 +67,7 @@ class ParallelQueryHintRule(PatternRule):
     severity = Severity.INFO
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_HINTS
+    dialects = ("tsql",)
 
     pattern = r"\bOPTION\s*\([^)]*MAXDOP\s+\d+"
     message_template = "Parallel query hint (MAXDOP) detected: {match}"

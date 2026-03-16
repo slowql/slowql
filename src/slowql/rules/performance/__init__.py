@@ -27,6 +27,7 @@ __all__ = [
     "ExcessiveColumnCountRule",
     "FunctionOnIndexedColumnRule",
     "GroupByHighCardinalityRule",
+    "IlikeOnIndexedColumnRule",
     "ImplicitTypeConversionRule",
     "IndexHintRule",
     "LargeInClauseRule",

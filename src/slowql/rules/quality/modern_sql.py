@@ -14,8 +14,56 @@ from slowql.rules.base import ASTRule, PatternRule
 __all__ = [
     "HardcodedDateRule",
     "ImplicitJoinRule",
+    "RownumWithoutOrderByRule",
+    "SelectFromDualRule",
     "UnionWithoutAllRule",
 ]
+
+
+class RownumWithoutOrderByRule(PatternRule):
+    """Detects ROWNUM without ORDER BY."""
+
+    id = "QUAL-ORA-001"
+    name = "ROWNUM Without ORDER BY"
+    dialects = ("oracle",)
+    severity = Severity.HIGH
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_READABILITY
+    pattern = r"\bROWNUM\b(?![\s\S]*\bORDER\s+BY\b)"
+    message_template = (
+        "ROWNUM used without ORDER BY — row selection is non-deterministic: {match}"
+    )
+    impact = (
+        "ROWNUM filters rows BEFORE ORDER BY is applied. "
+        "SELECT * FROM t WHERE ROWNUM <= 10 ORDER BY date returns 10 arbitrary rows then sorts them — "
+        "not the top 10 by date. Results are non-deterministic and change with optimizer plan."
+    )
+    fix_guidance = (
+        "Wrap in a subquery: SELECT * FROM (SELECT * FROM t ORDER BY date) WHERE ROWNUM <= 10. "
+        "Or use the modern FETCH FIRST syntax: SELECT * FROM t ORDER BY date FETCH FIRST 10 ROWS ONLY."
+    )
+
+
+class SelectFromDualRule(PatternRule):
+    """Detects SELECT FROM DUAL in Application SQL."""
+
+    id = "QUAL-ORA-002"
+    name = "SELECT FROM DUAL in Application SQL"
+    dialects = ("oracle",)
+    severity = Severity.INFO
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_READABILITY
+    pattern = r"\bFROM\s+DUAL\b"
+    message_template = "SELECT FROM DUAL detected — consider using modern syntax: {match}"
+    impact = (
+        "SELECT 1 FROM DUAL is Oracle-specific legacy syntax for selecting constants. "
+        "It works but is non-portable and signals Oracle-specific code that cannot "
+        "be migrated to PostgreSQL, MySQL, or other databases without modification."
+    )
+    fix_guidance = (
+        "Use SELECT 1 (no FROM clause) which works in most modern databases. "
+        "Oracle 23c+ supports SELECT 1 without FROM DUAL."
+    )
 
 
 class ImplicitJoinRule(ASTRule):
