@@ -1,8 +1,8 @@
 # SlowQL
 
-SlowQL is a **production-focused offline SQL static analyzer** designed to catch security vulnerabilities, performance regressions, reliability issues, compliance risks, cost inefficiencies, and code quality problems before they reach production.
+SlowQL is a **production-focused offline SQL static analyzer** that catches security vulnerabilities, performance regressions, reliability issues, compliance risks, cost inefficiencies, and code quality problems before they reach production.
 
-It performs safe static analysis of your SQL source code, requiring **no database connection**. SlowQL is built for modern engineering teams, supporting CI/CD pipelines, pre-commit hooks, GitHub Actions, SARIF output, and automated fixes.
+It performs safe static analysis of your SQL source code with **no database connection required**. SlowQL ships with **272 built-in rules** covering **14 SQL dialects**, and is built for modern engineering teams supporting CI/CD pipelines, pre-commit hooks, GitHub Actions, SARIF output, LSP, and automated fixes.
 
 ---
 
@@ -14,6 +14,7 @@ It performs safe static analysis of your SQL source code, requiring **no databas
   <a href="https://pypi.org/project/slowql/"><img src="https://img.shields.io/pypi/pyversions/slowql?logo=python&logoColor=white&label=Python" alt="Python"></a>
   <a href="https://hub.docker.com/r/makroumi/slowql"><img src="https://img.shields.io/docker/v/makroumi/slowql?logo=docker&logoColor=white&label=Docker&color=2496ED" alt="Docker"></a>
   <a href="https://github.com/makroumi/slowql/pkgs/container/slowql"><img src="https://img.shields.io/badge/GHCR-available-181717?logo=github&logoColor=white" alt="GHCR"></a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=Makroumi.slowql-vscode"><img src="https://img.shields.io/visual-studio-marketplace/v/Makroumi.slowql-vscode?logo=visualstudiocode&logoColor=white&label=VS%20Code&color=007ACC" alt="VS Code"></a>
 </p>
 
 <p align="center">
@@ -56,16 +57,23 @@ It performs safe static analysis of your SQL source code, requiring **no databas
 
 ## Why SlowQL
 
-- **Offline-First Analysis**: Catch bugs without ever connecting to a live database.
-- **Deep Visibility**: 171 built-in rules covering performance, security, and reliability.
-- **Schema-Aware**: Optionally validate against your DDL files to catch missing tables and columns.
-- **Safe Autofix**: Automatically remediate common anti-patterns with one command.
-- **Native Context**: Native workflow integrations including pre-commit, GitHub Actions, SARIF, and foundational LSP/VS Code support.
-- **Actionable Reporting**: Results through console output, GitHub annotations, SARIF, and exported JSON/HTML reports.
+**Offline-First Analysis.** Catch bugs without ever connecting to a live database. SlowQL works entirely on SQL source files, making it safe to run anywhere.
+
+**272 Built-in Rules.** Covers security, performance, reliability, compliance, cost, and quality. Each rule includes impact documentation, fix guidance, and severity classification.
+
+**14 SQL Dialects.** Dialect-aware analysis for PostgreSQL, MySQL, SQL Server (T-SQL), Oracle, SQLite, Snowflake, BigQuery, Redshift, ClickHouse, DuckDB, Presto, Trino, Spark, and Databricks. Universal rules fire on all dialects; dialect-specific rules only fire when relevant.
+
+**Schema-Aware Validation.** Optionally validate against your DDL files to catch missing tables, columns, and suggest indexes.
+
+**Safe Autofix.** Conservative, exact-text-replacement fixes with `FixConfidence.SAFE`. No guessing, no heuristic rewrites. Preview with `--diff`, apply with `--fix`.
+
+**CI/CD Native.** GitHub Actions, SARIF, pre-commit hooks, JSON/HTML/CSV exports. Exit codes based on severity thresholds.
+
+**Editor Integration.** VS Code extension via [slowql-vscode](https://marketplace.visualstudio.com/items?itemName=Makroumi.slowql-vscode) and foundational LSP server for other editors.
 
 ---
 
-# Installation
+## Installation
 
 ### pipx (recommended)
 
@@ -79,11 +87,17 @@ pipx install slowql
 pip install slowql
 ```
 
+### Docker
+
+```bash
+docker run --rm -v $(pwd):/src makroumi/slowql /src/queries.sql
+```
+
 Requirements: Python 3.11+, Linux / macOS / Windows.
 
 ---
 
-# Quick Start
+## Quick Start
 
 Analyze a SQL file:
 ```bash
@@ -108,69 +122,128 @@ slowql queries.sql --fix --fix-report fix-report.json
 
 ---
 
-# Schema-Aware Validation
+## Schema-Aware Validation
 
-SlowQL can perform optional schema-aware validation by inspecting your DDL files. This allows the analyzer to catch structural issues that generic static analysis might miss.
+SlowQL performs optional schema-aware validation by inspecting your DDL files. This catches structural issues that generic static analysis misses.
 
-- **Tables/Columns**: Detect references to non-existent tables or columns.
-- **Index Suggestions**: Identify filtered columns that lack corresponding indexes.
+**Tables and Columns.** Detect references to non-existent tables or columns.
+
+**Index Suggestions.** Identify filtered columns that lack corresponding indexes.
 
 ```bash
-# Pass a single DDL file
 slowql queries.sql --schema database/schema.sql
-
-# Fail CI if schema issues are found
 slowql migrations/ --schema schema.sql --fail-on critical
 ```
 
-### Example Schema Findings
-- `SCHEMA-TBL-001`: Table referenced but not defined in schema.
-- `SCHEMA-COL-001`: Column referenced but not present in table definition.
-- `SCHEMA-IDX-001`: Missing index suggested for highly-filtered column.
+Schema findings:
+
+| Rule | Description |
+|------|-------------|
+| `SCHEMA-TBL-001` | Table referenced but not defined in schema |
+| `SCHEMA-COL-001` | Column referenced but not present in table definition |
+| `SCHEMA-IDX-001` | Missing index suggested for filtered column |
 
 ---
 
-# Rule Coverage
+## Rule Coverage
 
-SlowQL ships with **171 rules** across six core dimensions:
+SlowQL ships with **272 rules** across six dimensions:
 
 | Dimension | Focus | Rules |
-|-----------|-------|-------|
-| Security | SQL injection, permission risks, sensitive data | 45 |
-| Performance | Full scans, leading wildcards, N+1 patterns | 39 |
-| Quality | Style, readability, anti-patterns | 30 |
-| Cost | Inefficient cloud-warehouse patterns | 20 |
-| Reliability | Null handling, data integrity, lock risks | 19 |
-| Compliance | GDPR, PII handling, data sovereignty | 18 |
+|-----------|-------|------:|
+| Security | SQL injection, privilege escalation, credential exposure, SSRF | 61 |
+| Performance | Full scans, indexing, joins, locking, sorting, pagination | 56 |
+| Reliability | Data loss prevention, transactions, race conditions, idempotency | 35 |
+| Quality | Naming, complexity, null handling, modern SQL, style | 38 |
+| Cost | Cloud warehouse optimization, storage, compute, network | 33 |
+| Compliance | GDPR, HIPAA, PCI-DSS, SOX, CCPA | 18 |
+
+### Dialect-Specific Rules
+
+107 rules are dialect-aware, firing only on the relevant database engine:
+
+| Dialect | Specific Rules | Examples |
+|---------|---------------:|---------|
+| PostgreSQL | 12 | `pg_sleep` detection, `SECURITY DEFINER` without `search_path`, `CREATE INDEX` without `CONCURRENTLY` |
+| MySQL | 15 | `LOAD DATA LOCAL INFILE`, `utf8` vs `utf8mb4`, `ORDER BY RAND()`, MyISAM detection |
+| T-SQL (SQL Server) | 22 | `OPENROWSET`, `sp_OACreate`, `@@IDENTITY`, `MERGE` without `HOLDLOCK`, `SET NOCOUNT ON` |
+| Oracle | 10 | `UTL_HTTP`/`UTL_FILE`, `EXECUTE IMMEDIATE` injection, `CONNECT BY` without `NOCYCLE` |
+| Snowflake | 8 | `COPY INTO` credentials, `VARIANT` in `WHERE`, `CLONE` without `COPY GRANTS` |
+| BigQuery | 6 | `SELECT *` cost, `DISTINCT` on `UNNEST`, repeated subqueries |
+| SQLite | 6 | `ATTACH DATABASE` file access, `PRAGMA foreign_keys = OFF`, `AUTOINCREMENT` overhead |
+| Redshift | 7 | `COPY` with embedded credentials, `COPY` without `MANIFEST`, `DISTSTYLE ALL` |
+| ClickHouse | 7 | `url()` SSRF, mutations, `SELECT` without `FINAL`, `JOIN` without `GLOBAL` |
+| DuckDB | 3 | `COPY` without `FORMAT`, large `IN` lists, old-style casts |
+| Presto / Trino | 4 | Implicit cross-joins, `INSERT OVERWRITE` without partition, `ORDER BY` without `LIMIT` |
+| Spark / Databricks | 5 | `BROADCAST` on large table, UDF in `WHERE`, `CACHE TABLE` without filter |
+
+The remaining 165 rules are universal and fire on all dialects.
 
 ---
 
-# CLI Usage
+## Safe Autofix
+
+SlowQL provides conservative, zero-risk autofixes for rules where the replacement is 100% semantically equivalent:
+
+```bash
+slowql queries.sql --diff
+slowql queries.sql --fix
+slowql queries.sql --fix --fix-report fixes.json
+```
+
+Autofix principles:
+
+1. Only exact text replacements. No schema inference, no heuristic rewrites.
+2. Every fix is tagged with `FixConfidence.SAFE`, meaning the output is functionally identical to the input.
+3. A `.bak` backup is always created before writing.
+4. Fixes can be previewed as a unified diff before applying.
+
+Examples of safe autofixes:
+
+| Rule | Before | After |
+|------|--------|-------|
+| `QUAL-NULL-001` | `WHERE x = NULL` | `WHERE x IS NULL` |
+| `QUAL-STYLE-002` | `EXISTS (SELECT * FROM t)` | `EXISTS (SELECT 1 FROM t)` |
+| `QUAL-MYSQL-003` | `LOCK IN SHARE MODE` | `FOR SHARE` |
+| `QUAL-TSQL-001` | `SET ANSI_NULLS OFF` | `SET ANSI_NULLS ON` |
+| `QUAL-ORA-002` | `SELECT 1 FROM DUAL` | `SELECT 1` |
+
+---
+
+## CLI Usage
 
 ### Primary Flags
-- `--input-file` : Path to SQL file or directory.
-- `--schema`: Path to DDL schema file.
-- `--fail-on`: Set exit failure threshold (`critical`, `high`, `medium`, `low`, `info`, `never`).
-- `--non-interactive`: Suppress spinners and interactive prompts.
+```
+--input-file       Path to SQL file or directory
+--schema           Path to DDL schema file
+--fail-on          Failure threshold: critical, high, medium, low, info, never
+--non-interactive  Suppress spinners and interactive prompts
+```
 
 ### Output Control
-- `--format`: Controls the primary output stream (`console`, `github-actions`, `sarif`).
-- `--export`: Writes detailed reports to disk (`json`, `html`, `csv`).
-- `--out /`: Directory for exported reports.
+```
+--format           Primary output: console, github-actions, sarif
+--export           Export to disk: json, html, csv, sarif
+--out              Directory for exported reports
+--diff             Preview safe autofix diff
+--fix              Apply safe autofixes (single file, creates .bak)
+--fix-report       Write JSON report of fixes
+```
 
 ### Exit Codes
-- `0`: No issues found or issues below failure threshold.
-- `2`: Issues found meet or exceed the `--fail-on` threshold.
-- `3`: Runtime error or tool failure.
+```
+0    No issues found or issues below failure threshold
+2    Issues found meet or exceed --fail-on threshold
+3    Runtime error or tool failure
+```
 
 ---
 
-# Configuration
+## Configuration
 
-SlowQL automatically discovers configuration from `slowql.toml`, `.slowql.toml`, `slowql.yaml`, `.slowql.yaml`, or `pyproject.toml` (under `[tool.slowql]`).
+SlowQL discovers configuration from `slowql.toml`, `.slowql.toml`, `slowql.yaml`, `.slowql.yaml`, or `pyproject.toml` (under `[tool.slowql]`).
 
 ```yaml
-# slowql.yaml example
 severity:
   fail_on: high
   warn_on: medium
@@ -202,7 +275,7 @@ compliance:
 
 ---
 
-# CI Integration
+## CI Integration
 
 ### GitHub Action (Official)
 
@@ -215,51 +288,81 @@ compliance:
     format: github-actions
 ```
 
-### Direct CLI Usage
+### Direct CLI in CI
 
 ```yaml
 - name: SlowQL Analysis
   run: |
     pip install slowql
-    # Direct CLI usage with schema validation
     slowql --non-interactive --input-file sql/ --schema db/schema.sql --fail-on high --format github-actions
+```
+
+### Pre-commit
+
+```yaml
+repos:
+  - repo: https://github.com/makroumi/slowql
+    rev: v1.5.0
+    hooks:
+      - id: slowql
+        args: [--fail-on, high]
 ```
 
 ---
 
-# Architecture
+## VS Code Extension
 
-SlowQL is designed as a modular pipeline for SQL analysis:
-
-- **Parser**: Leverages [sqlglot](https://github.com/tobymao/sqlglot) for robust SQL AST generation.
-- **Engine**: Orchestrates rule execution and cross-query analysis.
-- **Analyzers**: Domain-specific logic controllers (Security, Perf, etc.).
-- **Inspector**: Handles schema loading and metadata resolution.
-- **Reporters**: Transforms results into actionable formats (SARIF, HTML, etc.).
+Install [slowql-vscode](https://marketplace.visualstudio.com/items?itemName=Makroumi.slowql-vscode) from the VS Code Marketplace for real-time SQL analysis in your editor. The extension uses the SlowQL LSP server for diagnostics.
 
 ---
 
-# Development
+## Architecture
+
+SlowQL is a modular pipeline:
+
+```
+SQL Files → Parser (sqlglot) → AST → Analyzers → Rules → Issues → Reporters
+                                 ↑                          ↓
+                           Schema Inspector            AutoFixer
+                           (DDL parsing)           (safe text fixes)
+```
+
+**Parser.** Uses [sqlglot](https://github.com/tobymao/sqlglot) for multi-dialect SQL parsing. Handles statement splitting, dialect detection, and AST generation.
+
+**Engine.** Orchestrates parsing, analyzer execution, schema validation, and result aggregation.
+
+**Analyzers.** Six domain-specific analyzers (Security, Performance, Reliability, Compliance, Cost, Quality), each loading rules from the catalog.
+
+**Rules.** 272 detection rules implemented as `PatternRule` (regex), `ASTRule` (sqlglot AST traversal), or custom `Rule` subclasses.
+
+**Schema Inspector.** Parses DDL files into a schema model. Enables table/column existence checks and index suggestions.
+
+**Reporters.** Console (rich TUI), GitHub Actions annotations, SARIF 2.1.0, JSON, HTML, CSV.
+
+**AutoFixer.** Conservative text-based fix engine. Span-based and exact-text replacements only.
+
+---
+
+## Development
 
 ```bash
 git clone https://github.com/makroumi/slowql.git
 pip install -e ".[dev]"
 
-# Run comprehensive test suite
 pytest
-
-# Static analysis
 ruff check .
 mypy src/slowql
 ```
 
 ---
 
-# License & Support
+## License
 
-- **License**: Apache License 2.0.
-- **Issues**: [GitHub Issues](https://github.com/makroumi/slowql/issues)
-- **Discussions**: [Community Discussions](https://github.com/makroumi/slowql/discussions)
+Apache License 2.0. See [LICENSE](LICENSE).
+
+**Issues:** [github.com/makroumi/slowql/issues](https://github.com/makroumi/slowql/issues)
+
+**Discussions:** [github.com/makroumi/slowql/discussions](https://github.com/makroumi/slowql/discussions)
 
 ---
 
