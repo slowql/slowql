@@ -570,7 +570,14 @@ class ConsoleReporter(BaseReporter):
             # Only show the "➤ Fix" line if a real fix is present
             fix_line = ""
             if issue.fix is not None:
-                fix_text = str(issue.fix).strip()
+                fix_desc = getattr(issue.fix, "description", None)
+                fix_repl = getattr(issue.fix, "replacement", None)
+                parts = []
+                if fix_desc and str(fix_desc).strip():
+                    parts.append(str(fix_desc).strip())
+                if fix_repl and str(fix_repl).strip():
+                    parts.append(str(fix_repl).strip())
+                fix_text = " — ".join(parts)
                 if fix_text and fix_text.lower() != "none":
                     fix_line = f"\n[green]➤ {fix_text}[/]"
 

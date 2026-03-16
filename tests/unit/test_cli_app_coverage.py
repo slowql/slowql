@@ -271,7 +271,7 @@ class TestAnalysisLoop:
         with (patch("slowql.cli.app.run_analysis_loop", return_value=0) as mock_loop,
               patch("slowql.cli.app.build_argparser") as mock_parser):
 
-            mock_args = argparse.Namespace(
+            mock_args = argparse.Namespace(dialect=None,
                 input_file=None,
                 file=None,
                 extra_files=[],

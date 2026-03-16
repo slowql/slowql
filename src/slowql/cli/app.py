@@ -722,15 +722,16 @@ def _show_intro(intro_enabled: bool, fast: bool, is_tty: bool, intro_duration: f
         with contextlib.suppress(Exception):
             MatrixRain().run(duration=intro_duration)
 
-    console.print(
-        Panel(
-            "[bold cyan]Welcome to SlowQL[/bold cyan]\n"
-            "The Ultimate SQL Static Analyzer\n\n"
-            "[dim]Type 'compare' for comparison mode | 'quit' to exit[/dim]",
-            border_style="cyan",
-            box=box.DOUBLE,
+    if not machine_readable:
+        console.print(
+            Panel(
+                "[bold cyan]Welcome to SlowQL[/bold cyan]\n"
+                "The Ultimate SQL Static Analyzer\n\n"
+                "[dim]Type 'compare' for comparison mode | 'quit' to exit[/dim]",
+                border_style="cyan",
+                box=box.DOUBLE,
+            )
         )
-    )
     return selected_dialect
 
 
