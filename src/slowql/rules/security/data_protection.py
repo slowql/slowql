@@ -13,6 +13,8 @@ __all__ = [
     "RedshiftCopyWithCredentialsRule",
     "RedshiftCopyWithCredentialsRule",
     "RemoteDataAccessRule",
+    "SnowflakeCloneWithoutCopyGrantsRule",
+    "SnowflakeCloneWithoutCopyGrantsRule",
     "SnowflakeCopyWithCredentialsRule",
     "SnowflakeCopyWithCredentialsRule",
 ]
@@ -165,4 +167,32 @@ class SnowflakeCopyWithCredentialsRule(PatternRule):
     fix_guidance = (
         "Use storage integrations: CREATE STORAGE INTEGRATION ... "
         "Then reference: COPY INTO ... FROM @stage. Never embed keys in SQL."
+    )
+
+
+class SnowflakeCloneWithoutCopyGrantsRule(PatternRule):
+    """Detects CLONE without COPY GRANTS in Snowflake."""
+
+    id = "SEC-SF-002"
+    name = "CLONE Without COPY GRANTS"
+    description = (
+        "Snowflake CLONE without COPY GRANTS creates the clone with "
+        "default permissions, potentially exposing data to users who "
+        "shouldn't have access or removing access from users who need it."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.SECURITY
+    category = Category.SEC_ACCESS
+    dialects = ("snowflake",)
+
+    pattern = r"\bCLONE\b(?!.*\bCOPY\s+GRANTS\b)"
+    message_template = "CLONE without COPY GRANTS — permissions not preserved: {match}"
+
+    impact = (
+        "The cloned object inherits default role permissions instead of "
+        "the source's grants. Sensitive data may become accessible to "
+        "unauthorized roles."
+    )
+    fix_guidance = (
+        "Add COPY GRANTS: CREATE TABLE t_clone CLONE t COPY GRANTS."
     )

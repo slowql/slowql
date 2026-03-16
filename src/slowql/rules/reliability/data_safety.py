@@ -19,6 +19,7 @@ __all__ = [
     "CreateIndexWithoutConcurrentlyRule",
     "DropTableRule",
     "InsertIgnoreRule",
+    "MysqlMyisamEngineRule",
     "OracleAlterTableMoveWithoutRebuildRule",
     "ReplaceIntoRule",
     "TruncateInTryWithoutCatchRule",
@@ -368,3 +369,32 @@ class BigQueryDmlWithoutWhereOnPartitionedRule(Rule):
         if "WHERE" in query.raw.upper():
             return []
         return [self.create_issue(query=query, message="DML without WHERE on BigQuery — will process all partitions.", snippet=query.raw[:80])]
+
+
+class MysqlMyisamEngineRule(PatternRule):
+    """Detects MyISAM engine usage in MySQL."""
+
+    id = "REL-MYSQL-005"
+    name = "MyISAM Engine Usage"
+    description = (
+        "MyISAM does not support transactions, crash recovery, or foreign "
+        "keys. A crash during a write operation can corrupt the table "
+        "permanently. InnoDB is the default and recommended engine."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.RELIABILITY
+    category = Category.REL_DATA_INTEGRITY
+    dialects = ("mysql",)
+
+    pattern = r"\bENGINE\s*=\s*MyISAM\b"
+    message_template = "MyISAM engine detected — no crash recovery or transactions: {match}"
+
+    impact = (
+        "MyISAM tables can be corrupted by crashes, power failures, or "
+        "killed queries. There is no automatic recovery — manual REPAIR "
+        "TABLE is required and may lose data."
+    )
+    fix_guidance = (
+        "Use ENGINE=InnoDB. Convert existing tables: "
+        "ALTER TABLE t ENGINE=InnoDB."
+    )

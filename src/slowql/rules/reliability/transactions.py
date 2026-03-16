@@ -11,6 +11,7 @@ __all__ = [
     "AutocommitDisabledRule",
     "EmptyTransactionRule",
     "MissingRollbackRule",
+    "OracleAutonomousTransactionRule",
 ]
 
 
@@ -104,4 +105,35 @@ class EmptyTransactionRule(PatternRule):
     fix_guidance = (
         "Remove the empty BEGIN...COMMIT block, or add the intended DML "
         "statements between them."
+    )
+
+
+class OracleAutonomousTransactionRule(PatternRule):
+    """Detects PRAGMA AUTONOMOUS_TRANSACTION misuse in Oracle."""
+
+    id = "REL-ORA-003"
+    name = "PRAGMA AUTONOMOUS_TRANSACTION"
+    description = (
+        "PRAGMA AUTONOMOUS_TRANSACTION creates an independent transaction "
+        "within the current one. Commits in the autonomous transaction are "
+        "permanent even if the parent transaction rolls back, breaking "
+        "transactional consistency."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.RELIABILITY
+    category = Category.REL_TRANSACTION
+    dialects = ("oracle",)
+
+    pattern = r"\bPRAGMA\s+AUTONOMOUS_TRANSACTION\b"
+    message_template = "AUTONOMOUS_TRANSACTION detected — commits persist even if parent rolls back: {match}"
+
+    impact = (
+        "Data committed in an autonomous transaction survives parent "
+        "rollback. This breaks the assumption that ROLLBACK undoes all "
+        "changes, leading to data inconsistency."
+    )
+    fix_guidance = (
+        "Only use AUTONOMOUS_TRANSACTION for audit logging where you "
+        "intentionally want commits to persist. Never use for business "
+        "data modifications."
     )

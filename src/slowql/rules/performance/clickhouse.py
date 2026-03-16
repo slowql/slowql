@@ -6,6 +6,7 @@ from slowql.rules.base import PatternRule, Rule
 
 __all__ = [
     "ClickHouseJoinWithoutGlobalRule",
+    "ClickHouseMutationRule",
     "ClickHouseSelectWithoutPrewhereRule",
 ]
 
@@ -74,3 +75,33 @@ class ClickHouseJoinWithoutGlobalRule(Rule):
         if not self._has_pattern(query.raw, r"\bJOIN\s*\(\s*SELECT\b"):
             return []
         return [self.create_issue(query=query, message="JOIN with subquery without GLOBAL — redundant execution on each shard.", snippet=query.raw[:80])]
+
+
+class ClickHouseMutationRule(PatternRule):
+    """Detects ALTER TABLE UPDATE/DELETE mutations in ClickHouse."""
+
+    id = "PERF-CH-003"
+    name = "ClickHouse Mutation (ALTER UPDATE/DELETE)"
+    description = (
+        "ClickHouse mutations (ALTER TABLE UPDATE/DELETE) are heavy "
+        "asynchronous operations that rewrite entire data parts. They "
+        "are not designed for frequent row-level modifications."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.PERFORMANCE
+    category = Category.PERF_SCAN
+    dialects = ("clickhouse",)
+
+    pattern = r"\bALTER\s+TABLE\s+\w+\s+(?:UPDATE|DELETE)\b"
+    message_template = "ClickHouse mutation detected — heavy async part rewrite: {match}"
+
+    impact = (
+        "Mutations rewrite entire data parts asynchronously. Frequent "
+        "mutations queue up and consume disk I/O and CPU. They are not "
+        "transactional and cannot be rolled back."
+    )
+    fix_guidance = (
+        "Use ReplacingMergeTree or CollapsingMergeTree for logical "
+        "deletes/updates. Reserve ALTER TABLE mutations for rare bulk "
+        "corrections."
+    )

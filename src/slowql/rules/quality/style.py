@@ -36,6 +36,8 @@ __all__ = [
     "SnowflakeFlattenWithoutPathRule",
     "SnowflakeFlattenWithoutPathRule",
     "StraightJoinHintRule",
+    "TsqlQuotedIdentifierOffRule",
+    "TsqlQuotedIdentifierOffRule",
     "WildcardInColumnListRule",
 ]
 
@@ -378,3 +380,32 @@ class InsertWithoutColumnListRule(ASTRule):
                             snippet=query.raw[:80],
                         ))
         return issues
+
+
+class TsqlQuotedIdentifierOffRule(PatternRule):
+    """Detects SET QUOTED_IDENTIFIER OFF in T-SQL."""
+
+    id = "QUAL-TSQL-002"
+    name = "SET QUOTED_IDENTIFIER OFF"
+    description = (
+        "SET QUOTED_IDENTIFIER OFF allows double quotes to delimit strings "
+        "instead of identifiers. This is non-standard, deprecated, and "
+        "breaks indexed views, computed columns, and filtered indexes."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_MODERN
+    dialects = ("tsql",)
+
+    pattern = r"\bSET\s+QUOTED_IDENTIFIER\s+OFF\b"
+    message_template = "SET QUOTED_IDENTIFIER OFF — deprecated, breaks indexes: {match}"
+
+    impact = (
+        "With QUOTED_IDENTIFIER OFF, indexed views and computed columns "
+        "cannot be created or queried. This is deprecated and will be "
+        "removed in a future SQL Server version."
+    )
+    fix_guidance = (
+        "Remove SET QUOTED_IDENTIFIER OFF. Use single quotes for strings "
+        "and double quotes or square brackets for identifiers."
+    )
