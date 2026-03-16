@@ -13,6 +13,7 @@ from slowql.rules.base import ASTRule
 
 __all__ = [
     "CartesianProductRule",
+    "LeftJoinWithIsNotNullRule",
     "TooManyJoinsRule",
 ]
 
@@ -70,3 +71,62 @@ class TooManyJoinsRule(ASTRule):
                 )
             ]
         return []
+
+
+class LeftJoinWithIsNotNullRule(ASTRule):
+    """Detects LEFT JOIN where WHERE filters on right table IS NOT NULL."""
+
+    id = "PERF-JOIN-003"
+    name = "LEFT JOIN With IS NOT NULL Filter"
+    description = (
+        "A LEFT JOIN followed by WHERE right_table.column IS NOT NULL is "
+        "logically equivalent to an INNER JOIN but prevents the optimizer "
+        "from choosing the most efficient join strategy."
+    )
+    severity = Severity.LOW
+    dimension = Dimension.PERFORMANCE
+    category = Category.PERF_JOIN
+    dialects = ()
+
+    impact = (
+        "The LEFT JOIN preserves unmatched rows, then WHERE immediately "
+        "removes them. This wastes I/O and prevents join reordering."
+    )
+    fix_guidance = (
+        "Replace LEFT JOIN with INNER JOIN when the WHERE clause filters "
+        "out NULLs from the right table. The result is identical but "
+        "the optimizer has more freedom."
+    )
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        issues = []
+        for node in ast.walk():
+            if isinstance(node, exp.Select):
+                joins = node.args.get("joins") or []
+                where = node.args.get("where")
+                if not where:
+                    continue
+
+                # Get right-side table names from LEFT JOINs
+                left_join_tables = set()
+                for join in joins:
+                    join_kind = join.args.get("side", "")
+                    if str(join_kind).upper() == "LEFT":
+                        table = join.find(exp.Table)
+                        if table:
+                            left_join_tables.add(table.alias_or_name.lower())
+
+                if not left_join_tables:
+                    continue
+
+                # Check WHERE for IS NOT NULL on left-joined table columns
+                where_sql = str(where).upper()
+                for table_name in left_join_tables:
+                    if f"{table_name.upper()}." in where_sql and "IS NOT NULL" in where_sql:
+                        issues.append(self.create_issue(
+                            query=query,
+                            message=f"LEFT JOIN on '{table_name}' with IS NOT NULL filter — use INNER JOIN instead.",
+                            snippet=query.raw[:80],
+                        ))
+                        break
+        return issues

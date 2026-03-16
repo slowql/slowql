@@ -5,19 +5,24 @@ Quality Null handling rules.
 from __future__ import annotations
 
 import re
+from typing import Any
+
+from sqlglot import exp
 
 from slowql.core.models import (
     Category,
     Dimension,
     Fix,
     FixConfidence,
+    Issue,
     Query,
     RemediationMode,
     Severity,
 )
-from slowql.rules.base import PatternRule
+from slowql.rules.base import ASTRule, PatternRule
 
 __all__ = [
+    "CaseWithoutElseRule",
     "NullComparisonRule",
 ]
 
@@ -82,3 +87,43 @@ class NullComparisonRule(PatternRule):
             return None
         return None
 
+
+
+class CaseWithoutElseRule(ASTRule):
+    """Detects CASE expressions without ELSE clause."""
+
+    id = "QUAL-MODERN-004"
+    name = "CASE Without ELSE"
+    description = (
+        "A CASE expression without ELSE returns NULL when no condition "
+        "matches. This is a frequent source of unexpected NULLs that "
+        "propagate through calculations and break NOT NULL constraints."
+    )
+    severity = Severity.LOW
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_READABILITY
+    dialects = ()
+
+    impact = (
+        "Unmatched CASE returns NULL, which propagates through arithmetic "
+        "(NULL + 1 = NULL), string operations (NULL || 'x' = NULL), and "
+        "comparisons (NULL = NULL is UNKNOWN)."
+    )
+    fix_guidance = (
+        "Always add ELSE with a sensible default: "
+        "CASE WHEN x THEN y ELSE default_value END."
+    )
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        issues = []
+        for node in ast.walk():
+            if isinstance(node, exp.Case):
+                # Check for ELSE clause
+                default = node.args.get("default")
+                if default is None:
+                    issues.append(self.create_issue(
+                        query=query,
+                        message="CASE without ELSE — returns NULL when no condition matches.",
+                        snippet=str(node)[:80],
+                    ))
+        return issues

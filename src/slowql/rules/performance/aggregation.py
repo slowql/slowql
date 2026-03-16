@@ -12,6 +12,7 @@ from slowql.core.models import Category, Dimension, Issue, Query, Severity
 from slowql.rules.base import ASTRule, PatternRule
 
 __all__ = [
+    "HavingWithoutGroupByRule",
     "OrderByInSubqueryRule",
     "UnfilteredAggregationRule",
 ]
@@ -66,3 +67,42 @@ class OrderByInSubqueryRule(PatternRule):
 
     impact = "ORDER BY in subquery is meaningless and wastes sort cost"
     fix_guidance = "Remove ORDER BY from subquery unless paired with LIMIT/TOP"
+
+
+class HavingWithoutGroupByRule(ASTRule):
+    """Detects HAVING clause without GROUP BY."""
+
+    id = "PERF-AGG-003"
+    name = "HAVING Without GROUP BY"
+    description = (
+        "HAVING without GROUP BY treats the entire result set as a single "
+        "group. This is valid SQL but almost always a mistake — the developer "
+        "likely forgot GROUP BY, and the query returns at most one row."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.PERFORMANCE
+    category = Category.PERF_AGGREGATION
+    dialects = ()
+
+    impact = (
+        "Without GROUP BY, HAVING filters the entire table as one group. "
+        "The query returns either 0 or 1 rows, which is rarely intended."
+    )
+    fix_guidance = (
+        "Add the missing GROUP BY clause, or use WHERE instead of HAVING "
+        "if no aggregation is needed."
+    )
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        issues = []
+        for node in ast.walk():
+            if isinstance(node, exp.Select):
+                having = node.args.get("having")
+                group = node.args.get("group")
+                if having and not group:
+                    issues.append(self.create_issue(
+                        query=query,
+                        message="HAVING without GROUP BY — entire result treated as single group.",
+                        snippet=query.raw[:80],
+                    ))
+        return issues

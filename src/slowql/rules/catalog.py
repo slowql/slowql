@@ -90,6 +90,7 @@ from slowql.rules.performance import (
     ForceIndexHintMysqlRule,
     FunctionOnIndexedColumnRule,
     GroupByHighCardinalityRule,
+    HavingWithoutGroupByRule,
     IlikeOnIndexedColumnRule,
     ImplicitConversionInJoinRule,
     ImplicitTypeConversionRule,
@@ -98,6 +99,7 @@ from slowql.rules.performance import (
     LargeObjectUnboundedRule,
     LargeUnbatchedOperationRule,
     LeadingWildcardRule,
+    LeftJoinWithIsNotNullRule,
     LikeWithoutCollateNocaseRule,
     LongTransactionPatternRule,
     MissingBatchSizeInLoopRule,
@@ -142,6 +144,7 @@ from slowql.rules.performance import (
 from slowql.rules.quality import (
     AmbiguousAliasRule,
     AnsiNullsOffRule,
+    CaseWithoutElseRule,
     ClickHouseOrderByWithoutLimitRule,
     CommentedCodeRule,
     ComplexLogicWithoutExplanationRule,
@@ -156,6 +159,7 @@ from slowql.rules.quality import (
     HungarianNotationRule,
     ImplicitJoinRule,
     InconsistentTableNamingRule,
+    InsertWithoutColumnListRule,
     LackOfIndexingOnForeignKeyRule,
     LongQueryRule,
     MagicStringWithoutCommentRule,
@@ -195,6 +199,7 @@ from slowql.rules.reliability import (
     CreateIndexWithoutConcurrentlyRule,
     DeadlockPatternRule,
     DropTableRule,
+    EmptyTransactionRule,
     ExceptionSwallowedRule,
     InsertIgnoreRule,
     LockEscalationRiskRule,
@@ -555,6 +560,12 @@ def get_all_rules() -> list[Rule]:
         RedshiftCopyWithCredentialsRule(),
         ClickHouseUrlFunctionRule(),
         SnowflakeCopyWithCredentialsRule(),
+        # Phase 7: Missing universal rules
+        InsertWithoutColumnListRule(),
+        CaseWithoutElseRule(),
+        HavingWithoutGroupByRule(),
+        LeftJoinWithIsNotNullRule(),
+        EmptyTransactionRule(),
     ]
 
 

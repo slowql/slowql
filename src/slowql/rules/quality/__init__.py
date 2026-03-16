@@ -19,6 +19,7 @@ from .testing import *
 __all__ = [
     "AmbiguousAliasRule",
     "AnsiNullsOffRule",
+    "CaseWithoutElseRule",
     "CommentedCodeRule",
     "ComplexLogicWithoutExplanationRule",
     "CyclomaticComplexityRule",
@@ -32,6 +33,7 @@ __all__ = [
     "HungarianNotationRule",
     "ImplicitJoinRule",
     "InconsistentTableNamingRule",
+    "InsertWithoutColumnListRule",
     "LackOfIndexingOnForeignKeyRule",
     "LongQueryRule",
     "MagicStringWithoutCommentRule",

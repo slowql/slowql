@@ -31,6 +31,7 @@ __all__ = [
     "CreateIndexWithoutConcurrentlyRule",
     "DeadlockPatternRule",
     "DropTableRule",
+    "EmptyTransactionRule",
     "ExceptionSwallowedRule",
     "InsertIgnoreRule",
     "LockEscalationRiskRule",

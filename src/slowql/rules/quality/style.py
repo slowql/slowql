@@ -5,6 +5,9 @@ Quality Style rules.
 from __future__ import annotations
 
 import re
+from typing import Any
+
+from sqlglot import exp
 
 from slowql.core.models import (
     Category,
@@ -16,12 +19,14 @@ from slowql.core.models import (
     RemediationMode,
     Severity,
 )
-from slowql.rules.base import PatternRule, Rule
+from slowql.rules.base import ASTRule, PatternRule, Rule
 
 __all__ = [
     "AnsiNullsOffRule",
     "ClickHouseOrderByWithoutLimitRule",
     "CommentedCodeRule",
+    "InsertWithoutColumnListRule",
+    "InsertWithoutColumnListRule",
     "MissingAliasRule",
     "PgDoBlockWithoutLanguageRule",
     "PgDoBlockWithoutLanguageRule",
@@ -332,3 +337,44 @@ class SnowflakeFlattenWithoutPathRule(PatternRule):
     fix_guidance = (
         "Use explicit parameters: LATERAL FLATTEN(input => col, path => 'key')."
     )
+
+
+class InsertWithoutColumnListRule(ASTRule):
+    """Detects INSERT INTO table VALUES without explicit column list."""
+
+    id = "QUAL-STYLE-005"
+    name = "INSERT Without Column List"
+    description = (
+        "INSERT INTO table VALUES (...) without specifying columns depends "
+        "on column order. If the table schema changes (column added, reordered), "
+        "the INSERT silently inserts data into wrong columns or fails."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_READABILITY
+    dialects = ()
+
+    impact = (
+        "A schema change (ALTER TABLE ADD COLUMN) silently shifts all values "
+        "one position, causing data corruption without any error."
+    )
+    fix_guidance = (
+        "Always specify columns: INSERT INTO table (col1, col2) VALUES (v1, v2)."
+    )
+
+    def check_ast(self, query: Query, ast: Any) -> list[Issue]:
+        issues = []
+        for node in ast.walk():
+            if isinstance(node, exp.Insert):
+                # Check if column list is specified
+                cols = node.args.get("columns")
+                if not cols:
+                    # Check it's a VALUES insert (not INSERT INTO ... SELECT)
+                    values = node.find(exp.Values)
+                    if values:
+                        issues.append(self.create_issue(
+                            query=query,
+                            message="INSERT without column list — fragile if schema changes.",
+                            snippet=query.raw[:80],
+                        ))
+        return issues

@@ -121,7 +121,7 @@ class TestPhase6Catalog:
 
     def test_total(self) -> None:
         from slowql.rules.catalog import get_all_rules
-        assert len(get_all_rules()) == 256
+        assert len(get_all_rules()) == 261
 
     def test_no_duplicates(self) -> None:
         from collections import Counter

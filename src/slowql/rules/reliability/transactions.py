@@ -9,6 +9,7 @@ from slowql.rules.base import PatternRule
 
 __all__ = [
     "AutocommitDisabledRule",
+    "EmptyTransactionRule",
     "MissingRollbackRule",
 ]
 
@@ -74,4 +75,33 @@ class AutocommitDisabledRule(PatternRule):
         "If autocommit must be disabled, ensure every code path has explicit COMMIT "
         "or ROLLBACK. Monitor for long-running transactions via pg_stat_activity or "
         "information_schema.innodb_trx."
+    )
+
+
+class EmptyTransactionRule(PatternRule):
+    """Detects BEGIN/COMMIT with no DML statements between them."""
+
+    id = "REL-TXN-003"
+    name = "Empty Transaction Block"
+    description = (
+        "A BEGIN...COMMIT block without any DML (INSERT, UPDATE, DELETE, "
+        "SELECT) between them acquires and releases a transaction lock for "
+        "no purpose. This is usually a code generation bug or copy-paste error."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.RELIABILITY
+    category = Category.REL_TRANSACTION
+    dialects = ()
+
+    pattern = r"\b(?:BEGIN|START\s+TRANSACTION)\s*;\s*(?:COMMIT|END)\b"
+    message_template = "Empty transaction block detected — no DML between BEGIN and COMMIT: {match}"
+
+    impact = (
+        "Empty transactions acquire locks, write to WAL/transaction log, "
+        "and consume connection slots for no purpose. In high-concurrency "
+        "systems this adds unnecessary contention."
+    )
+    fix_guidance = (
+        "Remove the empty BEGIN...COMMIT block, or add the intended DML "
+        "statements between them."
     )
