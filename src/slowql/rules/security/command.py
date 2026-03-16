@@ -10,6 +10,8 @@ from slowql.core.models import Category, Dimension, Severity
 from slowql.rules.base import PatternRule
 
 __all__ = [
+    "ClickHouseUrlFunctionRule",
+    "ClickHouseUrlFunctionRule",
     "LocalFileInclusionRule",
     "OSCommandInjectionPostgresRule",
     "OSCommandInjectionTsqlRule",
@@ -201,3 +203,31 @@ class SpOACreateRule(PatternRule):
     message_template = "OLE Automation procedure detected: {match}"
     impact = "OLE Automation enables arbitrary COM object instantiation and host compromise."
     fix_guidance = "Disable OLE Automation: sp_configure 'Ole Automation Procedures', 0."
+
+
+class ClickHouseUrlFunctionRule(PatternRule):
+    """Detects url() table function in ClickHouse (SSRF risk)."""
+
+    id = "SEC-CH-001"
+    name = "ClickHouse url() Table Function"
+    description = (
+        "ClickHouse's url() table function fetches data from arbitrary "
+        "HTTP endpoints. If the URL is user-controlled, this enables "
+        "Server-Side Request Forgery (SSRF)."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.SECURITY
+    category = Category.SEC_DATA_EXPOSURE
+    dialects = ("clickhouse",)
+
+    pattern = r"\burl\s*\(\s*['\"]https?://"
+    message_template = "ClickHouse url() table function — SSRF risk: {match}"
+
+    impact = (
+        "url() can reach internal services, cloud metadata endpoints "
+        "(169.254.169.254), and exfiltrate data via HTTP requests."
+    )
+    fix_guidance = (
+        "Restrict url() with allowed_hosts in config.xml. Use named "
+        "collections for approved external sources. Audit all url() usage."
+    )

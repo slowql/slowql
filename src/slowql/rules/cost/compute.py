@@ -14,7 +14,13 @@ from slowql.rules.base import ASTRule, PatternRule
 __all__ = [
     "ExpensiveWindowFunctionRule",
     "FullTableScanRule",
+    "MysqlQueryCachePollutionRule",
+    "MysqlQueryCachePollutionRule",
+    "OracleFullTableHintRule",
+    "OracleFullTableHintRule",
     "SnowflakeWarehouseSizeHintRule",
+    "TsqlCursorWithoutFastForwardRule",
+    "TsqlCursorWithoutFastForwardRule",
 ]
 
 
@@ -102,3 +108,88 @@ class SnowflakeWarehouseSizeHintRule(PatternRule):
     message_template = "LATERAL FLATTEN detected — verify warehouse size is appropriate: {match}"
     impact = "Undersized warehouse causes disk spilling, multiplying credit consumption."
     fix_guidance = "Monitor query profile for spilling. Scale warehouse for heavy FLATTEN operations."
+
+
+class MysqlQueryCachePollutionRule(PatternRule):
+    """Detects large queries without SQL_NO_CACHE in MySQL."""
+
+    id = "COST-MYSQL-001"
+    name = "Query Cache Pollution"
+    description = (
+        "Large analytical queries in MySQL can pollute the query cache, "
+        "evicting frequently-used cached results. Use SQL_NO_CACHE for "
+        "one-off or analytical queries."
+    )
+    severity = Severity.LOW
+    dimension = Dimension.COST
+    category = Category.COST_COMPUTE
+    dialects = ("mysql",)
+
+    pattern = r"\bSELECT\s+(?!.*\bSQL_NO_CACHE\b).*\b(?:GROUP\s+BY|ORDER\s+BY|HAVING)\b"
+    message_template = "Analytical query without SQL_NO_CACHE — may pollute query cache: {match}"
+
+    impact = (
+        "Large result sets evict smaller, frequently-used entries from "
+        "the query cache, degrading performance for other queries."
+    )
+    fix_guidance = (
+        "Add SQL_NO_CACHE: SELECT SQL_NO_CACHE ... for analytical or "
+        "one-off queries. Note: query cache is removed in MySQL 8.0+."
+    )
+
+
+class TsqlCursorWithoutFastForwardRule(PatternRule):
+    """Detects DECLARE CURSOR without FAST_FORWARD in T-SQL."""
+
+    id = "COST-TSQL-001"
+    name = "Cursor Without FAST_FORWARD"
+    description = (
+        "T-SQL cursors default to GLOBAL KEYSET which maintains a copy "
+        "of keys in tempdb. FAST_FORWARD (forward-only, read-only) is "
+        "the most efficient cursor type and avoids tempdb overhead."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.COST
+    category = Category.COST_COMPUTE
+    dialects = ("tsql",)
+
+    pattern = r"\bDECLARE\s+\w+\s+CURSOR\b(?!.*\bFAST_FORWARD\b)"
+    message_template = "CURSOR without FAST_FORWARD — unnecessary tempdb overhead: {match}"
+
+    impact = (
+        "Non-FAST_FORWARD cursors maintain key sets in tempdb, consuming "
+        "I/O and storage. For read-only forward iteration this is waste."
+    )
+    fix_guidance = (
+        "Use DECLARE cur CURSOR FAST_FORWARD FOR SELECT ... "
+        "Or better: replace the cursor with a set-based operation."
+    )
+
+
+class OracleFullTableHintRule(PatternRule):
+    """Detects /*+ FULL */ hint forcing full table scan in Oracle."""
+
+    id = "COST-ORA-001"
+    name = "Full Table Scan Hint"
+    description = (
+        "The /*+ FULL(table) */ hint forces Oracle to perform a full table "
+        "scan, bypassing all indexes. This is rarely appropriate in OLTP "
+        "and wastes I/O."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.COST
+    category = Category.COST_COMPUTE
+    dialects = ("oracle",)
+
+    pattern = r"/\*\+\s*FULL\s*\("
+    message_template = "FULL table scan hint detected — bypasses all indexes: {match}"
+
+    impact = (
+        "Forces reading every block in the table regardless of available "
+        "indexes. On large tables this is orders of magnitude slower."
+    )
+    fix_guidance = (
+        "Remove the FULL hint and let the optimizer choose. If the "
+        "optimizer makes poor choices, update statistics with "
+        "DBMS_STATS.GATHER_TABLE_STATS."
+    )

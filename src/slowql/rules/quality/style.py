@@ -11,17 +11,25 @@ from slowql.core.models import (
     Dimension,
     Fix,
     FixConfidence,
+    Issue,
     Query,
     RemediationMode,
     Severity,
 )
-from slowql.rules.base import PatternRule
+from slowql.rules.base import PatternRule, Rule
 
 __all__ = [
     "AnsiNullsOffRule",
+    "ClickHouseOrderByWithoutLimitRule",
     "CommentedCodeRule",
     "MissingAliasRule",
+    "PgDoBlockWithoutLanguageRule",
+    "PgDoBlockWithoutLanguageRule",
+    "RedshiftDiststyleAllRule",
+    "RedshiftDiststyleAllRule",
     "SelectWithoutFromRule",
+    "SnowflakeFlattenWithoutPathRule",
+    "SnowflakeFlattenWithoutPathRule",
     "StraightJoinHintRule",
     "WildcardInColumnListRule",
 ]
@@ -205,3 +213,122 @@ class AnsiNullsOffRule(PatternRule):
     message_template = "SET ANSI_NULLS OFF detected — deprecated non-standard behavior: {match}"
     impact = "Code relying on ANSI_NULLS OFF will break when the setting is removed."
     fix_guidance = "Use IS NULL instead of = NULL. Remove SET ANSI_NULLS OFF."
+
+
+class PgDoBlockWithoutLanguageRule(PatternRule):
+    """Detects DO $$ blocks without explicit LANGUAGE specification."""
+
+    id = "QUAL-PG-001"
+    name = "DO Block Without LANGUAGE"
+    description = (
+        "PostgreSQL DO blocks should specify LANGUAGE explicitly. Without "
+        "it, PostgreSQL defaults to plpgsql but this is implicit and "
+        "reduces readability."
+    )
+    severity = Severity.LOW
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_READABILITY
+    dialects = ("postgresql",)
+
+    pattern = r"\bDO\s+\$\$(?!.*\bLANGUAGE\b)"
+    message_template = "DO block without LANGUAGE specification: {match}"
+
+    impact = (
+        "Implicit language defaults reduce code clarity and can cause "
+        "errors if the default language changes or if plpgsql is not loaded."
+    )
+    fix_guidance = (
+        "Add LANGUAGE plpgsql: DO $$ BEGIN ... END $$ LANGUAGE plpgsql;"
+    )
+
+
+class RedshiftDiststyleAllRule(PatternRule):
+    """Detects DISTSTYLE ALL on potentially large tables in Redshift."""
+
+    id = "QUAL-RS-001"
+    name = "DISTSTYLE ALL on Large Table"
+    description = (
+        "DISTSTYLE ALL copies the entire table to every node. This is "
+        "only appropriate for small dimension tables. On large tables "
+        "it wastes storage and slows down writes."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_SCHEMA_DESIGN
+    dialects = ("redshift",)
+
+    pattern = r"\bDISTSTYLE\s+ALL\b"
+    message_template = "DISTSTYLE ALL detected — entire table copied to every node: {match}"
+
+    impact = (
+        "Every INSERT, UPDATE, DELETE replicates to all nodes. For large "
+        "tables this multiplies write time and storage by the cluster size."
+    )
+    fix_guidance = (
+        "Use DISTSTYLE ALL only for small dimension tables (<1M rows). "
+        "For large tables use DISTSTYLE KEY or DISTSTYLE EVEN."
+    )
+
+
+class ClickHouseOrderByWithoutLimitRule(Rule):
+    """Detects ORDER BY without LIMIT on ClickHouse."""
+
+    id = "QUAL-CH-001"
+    name = "ORDER BY Without LIMIT on ClickHouse"
+    description = (
+        "ORDER BY without LIMIT on ClickHouse requires gathering and "
+        "sorting all data on a single node. For distributed tables this "
+        "causes massive memory usage."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_MODERN
+    dialects = ("clickhouse",)
+
+    impact = (
+        "All data is gathered to one node for global sorting. This can "
+        "exhaust memory and crash the query."
+    )
+    fix_guidance = (
+        "Add LIMIT to bound results. Or use ORDER BY with LIMIT BY for "
+        "top-N per group patterns."
+    )
+
+    def check(self, query: Query) -> list[Issue]:
+        if not self._dialect_matches(query):
+            return []
+        raw_upper = query.raw.upper()
+        if "ORDER BY" not in raw_upper:
+            return []
+        if "LIMIT" in raw_upper:
+            return []
+        if query.query_type and query.query_type.upper() != "SELECT":
+            return []
+        return [self.create_issue(query=query, message="ORDER BY without LIMIT on ClickHouse — full sort on single node.", snippet=query.raw[:80])]
+
+
+class SnowflakeFlattenWithoutPathRule(PatternRule):
+    """Detects FLATTEN without explicit path in Snowflake."""
+
+    id = "QUAL-SF-001"
+    name = "FLATTEN Without Explicit Path"
+    description = (
+        "LATERAL FLATTEN without explicit path or input parameter relies "
+        "on implicit column resolution, which can break if the schema "
+        "changes."
+    )
+    severity = Severity.LOW
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_READABILITY
+    dialects = ("snowflake",)
+
+    pattern = r"\bFLATTEN\s*\(\s*(?!.*\binput\b|.*\bpath\b)"
+    message_template = "FLATTEN without explicit input/path — fragile implicit resolution: {match}"
+
+    impact = (
+        "Without explicit path, FLATTEN depends on column position which "
+        "can silently produce wrong results after schema changes."
+    )
+    fix_guidance = (
+        "Use explicit parameters: LATERAL FLATTEN(input => col, path => 'key')."
+    )

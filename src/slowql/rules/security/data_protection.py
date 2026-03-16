@@ -10,7 +10,11 @@ from slowql.rules.base import PatternRule
 __all__ = [
     "DataExfiltrationViaFileRule",
     "LoadDataLocalInfileRule",
+    "RedshiftCopyWithCredentialsRule",
+    "RedshiftCopyWithCredentialsRule",
     "RemoteDataAccessRule",
+    "SnowflakeCopyWithCredentialsRule",
+    "SnowflakeCopyWithCredentialsRule",
 ]
 
 
@@ -104,3 +108,61 @@ class LoadDataLocalInfileRule(PatternRule):
     message_template = "LOAD DATA LOCAL INFILE detected — client file read risk: {match}"
     impact = "A rogue MySQL server can read any file the client has access to."
     fix_guidance = "Use LOAD DATA INFILE (server-side). Disable with --local-infile=0."
+
+
+class RedshiftCopyWithCredentialsRule(PatternRule):
+    """Detects COPY with embedded credentials in Redshift."""
+
+    id = "SEC-RS-001"
+    name = "COPY With Embedded Credentials"
+    description = (
+        "COPY commands with ACCESS_KEY_ID and SECRET_ACCESS_KEY embedded "
+        "in SQL expose AWS credentials in query logs, version control, "
+        "and monitoring tools."
+    )
+    severity = Severity.CRITICAL
+    dimension = Dimension.SECURITY
+    category = Category.SEC_DATA_EXPOSURE
+    dialects = ("redshift",)
+
+    pattern = r"\bCOPY\b.*\b(?:ACCESS_KEY_ID|SECRET_ACCESS_KEY|CREDENTIALS)\b"
+    message_template = "COPY with embedded credentials — credential exposure risk: {match}"
+
+    impact = (
+        "AWS credentials in SQL appear in pg_stat_activity, query logs, "
+        "STL_QUERYTEXT, and any monitoring tool. Anyone with log access "
+        "can steal the credentials."
+    )
+    fix_guidance = (
+        "Use IAM role-based authentication: COPY ... IAM_ROLE 'arn:aws:iam::role/name'. "
+        "Never embed ACCESS_KEY_ID in SQL."
+    )
+
+
+class SnowflakeCopyWithCredentialsRule(PatternRule):
+    """Detects COPY INTO with embedded credentials in Snowflake."""
+
+    id = "SEC-SF-001"
+    name = "COPY INTO With Embedded Credentials"
+    description = (
+        "COPY INTO with AWS_KEY_ID, AWS_SECRET_KEY, or AZURE_SAS_TOKEN "
+        "embedded in SQL exposes cloud credentials in query history, "
+        "INFORMATION_SCHEMA, and monitoring."
+    )
+    severity = Severity.CRITICAL
+    dimension = Dimension.SECURITY
+    category = Category.SEC_DATA_EXPOSURE
+    dialects = ("snowflake",)
+
+    pattern = r"\bCOPY\s+INTO\b.*\b(?:AWS_KEY_ID|AWS_SECRET_KEY|AZURE_SAS_TOKEN|CREDENTIALS)\b"
+    message_template = "COPY INTO with embedded credentials — credential exposure risk: {match}"
+
+    impact = (
+        "Cloud credentials appear in QUERY_HISTORY, INFORMATION_SCHEMA, "
+        "and Snowflake audit logs. Any user with MONITOR privilege can "
+        "see them."
+    )
+    fix_guidance = (
+        "Use storage integrations: CREATE STORAGE INTEGRATION ... "
+        "Then reference: COPY INTO ... FROM @stage. Never embed keys in SQL."
+    )
