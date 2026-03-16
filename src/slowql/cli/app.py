@@ -153,6 +153,77 @@ class QueryCache:
         """Clear cache"""
         self.cache.clear()
 
+SUPPORTED_DIALECTS = [
+    ("PostgreSQL", "postgresql"),
+    ("MySQL / MariaDB", "mysql"),
+    ("SQL Server (T-SQL)", "tsql"),
+    ("Oracle", "oracle"),
+    ("SQLite", "sqlite"),
+    ("Snowflake", "snowflake"),
+    ("BigQuery", "bigquery"),
+    ("Redshift", "redshift"),
+    ("ClickHouse", "clickhouse"),
+    ("DuckDB", "duckdb"),
+    ("Presto", "presto"),
+    ("Trino", "trino"),
+    ("Spark SQL", "spark"),
+    ("Databricks SQL", "databricks"),
+    ("Universal (all dialects)", "universal"),
+]
+
+
+def prompt_dialect() -> str | None:
+    """Prompt the user to select a SQL dialect in interactive mode."""
+    console.print()
+    table = Table(
+        title="Select SQL Dialect",
+        box=box.ROUNDED,
+        border_style="cyan",
+        show_lines=False,
+        padding=(0, 1),
+    )
+    table.add_column("#", style="bold cyan", width=4, justify="right")
+    table.add_column("Dialect", style="white")
+    table.add_column("ID", style="dim")
+
+    for i, (label, dialect_id) in enumerate(SUPPORTED_DIALECTS, 1):
+        table.add_row(str(i), label, dialect_id)
+
+    console.print(table)
+    console.print()
+
+    choice = Prompt.ask(
+        "[cyan]Select dialect[/]",
+        default="15",
+        show_default=True,
+    )
+
+    try:
+        idx = int(choice) - 1
+        if 0 <= idx < len(SUPPORTED_DIALECTS):
+            label, dialect_id = SUPPORTED_DIALECTS[idx]
+            if dialect_id == "universal":
+                console.print("[dim]Running universal rules (no dialect-specific rules)[/dim]")
+                return None
+            console.print(f"[green]Selected: {label}[/green]")
+            return dialect_id
+    except ValueError:
+        pass
+
+    # Try matching by name
+    choice_lower = choice.lower().strip()
+    for label, dialect_id in SUPPORTED_DIALECTS:
+        if choice_lower == dialect_id or choice_lower == label.lower():
+            if dialect_id == "universal":
+                return None
+            console.print(f"[green]Selected: {label}[/green]")
+            return dialect_id
+
+    console.print("[dim]No dialect selected, running universal rules only[/dim]")
+    return None
+
+
+
 
 def init_cli(machine_readable: bool = False) -> None:
     """Initialize CLI logging."""
@@ -641,10 +712,11 @@ def _run_analysis(
     return result
 
 
-def _show_intro(intro_enabled: bool, fast: bool, is_tty: bool, intro_duration: float, machine_readable: bool = False) -> None:
+def _show_intro(intro_enabled: bool, fast: bool, is_tty: bool, intro_duration: float, machine_readable: bool = False) -> str | None:
     """Displays the intro animation and welcome banner."""
+    selected_dialect: str | None = None
     if machine_readable:
-        return
+        return None
 
     if intro_enabled and not fast and is_tty:
         with contextlib.suppress(Exception):
@@ -659,6 +731,7 @@ def _show_intro(intro_enabled: bool, fast: bool, is_tty: bool, intro_duration: f
             box=box.DOUBLE,
         )
     )
+    return selected_dialect
 
 
 def _handle_sql_input(  # noqa: PLR0912
@@ -898,6 +971,7 @@ def run_analysis_loop(  # noqa: PLR0912, PLR0915
     *,
     initial_input_files: list[Path] | None = None,
     schema_file: Path | None = None,
+    dialect: str | None = None,
 ) -> int:
     """
     Main execution pipeline with interactive loop
@@ -915,6 +989,12 @@ def run_analysis_loop(  # noqa: PLR0912, PLR0915
     overrides: dict[str, Any] = {"output": {"verbose": verbose}}
     if fail_on:
         overrides["severity"] = {"fail_on": fail_on}
+
+    # Resolve dialect: CLI flag > config > interactive prompt > None (universal only)
+    resolved_dialect = dialect or config.analysis.dialect
+    if resolved_dialect:
+        overrides["analysis"] = overrides.get("analysis", {})
+        overrides["analysis"]["dialect"] = resolved_dialect
 
     loaded_schema = None
     if resolved_schema_file is not None:
@@ -941,7 +1021,13 @@ def run_analysis_loop(  # noqa: PLR0912, PLR0915
     session._machine_readable = machine_readable
 
     is_tty = sys.stdin.isatty() and sys.stdout.isatty()
-    _show_intro(intro_enabled, fast, is_tty, intro_duration, machine_readable=machine_readable)
+
+    intro_dialect = _show_intro(intro_enabled, fast, is_tty, intro_duration, machine_readable=machine_readable)
+    if intro_dialect and not resolved_dialect:
+        resolved_dialect = intro_dialect
+        overrides["analysis"] = overrides.get("analysis", {})
+        overrides["analysis"]["dialect"] = resolved_dialect
+        engine = SlowQL(config=config.with_overrides(**overrides), schema=loaded_schema)
 
     first_run = True
     current_input_files: list[Path] | None = initial_input_files
@@ -1066,6 +1152,17 @@ def build_argparser() -> argparse.ArgumentParser:
         "--fail-on",
         choices=["critical", "high", "medium", "low", "info", "never"],
         help="Set failure threshold based on issue severity",
+    )
+    analysis_group.add_argument(
+        "--dialect",
+        "-d",
+        choices=[
+            "postgresql", "mysql", "tsql", "oracle", "sqlite",
+            "snowflake", "bigquery", "redshift", "clickhouse",
+            "duckdb", "presto", "trino", "spark", "databricks",
+        ],
+        default=None,
+        help="SQL dialect for dialect-specific rules (default: prompt in interactive, universal-only in CI)",
     )
     analysis_group.add_argument(
         "--schema",
@@ -1208,6 +1305,9 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0912, PLR0915
 
     if args.schema:
         loop_kwargs["schema_file"] = args.schema
+
+    if args.dialect:
+        loop_kwargs["dialect"] = args.dialect
 
     if initial_files is not None:
         loop_kwargs["initial_input_files"] = initial_files

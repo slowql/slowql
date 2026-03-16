@@ -94,13 +94,13 @@ class TestDialectFiltering:
         issues = rule.check(query)
         assert len(issues) > 0
 
-    def test_mysql_rule_fires_on_unknown(self) -> None:
+    def test_mysql_rule_skips_on_unknown(self) -> None:
         from slowql.rules.reliability.data_safety import InsertIgnoreRule
 
         rule = InsertIgnoreRule()
         query = _make_query("INSERT IGNORE INTO t VALUES (1)", "unknown")
         issues = rule.check(query)
-        assert len(issues) > 0
+        assert issues == []
 
     def test_oracle_rule_skips_mysql(self) -> None:
         from slowql.rules.quality.modern_sql import RownumWithoutOrderByRule
@@ -202,8 +202,20 @@ class TestDialectFiltering:
         from slowql.rules.performance.scanning import SelectStarRule
 
         rule = SelectStarRule()
-        for dialect in ["postgresql", "mysql", "tsql", "oracle", "bigquery", "snowflake"]:
+        for dialect in ["postgresql", "mysql", "tsql", "oracle", "bigquery", "snowflake", "unknown"]:
             query = _make_query("SELECT * FROM users", dialect)
-            # SelectStarRule is an ASTRule that needs a parsed AST
-            # so we just verify it doesn't crash and the dialect guard passes
             assert rule._dialect_matches(query) is True
+
+    def test_dialect_specific_rule_skips_on_unknown(self) -> None:
+        from slowql.rules.reliability.data_safety import InsertIgnoreRule
+
+        rule = InsertIgnoreRule()
+        query = _make_query("INSERT IGNORE INTO t VALUES (1)", "unknown")
+        assert rule._dialect_matches(query) is False
+
+    def test_dialect_specific_rule_skips_on_none(self) -> None:
+        from slowql.rules.reliability.data_safety import InsertIgnoreRule
+
+        rule = InsertIgnoreRule()
+        query = _make_query("INSERT IGNORE INTO t VALUES (1)", "")
+        assert rule._dialect_matches(query) is False

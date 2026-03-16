@@ -61,6 +61,7 @@ class MatrixRain:
         ]
 
         self.subtitle = "◆ INTELLIGENT SQL ANALYSIS ENGINE ◆"
+        self._selected_dialect: str | None = None
 
         # Initialize rain columns
         self.columns: list[dict] = [
@@ -207,21 +208,105 @@ class MatrixRain:
         # 2. Begin Slow Scroll of Features
         self._show_feature_overview_slow()
 
-        # 3. Final Prompt: block here until user presses Enter
+        # 3. Dialect selection prompt
         self.console.print()
-        self.console.print(Align.center("[bold green blink]► PRESS ENTER TO ACTIVATE CONSOLE ◄[/]"))
+        self._selected_dialect = self._dialect_selector()
 
-        # Wait for a real Enter press
+
+    def _dialect_selector(self) -> str | None:  # noqa: PLR0912
+        """Arrow-key dialect selector shown after intro animation."""
+        dialects = [
+            ("PostgreSQL", "postgresql"),
+            ("MySQL / MariaDB", "mysql"),
+            ("SQL Server (T-SQL)", "tsql"),
+            ("Oracle", "oracle"),
+            ("SQLite", "sqlite"),
+            ("Snowflake", "snowflake"),
+            ("BigQuery", "bigquery"),
+            ("Redshift", "redshift"),
+            ("ClickHouse", "clickhouse"),
+            ("DuckDB", "duckdb"),
+            ("Presto", "presto"),
+            ("Trino", "trino"),
+            ("Spark SQL", "spark"),
+            ("Databricks SQL", "databricks"),
+            ("Universal (all dialects)", None),
+        ]
+        index = len(dialects) - 1  # default to Universal
+
+        def render_selector() -> Panel:
+            table = Table(
+                box=box.SQUARE,
+                show_edge=False,
+                expand=True,
+                border_style="cyan",
+                header_style="bold white on rgb(24,24,40)",
+            )
+            table.add_column("Dialect", no_wrap=True)
+
+            for i, (label, _) in enumerate(dialects):
+                pointer = "▸" if i == index else " "
+                style = "bold deep_sky_blue1" if i == index else "white"
+                table.add_row(f"[{style}]{pointer} {label}[/]")
+
+            footer = "[dim]↑/↓ move  •  Enter select[/]"
+            return Panel(
+                table,
+                title="[bold cyan]Select SQL Dialect[/]",
+                border_style="cyan",
+                box=box.ROUNDED,
+                subtitle=footer,
+                subtitle_align="center",
+            )
+
+        if not HAVE_READCHAR:
+            self.console.print(render_selector())
+            try:
+                choice = input("Select dialect number (1-15, default 15): ").strip()
+                if choice:
+                    idx = int(choice) - 1
+                    if 0 <= idx < len(dialects):
+                        label, dialect_id = dialects[idx]
+                        if dialect_id:
+                            self.console.print(f"[green]Selected: {label}[/green]")
+                        else:
+                            self.console.print("[dim]Running universal rules only[/dim]")
+                        return dialect_id
+            except (ValueError, EOFError):
+                pass
+            return None
+
+        selected: str | None = None
         try:
-            if HAVE_READCHAR:
-                while readchar.readkey() not in (readchar.key.ENTER, "\r", "\n"):
-                    pass
-            else:
-                with contextlib.suppress(EOFError):
-                    input()
+            live_ctx = Live(render_selector(), refresh_per_second=30, console=self.console, transient=True)
         except Exception:
-            with contextlib.suppress(EOFError):
-                input()
+            return None
+        with live_ctx as live:
+            while True:
+                try:
+                    key = readchar.readkey()
+                except Exception:
+                    return None
+                if key == readchar.key.UP:
+                    index = (index - 1) % len(dialects)
+                    live.update(render_selector())
+                elif key == readchar.key.DOWN:
+                    index = (index + 1) % len(dialects)
+                    live.update(render_selector())
+                elif key in (readchar.key.ENTER, "\r", "\n"):
+                    label, selected = dialects[index]
+                    break
+                elif key in ("q", "Q", readchar.key.ESC):
+                    break
+
+        if selected:
+            self.console.print(f"[green]Selected: {dialects[index][0]}[/green]")
+        else:
+            self.console.print("[dim]Running universal rules (no dialect-specific rules)[/dim]")
+        self.console.print()
+        return selected
+
+
 
     def _render_feature_grid(self, features: list[dict]) -> None:
         """Render the two-column grid of feature categories."""
@@ -334,7 +419,7 @@ class MatrixRain:
                         "Security, Performance, Reliability, Compliance, Quality, & Cost",
                     ),
                     ("Advanced AST Parsing", "sqlglot-powered deep SQL analysis"),
-                    ("Rule-Based Detection", "250+ detection patterns and anti-patterns"),
+                    ("Dialect-Aware Detection", "272 detection rules across 14 SQL dialects"),
                     ("Heuristic Analysis", "AI-powered pattern recognition and estimation"),
                     ("Real-time Analysis", "Instant feedback on SQL queries"),
                     ("Batch Processing", "Analyze multiple queries simultaneously"),
@@ -415,7 +500,7 @@ class MatrixRain:
         ]
 
         capabilities = [
-            ("🔍 Detection Capabilities", "250+ SQL anti-patterns and best practices"),
+            ("🔍 Detection Capabilities", "272 SQL anti-patterns and best practices"),
             ("📊 Analysis Dimensions", "6 comprehensive analysis categories"),
             ("⚡ Performance Rules", "Advanced query optimization patterns"),
             ("🔒 Security Rules", "OWASP Top 10 and compliance coverage"),
@@ -427,7 +512,7 @@ class MatrixRain:
 
         power_features = [
             "🚀 Real-time SQL Analysis Engine",
-            "🔍 250+ Detection Patterns and Anti-Patterns",
+            "🔍 272 Detection Rules Across 14 Dialects",
             "📊 Multi-Dimensional Issue Classification",
             "💡 Context-Aware Smart Recommendations",
             "⚡ Enterprise-Grade Performance",
@@ -461,8 +546,8 @@ class MatrixRain:
         final_summary = Panel(
             Align.center(
                 "[bold green]◆ SLOWQL: The Ultimate SQL Analysis Platform[/]\n"
-                "[dim]Enterprise-grade analysis with 250+ detection patterns,[/]\n"
-                "[dim]6 analysis dimensions, and comprehensive SQL optimization[/]"
+                "[dim]Enterprise-grade analysis with 272 detection rules,[/]\n"
+                "[dim]6 analysis dimensions, 14 SQL dialects, and comprehensive SQL optimization[/]"
             ),
             style="bold white on rgb(20,20,40)",
             border_style="green",
