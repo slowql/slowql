@@ -18,9 +18,11 @@ from slowql.core.models import (
 from slowql.rules.base import PatternRule
 
 __all__ = [
+    "AnsiNullsOffRule",
     "CommentedCodeRule",
     "MissingAliasRule",
     "SelectWithoutFromRule",
+    "StraightJoinHintRule",
     "WildcardInColumnListRule",
 ]
 
@@ -171,3 +173,35 @@ class CommentedCodeRule(PatternRule):
         "version control to track historical query variants. If the code may "
         "be needed, move it to a migration or script file with context."
     )
+
+
+class StraightJoinHintRule(PatternRule):
+    """Detects STRAIGHT_JOIN hint in MySQL."""
+
+    id = "QUAL-MYSQL-002"
+    name = "STRAIGHT_JOIN Hint"
+    description = "STRAIGHT_JOIN forces MySQL to read tables in query order, overriding optimizer."
+    severity = Severity.LOW
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_MODERN
+    dialects = ("mysql",)
+    pattern = r"\bSTRAIGHT_JOIN\b"
+    message_template = "STRAIGHT_JOIN hint detected — overrides optimizer join order: {match}"
+    impact = "Forced join order may become suboptimal as data distribution changes."
+    fix_guidance = "Remove STRAIGHT_JOIN. Update statistics with ANALYZE TABLE."
+
+
+class AnsiNullsOffRule(PatternRule):
+    """Detects SET ANSI_NULLS OFF in T-SQL."""
+
+    id = "QUAL-TSQL-001"
+    name = "SET ANSI_NULLS OFF"
+    description = "SET ANSI_NULLS OFF enables deprecated non-standard NULL comparison behavior."
+    severity = Severity.MEDIUM
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_MODERN
+    dialects = ("tsql",)
+    pattern = r"\bSET\s+ANSI_NULLS\s+OFF\b"
+    message_template = "SET ANSI_NULLS OFF detected — deprecated non-standard behavior: {match}"
+    impact = "Code relying on ANSI_NULLS OFF will break when the setting is removed."
+    fix_guidance = "Use IS NULL instead of = NULL. Remove SET ANSI_NULLS OFF."

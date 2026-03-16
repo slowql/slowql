@@ -17,6 +17,7 @@ from .testing import *
 
 __all__ = [
     "AmbiguousAliasRule",
+    "AnsiNullsOffRule",
     "CommentedCodeRule",
     "ComplexLogicWithoutExplanationRule",
     "CyclomaticComplexityRule",
@@ -38,12 +39,14 @@ __all__ = [
     "MissingPrimaryKeyRule",
     "NonDeterministicQueryRule",
     "NullComparisonRule",
+    "OracleNvlInWhereRule",
     "OrderByMissingForPaginationRule",
     "ReservedWordAsColumnRule",
     "RownumWithoutOrderByRule",
     "SelectFromDualRule",
     "SelectWithoutFromRule",
     "SqlCalcFoundRowsRule",
+    "StraightJoinHintRule",
     "TempTableNotCleanedUpRule",
     "TodoFixmeCommentRule",
     "UnionWithoutAllRule",

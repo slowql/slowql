@@ -14,6 +14,7 @@ from slowql.rules.base import ASTRule, PatternRule
 __all__ = [
     "HardcodedDateRule",
     "ImplicitJoinRule",
+    "OracleNvlInWhereRule",
     "RownumWithoutOrderByRule",
     "SelectFromDualRule",
     "SqlCalcFoundRowsRule",
@@ -188,3 +189,19 @@ class SqlCalcFoundRowsRule(PatternRule):
         "one COUNT(*) query for the total. Use covering indexes to make the "
         "COUNT(*) query fast."
     )
+
+
+class OracleNvlInWhereRule(PatternRule):
+    """Detects NVL() in WHERE clause instead of IS NULL in Oracle."""
+
+    id = "QUAL-ORA-003"
+    name = "NVL in WHERE Clause"
+    description = "NVL() in WHERE wraps the column in a function, preventing index usage."
+    severity = Severity.LOW
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_MODERN
+    dialects = ("oracle",)
+    pattern = r"\bWHERE\b.*\bNVL\s*\("
+    message_template = "NVL() in WHERE clause — prevents index usage: {match}"
+    impact = "NVL() makes the predicate non-SARGable."
+    fix_guidance = "Replace NVL(col, val) = x with (col = x OR col IS NULL)."

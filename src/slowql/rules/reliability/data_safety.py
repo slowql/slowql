@@ -9,14 +9,19 @@ from typing import Any
 from sqlglot import exp
 
 from slowql.core.models import Category, Dimension, Fix, Issue, Query, Severity
-from slowql.rules.base import ASTRule, PatternRule
+from slowql.rules.base import ASTRule, PatternRule, Rule
 
 __all__ = [
+    "AlterTableAddColumnVolatileDefaultRule",
     "AlterTableDestructiveRule",
     "AtAtIdentityRule",
+    "BigQueryDmlWithoutWhereOnPartitionedRule",
+    "CreateIndexWithoutConcurrentlyRule",
     "DropTableRule",
     "InsertIgnoreRule",
+    "OracleAlterTableMoveWithoutRebuildRule",
     "ReplaceIntoRule",
+    "TruncateInTryWithoutCatchRule",
     "TruncateWithoutTransactionRule",
     "UnsafeWriteRule",
     "Utf8InsteadOfUtf8mb4Rule",
@@ -248,3 +253,118 @@ class AtAtIdentityRule(PatternRule):
         "Use SCOPE_IDENTITY() to get the last identity value generated in "
         "the current scope. For parallel inserts use OUTPUT clause."
     )
+
+
+class CreateIndexWithoutConcurrentlyRule(PatternRule):
+    """Detects CREATE INDEX without CONCURRENTLY on PostgreSQL."""
+
+    id = "REL-PG-002"
+    name = "CREATE INDEX Without CONCURRENTLY"
+    description = "CREATE INDEX locks the table against writes. Use CONCURRENTLY to avoid this."
+    severity = Severity.HIGH
+    dimension = Dimension.RELIABILITY
+    category = Category.REL_DATA_INTEGRITY
+    dialects = ("postgresql",)
+    pattern = r"\bCREATE\s+(?:UNIQUE\s+)?INDEX\s+(?!CONCURRENTLY\b)\w+"
+    message_template = "CREATE INDEX without CONCURRENTLY — will lock table against writes: {match}"
+    impact = "On large tables, CREATE INDEX can lock writes for minutes."
+    fix_guidance = "Use CREATE INDEX CONCURRENTLY. Note: cannot run inside a transaction block."
+
+
+class AlterTableAddColumnVolatileDefaultRule(Rule):
+    """Detects ALTER TABLE ADD COLUMN with volatile DEFAULT in PostgreSQL."""
+
+    id = "REL-PG-001"
+    name = "ALTER TABLE ADD COLUMN With Volatile DEFAULT"
+    description = "ALTER TABLE ADD COLUMN with volatile DEFAULT (now(), random()) rewrites the entire table."
+    severity = Severity.HIGH
+    dimension = Dimension.RELIABILITY
+    category = Category.REL_DATA_INTEGRITY
+    dialects = ("postgresql",)
+    impact = "A table rewrite on a large table locks it exclusively."
+    fix_guidance = "Add column as NULLable first, backfill in batches, then add NOT NULL."
+
+    def check(self, query: Query) -> list[Issue]:
+        if not self._dialect_matches(query):
+            return []
+        if not self._has_pattern(query.raw, r"\bALTER\s+TABLE\b.*\bADD\s+(?:COLUMN\s+)?\w+"):
+            return []
+        raw_upper = query.raw.upper()
+        if "DEFAULT" not in raw_upper:
+            return []
+        for func in ["NOW()", "CURRENT_TIMESTAMP", "RANDOM()", "GEN_RANDOM_UUID()", "CLOCK_TIMESTAMP()"]:
+            if func in raw_upper:
+                return [self.create_issue(query=query, message="ALTER TABLE ADD COLUMN with volatile DEFAULT — may rewrite entire table.", snippet=query.raw[:100])]
+        return []
+
+
+class TruncateInTryWithoutCatchRule(Rule):
+    """Detects TRUNCATE TABLE inside TRY without CATCH in T-SQL."""
+
+    id = "REL-TSQL-003"
+    name = "TRUNCATE in TRY Without CATCH"
+    description = "TRUNCATE inside BEGIN TRY without BEGIN CATCH silently swallows errors."
+    severity = Severity.HIGH
+    dimension = Dimension.RELIABILITY
+    category = Category.REL_DATA_INTEGRITY
+    dialects = ("tsql",)
+    impact = "If TRUNCATE fails, the error is not caught and subsequent statements execute on stale data."
+    fix_guidance = "Always pair BEGIN TRY with BEGIN CATCH. Use THROW to re-raise errors."
+
+    def check(self, query: Query) -> list[Issue]:
+        if not self._dialect_matches(query):
+            return []
+        raw_upper = query.raw.upper()
+        if "TRUNCATE" not in raw_upper:
+            return []
+        if "BEGIN TRY" not in raw_upper:
+            return []
+        if "BEGIN CATCH" in raw_upper:
+            return []
+        return [self.create_issue(query=query, message="TRUNCATE inside BEGIN TRY without BEGIN CATCH — errors will be silently swallowed.", snippet=query.raw[:80])]
+
+
+class OracleAlterTableMoveWithoutRebuildRule(Rule):
+    """Detects ALTER TABLE MOVE without subsequent index rebuild in Oracle."""
+
+    id = "REL-ORA-002"
+    name = "ALTER TABLE MOVE Without REBUILD INDEX"
+    description = "ALTER TABLE MOVE invalidates all indexes. They must be rebuilt afterwards."
+    severity = Severity.HIGH
+    dimension = Dimension.RELIABILITY
+    category = Category.REL_DATA_INTEGRITY
+    dialects = ("oracle",)
+    impact = "After MOVE, all indexes become UNUSABLE — queries error or fall back to full scans."
+    fix_guidance = "Follow ALTER TABLE MOVE with ALTER INDEX ... REBUILD for every index."
+
+    def check(self, query: Query) -> list[Issue]:
+        if not self._dialect_matches(query):
+            return []
+        if not self._has_pattern(query.raw, r"\bALTER\s+TABLE\b.*\bMOVE\b"):
+            return []
+        if "REBUILD" in query.raw.upper():
+            return []
+        return [self.create_issue(query=query, message="ALTER TABLE MOVE without REBUILD INDEX — all indexes become UNUSABLE.", snippet=query.raw[:80])]
+
+
+class BigQueryDmlWithoutWhereOnPartitionedRule(Rule):
+    """Detects DML without WHERE on BigQuery tables."""
+
+    id = "REL-BQ-001"
+    name = "DML Without WHERE on BigQuery"
+    description = "UPDATE/DELETE without WHERE on BigQuery processes all partitions — expensive and irreversible."
+    severity = Severity.HIGH
+    dimension = Dimension.RELIABILITY
+    category = Category.REL_DATA_INTEGRITY
+    dialects = ("bigquery",)
+    impact = "DML on all partitions is expensive. BigQuery does not support ROLLBACK."
+    fix_guidance = "Always include WHERE with partition filter: WHERE _PARTITIONDATE = '2024-01-01'."
+
+    def check(self, query: Query) -> list[Issue]:
+        if not self._dialect_matches(query):
+            return []
+        if query.query_type not in ("UPDATE", "DELETE"):
+            return []
+        if "WHERE" in query.raw.upper():
+            return []
+        return [self.create_issue(query=query, message="DML without WHERE on BigQuery — will process all partitions.", snippet=query.raw[:80])]

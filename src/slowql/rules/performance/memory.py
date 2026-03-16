@@ -9,12 +9,14 @@ from typing import Any
 from sqlglot import exp
 
 from slowql.core.models import Category, Dimension, Fix, Issue, Query, Severity
-from slowql.rules.base import ASTRule, PatternRule
+from slowql.rules.base import ASTRule, PatternRule, Rule
 
 __all__ = [
     "GroupByHighCardinalityRule",
+    "ImplicitConversionInJoinRule",
     "LargeInClauseRule",
     "OrderByWithoutLimitInSubqueryRule",
+    "SelectIntoTempWithoutIndexRule",
     "UnboundedTempTableRule",
 ]
 
@@ -181,3 +183,43 @@ class GroupByHighCardinalityRule(ASTRule):
                                 )
 
         return issues
+
+
+class SelectIntoTempWithoutIndexRule(Rule):
+    """Detects SELECT INTO # temp table without subsequent index creation."""
+
+    id = "PERF-TSQL-002"
+    name = "SELECT INTO Temp Table Without Index"
+    description = "SELECT INTO creates a temp table without indexes, causing table scans."
+    severity = Severity.MEDIUM
+    dimension = Dimension.PERFORMANCE
+    category = Category.PERF_MEMORY
+    dialects = ("tsql",)
+    impact = "Temp tables without indexes cause table scans on every join or filter."
+    fix_guidance = "Add CREATE INDEX after SELECT INTO, or pre-create the table with indexes."
+
+    def check(self, query: Query) -> list[Issue]:
+        if not self._dialect_matches(query):
+            return []
+        if not self._has_pattern(query.raw, r"\bSELECT\b.*\bINTO\s+#"):
+            return []
+        raw_upper = query.raw.upper()
+        if "CREATE INDEX" in raw_upper or "CREATE UNIQUE INDEX" in raw_upper:
+            return []
+        return [self.create_issue(query=query, message="SELECT INTO temp table without index — subsequent queries will table scan.", snippet=query.raw[:80])]
+
+
+class ImplicitConversionInJoinRule(PatternRule):
+    """Detects potential implicit conversion in JOIN predicates in T-SQL."""
+
+    id = "PERF-TSQL-003"
+    name = "Implicit Conversion in JOIN Predicate"
+    description = "Explicit CONVERT/CAST in JOIN suggests type mismatch preventing index usage."
+    severity = Severity.HIGH
+    dimension = Dimension.PERFORMANCE
+    category = Category.PERF_JOIN
+    dialects = ("tsql",)
+    pattern = r"\bJOIN\b.*\bCONVERT\s*\(|\bCAST\s*\(.*\bJOIN\b"
+    message_template = "Explicit CONVERT/CAST in JOIN predicate — check for implicit conversion: {match}"
+    impact = "Implicit conversion prevents index seeks, forcing table scans."
+    fix_guidance = "Ensure JOIN columns have matching data types at the schema level."

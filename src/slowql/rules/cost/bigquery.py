@@ -1,12 +1,13 @@
 """BigQuery-specific cost rules."""
 from __future__ import annotations
 
+import re
 from typing import ClassVar
 
-from slowql.core.models import Category, Dimension, Severity
-from slowql.rules.base import PatternRule
+from slowql.core.models import Category, Dimension, Issue, Query, Severity
+from slowql.rules.base import PatternRule, Rule
 
-__all__ = ["BigQueryMissingLimitRule", "BigQuerySelectStarCostRule"]
+__all__ = ["BigQueryMissingLimitRule", "BigQueryRepeatedSubqueryRule", "BigQuerySelectStarCostRule"]
 
 class BigQuerySelectStarCostRule(PatternRule):
     """Detects SELECT * in BigQuery which scans all columns."""
@@ -51,3 +52,28 @@ class BigQueryMissingLimitRule(PatternRule):
         "Use table previews in the console for sampling. "
         "Use _PARTITIONTIME or _PARTITIONDATE filters to limit scan range."
     )
+
+
+class BigQueryRepeatedSubqueryRule(Rule):
+    """Detects repeated subqueries that should be CTEs in BigQuery."""
+
+    id = "COST-BQ-003"
+    name = "Repeated Subquery Instead of CTE"
+    description = "Repeating the same subquery scans data multiple times — use CTEs."
+    severity = Severity.MEDIUM
+    dimension = Dimension.COST
+    category = Category.COST_COMPUTE
+    dialects = ("bigquery",)
+    impact = "Each repeated subquery scans underlying tables again, multiplying cost."
+    fix_guidance = "Extract into WITH (CTE) clause. BigQuery materializes CTEs referenced multiple times."
+
+    def check(self, query: Query) -> list[Issue]:
+        if not self._dialect_matches(query):
+            return []
+        matches = re.findall(r"\(\s*SELECT\s+", query.raw, re.IGNORECASE)
+        if len(matches) < 2:
+            return []
+        raw_upper = query.raw.upper()
+        if "WITH" in raw_upper and "AS" in raw_upper:
+            return []
+        return [self.create_issue(query=query, message=f"Query contains {len(matches)} subqueries — consider CTEs to reduce bytes scanned.", snippet=query.raw[:80])]

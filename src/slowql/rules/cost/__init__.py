@@ -18,6 +18,7 @@ from .storage import *
 
 __all__ = [
     "BigQueryMissingLimitRule",
+    "BigQueryRepeatedSubqueryRule",
     "BigQuerySelectStarCostRule",
     "ColdStartQueryPatternRule",
     "CountStarForPaginationRule",
@@ -39,6 +40,10 @@ __all__ = [
     "RedundantOrderByRule",
     "SelectStarInETLRule",
     "SnowflakeCopyIntoWithoutFileFormatRule",
+    "SnowflakeCopyWithoutOnErrorRule",
+    "SnowflakeOrderByVariantRule",
     "SnowflakeSelectStarCostRule",
+    "SnowflakeVariantInWhereRule",
+    "SnowflakeWarehouseSizeHintRule",
     "UnnecessaryConnectionPoolingRule",
 ]

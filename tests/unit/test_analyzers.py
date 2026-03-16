@@ -677,7 +677,7 @@ class TestSecurityAnalyzer:
     def test_security_analyzer_get_rules(self):
         analyzer = SecurityAnalyzer()
         rules = analyzer.get_rules()
-        assert len(rules) == 49  # Updated after dialect-specific rule split
+        assert len(rules) == 55  # Updated after dialect-specific rule split
 
     def test_security_analyzer_analyze(self):
         analyzer = SecurityAnalyzer()

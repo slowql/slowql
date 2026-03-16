@@ -17,6 +17,9 @@ __all__ = [
     "LDAPInjectionRule",
     "LikeWildcardInjectionRule",
     "NoSQLInjectionRule",
+    "OracleDbmsSqlInjectionRule",
+    "OracleExecuteImmediateConcatRule",
+    "RaiseNoticeInjectionRule",
     "SQLInjectionRule",
     "SecondOrderSQLInjectionRule",
     "ServerSideTemplateInjectionRule",
@@ -424,3 +427,51 @@ class JSONFunctionInjectionRule(PatternRule):
         "Use parameterized JSON paths. Validate path components against whitelist. Avoid dynamic path "
         "construction. Example: validate that path only contains allowed property names before using."
     )
+
+
+class RaiseNoticeInjectionRule(PatternRule):
+    """Detects RAISE NOTICE with concatenated user input in PL/pgSQL."""
+
+    id = "SEC-PG-003"
+    name = "RAISE NOTICE Log Injection"
+    description = "RAISE NOTICE with || concatenation can inject arbitrary log entries."
+    severity = Severity.MEDIUM
+    dimension = Dimension.SECURITY
+    category = Category.SEC_INJECTION
+    dialects = ("postgresql",)
+    pattern = r"\bRAISE\s+(?:NOTICE|WARNING|INFO|LOG|DEBUG)\s+.*\|\|"
+    message_template = "RAISE NOTICE with string concatenation — potential log injection: {match}"
+    impact = "Log injection allows attackers to forge log entries."
+    fix_guidance = "Use RAISE NOTICE 'message: %', variable instead of concatenation."
+
+
+class OracleDbmsSqlInjectionRule(PatternRule):
+    """Detects DBMS_SQL dynamic execution in Oracle."""
+
+    id = "SEC-ORA-002"
+    name = "DBMS_SQL Dynamic Execution"
+    description = "DBMS_SQL.PARSE allows dynamic SQL — SQL injection risk with string concatenation."
+    severity = Severity.HIGH
+    dimension = Dimension.SECURITY
+    category = Category.SEC_INJECTION
+    dialects = ("oracle",)
+    pattern = r"\bDBMS_SQL\s*\.\s*(?:PARSE|EXECUTE|OPEN_CURSOR)\b"
+    message_template = "DBMS_SQL dynamic execution detected: {match}"
+    impact = "DBMS_SQL bypasses static SQL parsing, enabling arbitrary SQL execution."
+    fix_guidance = "Use bind variables with DBMS_SQL.BIND_VARIABLE or native EXECUTE IMMEDIATE with USING."
+
+
+class OracleExecuteImmediateConcatRule(PatternRule):
+    """Detects EXECUTE IMMEDIATE with string concatenation in Oracle."""
+
+    id = "SEC-ORA-003"
+    name = "EXECUTE IMMEDIATE With Concatenation"
+    description = "EXECUTE IMMEDIATE with || concatenation creates SQL injection vulnerabilities."
+    severity = Severity.CRITICAL
+    dimension = Dimension.SECURITY
+    category = Category.SEC_INJECTION
+    dialects = ("oracle",)
+    pattern = r"\bEXECUTE\s+IMMEDIATE\s+.*\|\|"
+    message_template = "EXECUTE IMMEDIATE with concatenation — SQL injection risk: {match}"
+    impact = "String concatenation in EXECUTE IMMEDIATE allows arbitrary SQL injection."
+    fix_guidance = "Use bind variables: EXECUTE IMMEDIATE 'SELECT * FROM t WHERE id = :1' USING v_id."

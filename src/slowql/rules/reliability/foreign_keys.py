@@ -13,6 +13,7 @@ from slowql.rules.base import ASTRule, PatternRule
 
 __all__ = [
     "CascadeDeleteRiskRule",
+    "OnUpdateCascadeTimestampRule",
     "OrphanRecordRiskRule",
 ]
 
@@ -127,3 +128,19 @@ class CascadeDeleteRiskRule(PatternRule):
         "parent_id = ?. Use soft delete (is_deleted flag). Disable CASCADE for "
         "critical tables. Require explicit confirmation."
     )
+
+
+class OnUpdateCascadeTimestampRule(PatternRule):
+    """Detects ON UPDATE CASCADE with timestamp columns in MySQL."""
+
+    id = "REL-MYSQL-004"
+    name = "ON UPDATE CASCADE With Timestamp Column"
+    description = "ON UPDATE CASCADE combined with ON UPDATE CURRENT_TIMESTAMP can cause unexpected cascades."
+    severity = Severity.MEDIUM
+    dimension = Dimension.RELIABILITY
+    category = Category.REL_FOREIGN_KEY
+    dialects = ("mysql",)
+    pattern = r"\bON\s+UPDATE\s+CASCADE\b"
+    message_template = "ON UPDATE CASCADE detected — verify no timestamp auto-update triggers exist: {match}"
+    impact = "Timestamp auto-update on parent row triggers CASCADE to all children."
+    fix_guidance = "Separate timestamp columns from foreign key relationships."

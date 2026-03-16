@@ -15,11 +15,12 @@ from slowql.core.models import (
     Query,
     Severity,
 )
-from slowql.rules.base import ASTRule, PatternRule
+from slowql.rules.base import ASTRule, PatternRule, Rule
 
 __all__ = [
     "LongTransactionPatternRule",
     "MissingTransactionIsolationRule",
+    "OracleForUpdateWithoutNowaitRule",
     "ReadUncommittedHintRule",
     "TableLockHintRule",
 ]
@@ -155,3 +156,27 @@ class MissingTransactionIsolationRule(ASTRule):
             )
 
         return issues
+
+
+class OracleForUpdateWithoutNowaitRule(Rule):
+    """Detects SELECT FOR UPDATE without NOWAIT or SKIP LOCKED in Oracle."""
+
+    id = "PERF-ORA-001"
+    name = "SELECT FOR UPDATE Without NOWAIT (Oracle)"
+    description = "SELECT FOR UPDATE without NOWAIT blocks indefinitely in Oracle."
+    severity = Severity.MEDIUM
+    dimension = Dimension.PERFORMANCE
+    category = Category.PERF_LOCK
+    dialects = ("oracle",)
+    impact = "Without NOWAIT, the session hangs waiting for row locks."
+    fix_guidance = "Add NOWAIT to raise ORA-00054 or SKIP LOCKED (Oracle 11g+)."
+
+    def check(self, query: Query) -> list[Issue]:
+        if not self._dialect_matches(query):
+            return []
+        raw_upper = query.raw.upper()
+        if "FOR UPDATE" not in raw_upper:
+            return []
+        if "NOWAIT" in raw_upper or "SKIP LOCKED" in raw_upper or "WAIT" in raw_upper:
+            return []
+        return [self.create_issue(query=query, message="SELECT FOR UPDATE without NOWAIT or SKIP LOCKED — may block indefinitely.", snippet=query.raw[:80])]

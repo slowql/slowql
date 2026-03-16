@@ -9,6 +9,7 @@ from slowql.rules.base import PatternRule
 
 __all__ = [
     "DataExfiltrationViaFileRule",
+    "LoadDataLocalInfileRule",
     "RemoteDataAccessRule",
 ]
 
@@ -87,3 +88,19 @@ class RemoteDataAccessRule(PatternRule):
         "PostgreSQL. Use application-level integration instead of database-to-database "
         "direct connections."
     )
+
+
+class LoadDataLocalInfileRule(PatternRule):
+    """Detects LOAD DATA LOCAL INFILE which reads client files."""
+
+    id = "SEC-MYSQL-001"
+    name = "LOAD DATA LOCAL INFILE"
+    description = "LOAD DATA LOCAL INFILE reads files from the client machine — security risk."
+    severity = Severity.CRITICAL
+    dimension = Dimension.SECURITY
+    category = Category.SEC_DATA_EXPOSURE
+    dialects = ("mysql",)
+    pattern = r"\bLOAD\s+DATA\s+LOCAL\s+INFILE\b"
+    message_template = "LOAD DATA LOCAL INFILE detected — client file read risk: {match}"
+    impact = "A rogue MySQL server can read any file the client has access to."
+    fix_guidance = "Use LOAD DATA INFILE (server-side). Disable with --local-infile=0."

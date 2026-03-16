@@ -13,9 +13,11 @@ __all__ = [
     "LocalFileInclusionRule",
     "OSCommandInjectionPostgresRule",
     "OSCommandInjectionTsqlRule",
+    "OpenRowsetRule",
     "OracleUtlAccessRule",
     "PathTraversalRule",
     "SSRFViaDatabaseRule",
+    "SpOACreateRule",
 ]
 
 
@@ -167,3 +169,35 @@ class OracleUtlAccessRule(PatternRule):
         "access control lists (ACLs) via DBMS_NETWORK_ACL_ADMIN to limit "
         "network destinations. Audit all UTL usage."
     )
+
+
+class OpenRowsetRule(PatternRule):
+    """Detects OPENROWSET/OPENDATASOURCE usage in T-SQL."""
+
+    id = "SEC-TSQL-001"
+    name = "OPENROWSET / OPENDATASOURCE Usage"
+    description = "OPENROWSET and OPENDATASOURCE allow ad-hoc remote data access — SSRF risk."
+    severity = Severity.HIGH
+    dimension = Dimension.SECURITY
+    category = Category.SEC_DATA_EXPOSURE
+    dialects = ("tsql",)
+    pattern = r"\b(?:OPENROWSET|OPENDATASOURCE)\s*\("
+    message_template = "Ad-hoc remote data access detected: {match}"
+    impact = "OPENROWSET can read from arbitrary OLE DB sources including file system."
+    fix_guidance = "Disable Ad Hoc Distributed Queries. Use linked servers with restricted permissions."
+
+
+class SpOACreateRule(PatternRule):
+    """Detects sp_OACreate OLE Automation usage in T-SQL."""
+
+    id = "SEC-TSQL-002"
+    name = "OLE Automation (sp_OACreate)"
+    description = "sp_OACreate allows creating COM objects from T-SQL — arbitrary code execution risk."
+    severity = Severity.CRITICAL
+    dimension = Dimension.SECURITY
+    category = Category.SEC_ACCESS
+    dialects = ("tsql",)
+    pattern = r"\bsp_OA(?:Create|Method|GetProperty|SetProperty|Destroy)\b"
+    message_template = "OLE Automation procedure detected: {match}"
+    impact = "OLE Automation enables arbitrary COM object instantiation and host compromise."
+    fix_guidance = "Disable OLE Automation: sp_configure 'Ole Automation Procedures', 0."

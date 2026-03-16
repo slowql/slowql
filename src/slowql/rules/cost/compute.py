@@ -14,6 +14,7 @@ from slowql.rules.base import ASTRule, PatternRule
 __all__ = [
     "ExpensiveWindowFunctionRule",
     "FullTableScanRule",
+    "SnowflakeWarehouseSizeHintRule",
 ]
 
 
@@ -85,3 +86,19 @@ class ExpensiveWindowFunctionRule(ASTRule):
                         )
                     )
         return issues
+
+
+class SnowflakeWarehouseSizeHintRule(PatternRule):
+    """Suggests warehouse size awareness for Snowflake FLATTEN queries."""
+
+    id = "COST-SF-003"
+    name = "LATERAL FLATTEN Without Warehouse Consideration"
+    description = "FLATTEN on large VARIANT arrays may need larger warehouse to avoid spilling."
+    severity = Severity.INFO
+    dimension = Dimension.COST
+    category = Category.COST_COMPUTE
+    dialects = ("snowflake",)
+    pattern = r"\bLATERAL\s+FLATTEN\b"
+    message_template = "LATERAL FLATTEN detected — verify warehouse size is appropriate: {match}"
+    impact = "Undersized warehouse causes disk spilling, multiplying credit consumption."
+    fix_guidance = "Monitor query profile for spilling. Scale warehouse for heavy FLATTEN operations."
