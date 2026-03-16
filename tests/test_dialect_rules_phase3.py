@@ -253,4 +253,4 @@ class TestPhase3Catalog:
 
     def test_total_count(self) -> None:
         from slowql.rules.catalog import get_all_rules
-        assert len(get_all_rules()) == 221
+        assert len(get_all_rules()) == 231

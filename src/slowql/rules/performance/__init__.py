@@ -14,7 +14,9 @@ from .joins import *
 from .locking import *
 from .memory import *
 from .network import *
+from .redshift import *
 from .scanning import *
+from .sqlite import *
 
 __all__ = [
     "BigQueryDistinctOnUnnestRule",
@@ -39,6 +41,7 @@ __all__ = [
     "LargeObjectUnboundedRule",
     "LargeUnbatchedOperationRule",
     "LeadingWildcardRule",
+    "LikeWithoutCollateNocaseRule",
     "LongTransactionPatternRule",
     "MissingBatchSizeInLoopRule",
     "MissingSetNocountRule",
@@ -48,6 +51,7 @@ __all__ = [
     "NestedLoopJoinHintRule",
     "NonSargableOrConditionRule",
     "NotInNullableSubqueryRule",
+    "NotInOnRedshiftRule",
     "NotInSubqueryRule",
     "OrOnIndexedColumnsRule",
     "OracleForUpdateWithoutNowaitRule",
@@ -55,14 +59,18 @@ __all__ = [
     "OrderByNonIndexedColumnRule",
     "OrderByRandRule",
     "OrderByWithoutLimitInSubqueryRule",
+    "OrderByWithoutLimitRedshiftRule",
     "ParallelQueryHintRule",
     "QueryOptimizerHintRule",
     "ReadUncommittedHintRule",
+    "RedshiftSelectStarRule",
     "ScalarUdfInQueryRule",
     "SelectForUpdateWithoutLimitMysqlRule",
     "SelectForUpdateWithoutNowaitPgRule",
     "SelectIntoTempWithoutIndexRule",
     "SelectStarRule",
+    "SqliteAutoIncrementRule",
+    "SqliteWalModeRule",
     "TableLockHintRule",
     "TooManyJoinsRule",
     "UnboundedSelectRule",

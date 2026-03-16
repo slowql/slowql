@@ -15,8 +15,10 @@ from .information import *
 from .injection import *
 from .logging import *
 from .session import *
+from .sqlite import *
 
 __all__ = [
+    "AttachDatabaseRule",
     "AuditTrailManipulationRule",
     "DangerousServerConfigRule",
     "DataExfiltrationViaFileRule",
