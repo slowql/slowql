@@ -171,20 +171,20 @@ from slowql.rules.catalog import (
 from slowql.rules.registry import RuleRegistry, get_rule_registry
 
 
-def _make_query(sql: str) -> Query:
+def _make_query(sql: str, dialect: str = "mysql") -> Query:
     """Helper to create a Query object from raw SQL for pattern rule testing."""
     import sqlglot
 
     ast = None
     try:
-        ast = sqlglot.parse_one(sql, read="mysql")
+        ast = sqlglot.parse_one(sql, read=dialect)
     except Exception:
         pass
 
     return Query(
         raw=sql,
         normalized=sql,
-        dialect="mysql",
+        dialect=dialect,
         location=Location(line=1, column=1),
         ast=ast,
         query_type=ast.key.upper() if ast and hasattr(ast, "key") else None,
@@ -1058,16 +1058,16 @@ class TestDangerousServerConfigRule:
 
     # Should match
     def test_xp_cmdshell(self):
-        assert self.rule.check(_make_query("EXEC sp_configure 'xp_cmdshell', 1"))
+        assert self.rule.check(_make_query("EXEC sp_configure 'xp_cmdshell', 1", dialect="tsql"))
 
     def test_ole_automation(self):
-        assert self.rule.check(_make_query("EXEC sp_configure 'Ole Automation Procedures', 1"))
+        assert self.rule.check(_make_query("EXEC sp_configure 'Ole Automation Procedures', 1", dialect="tsql"))
 
     def test_clr_enabled(self):
-        assert self.rule.check(_make_query("EXEC sp_configure 'clr enabled', 1"))
+        assert self.rule.check(_make_query("EXEC sp_configure 'clr enabled', 1", dialect="tsql"))
 
     def test_ad_hoc_distributed(self):
-        assert self.rule.check(_make_query("EXEC sp_configure 'Ad Hoc Distributed Queries', 1"))
+        assert self.rule.check(_make_query("EXEC sp_configure 'Ad Hoc Distributed Queries', 1", dialect="tsql"))
 
     # Should NOT match
     def test_safe_config(self):
@@ -2167,7 +2167,7 @@ class TestTableLockHintRule:
         self.rule = TableLockHintRule()
 
     def test_table_lock_hint(self):
-        assert self.rule.check(_make_query("SELECT * FROM users WITH (TABLOCK)"))
+        assert self.rule.check(_make_query("SELECT * FROM users WITH (TABLOCK)", dialect="tsql"))
 
     def test_no_table_lock(self):
         assert not self.rule.check(_make_query("SELECT * FROM users"))
@@ -2178,10 +2178,10 @@ class TestReadUncommittedHintRule:
         self.rule = ReadUncommittedHintRule()
 
     def test_nolock(self):
-        assert self.rule.check(_make_query("SELECT * FROM orders WITH (NOLOCK)"))
+        assert self.rule.check(_make_query("SELECT * FROM orders WITH (NOLOCK)", dialect="tsql"))
 
     def test_readuncommitted(self):
-        assert self.rule.check(_make_query("SELECT * FROM orders WITH (READUNCOMMITTED)"))
+        assert self.rule.check(_make_query("SELECT * FROM orders WITH (READUNCOMMITTED)", dialect="tsql"))
 
     def test_no_nolock(self):
         assert not self.rule.check(_make_query("SELECT * FROM orders"))
