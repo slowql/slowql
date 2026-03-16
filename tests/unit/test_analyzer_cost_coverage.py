@@ -8,7 +8,7 @@ class TestCostAnalyzerCoverage:
     def test_get_rules(self):
         analyzer = CostAnalyzer()
         assert (
-            len(analyzer.get_rules()) == 25
+            len(analyzer.get_rules()) == 26
         )  # Updated after adding dialect-specific cost rules
 
     def test_analyze_fallback_is_select(self):

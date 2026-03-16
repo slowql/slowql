@@ -12,6 +12,7 @@ from .io import *
 from .lifecycle import *
 from .network import *
 from .pagination import *
+from .redshift import *
 from .serverless import *
 from .snowflake import *
 from .storage import *
@@ -45,5 +46,6 @@ __all__ = [
     "SnowflakeSelectStarCostRule",
     "SnowflakeVariantInWhereRule",
     "SnowflakeWarehouseSizeHintRule",
+    "UnloadWithoutParallelRule",
     "UnnecessaryConnectionPoolingRule",
 ]

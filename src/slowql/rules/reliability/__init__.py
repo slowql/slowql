@@ -10,6 +10,8 @@ from .error_handling import *
 from .foreign_keys import *
 from .idempotency import *
 from .race_conditions import *
+from .redshift import *
+from .sqlite import *
 from .timeouts import *
 from .transactions import *
 
@@ -21,6 +23,7 @@ __all__ = [
     "BigQueryDmlWithoutWhereOnPartitionedRule",
     "CascadeDeleteRiskRule",
     "ConnectByWithoutNocycleRule",
+    "CopyWithoutManifestRule",
     "CreateIndexWithoutConcurrentlyRule",
     "DeadlockPatternRule",
     "DropTableRule",
@@ -39,6 +42,7 @@ __all__ = [
     "OrphanRecordRiskRule",
     "ReadModifyWriteLockingRule",
     "ReplaceIntoRule",
+    "SqliteDropColumnRule",
     "StaleReadRiskRule",
     "TOCTOUPatternRule",
     "TruncateInTryWithoutCatchRule",
