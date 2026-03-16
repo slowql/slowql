@@ -31,6 +31,7 @@ class DangerousServerConfigRule(PatternRule):
     severity = Severity.HIGH
     dimension = Dimension.SECURITY
     category = Category.SEC_ACCESS
+    dialects = ("tsql",)
 
     pattern = (
         r"\bsp_configure\b.+\bxp_cmdshell\b"

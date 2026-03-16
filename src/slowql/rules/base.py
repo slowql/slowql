@@ -142,6 +142,17 @@ class Rule(ABC):
     remediation_mode: ClassVar[RemediationMode] = RemediationMode.GUIDANCE_ONLY
     enabled: ClassVar[bool] = True
     tags: ClassVar[tuple[str, ...]] = ()
+    dialects: ClassVar[tuple[str, ...]] = ()
+    """
+    Dialects this rule applies to. Empty tuple means all dialects.
+    When non-empty, the rule only fires on matching dialects.
+    When query.dialect is 'unknown' or None, the rule always fires
+    regardless of this setting (conservative default).
+
+    Valid values match sqlglot dialect names:
+    'tsql', 'mysql', 'postgres', 'bigquery', 'snowflake',
+    'redshift', 'oracle', 'sqlite', 'duckdb', etc.
+    """
 
     # Optional attributes
     impact: ClassVar[str] = ""
@@ -184,6 +195,22 @@ class Rule(ABC):
             tags=self.tags,
             fix_guidance=self.fix_guidance,
         )
+
+    def _dialect_matches(self, query: Query) -> bool:
+        """
+        Return True if this rule should run for the given query dialect.
+
+        Rules with empty dialects tuple run on all dialects.
+        Rules with a non-empty dialects tuple only run on matching dialects.
+        If query.dialect is None, empty string, or 'unknown', always return
+        True — we cannot skip rules when dialect is undetected.
+        """
+        if not self.dialects:
+            return True
+        query_dialect = (query.dialect or "").lower().strip()
+        if not query_dialect or query_dialect == "unknown":
+            return True
+        return query_dialect in self.dialects
 
     def create_issue(
         self,
@@ -339,6 +366,8 @@ class PatternRule(Rule):
 
     def check(self, query: Query) -> list[Issue]:
         """Check query against the pattern."""
+        if not self._dialect_matches(query):
+            return []
         if not self.pattern:
             return []
 
@@ -386,6 +415,8 @@ class ASTRule(Rule):
 
     def check(self, query: Query) -> list[Issue]:
         """Check query by analyzing AST."""
+        if not self._dialect_matches(query):
+            return []
         if query.ast is None:
             return []
         return self.check_ast(query, query.ast)

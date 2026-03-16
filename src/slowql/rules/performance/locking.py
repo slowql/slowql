@@ -34,6 +34,7 @@ class TableLockHintRule(PatternRule):
     severity = Severity.HIGH
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_LOCK
+    dialects = ("tsql",)
 
     pattern = (
         r"\bWITH\s*\(\s*(TABLOCK|TABLOCKX|HOLDLOCK|XLOCK|PAGLOCK|ROWLOCK|UPDLOCK|SERIALIZABLE)\s*\)"
@@ -56,6 +57,7 @@ class ReadUncommittedHintRule(PatternRule):
     severity = Severity.MEDIUM
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_LOCK
+    dialects = ("tsql",)
 
     pattern = r"\bWITH\s*\(\s*(NOLOCK|READUNCOMMITTED)\s*\)|\bREAD\s+UNCOMMITTED\b|\bSET\s+TRANSACTION\s+ISOLATION\s+LEVEL\s+READ\s+UNCOMMITTED\b"
     message_template = "NOLOCK or READ UNCOMMITTED hint detected: {match}"
@@ -74,6 +76,8 @@ class ReadUncommittedHintRule(PatternRule):
         Only fires on the WITH (...) hint form to avoid changing transaction semantics.
         """
         try:
+            if not self._dialect_matches(query):
+                return None
             match = re.search(
                 r"\bWITH\s*\(\s*(NOLOCK|READUNCOMMITTED)\s*\)",
                 query.raw,
