@@ -134,12 +134,12 @@ class SlowQLLanguageServer(LanguageServer):
 # ---------------------------------------------------------------------------
 
 
-def _validate_document(server: SlowQLLanguageServer, uri: str, source: str) -> None:
+def _validate_document(server: SlowQLLanguageServer, uri: str, source: str, schema: Any = None) -> None:
     """Run SlowQL analysis on *source* and publish diagnostics for *uri*."""
     from slowql.core.engine import SlowQL  # noqa: PLC0415
 
     try:
-        engine = SlowQL()
+        engine = SlowQL(schema=schema)
         result = engine.analyze(source, file_path=uri)
         diagnostics = [issue_to_diagnostic(issue) for issue in result.issues]
     except Exception:
@@ -156,33 +156,76 @@ def _validate_document(server: SlowQLLanguageServer, uri: str, source: str) -> N
 # ---------------------------------------------------------------------------
 
 
-def create_server() -> SlowQLLanguageServer:
+def create_server(schema: Any = None) -> SlowQLLanguageServer:
     """Create and return a SlowQLLanguageServer with diagnostics handlers."""
     srv = SlowQLLanguageServer("slowql-lsp", "v0.0.1")
 
     @srv.feature(TEXT_DOCUMENT_DID_OPEN)
     def did_open(ls: SlowQLLanguageServer, params: DidOpenTextDocumentParams) -> None:
         """Analyse a document when it is first opened."""
-        _validate_document(ls, params.text_document.uri, params.text_document.text)
+        _validate_document(ls, params.text_document.uri, params.text_document.text, schema=schema)
 
     @srv.feature(TEXT_DOCUMENT_DID_CHANGE)
     def did_change(ls: SlowQLLanguageServer, params: DidChangeTextDocumentParams) -> None:
         """Re-analyse a document whenever its content changes."""
         text = params.content_changes[-1].text
-        _validate_document(ls, params.text_document.uri, text)
+        _validate_document(ls, params.text_document.uri, text, schema=schema)
 
     @srv.feature(TEXT_DOCUMENT_DID_SAVE)
     def did_save(ls: SlowQLLanguageServer, params: DidSaveTextDocumentParams) -> None:
         """Re-analyse on save (if the client sends the text)."""
         if params.text is not None:
-            _validate_document(ls, params.text_document.uri, params.text)
+            _validate_document(ls, params.text_document.uri, params.text, schema=schema)
 
     return srv
 
 
 def main() -> None:
-    """Entry-point: create the server and start it in stdio mode."""
-    srv = create_server()
+    """Entry-point: parse args, create the server and start it in stdio mode."""
+    import argparse  # noqa: PLC0415
+
+    from slowql.schema.inspector import SchemaInspector  # noqa: PLC0415
+
+    parser = argparse.ArgumentParser(
+        description="SlowQL Language Server",
+        add_help=False,
+    )
+    parser.add_argument(
+        "--schema",
+        type=str,
+        default=None,
+        metavar="PATH",
+        help="Path to DDL schema file for schema-aware validation",
+    )
+    parser.add_argument(
+        "--db",
+        type=str,
+        default=None,
+        metavar="DSN",
+        help="Database connection string for live schema inference",
+    )
+    args, _ = parser.parse_known_args()
+
+    schema = None
+
+    # --db takes precedence over --schema
+    if args.db:
+        try:
+            schema = SchemaInspector.from_connection(args.db)  # type: ignore[attr-defined]
+            logger.info("LSP: schema loaded from database (%d tables)", len(schema.tables))
+        except Exception as e:
+            logger.warning("LSP: failed to load schema from --db: %s", e)
+
+    elif args.schema:
+        try:
+            from pathlib import Path  # noqa: PLC0415
+
+            schema = SchemaInspector.from_ddl_file(Path(args.schema))
+            logger.info("LSP: schema loaded from file (%d tables)", len(schema.tables))
+        except Exception as e:
+            logger.warning("LSP: failed to load schema from --schema: %s", e)
+
+    srv = create_server(schema=schema)
     srv.start_io()
 
 

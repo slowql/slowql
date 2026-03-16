@@ -172,8 +172,8 @@ def test_create_server_did_open_handler(monkeypatch):
 
     validated = []
 
-    def fake_validate(_ls, uri, text):
-        validated.append((uri, text))
+    def fake_validate(_ls, _uri, _text, **_kwargs):
+        validated.append((_uri, _text))
 
     monkeypatch.setattr(lsp_server, "_validate_document", fake_validate)
 
@@ -201,8 +201,8 @@ def test_create_server_did_change_handler_uses_latest_change(monkeypatch):
     """Test did_change handler uses the last change in the list."""
     validated = []
 
-    def fake_validate(_ls, uri, text):
-        validated.append((uri, text))
+    def fake_validate(_ls, _uri, _text, **_kwargs):
+        validated.append((_uri, _text))
 
     monkeypatch.setattr(lsp_server, "_validate_document", fake_validate)
 
@@ -250,8 +250,8 @@ def test_create_server_did_save_handler_with_text(monkeypatch):
     """Test did_save handler calls validate if text is present."""
     validated = []
 
-    def fake_validate(_ls, uri, text):
-        validated.append((uri, text))
+    def fake_validate(_ls, _uri, _text, **_kwargs):
+        validated.append((_uri, _text))
 
     monkeypatch.setattr(lsp_server, "_validate_document", fake_validate)
 
@@ -292,8 +292,8 @@ def test_create_server_did_save_handler_without_text(monkeypatch):
     """Test did_save handler does not call validate if text is None."""
     validated = []
 
-    def fake_validate(_ls, uri, text):
-        validated.append((uri, text))
+    def fake_validate(_ls, _uri, _text, **_kwargs):
+        validated.append((_uri, _text))
 
     monkeypatch.setattr(lsp_server, "_validate_document", fake_validate)
 
@@ -338,7 +338,7 @@ def test_main_starts_io(monkeypatch):
             nonlocal started
             started = True
 
-    monkeypatch.setattr(lsp_server, "create_server", lambda: FakeServer())
+    monkeypatch.setattr(lsp_server, "create_server", lambda **_kw: FakeServer())
 
     lsp_server.main()
     assert started is True
@@ -445,3 +445,94 @@ def test_dummy_classes_instantiation():
         params = lsp_server.PublishDiagnosticsParams(uri="uri", diagnostics=[diag])
         assert params.uri == "uri"
         assert params.diagnostics == [diag]
+
+
+def test_create_server_with_schema(monkeypatch):
+    """create_server accepts schema and passes it to _validate_document."""
+    validated = []
+
+    def fake_validate(_ls, _uri, _text, schema=None):
+        validated.append(schema)
+
+    monkeypatch.setattr(lsp_server, "_validate_document", fake_validate)
+
+    captured_handlers = {}
+
+    class MockServer:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def feature(self, name):
+            def wrapper(f):
+                captured_handlers[name] = f
+                return f
+
+            return wrapper
+
+    monkeypatch.setattr(lsp_server, "SlowQLLanguageServer", MockServer)
+
+    from slowql.schema.models import Schema
+
+    test_schema = Schema(dialect="postgresql")
+    srv = lsp_server.create_server(schema=test_schema)
+
+    class FakeDoc:
+        uri = "file:///test.sql"
+        text = "SELECT 1"
+
+    class FakeParams:
+        text_document = FakeDoc()
+
+    handler = captured_handlers[lsp_server.TEXT_DOCUMENT_DID_OPEN]
+    handler(srv, FakeParams())
+    assert validated[0] is test_schema
+
+
+def test_validate_document_with_schema(monkeypatch):
+    """_validate_document passes schema to SlowQL engine."""
+    import slowql.core.engine as engine_module
+
+    schemas_used = []
+
+    class FakeResult:
+        issues = []
+
+    def fake_analyze(self_engine, *_args, **_kwargs):
+        schemas_used.append(self_engine._schema)
+        return FakeResult()
+
+    monkeypatch.setattr(engine_module.SlowQL, "analyze", fake_analyze)
+
+    class FakeServer:
+        def __init__(self):
+            self.published = None
+            self.logger = logging.getLogger("test")
+
+        def text_document_publish_diagnostics(self, params):
+            self.published = params
+
+    from slowql.schema.models import Schema
+
+    test_schema = Schema(dialect="postgresql")
+    lsp_server._validate_document(FakeServer(), "file:///t.sql", "SELECT 1", schema=test_schema)
+    assert schemas_used[0] is test_schema
+
+
+def test_create_server_no_schema_default(monkeypatch):
+    """create_server works with no schema argument (default None)."""
+    captured_handlers = {}
+
+    class MockServer:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def feature(self, name):
+            def wrapper(f):
+                captured_handlers[name] = f
+                return f
+
+            return wrapper
+
+    monkeypatch.setattr(lsp_server, "SlowQLLanguageServer", MockServer)
+    srv = lsp_server.create_server()
+    assert srv is not None
