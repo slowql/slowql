@@ -4,11 +4,21 @@ Quality Modern sql rules.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from sqlglot import exp
 
-from slowql.core.models import Category, Dimension, Fix, Issue, Query, Severity
+from slowql.core.models import (
+    Category,
+    Dimension,
+    Fix,
+    FixConfidence,
+    Issue,
+    Query,
+    RemediationMode,
+    Severity,
+)
 from slowql.rules.base import ASTRule, PatternRule
 
 __all__ = [
@@ -68,6 +78,23 @@ class SelectFromDualRule(PatternRule):
         "Use SELECT 1 (no FROM clause) which works in most modern databases. "
         "Oracle 23c+ supports SELECT 1 without FROM DUAL."
     )
+
+
+    remediation_mode = RemediationMode.SAFE_APPLY
+
+    def suggest_fix(self, query: Query) -> Fix | None:
+        """Remove FROM DUAL (not needed in ANSI SQL)."""
+        match = re.search(r"\s+FROM\s+DUAL\b", query.raw, re.IGNORECASE)
+        if not match:
+            return None
+        return Fix(
+            description="Remove FROM DUAL (not needed in ANSI SQL)",
+            original=match.group(0),
+            replacement="",
+            confidence=FixConfidence.SAFE,
+            is_safe=True,
+            rule_id=self.id,
+        )
 
 
 class ImplicitJoinRule(ASTRule):
@@ -193,6 +220,23 @@ class SqlCalcFoundRowsRule(PatternRule):
     )
 
 
+    remediation_mode = RemediationMode.SAFE_APPLY
+
+    def suggest_fix(self, query: Query) -> Fix | None:
+        """Remove SQL_CALC_FOUND_ROWS keyword."""
+        match = re.search(r"\bSQL_CALC_FOUND_ROWS\s*", query.raw, re.IGNORECASE)
+        if not match:
+            return None
+        return Fix(
+            description="Remove deprecated SQL_CALC_FOUND_ROWS",
+            original=match.group(0),
+            replacement="",
+            confidence=FixConfidence.SAFE,
+            is_safe=True,
+            rule_id=self.id,
+        )
+
+
 class OracleNvlInWhereRule(PatternRule):
     """Detects NVL() in WHERE clause instead of IS NULL in Oracle."""
 
@@ -262,3 +306,19 @@ class MysqlLockInShareModeRule(PatternRule):
     fix_guidance = (
         "Replace LOCK IN SHARE MODE with FOR SHARE (MySQL 8.0+)."
     )
+
+    remediation_mode = RemediationMode.SAFE_APPLY
+
+    def suggest_fix(self, query: Query) -> Fix | None:
+        """Replace LOCK IN SHARE MODE with FOR SHARE."""
+        match = re.search(r"\bLOCK\s+IN\s+SHARE\s+MODE\b", query.raw, re.IGNORECASE)
+        if not match:
+            return None
+        return Fix(
+            description="Replace deprecated LOCK IN SHARE MODE with FOR SHARE",
+            original=match.group(0),
+            replacement="FOR SHARE",
+            confidence=FixConfidence.SAFE,
+            is_safe=True,
+            rule_id=self.id,
+        )

@@ -222,6 +222,23 @@ class AnsiNullsOffRule(PatternRule):
     fix_guidance = "Use IS NULL instead of = NULL. Remove SET ANSI_NULLS OFF."
 
 
+    remediation_mode = RemediationMode.SAFE_APPLY
+
+    def suggest_fix(self, query: Query) -> Fix | None:
+        """Replace SET ANSI_NULLS OFF with SET ANSI_NULLS ON."""
+        match = re.search(r"\bSET\s+ANSI_NULLS\s+OFF\b", query.raw, re.IGNORECASE)
+        if not match:
+            return None
+        return Fix(
+            description="Replace SET ANSI_NULLS OFF with ON",
+            original=match.group(0),
+            replacement="SET ANSI_NULLS ON",
+            confidence=FixConfidence.SAFE,
+            is_safe=True,
+            rule_id=self.id,
+        )
+
+
 class PgDoBlockWithoutLanguageRule(PatternRule):
     """Detects DO $$ blocks without explicit LANGUAGE specification."""
 
@@ -409,3 +426,19 @@ class TsqlQuotedIdentifierOffRule(PatternRule):
         "Remove SET QUOTED_IDENTIFIER OFF. Use single quotes for strings "
         "and double quotes or square brackets for identifiers."
     )
+
+    remediation_mode = RemediationMode.SAFE_APPLY
+
+    def suggest_fix(self, query: Query) -> Fix | None:
+        """Replace SET QUOTED_IDENTIFIER OFF with SET QUOTED_IDENTIFIER ON."""
+        match = re.search(r"\bSET\s+QUOTED_IDENTIFIER\s+OFF\b", query.raw, re.IGNORECASE)
+        if not match:
+            return None
+        return Fix(
+            description="Replace SET QUOTED_IDENTIFIER OFF with ON",
+            original=match.group(0),
+            replacement="SET QUOTED_IDENTIFIER ON",
+            confidence=FixConfidence.SAFE,
+            is_safe=True,
+            rule_id=self.id,
+        )
