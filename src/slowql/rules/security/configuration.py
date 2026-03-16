@@ -15,6 +15,7 @@ __all__ = [
     "HardcodedCredentialsRule",
     "OverlyPermissiveAccessRule",
     "OverprivilegedExecutionContextRule",
+    "PgSecurityDefinerWithoutSearchPathRule",
     "SearchPathManipulationRule",
     "WeakSSLConfigRule",
 ]
@@ -216,4 +217,34 @@ class SearchPathManipulationRule(PatternRule):
         "Always use schema-qualified names (schema.table, schema.function). "
         "Restrict SET search_path permissions using REVOKE. Use "
         "ALTER ROLE ... SET search_path for controlled defaults."
+    )
+
+
+class PgSecurityDefinerWithoutSearchPathRule(PatternRule):
+    """Detects SECURITY DEFINER functions without SET search_path."""
+
+    id = "SEC-PG-004"
+    name = "SECURITY DEFINER Without search_path"
+    description = (
+        "PostgreSQL functions with SECURITY DEFINER execute with the "
+        "privileges of the function owner. Without SET search_path, an "
+        "attacker can hijack unqualified object references by manipulating "
+        "the caller's search_path."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.SECURITY
+    category = Category.SEC_ACCESS
+    dialects = ("postgresql",)
+
+    pattern = r"\bSECURITY\s+DEFINER\b(?![\s\S]*\bsearch_path\b)"
+    message_template = "SECURITY DEFINER without SET search_path — privilege escalation risk: {match}"
+
+    impact = (
+        "An attacker sets search_path to a schema with trojan objects, "
+        "then calls the SECURITY DEFINER function. The function resolves "
+        "unqualified names to the attacker's schema with owner privileges."
+    )
+    fix_guidance = (
+        "Add SET search_path = pg_catalog to the function: "
+        "CREATE FUNCTION ... SECURITY DEFINER SET search_path = pg_catalog."
     )

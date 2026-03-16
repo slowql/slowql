@@ -27,6 +27,7 @@ __all__ = [
     "BigQueryRegexOnLargeTableRule",
     "CartesianProductRule",
     "ClickHouseJoinWithoutGlobalRule",
+    "ClickHouseMutationRule",
     "ClickHouseSelectWithoutPrewhereRule",
     "CoalesceOnIndexedColumnRule",
     "CompositeIndexOrderViolationRule",

@@ -15,6 +15,7 @@ __all__ = [
     "PgSleepUsageRule",
     "PgSleepUsageRule",
     "RegexDenialOfServiceRule",
+    "TsqlWaitforDelayRule",
     "UnboundedRecursiveCTERule",
 ]
 
@@ -125,4 +126,33 @@ class PgSleepUsageRule(PatternRule):
     fix_guidance = (
         "Remove pg_sleep() calls from production code. If used for testing, "
         "guard behind a feature flag or test-only configuration."
+    )
+
+
+class TsqlWaitforDelayRule(PatternRule):
+    """Detects WAITFOR DELAY in T-SQL production code."""
+
+    id = "PERF-TSQL-004"
+    name = "WAITFOR DELAY in Production Code"
+    description = (
+        "WAITFOR DELAY pauses execution for the specified duration. In "
+        "production code this is almost always a testing artifact or a "
+        "blind SQL injection indicator."
+    )
+    severity = Severity.MEDIUM
+    dimension = Dimension.PERFORMANCE
+    category = Category.PERF_EXECUTION
+    dialects = ("tsql",)
+
+    pattern = r"\bWAITFOR\s+DELAY\b"
+    message_template = "WAITFOR DELAY detected — testing artifact or blind injection vector: {match}"
+
+    impact = (
+        "WAITFOR DELAY ties up a connection and worker thread for the "
+        "specified duration. An attacker can use it to confirm blind "
+        "SQL injection or exhaust the connection pool."
+    )
+    fix_guidance = (
+        "Remove WAITFOR DELAY from production code. If used for polling, "
+        "use Service Broker or Query Notification instead."
     )

@@ -51,6 +51,7 @@ __all__ = [
     "SnowflakeSelectStarCostRule",
     "SnowflakeVariantInWhereRule",
     "SnowflakeWarehouseSizeHintRule",
+    "SparkCacheTableWithoutFilterRule",
     "SparkFullScanWithoutPartitionFilterRule",
     "UnloadWithoutParallelRule",
     "UnnecessaryConnectionPoolingRule",

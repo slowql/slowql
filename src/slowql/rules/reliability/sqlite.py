@@ -7,6 +7,7 @@ from slowql.rules.base import PatternRule
 
 __all__ = [
     "SqliteDropColumnRule",
+    "SqliteForeignKeysOffRule",
 ]
 
 
@@ -37,4 +38,33 @@ class SqliteDropColumnRule(PatternRule):
         "For broad compatibility, use the 12-step ALTER TABLE process: "
         "CREATE new table, INSERT from old, DROP old, RENAME new. "
         "See https://www.sqlite.org/lang_altertable.html"
+    )
+
+
+class SqliteForeignKeysOffRule(PatternRule):
+    """Detects PRAGMA foreign_keys = OFF in SQLite."""
+
+    id = "REL-SQLITE-002"
+    name = "PRAGMA foreign_keys = OFF"
+    description = (
+        "Disabling foreign key enforcement in SQLite allows orphan records "
+        "and referential integrity violations. SQLite defaults to foreign "
+        "keys OFF, so this pragma explicitly maintains that unsafe state."
+    )
+    severity = Severity.HIGH
+    dimension = Dimension.RELIABILITY
+    category = Category.REL_FOREIGN_KEY
+    dialects = ("sqlite",)
+
+    pattern = r"\bPRAGMA\s+foreign_keys\s*=\s*(?:OFF|0|false)\b"
+    message_template = "PRAGMA foreign_keys = OFF — referential integrity disabled: {match}"
+
+    impact = (
+        "Without foreign key enforcement, INSERT and DELETE can create "
+        "orphan records that violate data relationships. There is no "
+        "automatic cleanup."
+    )
+    fix_guidance = (
+        "Set PRAGMA foreign_keys = ON at connection startup. Note: this "
+        "must be set per-connection, not per-database."
     )

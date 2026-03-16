@@ -14,6 +14,8 @@ from slowql.rules.base import ASTRule, PatternRule
 __all__ = [
     "HardcodedDateRule",
     "ImplicitJoinRule",
+    "MysqlGroupByImplicitSortRule",
+    "MysqlLockInShareModeRule",
     "OracleNvlInWhereRule",
     "RownumWithoutOrderByRule",
     "SelectFromDualRule",
@@ -205,3 +207,58 @@ class OracleNvlInWhereRule(PatternRule):
     message_template = "NVL() in WHERE clause — prevents index usage: {match}"
     impact = "NVL() makes the predicate non-SARGable."
     fix_guidance = "Replace NVL(col, val) = x with (col = x OR col IS NULL)."
+
+
+class MysqlGroupByImplicitSortRule(PatternRule):
+    """Detects reliance on GROUP BY implicit sort order in MySQL."""
+
+    id = "PERF-MYSQL-004"
+    name = "GROUP BY Implicit Sort (Removed in MySQL 8.0)"
+    description = (
+        "Before MySQL 8.0, GROUP BY implicitly sorted results. In 8.0+ "
+        "this was removed. Code relying on GROUP BY order without explicit "
+        "ORDER BY produces non-deterministic results on MySQL 8.0+."
+    )
+    severity = Severity.LOW
+    dimension = Dimension.PERFORMANCE
+    category = Category.PERF_SORT
+    dialects = ("mysql",)
+
+    pattern = r"\bGROUP\s+BY\b(?![\s\S]*\bORDER\s+BY\b)"
+    message_template = "GROUP BY without ORDER BY — implicit sort removed in MySQL 8.0: {match}"
+
+    impact = (
+        "Results appear sorted on MySQL 5.x but are unordered on 8.0+. "
+        "This causes subtle bugs during MySQL version upgrades."
+    )
+    fix_guidance = (
+        "Add explicit ORDER BY if sorted output is needed. If order "
+        "doesn't matter, add ORDER BY NULL to explicitly disable sorting."
+    )
+
+
+class MysqlLockInShareModeRule(PatternRule):
+    """Detects deprecated LOCK IN SHARE MODE in MySQL."""
+
+    id = "QUAL-MYSQL-003"
+    name = "Deprecated LOCK IN SHARE MODE"
+    description = (
+        "LOCK IN SHARE MODE is deprecated in MySQL 8.0 in favor of "
+        "FOR SHARE. The old syntax still works but may be removed in "
+        "future versions."
+    )
+    severity = Severity.LOW
+    dimension = Dimension.QUALITY
+    category = Category.QUAL_MODERN
+    dialects = ("mysql",)
+
+    pattern = r"\bLOCK\s+IN\s+SHARE\s+MODE\b"
+    message_template = "Deprecated LOCK IN SHARE MODE — use FOR SHARE: {match}"
+
+    impact = (
+        "Code using LOCK IN SHARE MODE will break when the syntax is "
+        "removed in a future MySQL version."
+    )
+    fix_guidance = (
+        "Replace LOCK IN SHARE MODE with FOR SHARE (MySQL 8.0+)."
+    )
