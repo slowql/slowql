@@ -7,6 +7,7 @@ from __future__ import annotations
 from .complexity import *
 from .documentation import *
 from .dry_principles import *
+from .duckdb import *
 from .modern_sql import *
 from .naming import *
 from .null_handling import *
@@ -21,6 +22,7 @@ __all__ = [
     "CommentedCodeRule",
     "ComplexLogicWithoutExplanationRule",
     "CyclomaticComplexityRule",
+    "DuckDBOldStyleCastRule",
     "DuplicateConditionRule",
     "ExcessiveCaseNestingRule",
     "ExcessiveSubqueryNestingRule",

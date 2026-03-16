@@ -4,13 +4,16 @@ Reliability rules module.
 
 from __future__ import annotations
 
+from .clickhouse import *
 from .data_safety import *
 from .deadlocks import *
 from .error_handling import *
 from .foreign_keys import *
 from .idempotency import *
+from .presto import *
 from .race_conditions import *
 from .redshift import *
+from .spark import *
 from .sqlite import *
 from .timeouts import *
 from .transactions import *
@@ -22,6 +25,7 @@ __all__ = [
     "AutocommitDisabledRule",
     "BigQueryDmlWithoutWhereOnPartitionedRule",
     "CascadeDeleteRiskRule",
+    "ClickHouseSelectWithoutFinalRule",
     "ConnectByWithoutNocycleRule",
     "CopyWithoutManifestRule",
     "CreateIndexWithoutConcurrentlyRule",
@@ -40,8 +44,10 @@ __all__ = [
     "OnUpdateCascadeTimestampRule",
     "OracleAlterTableMoveWithoutRebuildRule",
     "OrphanRecordRiskRule",
+    "PrestoInsertOverwriteWithoutPartitionRule",
     "ReadModifyWriteLockingRule",
     "ReplaceIntoRule",
+    "SparkOverwriteWithoutPartitionRule",
     "SqliteDropColumnRule",
     "StaleReadRiskRule",
     "TOCTOUPatternRule",

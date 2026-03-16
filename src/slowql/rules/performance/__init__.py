@@ -6,7 +6,9 @@ from __future__ import annotations
 
 from .aggregation import *
 from .batching import *
+from .clickhouse import *
 from .cursors import *
+from .duckdb import *
 from .execution import *
 from .hints import *
 from .indexing import *
@@ -14,14 +16,18 @@ from .joins import *
 from .locking import *
 from .memory import *
 from .network import *
+from .presto import *
 from .redshift import *
 from .scanning import *
+from .spark import *
 from .sqlite import *
 
 __all__ = [
     "BigQueryDistinctOnUnnestRule",
     "BigQueryRegexOnLargeTableRule",
     "CartesianProductRule",
+    "ClickHouseJoinWithoutGlobalRule",
+    "ClickHouseSelectWithoutPrewhereRule",
     "CoalesceOnIndexedColumnRule",
     "CompositeIndexOrderViolationRule",
     "CorrelatedSubqueryRule",
@@ -29,6 +35,8 @@ __all__ = [
     "CursorDeclarationRule",
     "DeepOffsetPaginationRule",
     "DistinctOnLargeSetRule",
+    "DuckDBCopyWithoutFormatRule",
+    "DuckDBLargeInListRule",
     "ExcessiveColumnCountRule",
     "ForceIndexHintMysqlRule",
     "FunctionOnIndexedColumnRule",
@@ -61,6 +69,8 @@ __all__ = [
     "OrderByWithoutLimitInSubqueryRule",
     "OrderByWithoutLimitRedshiftRule",
     "ParallelQueryHintRule",
+    "PrestoCrossJoinRule",
+    "PrestoOrderByWithoutLimitRule",
     "QueryOptimizerHintRule",
     "ReadUncommittedHintRule",
     "RedshiftSelectStarRule",
@@ -69,6 +79,8 @@ __all__ = [
     "SelectForUpdateWithoutNowaitPgRule",
     "SelectIntoTempWithoutIndexRule",
     "SelectStarRule",
+    "SparkBroadcastHintRule",
+    "SparkUdfInWhereRule",
     "SqliteAutoIncrementRule",
     "SqliteWalModeRule",
     "TableLockHintRule",
