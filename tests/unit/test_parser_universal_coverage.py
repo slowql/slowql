@@ -1,16 +1,18 @@
-from slowql.parser.universal import UniversalParser
-from slowql.core.exceptions import ParseError, UnsupportedDialectError
+
 import pytest
-from pathlib import Path
+
+from slowql.core.exceptions import ParseError, UnsupportedDialectError
+from slowql.parser.universal import UniversalParser
+
 
 def test_universal_parser_init():
     parser = UniversalParser(dialect="postgresql")
     assert parser.default_dialect == "postgres"
-    
+
     # Aliases
     parser2 = UniversalParser(dialect="postgres")
     assert parser2.default_dialect == "postgres"
-    
+
     with pytest.raises(UnsupportedDialectError):
         UniversalParser(dialect="invalid_dialect")
 
@@ -27,11 +29,11 @@ def test_universal_parser_parse_single():
     parser = UniversalParser()
     query = parser.parse_single("SELECT * FROM users")
     assert query.query_type == "SELECT"
-    
+
     # Empty
     with pytest.raises(ParseError):
         parser.parse_single("   -- just a comment  ")
-        
+
     # Multiple
     with pytest.raises(ParseError):
         parser.parse_single("SELECT 1; SELECT 2;")
@@ -49,7 +51,7 @@ def test_universal_parser_extractors():
     tables = parser.extract_tables("SELECT a FROM t1 JOIN t2 ON t1.id = t2.id")
     assert "t1" in tables
     assert "t2" in tables
-    
+
     cols = parser.extract_columns("SELECT id, name FROM users WHERE status = 1")
     assert "id" in cols
     assert "name" in cols
@@ -68,7 +70,7 @@ def test_universal_parser_normalize_fallback():
     # Usually sqlglot is very forgiving, but a clear syntax error helps
     norm = parser.normalize("SELECT FROM WHERE ; ; ;")
     assert isinstance(norm, str)
-    
+
     # Test with None ast
     assert parser.normalize(None) == ""
 
@@ -86,6 +88,5 @@ def test_universal_parser_parse_error():
     # Give it something that the source splitter passes but sqlglot strictly rejects
     # We might need to mock to guarantee ParseError from the parser wrapper
     from unittest.mock import patch
-    with patch("slowql.parser.source_splitter.SourceSplitter.split", side_effect=Exception("Split failed")):
-        with pytest.raises(ParseError):
-            parser.parse("SELECT 1")
+    with patch("slowql.parser.source_splitter.SourceSplitter.split", side_effect=Exception("Split failed")), pytest.raises(ParseError):
+        parser.parse("SELECT 1")

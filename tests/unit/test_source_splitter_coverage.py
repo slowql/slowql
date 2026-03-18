@@ -1,5 +1,6 @@
 from slowql.parser.source_splitter import SourceSplitter
 
+
 def test_source_splitter_basic():
     s = SourceSplitter()
     sql = "SELECT 1; SELECT 2;"
@@ -13,7 +14,7 @@ def test_source_splitter_comments():
     sql = """
     -- first query
     SELECT 1;
-    /* second 
+    /* second
        query */
     SELECT 2;
     """

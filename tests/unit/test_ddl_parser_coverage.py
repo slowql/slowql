@@ -1,5 +1,7 @@
-from slowql.schema.ddl_parser import DDLParser
 import pytest
+
+from slowql.schema.ddl_parser import DDLParser
+
 
 def test_ddl_parser_basic():
     parser = DDLParser(dialect="postgresql")
@@ -11,26 +13,26 @@ def test_ddl_parser_basic():
     );
     CREATE INDEX idx_users_email ON users(email);
     """)
-    
+
     assert "users" in schema.tables
     table = schema.tables["users"]
-    
+
     assert table.name == "users"
     assert len(table.columns) == 3
     assert table.has_column("id")
     assert table.has_column("email")
     assert table.has_column("status")
-    
+
     id_col = table.get_column("id")
     assert id_col.primary_key is True
-    
+
     email_col = table.get_column("email")
     assert email_col.unique is True
     assert email_col.nullable is False
-    
+
     status_col = table.get_column("status")
     assert "active" in status_col.default
-    
+
     assert len(table.indexes) == 1
     assert table.indexes[0].name == "idx_users_email"
 
@@ -88,7 +90,7 @@ def test_ddl_parser_data_types():
         c8 UNKNOWN_TYPE
     );
     """)
-    
+
     t = schema.tables["types"]
     from slowql.schema.models import ColumnType
     assert t.get_column("c1").type == ColumnType.INTEGER
@@ -113,7 +115,7 @@ def test_ddl_parser_index_formats():
 def test_ddl_parser_empty_index_name():
     parser = DDLParser()
     # No explicit index name, sqlglot parses it slightly differently
-    schema = parser.parse_ddl("""
+    _ = parser.parse_ddl("""
     CREATE TABLE t (a INT);
     CREATE INDEX ON t(a);
     """)

@@ -1,5 +1,6 @@
-from slowql.parser.tokenizer import Tokenizer, TokenType, Token, tokenize
-import pytest
+
+from slowql.parser.tokenizer import Token, Tokenizer, TokenType, tokenize
+
 
 def test_tokenizer_basic():
     t = Tokenizer()

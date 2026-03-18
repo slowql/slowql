@@ -116,9 +116,8 @@ class TestShowIntro:
     def test_show_intro_with_intro_enabled(self, mock_rain, mock_console):
         rain = MagicMock()
 
-        def _run(*args, **kwargs):
+        def _run(*_args, **_kwargs):
             rain._selected_dialect = "postgresql"
-            return None
 
         rain.run.side_effect = _run
         mock_rain.return_value = rain

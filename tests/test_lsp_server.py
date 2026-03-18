@@ -6,12 +6,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from slowql.core.engine import SlowQL
 from slowql.core.models import AnalysisResult, Dimension, Issue, Location, Severity
 from slowql.lsp.server import (
     HAS_PYGLS,
     _validate_document,
-    create_server,
     issue_to_diagnostic,
     main,
     map_severity,
@@ -70,7 +68,7 @@ class TestLspValidation:
     @patch("slowql.core.engine.SlowQL.analyze")
     def test_validate_document_success(self, mock_analyze):
         server = MagicMock()
-        
+
         result = AnalysisResult()
         result.add_issue(Issue(
             rule_id="T-1", message="Test", severity=Severity.INFO,
@@ -79,7 +77,7 @@ class TestLspValidation:
         mock_analyze.return_value = result
 
         _validate_document(server, "file:///test.sql", "SELECT 1", schema=None)
-        
+
         server.text_document_publish_diagnostics.assert_called_once()
         params = server.text_document_publish_diagnostics.call_args[0][0]
         assert params.uri == "file:///test.sql"
@@ -91,7 +89,7 @@ class TestLspValidation:
         mock_analyze.side_effect = Exception("Parse failed")
 
         _validate_document(server, "file:///test.sql", "SELECT 1", schema=None)
-        
+
         # Exception should be caught and logged
         server.logger.exception.assert_called_once()
         server.text_document_publish_diagnostics.assert_called_once()
@@ -109,7 +107,7 @@ class TestLspMain:
         mock_create.return_value = server_mock
 
         main()
-        
+
         mock_create.assert_called_once_with(schema=None)
         server_mock.start_io.assert_called_once()
 
@@ -125,7 +123,7 @@ class TestLspMain:
         mock_create.return_value = server_mock
 
         main()
-        
+
         mock_create.assert_called_once_with(schema=schema_mock)
 
     @patch("slowql.schema.inspector.SchemaInspector.from_ddl_file")
@@ -134,9 +132,8 @@ class TestLspMain:
         mock_parse.return_value = (argparse.Namespace(schema="schema.sql", db=None), [])
         mock_from_file.side_effect = Exception("File missing")
 
-        with patch("slowql.lsp.server.logger") as mock_logger:
-            with patch("slowql.lsp.server.create_server") as mock_create:
-                mock_create.return_value = MagicMock()
-                main()
-                mock_logger.warning.assert_called_once()
-                mock_create.assert_called_once_with(schema=None)
+        with patch("slowql.lsp.server.logger") as mock_logger, patch("slowql.lsp.server.create_server") as mock_create:
+            mock_create.return_value = MagicMock()
+            main()
+            mock_logger.warning.assert_called_once()
+            mock_create.assert_called_once_with(schema=None)
