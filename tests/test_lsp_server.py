@@ -16,6 +16,7 @@ from slowql.lsp.server import (
 )
 
 
+@pytest.mark.skipif(not HAS_PYGLS, reason="pygls/lsprotocol not installed")
 def test_map_severity():
     from lsprotocol.types import DiagnosticSeverity
     assert map_severity(Severity.CRITICAL) == DiagnosticSeverity.Error
