@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.6.0] - 2026-03-18
+
+### Added
+- **Massive Rule Expansion**: Now ships with **272 rules** (up from 171) completely covering **14 SQL dialects** (PostgreSQL, MySQL, T-SQL, Oracle, Snowflake, BigQuery, Redshift, ClickHouse, DuckDB, Presto, Trino, Spark, Databricks, SQLite).
+- **Rule Introspection**: Added `slowql --list-rules` and `slowql --explain RULE-ID` commands.
+- **Interactive Setup**: Added `slowql --init` wizard to automatically generate `slowql.yaml` and detect dialects/schemas.
+- **Safe Autofix**: Added `--fix` and `--diff` flags with 9 initial zero-risk text replacements (FixConfidence.SAFE).
+- **Dialect Filtering**: Dialect-specific rules now safely skip when analyzing generic/unknown SQL, eliminating false positives.
+
+### Changed
+- **Next-Gen TUI**: Completely revamped the console reporter. Removed emojis, fixed table alignments, and modernized the layout for a clean, professional look.
+- **CI/CD Polish**: Suppressed welcome banners and verbose logs in `--non-interactive` mode.
+- **VS Code Extension (v0.2.0)**: Added dialect selection settings, status bar integration, and better server state handling.
+
+### Fixed
+- Replaced brittle hardcoded test counts with threshold assertions to streamline future rule contributions.
+- Fixed an issue where `sqlglot` dialect normalization was case-sensitive.
+
+
 All notable changes to this project will be documented here.
 
 ---
