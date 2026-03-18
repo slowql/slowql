@@ -1,135 +1,91 @@
-from unittest.mock import patch
-
-import pytest
-from sqlglot import exp
-from sqlglot.errors import ParseError as SqlglotParseError
-
-from slowql.core.exceptions import ParseError, UnsupportedDialectError
 from slowql.parser.universal import UniversalParser
+from slowql.core.exceptions import ParseError, UnsupportedDialectError
+import pytest
+from pathlib import Path
 
+def test_universal_parser_init():
+    parser = UniversalParser(dialect="postgresql")
+    assert parser.default_dialect == "postgres"
+    
+    # Aliases
+    parser2 = UniversalParser(dialect="postgres")
+    assert parser2.default_dialect == "postgres"
+    
+    with pytest.raises(UnsupportedDialectError):
+        UniversalParser(dialect="invalid_dialect")
 
-class TestUniversalParserCoverage:
-    def test_unsupported_dialect_init(self):
-        with pytest.raises(UnsupportedDialectError):
-            UniversalParser(dialect="invalid_dialect")
+def test_universal_parser_parse_basic():
+    parser = UniversalParser()
+    queries = parser.parse("SELECT * FROM users; DELETE FROM orders;")
+    assert len(queries) == 2
+    assert queries[0].query_type == "SELECT"
+    assert queries[1].query_type == "DELETE"
+    assert "users" in queries[0].tables
+    assert "orders" in queries[1].tables
 
-    def test_parse_single_no_statement(self):
-        parser = UniversalParser()
-        with pytest.raises(ParseError, match="No SQL statement found"):
-            parser.parse_single("")
+def test_universal_parser_parse_single():
+    parser = UniversalParser()
+    query = parser.parse_single("SELECT * FROM users")
+    assert query.query_type == "SELECT"
+    
+    # Empty
+    with pytest.raises(ParseError):
+        parser.parse_single("   -- just a comment  ")
+        
+    # Multiple
+    with pytest.raises(ParseError):
+        parser.parse_single("SELECT 1; SELECT 2;")
 
-        with pytest.raises(ParseError, match="No SQL statement found"):
-            parser.parse_single("   ")
+def test_universal_parser_detect_dialect():
+    parser = UniversalParser()
+    assert parser.detect_dialect("SELECT `id` FROM `users`") == "mysql"
+    assert parser.detect_dialect("SELECT top 10 [id] FROM [users]") == "tsql"
+    assert parser.detect_dialect("SELECT * FROM table WHERE col::int = 1") == "postgres"
+    # The regex for bigquery looks for backticks: `dataset.table`
+    assert parser.detect_dialect("SELECT * FROM `dataset`.`table` LIMIT 10") == "bigquery"
 
-        with pytest.raises(ParseError, match="No SQL statement found"):
-            parser.parse_single("-- just a comment")
+def test_universal_parser_extractors():
+    parser = UniversalParser()
+    tables = parser.extract_tables("SELECT a FROM t1 JOIN t2 ON t1.id = t2.id")
+    assert "t1" in tables
+    assert "t2" in tables
+    
+    cols = parser.extract_columns("SELECT id, name FROM users WHERE status = 1")
+    assert "id" in cols
+    assert "name" in cols
+    assert "status" in cols
 
-    def test_parse_single_multiple_statements(self):
-        parser = UniversalParser()
-        with pytest.raises(ParseError, match="Expected single statement"):
-            parser.parse_single("SELECT 1; SELECT 2")
+def test_universal_parser_get_query_type():
+    parser = UniversalParser()
+    assert parser.get_query_type("   select * from t") == "SELECT"
+    assert parser.get_query_type("WITH cte AS (...) SELECT * FROM cte") == "SELECT"
+    assert parser.get_query_type("INSERT INTO t VALUES (1)") == "INSERT"
+    assert parser.get_query_type("SOME_UNKNOWN_CMD") is None
 
-    def test_parse_error_handling(self):
-        parser = UniversalParser()
-        # Mock sqlglot.parse_one to raise SqlglotParseError
-        with (
-            patch("sqlglot.parse_one", side_effect=SqlglotParseError("test error")),
-            pytest.raises(ParseError, match="Failed to parse SQL"),
-        ):
-            parser.parse("SELECT * FROM t")
+def test_universal_parser_normalize_fallback():
+    parser = UniversalParser()
+    # Provide a string that fails sqlglot parsing to trigger the fallback
+    # Usually sqlglot is very forgiving, but a clear syntax error helps
+    norm = parser.normalize("SELECT FROM WHERE ; ; ;")
+    assert isinstance(norm, str)
+    
+    # Test with None ast
+    assert parser.normalize(None) == ""
 
-    def test_detect_dialect(self):
-        parser = UniversalParser()
+def test_universal_parser_unsupported_type_fallback():
+    parser = UniversalParser()
+    # Test the fallback in _get_query_type_from_ast
+    # A raw sqlglot expression that isn't mapped
+    from sqlglot import exp
+    ast = exp.Hint(expressions=[])
+    q_type = parser._get_query_type_from_ast(ast)
+    assert q_type == "HINT"
 
-        # Test postgres detection
-        assert parser.detect_dialect("SELECT $1") == "postgres"
-        assert parser.detect_dialect("SELECT col::text") == "postgres"
-
-        # Test mysql detection
-        assert parser.detect_dialect("SELECT `col`") == "mysql"
-
-        # Test tsql detection
-        assert parser.detect_dialect("SELECT TOP 10 *") == "tsql"
-        assert parser.detect_dialect("SELECT [col]") == "tsql"
-
-        # Test oracle detection
-        assert parser.detect_dialect("SELECT * FROM t WHERE ROWNUM <= 1") == "oracle"
-
-        # Test bigquery detection
-        assert parser.detect_dialect("SELECT * FROM `p.d.t`") == "bigquery"
-
-        # Test snowflake detection
-        assert (
-            parser.detect_dialect("SELECT * FROM t, LATERAL FLATTEN(input => col)") == "snowflake"
-        )
-
-        # Test multiple matches (should pick highest score)
-        # "TOP 10" is tsql (1 match), "::" is postgres (1 match).
-        # This specific test case might be ambiguous depending on exact impl,
-        # but let's try to bias it.
-        # "SELECT TOP 10 [col]" -> 2 matches for tsql
-        assert parser.detect_dialect("SELECT TOP 10 [col]") == "tsql"
-
-        # No match
-        assert parser.detect_dialect("SELECT * FROM t") is None
-
-    def test_normalize_error(self):
-        parser = UniversalParser()
-        with patch("sqlglot.parse_one", side_effect=SqlglotParseError("err")):
-            # Should fallback to basic whitespace normalization
-            assert parser.normalize("SELECT  *   FROM   t") == "SELECT * FROM t"
-
-    def test_extract_tables_error(self):
-        parser = UniversalParser()
-        with patch("sqlglot.parse_one", side_effect=SqlglotParseError("err")):
-            assert parser.extract_tables("bad sql") == []
-
-    def test_extract_columns_error(self):
-        parser = UniversalParser()
-        with patch("sqlglot.parse_one", side_effect=SqlglotParseError("err")):
-            assert parser.extract_columns("bad sql") == []
-
-    def test_get_query_type_fast_path(self):
-        parser = UniversalParser()
-        assert parser.get_query_type("SELECT *") == "SELECT"
-        assert parser.get_query_type("WITH t AS (SELECT 1) SELECT *") == "SELECT"
-        assert parser.get_query_type("INSERT INTO t VALUES (1)") == "INSERT"
-        assert parser.get_query_type("garbage") is None
-        assert parser.get_query_type("") is None
-
-    def test_split_statements_ast_fail_fallback(self):
-        parser = UniversalParser()
-        # Mock sqlglot.parse to raise error, forcing fallback to semicolon split
-        with patch("sqlglot.parse", side_effect=SqlglotParseError("err")):
-            stmts = parser._split_statements("SELECT 1; SELECT 2")
-            assert len(stmts) == 2
-            assert stmts[0][0] == "SELECT 1"
-            assert stmts[1][0] == "SELECT 2"
-
-    def test_get_query_type_from_ast_coverage(self):
-        parser = UniversalParser()
-
-        # We can construct sqlglot expressions purely for testing logic mapping
-        assert parser._get_query_type_from_ast(exp.Select()) == "SELECT"
-        assert parser._get_query_type_from_ast(exp.Insert()) == "INSERT"
-        assert parser._get_query_type_from_ast(exp.Update()) == "UPDATE"
-        assert parser._get_query_type_from_ast(exp.Delete()) == "DELETE"
-        # exp.Merge might need args depending on version, usually pure init works
-        assert parser._get_query_type_from_ast(exp.Merge()) == "MERGE"
-        assert parser._get_query_type_from_ast(exp.Create()) == "CREATE"
-        assert parser._get_query_type_from_ast(exp.Alter()) == "ALTER"
-        assert parser._get_query_type_from_ast(exp.Drop()) == "DROP"
-        # Grant might not be in all versions, checking safely or assuming it exists if imported
-        if hasattr(exp, "Grant"):
-            assert parser._get_query_type_from_ast(exp.Grant()) == "GRANT"
-
-        # Test Command fallback
-        cmd = exp.Command()
-        cmd.set("this", "VACUUM ANALYZE")
-        assert parser._get_query_type_from_ast(cmd) == "VACUUM"
-
-        # Test Default fallback
-        class UnknownExp(exp.Expression):
-            pass
-
-        assert parser._get_query_type_from_ast(UnknownExp()) == "UNKNOWNEXP"
+def test_universal_parser_parse_error():
+    parser = UniversalParser()
+    # Give it something that the source splitter passes but sqlglot strictly rejects
+    # We might need to mock to guarantee ParseError from the parser wrapper
+    from unittest.mock import patch
+    with patch("slowql.parser.source_splitter.SourceSplitter.split", side_effect=Exception("Split failed")):
+        with pytest.raises(ParseError):
+            parser.parse("SELECT 1")

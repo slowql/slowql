@@ -720,7 +720,10 @@ def _show_intro(intro_enabled: bool, fast: bool, is_tty: bool, intro_duration: f
 
     if intro_enabled and not fast and is_tty:
         with contextlib.suppress(Exception):
-            MatrixRain().run(duration=intro_duration)
+            rain = MatrixRain()
+            rain.run(duration=intro_duration)
+            if hasattr(rain, "_selected_dialect"):
+                selected_dialect = rain._selected_dialect
 
     if not machine_readable:
         console.print(

@@ -36,7 +36,7 @@ class UniversalParser(BaseParser):
     supported_dialects: tuple[str, ...] = ()
 
     DIALECT_DETECTION_RULES: ClassVar[dict[str, list[str]]] = {
-        "bigquery": [r"`[\w-]+\.[\w-]+\.[\w-]+`"],
+        "bigquery": [r"`[\w-]+`\.`[\w-]+`", r"`[\w-]+\.[\w-]+\.[\w-]+`"],
         "postgres": [r"::", r"\$\d+"],
         "mysql": [r"`"],
         "tsql": [r"\[", r"\]", r"\bTOP\s+\d+"],
@@ -54,11 +54,16 @@ class UniversalParser(BaseParser):
         Raises:
             UnsupportedDialectError: If the dialect is not supported by sqlglot.
         """
-        # Allow 'postgres' as an alias for 'postgresql'
-        if dialect == "postgres":
-            dialect = "postgresql"
-        if dialect and dialect not in sqlglot.dialects.DIALECTS:
-            raise UnsupportedDialectError(dialect)
+        # Normalize dialect for sqlglot (which uses 'postgres', 'tsql', etc.)
+        if dialect == "postgresql":
+            dialect = "postgres"
+        elif dialect == "mssql":
+            dialect = "tsql"
+        if dialect:
+            # sqlglot.dialects.DIALECTS contains TitleCase strings like 'Postgres'
+            sqlglot_dialects = [d.lower() for d in sqlglot.dialects.DIALECTS]
+            if dialect.lower() not in sqlglot_dialects:
+                raise UnsupportedDialectError(dialect)
         self.default_dialect = dialect
 
     def parse(
