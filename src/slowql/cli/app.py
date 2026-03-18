@@ -1114,6 +1114,226 @@ def run_analysis_loop(  # noqa: PLR0912, PLR0915
 
 
 
+def _cmd_init() -> int:  # noqa: PLR0912 PLR0915
+    """Interactive wizard to create a slowql.yaml config file."""
+    from pathlib import Path  # noqa: PLC0415
+
+    import yaml  # noqa: PLC0415
+
+    cwd = Path.cwd()
+    config_path = cwd / "slowql.yaml"
+
+    console.print()
+    console.print(
+        Panel(
+            "[bold cyan]SlowQL Init[/bold cyan]\n"
+            "[dim]Create a slowql.yaml config file for your project[/dim]",
+            border_style="cyan",
+            box=box.ROUNDED,
+        )
+    )
+    console.print()
+
+    # Detect SQL files
+    sql_files = [
+        f for f in cwd.rglob("*.sql")
+        if not any(p in str(f) for p in [".git", ".venv", "venv", "node_modules"])
+    ]
+    if sql_files:
+        console.print(f"[green]Found {len(sql_files)} SQL file(s)[/green]")
+        for f in sql_files[:5]:
+            console.print(f"  [dim]{f.relative_to(cwd)}[/dim]")
+        if len(sql_files) > 5:
+            console.print(f"  [dim]... and {len(sql_files) - 5} more[/dim]")
+    else:
+        console.print("[yellow]No SQL files found in current directory[/yellow]")
+    console.print()
+
+    # Overwrite check
+    if config_path.exists():
+        console.print(f"[yellow]Config already exists:[/yellow] {config_path}")
+        choice = Prompt.ask("Overwrite?", choices=["y", "n"], default="n")
+        if choice == "n":
+            console.print("[dim]Aborted.[/dim]")
+            return 1
+        console.print()
+
+    # Dialect selection
+    DIALECTS = [
+        ("PostgreSQL",       "postgresql"),
+        ("MySQL / MariaDB",  "mysql"),
+        ("SQL Server (T-SQL)", "tsql"),
+        ("Oracle",           "oracle"),
+        ("SQLite",           "sqlite"),
+        ("Snowflake",        "snowflake"),
+        ("BigQuery",         "bigquery"),
+        ("Redshift",         "redshift"),
+        ("ClickHouse",       "clickhouse"),
+        ("DuckDB",           "duckdb"),
+        ("Presto",           "presto"),
+        ("Trino",            "trino"),
+        ("Spark SQL",        "spark"),
+        ("Databricks SQL",   "databricks"),
+        ("Auto-detect",      None),
+    ]
+    dialect_idx = len(DIALECTS) - 1
+    selected_dialect = None
+
+    def _render_dialect(idx: int) -> Panel:
+        tbl = Table(box=box.SQUARE, show_edge=False, expand=True, border_style="cyan")
+        tbl.add_column("Dialect", no_wrap=True)
+        for i, (label, _) in enumerate(DIALECTS):
+            pointer = "\u25b8" if i == idx else " "
+            style = "bold deep_sky_blue1" if i == idx else "white"
+            tbl.add_row(f"[{style}]{pointer} {label}[/]")
+        return Panel(
+            tbl,
+            title="[bold cyan]Select SQL Dialect[/]",
+            border_style="cyan",
+            box=box.ROUNDED,
+            subtitle="[dim]up/down move  •  Enter select[/]",
+            subtitle_align="center",
+        )
+
+    if HAVE_READCHAR:
+        try:
+            import readchar as _rc  # noqa: PLC0415
+            with Live(_render_dialect(dialect_idx), refresh_per_second=30, console=console, transient=True) as live:
+                while True:
+                    key = _rc.readkey()
+                    if key == _rc.key.UP:
+                        dialect_idx = (dialect_idx - 1) % len(DIALECTS)
+                        live.update(_render_dialect(dialect_idx))
+                    elif key == _rc.key.DOWN:
+                        dialect_idx = (dialect_idx + 1) % len(DIALECTS)
+                        live.update(_render_dialect(dialect_idx))
+                    elif key in (_rc.key.ENTER, "\r", "\n"):
+                        _, selected_dialect = DIALECTS[dialect_idx]
+                        break
+                    elif key in ("q", "Q", _rc.key.ESC):
+                        console.print("[dim]Aborted.[/dim]")
+                        return 1
+        except Exception:
+            selected_dialect = None
+    else:
+        console.print(_render_dialect(dialect_idx))
+        try:
+            choice = Prompt.ask("Select dialect (1-15, default 15)", default="15")
+            idx = int(choice) - 1
+            if 0 <= idx < len(DIALECTS):
+                _, selected_dialect = DIALECTS[idx]
+        except (ValueError, EOFError):
+            pass
+
+    dialect_label = next((lbl for lbl, d in DIALECTS if d == selected_dialect), "Auto-detect")
+    console.print(f"[green]Dialect:[/green] {dialect_label}")
+    console.print()
+
+    # Fail-on threshold
+    THRESHOLDS = ["critical", "high", "medium", "low", "info", "never"]
+    threshold_idx = 1
+    selected_threshold = "high"
+
+    def _render_threshold(idx: int) -> Panel:
+        tbl = Table(box=box.SQUARE, show_edge=False, expand=True, border_style="cyan")
+        tbl.add_column("Threshold", no_wrap=True)
+        for i, name in enumerate(THRESHOLDS):
+            pointer = "\u25b8" if i == idx else " "
+            style = "bold deep_sky_blue1" if i == idx else "white"
+            tbl.add_row(f"[{style}]{pointer} {name}[/]")
+        return Panel(
+            tbl,
+            title="[bold cyan]Fail CI when issues are at or above[/]",
+            border_style="cyan",
+            box=box.ROUNDED,
+            subtitle="[dim]up/down move  •  Enter select[/]",
+            subtitle_align="center",
+        )
+
+    if HAVE_READCHAR:
+        try:
+            with Live(_render_threshold(threshold_idx), refresh_per_second=30, console=console, transient=True) as live:
+                while True:
+                    key = _rc.readkey()
+                    if key == _rc.key.UP:
+                        threshold_idx = (threshold_idx - 1) % len(THRESHOLDS)
+                        live.update(_render_threshold(threshold_idx))
+                    elif key == _rc.key.DOWN:
+                        threshold_idx = (threshold_idx + 1) % len(THRESHOLDS)
+                        live.update(_render_threshold(threshold_idx))
+                    elif key in (_rc.key.ENTER, "\r", "\n"):
+                        selected_threshold = THRESHOLDS[threshold_idx]
+                        break
+                    elif key in ("q", "Q", _rc.key.ESC):
+                        selected_threshold = "high"
+                        break
+        except Exception:
+            selected_threshold = "high"
+    else:
+        console.print(_render_threshold(threshold_idx))
+        try:
+            choice = Prompt.ask("Select threshold (1-6, default 2)", default="2")
+            idx = int(choice) - 1
+            if 0 <= idx < len(THRESHOLDS):
+                selected_threshold = THRESHOLDS[idx]
+        except (ValueError, EOFError):
+            pass
+
+    console.print(f"[green]Fail on:[/green] {selected_threshold}")
+    console.print()
+
+    # Schema detection
+    schema_candidates = [
+        f for f in list(cwd.rglob("schema.sql")) + list(cwd.rglob("*.ddl"))
+        if not any(p in str(f) for p in [".git", ".venv", "venv"])
+    ]
+    schema_path = str(schema_candidates[0].relative_to(cwd)) if schema_candidates else None
+    if schema_path:
+        console.print(f"[green]Schema detected:[/green] {schema_path}")
+        console.print()
+
+    # Write config
+    config: dict = {
+        "severity": {"fail_on": selected_threshold, "warn_on": "medium"},
+        "analysis": {
+            "enabled_dimensions": [
+                "security", "performance", "reliability",
+                "compliance", "cost", "quality",
+            ],
+        },
+        "output": {"format": "text", "verbose": False, "show_fixes": True},
+    }
+    if selected_dialect:
+        config["analysis"]["dialect"] = selected_dialect
+    if schema_path:
+        config["schema"] = {"path": schema_path}
+
+    config_path.write_text(yaml.dump(config, default_flow_style=False, sort_keys=False), encoding="utf-8")
+
+    # Summary
+    summary_lines = [
+        f"[green]Created:[/green] {config_path}",
+        "",
+        f"[dim]Dialect:[/dim]  {dialect_label}",
+        f"[dim]Fail on:[/dim]  {selected_threshold}",
+        f"[dim]Schema:[/dim]   {schema_path or 'not configured'}",
+        "",
+        "[bold]Next steps:[/bold]",
+        "  slowql queries.sql",
+        "  slowql queries.sql --diff",
+        "  slowql --list-rules",
+    ]
+    console.print(
+        Panel(
+            "\n".join(summary_lines),
+            title="[bold green]Setup Complete[/bold green]",
+            border_style="green",
+            box=box.ROUNDED,
+        )
+    )
+    return 0
+
+
 def _cmd_list_rules(
     dimension: str | None = None,
     dialect: str | None = None,
@@ -1281,6 +1501,11 @@ def build_argparser() -> argparse.ArgumentParser:
     )
     input_group.add_argument("--input-file", type=Path, help="Read SQL from file")
     input_group.add_argument(
+        "--init",
+        action="store_true",
+        help="Create a slowql.yaml config file interactively",
+    )
+    input_group.add_argument(
         "--mode",
         choices=["auto", "paste", "compose"],
         default="auto",
@@ -1419,6 +1644,9 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0912, PLR0915
 
     if getattr(args, "explain", None):
         return _cmd_explain(args.explain)
+
+    if getattr(args, "init", False):
+        return _cmd_init()
 
     # Handle positional file arg compatibility
     input_files_list: list[Path] = []

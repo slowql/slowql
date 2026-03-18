@@ -912,6 +912,7 @@ class TestMainFunction:
         mock_args.dialect = None
         mock_args.extra_files = []
         mock_args.list_rules = False
+        mock_args.init = False
         mock_args.explain = None
         mock_args.filter_dimension = None
         mock_args.filter_dialect = None
