@@ -222,12 +222,16 @@ Examples of safe autofixes:
 
 ### Output Control
 ```
---format           Primary output: console, github-actions, sarif
---export           Export to disk: json, html, csv, sarif
---out              Directory for exported reports
---diff             Preview safe autofix diff
---fix              Apply safe autofixes (single file, creates .bak)
---fix-report       Write JSON report of fixes
+--format                        Primary output: console, github-actions, sarif
+--export                        Export to disk: json, html, csv, sarif
+--out                           Directory for exported reports
+--diff                          Preview safe autofix diff
+--fix                           Apply safe autofixes (single file, creates .bak)
+--fix-report                    Write JSON report of fixes
+--list-rules                    List all 272 rules with severity, dimension, and dialect
+--list-rules --filter-dimension Filter by dimension (security, performance, etc.)
+--list-rules --filter-dialect   Filter by dialect (postgresql, mysql, etc.)
+--explain RULE-ID               Show full documentation for a specific rule
 ```
 
 ### Exit Codes

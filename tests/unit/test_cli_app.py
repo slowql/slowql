@@ -911,6 +911,10 @@ class TestMainFunction:
         mock_args.schema = None
         mock_args.dialect = None
         mock_args.extra_files = []
+        mock_args.list_rules = False
+        mock_args.explain = None
+        mock_args.filter_dimension = None
+        mock_args.filter_dialect = None
 
         mock_parser.parse_args.return_value = mock_args
         mock_build_parser.return_value = mock_parser

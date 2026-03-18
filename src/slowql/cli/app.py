@@ -1113,6 +1113,152 @@ def run_analysis_loop(  # noqa: PLR0912, PLR0915
 # -------------------------------
 
 
+
+def _cmd_list_rules(
+    dimension: str | None = None,
+    dialect: str | None = None,
+) -> int:
+    """
+    Print all available rules in a clean table.
+
+    Args:
+        dimension: Optional dimension filter.
+        dialect: Optional dialect filter.
+
+    Returns:
+        Exit code (always 0).
+    """
+    from slowql.rules.catalog import get_all_rules  # noqa: PLC0415
+
+    rules = get_all_rules()
+
+    # Apply filters
+    if dimension:
+        rules = [r for r in rules if r.dimension.value == dimension]
+    if dialect:
+        rules = [
+            r for r in rules
+            if not r.dialects or dialect in r.dialects
+        ]
+
+    if not rules:
+        console.print("[yellow]No rules match the specified filters.[/yellow]")
+        return 0
+
+    table = Table(
+        title=f"SlowQL Rules ({len(rules)})",
+        box=box.SIMPLE,
+        show_edge=False,
+        padding=(0, 1),
+    )
+    table.add_column("Rule ID", style="cyan", width=18, no_wrap=True)
+    table.add_column("Severity", width=8)
+    table.add_column("Dimension", width=14)
+    table.add_column("Dialect", width=14)
+    table.add_column("Name", overflow="fold")
+
+    sev_colors = {
+        "critical": "bold red",
+        "high": "red",
+        "medium": "yellow",
+        "low": "cyan",
+        "info": "dim",
+    }
+
+    for r in sorted(rules, key=lambda x: (x.dimension.value, x.id)):
+        color = sev_colors.get(r.severity.value, "white")
+        dialect_str = ", ".join(r.dialects) if r.dialects else "universal"
+        table.add_row(
+            r.id,
+            f"[{color}]{r.severity.value}[/]",
+            r.dimension.value,
+            dialect_str,
+            r.name,
+        )
+
+    console.print(table)
+    return 0
+
+
+def _cmd_explain(rule_id: str) -> int:
+    """
+    Print full documentation for a specific rule.
+
+    Args:
+        rule_id: The rule ID to explain.
+
+    Returns:
+        Exit code (0 = found, 1 = not found).
+    """
+    from slowql.rules.catalog import get_all_rules  # noqa: PLC0415
+
+    rules = get_all_rules()
+    rule = next((r for r in rules if r.id.upper() == rule_id.upper()), None)
+
+    if rule is None:
+        console.print(f"[red]Rule not found:[/red] {rule_id}")
+        # Suggest similar rules
+        prefix = rule_id.split("-")[0].upper()
+        similar = [r.id for r in rules if r.id.startswith(prefix)][:5]
+        if similar:
+            console.print(f"[dim]Rules with prefix {prefix!r}:[/dim]")
+            for s in similar:
+                console.print(f"  {s}")
+        return 1
+
+    sev_colors = {
+        "critical": "bold red",
+        "high": "red",
+        "medium": "yellow",
+        "low": "cyan",
+        "info": "dim",
+    }
+    sev_color = sev_colors.get(rule.severity.value, "white")
+    dialect_str = ", ".join(rule.dialects) if rule.dialects else "universal (all dialects)"
+
+    grid = Table.grid(padding=(0, 2))
+    grid.add_column(style="bold cyan", width=16)
+    grid.add_column()
+
+    grid.add_row("Rule ID", rule.id)
+    grid.add_row("Name", rule.name)
+    grid.add_row("Severity", f"[{sev_color}]{rule.severity.value}[/]")
+    grid.add_row("Dimension", rule.dimension.value)
+    grid.add_row("Category", rule.category.value if rule.category else "-")
+    grid.add_row("Dialect", dialect_str)
+    grid.add_row("Autofix", rule.remediation_mode.value)
+
+    console.print(
+        Panel(
+            grid,
+            title=f"[bold cyan]{rule.id}[/]",
+            border_style="cyan",
+            box=box.ROUNDED,
+        )
+    )
+
+    if rule.description:
+        console.print()
+        console.print("[bold]Description[/bold]")
+        console.print(f"  {rule.description}")
+
+    if rule.impact:
+        console.print()
+        console.print("[bold]Impact[/bold]")
+        console.print(f"  {rule.impact}")
+
+    if rule.fix_guidance:
+        console.print()
+        console.print("[bold]Fix Guidance[/bold]")
+        console.print(f"  {rule.fix_guidance}")
+
+    if rule.tags:
+        console.print()
+        console.print(f"[bold]Tags[/bold]  {', '.join(rule.tags)}")
+
+    return 0
+
+
 def build_argparser() -> argparse.ArgumentParser:
     """Build enhanced argument parser"""
     p = argparse.ArgumentParser(
@@ -1192,6 +1338,30 @@ def build_argparser() -> argparse.ArgumentParser:
     output_group.add_argument(
         "--verbose", action="store_true", help="Enable verbose analyzer output"
     )
+
+    # Rule introspection
+    rule_group = p.add_argument_group("Rule Introspection")
+    rule_group.add_argument(
+        "--list-rules",
+        action="store_true",
+        help="List all available rules (optionally filter with --dimension or --dialect)",
+    )
+    rule_group.add_argument(
+        "--explain",
+        metavar="RULE_ID",
+        help="Show full documentation for a specific rule (e.g. PERF-SCAN-001)",
+    )
+    rule_group.add_argument(
+        "--filter-dimension",
+        metavar="DIM",
+        choices=["security", "performance", "reliability", "compliance", "cost", "quality"],
+        help="Filter --list-rules by dimension",
+    )
+    rule_group.add_argument(
+        "--filter-dialect",
+        metavar="DIALECT",
+        help="Filter --list-rules by dialect (e.g. postgresql, mysql)",
+    )
     output_group.add_argument(
         "--diff",
         action="store_true",
@@ -1239,6 +1409,16 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0912, PLR0915
 
     parser = build_argparser()
     args = parser.parse_args(argv)
+
+    # Rule introspection commands — exit immediately, no analysis loop
+    if getattr(args, "list_rules", False):
+        return _cmd_list_rules(
+            dimension=getattr(args, "filter_dimension", None),
+            dialect=getattr(args, "filter_dialect", None),
+        )
+
+    if getattr(args, "explain", None):
+        return _cmd_explain(args.explain)
 
     # Handle positional file arg compatibility
     input_files_list: list[Path] = []
