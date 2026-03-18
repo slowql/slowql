@@ -1198,7 +1198,7 @@ def _cmd_explain(rule_id: str) -> int:
     if rule is None:
         console.print(f"[red]Rule not found:[/red] {rule_id}")
         # Suggest similar rules
-        prefix = rule_id.split("-")[0].upper()
+        prefix = rule_id.split("-", 1)[0].upper()
         similar = [r.id for r in rules if r.id.startswith(prefix)][:5]
         if similar:
             console.print(f"[dim]Rules with prefix {prefix!r}:[/dim]")
