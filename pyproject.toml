@@ -104,6 +104,7 @@ Changelog = "https://github.com/makroumi/slowql/blob/main/CHANGELOG.md"
 
 [project.scripts]
 slowql = "slowql.cli.app:main"
+slowql-lsp = "slowql.lsp.server:main"
 
 [project.entry-points."slowql.analyzers"]
 security = "slowql.analyzers.security:SecurityAnalyzer"

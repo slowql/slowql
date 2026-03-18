@@ -17,6 +17,8 @@
 ### Fixed
 - Replaced brittle hardcoded test counts with threshold assertions to streamline future rule contributions.
 - Fixed an issue where `sqlglot` dialect normalization was case-sensitive.
+- Fixed CLI integration for Language Server Protocol (LSP), allowing the server to be correctly launched via `slowql lsp` or the new `slowql-lsp` standalone binary.
+- Fixed test suite failures by adding proper skip decorators for environments without `[lsp]` dependencies.
 
 
 All notable changes to this project will be documented here.

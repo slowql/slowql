@@ -1634,6 +1634,14 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0912, PLR0915
     """
     Enhanced CLI entry point with analysis loop
     """
+    if argv is None:
+        argv = sys.argv[1:]
+
+    if argv and argv[0] == "lsp":
+        from slowql.lsp.server import main as lsp_main  # noqa: PLC0415
+        sys.argv = [sys.argv[0], *argv[1:]]
+        lsp_main()
+        return 0
 
     parser = build_argparser()
     args = parser.parse_args(argv)
