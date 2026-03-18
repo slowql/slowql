@@ -1,11 +1,8 @@
 """Tests for slowql init command."""
 from __future__ import annotations
 
-import os
 from pathlib import Path
-from unittest.mock import patch, MagicMock
-
-import pytest
+from unittest.mock import patch
 
 from slowql.cli.app import _cmd_init
 
@@ -14,11 +11,10 @@ class TestCmdInit:
     def test_creates_config_file(self, tmp_path, monkeypatch):
         """Init creates slowql.yaml in current directory."""
         monkeypatch.chdir(tmp_path)
-        with patch("slowql.cli.app.HAVE_READCHAR", False):
-            with patch("slowql.cli.app.Prompt") as mock_prompt:
-                mock_prompt.ask.side_effect = ["15", "2"]
-                result = _cmd_init()
-        
+        with patch("slowql.cli.app.HAVE_READCHAR", False), patch("slowql.cli.app.Prompt") as mock_prompt:
+            mock_prompt.ask.side_effect = ["15", "2"]
+            result = _cmd_init()
+
         assert result == 0
         assert (tmp_path / "slowql.yaml").exists()
 
@@ -26,11 +22,10 @@ class TestCmdInit:
         """Generated config is valid YAML."""
         import yaml
         monkeypatch.chdir(tmp_path)
-        with patch("slowql.cli.app.HAVE_READCHAR", False):
-            with patch("slowql.cli.app.Prompt") as mock_prompt:
-                mock_prompt.ask.side_effect = ["1", "2"]
-                _cmd_init()
-        
+        with patch("slowql.cli.app.HAVE_READCHAR", False), patch("slowql.cli.app.Prompt") as mock_prompt:
+            mock_prompt.ask.side_effect = ["1", "2"]
+            _cmd_init()
+
         config = yaml.safe_load((tmp_path / "slowql.yaml").read_text())
         assert "severity" in config
         assert "analysis" in config
@@ -41,11 +36,10 @@ class TestCmdInit:
         """Selecting auto-detect omits dialect from config."""
         import yaml
         monkeypatch.chdir(tmp_path)
-        with patch("slowql.cli.app.HAVE_READCHAR", False):
-            with patch("slowql.cli.app.Prompt") as mock_prompt:
-                mock_prompt.ask.side_effect = ["15", "2"]
-                _cmd_init()
-        
+        with patch("slowql.cli.app.HAVE_READCHAR", False), patch("slowql.cli.app.Prompt") as mock_prompt:
+            mock_prompt.ask.side_effect = ["15", "2"]
+            _cmd_init()
+
         config = yaml.safe_load((tmp_path / "slowql.yaml").read_text())
         assert "dialect" not in config.get("analysis", {})
 
@@ -53,12 +47,11 @@ class TestCmdInit:
         """Init aborts when user declines overwrite."""
         monkeypatch.chdir(tmp_path)
         (tmp_path / "slowql.yaml").write_text("existing: true")
-        
-        with patch("slowql.cli.app.HAVE_READCHAR", False):
-            with patch("slowql.cli.app.Prompt") as mock_prompt:
-                mock_prompt.ask.side_effect = ["n"]
-                result = _cmd_init()
-        
+
+        with patch("slowql.cli.app.HAVE_READCHAR", False), patch("slowql.cli.app.Prompt") as mock_prompt:
+            mock_prompt.ask.side_effect = ["n"]
+            result = _cmd_init()
+
         assert result == 1
         assert (tmp_path / "slowql.yaml").read_text() == "existing: true"
 
@@ -66,12 +59,11 @@ class TestCmdInit:
         """Init overwrites when user confirms."""
         monkeypatch.chdir(tmp_path)
         (tmp_path / "slowql.yaml").write_text("existing: true")
-        
-        with patch("slowql.cli.app.HAVE_READCHAR", False):
-            with patch("slowql.cli.app.Prompt") as mock_prompt:
-                mock_prompt.ask.side_effect = ["y", "15", "2"]
-                result = _cmd_init()
-        
+
+        with patch("slowql.cli.app.HAVE_READCHAR", False), patch("slowql.cli.app.Prompt") as mock_prompt:
+            mock_prompt.ask.side_effect = ["y", "15", "2"]
+            result = _cmd_init()
+
         assert result == 0
         assert (tmp_path / "slowql.yaml").read_text() != "existing: true"
 
@@ -80,12 +72,11 @@ class TestCmdInit:
         monkeypatch.chdir(tmp_path)
         (tmp_path / "queries.sql").write_text("SELECT 1;")
         (tmp_path / "migrations.sql").write_text("CREATE TABLE t (id INT);")
-        
-        with patch("slowql.cli.app.HAVE_READCHAR", False):
-            with patch("slowql.cli.app.Prompt") as mock_prompt:
-                mock_prompt.ask.side_effect = ["15", "2"]
-                result = _cmd_init()
-        
+
+        with patch("slowql.cli.app.HAVE_READCHAR", False), patch("slowql.cli.app.Prompt") as mock_prompt:
+            mock_prompt.ask.side_effect = ["15", "2"]
+            result = _cmd_init()
+
         assert result == 0
 
     def test_detects_schema_file(self, tmp_path, monkeypatch):
@@ -93,12 +84,11 @@ class TestCmdInit:
         import yaml
         monkeypatch.chdir(tmp_path)
         (tmp_path / "schema.sql").write_text("CREATE TABLE users (id INT);")
-        
-        with patch("slowql.cli.app.HAVE_READCHAR", False):
-            with patch("slowql.cli.app.Prompt") as mock_prompt:
-                mock_prompt.ask.side_effect = ["15", "2"]
-                _cmd_init()
-        
+
+        with patch("slowql.cli.app.HAVE_READCHAR", False), patch("slowql.cli.app.Prompt") as mock_prompt:
+            mock_prompt.ask.side_effect = ["15", "2"]
+            _cmd_init()
+
         config = yaml.safe_load((tmp_path / "slowql.yaml").read_text())
         assert "schema" in config
         assert config["schema"]["path"] == "schema.sql"
@@ -107,12 +97,11 @@ class TestCmdInit:
         """Init respects threshold selection."""
         import yaml
         monkeypatch.chdir(tmp_path)
-        
-        with patch("slowql.cli.app.HAVE_READCHAR", False):
-            with patch("slowql.cli.app.Prompt") as mock_prompt:
-                mock_prompt.ask.side_effect = ["15", "1"]  # critical threshold
-                _cmd_init()
-        
+
+        with patch("slowql.cli.app.HAVE_READCHAR", False), patch("slowql.cli.app.Prompt") as mock_prompt:
+            mock_prompt.ask.side_effect = ["15", "1"]  # critical threshold
+            _cmd_init()
+
         config = yaml.safe_load((tmp_path / "slowql.yaml").read_text())
         assert config["severity"]["fail_on"] == "critical"
 
@@ -120,12 +109,11 @@ class TestCmdInit:
         """Init sets MySQL dialect correctly."""
         import yaml
         monkeypatch.chdir(tmp_path)
-        
-        with patch("slowql.cli.app.HAVE_READCHAR", False):
-            with patch("slowql.cli.app.Prompt") as mock_prompt:
-                mock_prompt.ask.side_effect = ["2", "2"]  # MySQL, high
-                _cmd_init()
-        
+
+        with patch("slowql.cli.app.HAVE_READCHAR", False), patch("slowql.cli.app.Prompt") as mock_prompt:
+            mock_prompt.ask.side_effect = ["2", "2"]  # MySQL, high
+            _cmd_init()
+
         config = yaml.safe_load((tmp_path / "slowql.yaml").read_text())
         assert config["analysis"]["dialect"] == "mysql"
 
@@ -133,12 +121,11 @@ class TestCmdInit:
         """Generated config uses valid format value."""
         import yaml
         monkeypatch.chdir(tmp_path)
-        
-        with patch("slowql.cli.app.HAVE_READCHAR", False):
-            with patch("slowql.cli.app.Prompt") as mock_prompt:
-                mock_prompt.ask.side_effect = ["15", "2"]
-                _cmd_init()
-        
+
+        with patch("slowql.cli.app.HAVE_READCHAR", False), patch("slowql.cli.app.Prompt") as mock_prompt:
+            mock_prompt.ask.side_effect = ["15", "2"]
+            _cmd_init()
+
         config = yaml.safe_load((tmp_path / "slowql.yaml").read_text())
         assert config["output"]["format"] == "text"
 
@@ -203,13 +190,11 @@ class TestUtilityFunctions:
 
     def test_safe_path(self) -> None:
         from slowql.cli.app import safe_path
-        from pathlib import Path
         p = safe_path(None)
         assert isinstance(p, Path)
 
     def test_safe_path_with_value(self) -> None:
         from slowql.cli.app import safe_path
-        from pathlib import Path
         p = safe_path(Path("/tmp/reports"))
         assert isinstance(p, Path)
 
@@ -232,7 +217,7 @@ class TestUtilityFunctions:
 
     def test_compute_fail_exit_code(self) -> None:
         from slowql.cli.app import _compute_fail_exit_code
-        from slowql.core.models import AnalysisResult, Issue, Location, Severity, Dimension
+        from slowql.core.models import AnalysisResult, Dimension, Issue, Location, Severity
 
         result = AnalysisResult()
         assert _compute_fail_exit_code(result, None) == 0
@@ -251,7 +236,7 @@ class TestUtilityFunctions:
 
     def test_session_manager_add_analysis(self) -> None:
         from slowql.cli.app import SessionManager
-        from slowql.core.models import AnalysisResult, Issue, Location, Severity, Dimension
+        from slowql.core.models import AnalysisResult, Dimension, Issue, Location, Severity
 
         s = SessionManager()
         result = AnalysisResult()
