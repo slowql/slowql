@@ -53,10 +53,10 @@ class ConsoleReporter(BaseReporter):
         }
 
         self.severity_icons: dict[Severity, str] = {
-            Severity.CRITICAL: "💀",
-            Severity.HIGH: "🔥",
-            Severity.MEDIUM: "⚡",
-            Severity.LOW: "💫",
+            Severity.CRITICAL: "CRIT",
+            Severity.HIGH: "HIGH",
+            Severity.MEDIUM: "[PERF]",
+            Severity.LOW: "LOW",
             Severity.INFO: "(i)",
         }
 
@@ -188,7 +188,7 @@ class ConsoleReporter(BaseReporter):
 
         return Panel(
             grid,
-            title="[bold white]🏥 DATABASE HEALTH[/]",
+            title="[bold white]HEALTH DATABASE HEALTH[/]",
             border_style=color,
             box=box.ROUNDED,
             padding=(1, 2),
@@ -241,7 +241,7 @@ class ConsoleReporter(BaseReporter):
 
         return Panel(
             table,
-            title="[bold white]📊 SEVERITY MATRIX[/]",
+            title="[bold white]MATRIX SEVERITY MATRIX[/]",
             border_style="cyan",
             box=box.ROUNDED,
             padding=(1, 2),
@@ -260,7 +260,7 @@ class ConsoleReporter(BaseReporter):
         if not dim_counts:
             return Panel(
                 Align.center("[dim]No anomalies detected[/dim]", vertical="middle"),
-                title="[bold white]🌐 IMPACT ZONES[/]",
+                title="[bold white]ZONES IMPACT ZONES[/]",
                 border_style="magenta",
                 box=box.ROUNDED,
                 padding=(1, 2),
@@ -287,17 +287,17 @@ class ConsoleReporter(BaseReporter):
 
         for dim, count in sorted_dims:
             if dim == Dimension.SECURITY:
-                icon, color, raw_label = "🔒", "red", "SECURITY"
+                icon, color, raw_label = "[SEC]", "red", "SECURITY"
             elif dim == Dimension.PERFORMANCE:
-                icon, color, raw_label = "🚀", "yellow", "PERFORMANCE"
+                icon, color, raw_label = "[PERF]", "yellow", "PERFORMANCE"
             elif dim == Dimension.RELIABILITY:
                 icon, color, raw_label = "🛡", "blue", "RELIABILITY"
             elif dim == Dimension.COST:
-                icon, color, raw_label = "💰", "green", "COST"
+                icon, color, raw_label = "[COST]", "green", "COST"
             elif dim == Dimension.COMPLIANCE:
-                icon, color, raw_label = "📋", "magenta", "COMPLIANCE"
+                icon, color, raw_label = "[COMP]", "magenta", "COMPLIANCE"
             else:
-                icon, color, raw_label = "📝", "white", dim.name
+                icon, color, raw_label = "[QUAL]", "white", dim.name
 
             label_cell = f"[{color} bold]{icon} {raw_label}[/]"
 
@@ -318,7 +318,7 @@ class ConsoleReporter(BaseReporter):
 
         return Panel(
             table,
-            title="[bold white]🌐 IMPACT ZONES[/]",
+            title="[bold white]ZONES IMPACT ZONES[/]",
             border_style="magenta",
             box=box.ROUNDED,
             padding=(1, 2),
@@ -333,14 +333,14 @@ class ConsoleReporter(BaseReporter):
     def _get_dimension_style(self, dim: Dimension) -> tuple[str, str]:
         """Get the icon and color for a given dimension."""
         style_map = {
-            Dimension.SECURITY: ("🔒", "red"),
-            Dimension.PERFORMANCE: ("⚡", "yellow"),
-            Dimension.RELIABILITY: ("💠", "blue"),
-            Dimension.COST: ("💰", "green"),
-            Dimension.COMPLIANCE: ("📋", "magenta"),
-            Dimension.QUALITY: ("📝", "cyan"),
+            Dimension.SECURITY: ("[SEC]", "red"),
+            Dimension.PERFORMANCE: ("[PERF]", "yellow"),
+            Dimension.RELIABILITY: ("[REL]", "blue"),
+            Dimension.COST: ("[COST]", "green"),
+            Dimension.COMPLIANCE: ("[COMP]", "magenta"),
+            Dimension.QUALITY: ("[QUAL]", "cyan"),
         }
-        return style_map.get(dim, ("📝", "white"))
+        return style_map.get(dim, ("[QUAL]", "white"))
 
     def _get_heatmap_cell_style(self, count: int, max_count: int, sev: Severity) -> str:
         """Determine the style for a heatmap cell based on count and severity."""
@@ -379,7 +379,7 @@ class ConsoleReporter(BaseReporter):
 
         # 3. Render Title Separately
         self.console.print()
-        self.console.print(Rule("🔥 SEVERITY x DIMENSION HEAT MAP", style="bold italic white"))
+        self.console.print(Rule("HIGH SEVERITY x DIMENSION HEAT MAP", style="bold italic white"))
         self.console.print()
 
         # 4. Create Modern Table with Borders
@@ -523,7 +523,7 @@ class ConsoleReporter(BaseReporter):
         """
         # 1. Render Title Separately
         self.console.print()
-        self.console.print(Rule("🔍 DETECTED SQL ISSUES", style="bold white"))
+        self.console.print(Rule("DETECT DETECTED SQL ISSUES", style="bold white"))
         self.console.print()
 
         # 2. Create Table (Modern Style + row borders)
@@ -615,7 +615,7 @@ class ConsoleReporter(BaseReporter):
 
         # 2. Render Title Separately
         self.console.print()
-        self.console.print(Rule("🔍 SYSTEM DETECTION CAPABILITIES", style="bold cyan"))
+        self.console.print(Rule("DETECT SYSTEM DETECTION CAPABILITIES", style="bold cyan"))
         self.console.print()
 
         # 3. Build Table (Fixed Widths, No Wrapping)
@@ -638,12 +638,12 @@ class ConsoleReporter(BaseReporter):
 
         # Updated Icons for Terminal Stability
         dim_meta = [
-            (Dimension.SECURITY, "🔒", "red"),
-            (Dimension.PERFORMANCE, "⚡", "yellow"),
-            (Dimension.RELIABILITY, "💠", "blue"),  # Changed icon for stability
-            (Dimension.COMPLIANCE, "📋", "magenta"),
-            (Dimension.QUALITY, "📝", "cyan"),
-            (Dimension.COST, "💰", "green"),
+            (Dimension.SECURITY, "[SEC]", "red"),
+            (Dimension.PERFORMANCE, "[PERF]", "yellow"),
+            (Dimension.RELIABILITY, "[REL]", "blue"),  # Changed icon for stability
+            (Dimension.COMPLIANCE, "[COMP]", "magenta"),
+            (Dimension.QUALITY, "[QUAL]", "cyan"),
+            (Dimension.COST, "[COST]", "green"),
         ]
 
         total_rules = 0
@@ -676,7 +676,7 @@ class ConsoleReporter(BaseReporter):
             "[bold white]SYSTEM TOTAL[/]",
             f"[bold cyan]{total_rules}[/]",
             f"[bold white]{total_issues}[/]",
-            "[bold green]✔ COMPREHENSIVE[/]",
+            "[bold green]OK COMPREHENSIVE[/]",
         )
 
         self.console.print(table)
