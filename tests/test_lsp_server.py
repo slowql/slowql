@@ -26,6 +26,7 @@ def test_map_severity():
     assert map_severity(Severity.INFO) == DiagnosticSeverity.Hint
 
 
+@pytest.mark.skipif(not HAS_PYGLS, reason="pygls/lsprotocol not installed")
 def test_issue_to_diagnostic():
     from lsprotocol.types import DiagnosticSeverity
 
@@ -49,6 +50,7 @@ def test_issue_to_diagnostic():
     assert diag.range.end.character == 10
 
 
+@pytest.mark.skipif(not HAS_PYGLS, reason="pygls/lsprotocol not installed")
 def test_issue_to_diagnostic_no_location():
     """Fallback when location data is missing."""
     issue = Issue(
