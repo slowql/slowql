@@ -4,7 +4,7 @@ SlowQL is designed as a high-performance, stateless static analysis engine. At i
 
 ## High-Level Pipeline
 
-The complete lifecycle of a `slowql` analysis run, coordinated by the main [`SlowQL` engine class](api/python-api.md), follows this strict pipeline:
+The complete lifecycle of a `slowql` analysis run, coordinated by the main [`SlowQL` engine class](../api/python-api.md), follows this strict pipeline:
 
 ```mermaid
 graph TD

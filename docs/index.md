@@ -1,6 +1,6 @@
 # Built for Modern SQL Workflows
 
-![SlowQL Demo](../assets/slowql.gif)
+![SlowQL Demo](assets/slowql.gif)
 
 **SlowQL** is the ultimate, next-generation SQL static analyzer designed to detect security vulnerabilities, performance bottlenecks, and compliance violations instantly, before they reach production. 
 
