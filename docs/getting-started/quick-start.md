@@ -1,57 +1,65 @@
 # Quick Start
 
-This page provides a fast path to running SlowQL immediately after installation. Follow these steps to analyze queries in under a minute.
+Welcome to SlowQL! This guide catapults you from zero to executing an automated, static SQL review capable of remediating critical database flaws natively.
 
----
+## 1. Install SlowQL
 
-## ⚡ Run Your First Command
+Assuming you have `Python 3.11+` actively available, bootstrap the entire suite via pip:
 
-```Bash
-slowql --fast --input-file queries.sql
+```bash
+pip install "slowql[all]"
 ```
-This analyzes all queries in `queries.sql` using fast mode.
 
----
+## 2. Initialize the Workspace
 
-## 🧠 Try Interactive Paste Mode
+Navigate to the absolute root directory of your repository, and execute the wizard sequence.
 
-```Bash
-slowql --paste
+```bash
+slowql --init
 ```
-Paste a query directly into the terminal when prompted. SlowQL will analyze it instantly.
 
----
+The CLI tool will dynamically prompt you for fundamental criteria (e.g. `postgresql`, `mysql`, `snowflake` grammar preferences), automatically constructing a `slowql.yaml` or `pyproject.toml` profile.
 
-## 📤 Export Results
+## 3. Analyze Code
 
-```Bash
-slowql --input-file queries.sql --export html --output report.html
+Create a file named `unprotected_query.sql` representing a dangerous migration:
+
+```sql
+SELECT * FROM users;
+
+-- Extremely dangerous omission
+DELETE FROM orders; 
 ```
-This saves results to an HTML report. Supported formats: `json`, `csv`, `html`.
 
----
+Point the execution engine directly at the file:
 
-## 🛠️ CI/CD Friendly Mode
-
-```Bash
-slowql --no-intro --fast --input-file queries.sql --export json --output results.json
+```bash
+slowql unprotected_query.sql
 ```
-Use this in pipelines for clean logs and machine‑readable output.
 
----
+### Analyzing the Report
+By default, SlowQL evaluates exactly 272 potential failure cases. The Cyberpunk Console UI will halt execution and render:
 
-## ✅ Verify Setup
+- **PERF-SCAN-001 (Performance):** A strict advisory identifying the `SELECT *` operation highlighting catastrophic IO scaling logic.
+- **REL-DATA-001 (Reliability/Critical):** An absolute blocker identifying a naked `DELETE` statement absent a `WHERE` guard—representing an unqualified destruction of an entire data cluster.
 
-```Bash
-slowql --version
+## 4. Run Auto-Fixes
+
+SlowQL refuses to just complain; it repairs logic securely utilizing `RemediationMode.SAFE_APPLY` AST transforms. 
+
+**Preview the mathematical layout changes (via git-diff format):**
+```bash
+slowql unprotected_query.sql --diff
 ```
-Confirm that SlowQL is installed and available.
 
----
+**Overwriting the file directly (with `.bak` backup creation natively):**
+```bash
+slowql unprotected_query.sql --fix
+```
 
-## 🔗 Related Pages
+## Next Steps
 
-- [Installation](installation.md)
-- [Configuration](configuration.md)
-- [First Analysis](first-analysis.md)
-- [CLI Reference](../user-guide/cli-reference.md)
+You've successfully instantiated and cleared an enterprise analysis pipeline. 
+- Advance to [Configuration](configuration.md) to explore the PyDantic tuning limits.
+- Learn to deploy the engine inside [GitHub Actions](../usage/ci-cd-integration.md).
+- Hook SlowQL into your active text editor: [Editor Setup](../usage/editor-setup.md).

@@ -1,99 +1,83 @@
 # Release Process
 
-This guide explains how to prepare and publish a new release of SlowQL. It covers versioning, changelog updates, packaging, and distribution.
+This framework governs how core maintainers prepare, package, and distribute the SlowQL engine across binary and container registries.
 
----
+## Versioning Standards
 
-## 🧱 Versioning
+SlowQL enforces semantic versioning logic (`MAJOR.MINOR.PATCH`):
 
-SlowQL follows **semantic versioning** (`MAJOR.MINOR.PATCH`):
+- **MAJOR**: Fundamental API breaks or massive CLI argument restructures.
+- **MINOR**: New Rules added, new Dialect capabilities, backward-compatible engine features.
+- **PATCH**: False positive hotfixes, AST parsing patches, performance improvements.
 
-- **MAJOR** → Breaking changes  
-- **MINOR** → New features, backwards‑compatible  
-- **PATCH** → Bug fixes, small improvements  
-
-Update the version in `pyproject.toml`:
+Declare the version upgrade strictly inside `pyproject.toml` natively:
 
 ```toml
 [project]
-version = "1.2.0"
+version = "1.6.1"
 ```
 
----
+## Changelog Tracking
 
-## 📋 Update Changelog
+Document all technical modifications explicitly inside `CHANGELOG.md` utilizing the standard distribution formats:
 
-Document changes in `CHANGELOG.md`:
-
-```code
-## [1.2.0] - 2025-12-03
+```markdown
+## [1.6.1] - 2026-03-24
 ### Added
-- New detector for unsafe dynamic SQL
+- Created `COST-SF-001` to detect Cartesian loops in Snowflake queries.
+- Attached dialect scoping to the `Rule` metaclass.
 ### Fixed
-- Parser bug with nested subqueries
+- Re-architected `sqlglot` parsing to natively support `presto` Window Function clauses.
 ```
 
----
+## Internal Release Validation
 
-## 🧪 Run Validation
+Prior to generating distribution artifacts, run the absolute gatekeeping pipeline locally to detect regressions:
 
-Before releasing, ensure all checks pass:
-
-```Bash
-ruff check slowql tests  
-mypy slowql  
-pytest  
-mkdocs build --strict
+```bash
+ruff format .
+ruff check .
+mypy src/slowql --strict
+pytest
 ```
+*If any component returns a non-zero exit code, immediately abort the release track.*
 
----
+## Generating Binary Packages
 
-## 📦 Build Package
+SlowQL relies on the `hatchling` backend to construct modern distribution wheels natively.
 
-```Bash
+```bash
+# Clean legacy distribution folders
+rm -rf dist/
+
+# Compile source distributions and wheels
 python -m build
 ```
+This deposits the immutable artifacts natively under `/dist/`.
 
-This generates distribution files in `dist/`.
+## Publishing to Registries
 
----
+### 1. PyPI (Python Package Index)
+Execute standard `twine` uploads strictly pushing the signed artifacts:
 
-## 🚀 Publish to PyPI
-
-Upload the package:
-
-```Bash
+```bash
 twine upload dist/*
 ```
 
----
+### 2. GitHub Releases
+Tag the repository natively reflecting the standard `v{VERSION}` logic to trigger internal actions cleanly:
 
-## 🔄 GitHub Release
-
-1. Tag the release:
-
-```Bash
-git tag v1.2.0  
-git push origin v1.2.0
+```bash
+git tag v1.6.1
+git push origin v1.6.1
 ```
+Navigate to the GitHub UI and convert the Tag into a robust Release securely pasting the corresponding `CHANGELOG.md` segment.
 
-2. Create a GitHub release with notes from `CHANGELOG.md`.
+### 3. GitHub Container Registry (GHCR)
+The master GitHub Action natively intercepts new Tags and automatically compiles, scans, and deposits the immutable Docker Image into `ghcr.io/makroumi/slowql:latest` and `ghcr.io/makroumi/slowql:v1.6.1`.
 
----
+## Pipeline Best Practices
 
-## 🧠 Best Practices
-
-- Keep releases small and frequent  
-- Always update documentation with new features  
-- Ensure detectors are well‑tested before release  
-- Use draft releases for staging  
-- Automate with CI/CD where possible  
-
----
-
-## 🔗 Related Pages
-
-- [Contributing](contributing.md)  
-- [Setup](setup.md)  
-- [Testing](testing.md)  
-- [Adding Detectors](adding-detectors.md)  
+- Releases should remain aggressively rapid. Do not batch 40 rules; drop 5 rules per minor version.
+- Validate AST logic extremely heavily offline prior to publishing `[all]` extras tags.
+- Use Draft Releases dynamically within GitHub if coordination across the VS Code Extension pipeline is required.

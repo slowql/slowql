@@ -1,49 +1,40 @@
-# SlowQL Documentation
+# Built for Modern SQL Workflows
 
-Welcome to **SlowQL**, the cyberpunk‑styled SQL analyzer that helps you catch expensive, unsafe, or inefficient queries before they reach production. This documentation provides everything you need to install, configure, and use SlowQL effectively — from quick start guides to deep dives into architecture and detector systems.
+![SlowQL Demo](../assets/slowql.gif)
 
----
+**SlowQL** is the ultimate, next-generation SQL static analyzer designed to detect security vulnerabilities, performance bottlenecks, and compliance violations instantly, before they reach production. 
 
-## 📖 What You’ll Find Here
-
-- **Getting Started**: Step‑by‑step installation, configuration, and your first analysis.
-- **User Guide**: Detailed CLI reference, interactive mode, file analysis, export formats, and CI/CD integration.
-- **Detectors**: Learn about critical, high, medium, and low severity detectors, plus how to build custom ones.
-- **Architecture**: Explore the system design, detector system, parser engine, and export system.
-- **Development**: Contributing guidelines, setup instructions, adding detectors, testing, and release process.
-- **API Reference**: Python API documentation for analyzers, detectors, and models.
-- **Examples**: Real‑world usage in GitHub Actions, GitLab CI, Jenkins, and pre‑commit hooks.
-- **Security**: Security policy, vulnerability reporting, and best practices.
-- **Enterprise**: Features for teams, deployment strategies, and support options.
-- **Troubleshooting**: Common issues, performance tips, and FAQs.
-- **Changelog & License**: Track project history and licensing information.
+Unlike traditional linters that only format SQL, SlowQL builds a full Abstract Syntax Tree (AST) using `sqlglot` to semantically understand your queries.
 
 ---
 
-## 🚀 Quick Links
+## Key Features
 
-- [Getting Started](getting-started/installation.md)
-- [User Guide](user-guide/cli-reference.md)
-- [Detectors](detectors/overview.md)
-- [Architecture](architecture/system-design.md)
-- [Development](development/setup.md)
-- [Tutorials](tutorials/end-to-end-pipeline.md)
-- [Examples](examples/basic-usage.md)
-- [Security](security/security-policy.md)
-- [Enterprise](enterprise/overview.md)
-- [Troubleshooting](troubleshooting/common-issues.md)
-- [Changelog](CHANGELOG.md)
-- [License](license.md)
+- **272 Auto-Discovered Rules**: Comprehensive coverage strictly categorized across six dimensions: Security, Performance, Cost, Reliability, Compliance, and Quality.
+- **Dialect Guardians**: Native support for **14 SQL dialects** (PostgreSQL, MySQL, T-SQL, Snowflake, BigQuery, etc.). Rules only trigger for the dialects they explicitly target, eliminating false positives natively.
+- **Safe Autofix**: Automatically and safely format and fix bad SQL (`--fix` and `--diff`), with atomic `.bak` file generation guaranteeing operational safety.
+- **Rich Output Pipelines**: Ships with a cyberpunk-inspired terminal UI for human operability, alongside native SARIF and JSON exporters for automated pipelines.
+- **Language Server Protocol (LSP)**: Instant execution diagnostics exposed directly in VS Code via the embedded `slowql-lsp` background server.
 
 ---
 
-## 🛠️ Contributing
+## Why SlowQL?
 
-SlowQL is open source. Contributions are welcome — whether it’s fixing bugs, adding detectors, improving documentation, or sharing new use cases. See [Development/Contributing](development/contributing.md) for details.
+### No Database Connection Required
+SlowQL parses SQL fully offline via AST structure trees. Execution pipelines do not require functioning database clusters, credential routing, or valid schema definitions to identify missing `WHERE` clauses or `SELECT *` anti-patterns.
+
+### Speed First
+Written purely in Python 3.11+ and optimized heavily on multi-threaded generators, SlowQL processes tens of thousands of complex queries near instantly.
+
+### Seamless Extensibility
+Write custom rules in Python seamlessly without directly modifying the core engine logic. Teams can parse the AST manually, yield a raw `Issue` model, and SlowQL inherently resolves the formatting, routing, and serialized reporting.
 
 ---
 
-## 📬 Support
+## Getting Started
 
-For issues, please open a ticket on [GitHub Issues](https://github.com/makroumi/slowql/issues).  
-For enterprise support, see [Enterprise/Support](enterprise/support.md).
+Ready to formally secure and optimize your database architectures?
+
+- [**Quick Start**](getting-started/quick-start.md) - Deploy your first analysis environment in 5 minutes.
+- [**CI/CD Integration**](usage/ci-cd-integration.md) - Enforce headless pipelines within GitHub Actions or GitLab.
+- [**Rule Overview**](rules/overview.md) - Browse the exact boundaries of all 272 security and performance assertions.

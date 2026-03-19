@@ -1,67 +1,110 @@
 # Configuration
 
-After installing SlowQL, you can customize its behavior using command-line flags, environment variables, and optional config files. This guide walks through the most common configuration options for local use and CI/CD pipelines.
+SlowQL's deeply typed configuration engine is designed to adapt to massive monorepos and enterprise architectures seamlessly.
+
+The engine resolves settings linearly. When `slowql` executes, it aggregates configurations in the following strict hierarchy:
+1. **Command Line Arguments** (Highest Priority)
+2. **Environment Variables**
+3. **Local Configuration Files**
+4. **Internal Defaults** (Lowest Priority)
 
 ---
 
-## ⚙️ CLI Flags
+## File-Based Configuration
 
-SlowQL supports a variety of flags to control analysis behavior:
+SlowQL automatically climbs your directory tree looking for any of the following files:
+- `slowql.toml` or `slowql.yaml` (`.yml` / `.json` also supported)
+- Hidden dotfile equivalents (e.g., `.slowql.toml`)
+- The `[tool.slowql]` namespace inside `pyproject.toml`
 
-| Flag             | Description                                      |
-|------------------|--------------------------------------------------|
-| --fast           | Enables fast analysis mode                       |
-| --no-intro       | Skips intro animation (ideal for CI/CD)          |
-| --input-file     | Specifies the SQL file to analyze                |
-| --export         | Sets export format (json, csv, html)             |
-| --output         | Path to save exported results                    |
-| --paste          | Opens interactive paste mode                     |
+### Generating a Starter Config
+The fastest way to scaffold a configuration profile is by triggering the interactive assistant:
+```bash
+slowql --init
+```
 
-```Bash
-slowql --fast --input-file queries.sql --export json --output results.json
+### The `slowql.yaml` Schema
+SlowQL groups settings into six root objects mapping directly to core engine behaviors:
+
+```yaml
+# slowql.yaml
+severity:
+  fail_on: high
+  warn_on: medium
+
+output:
+  format: console
+  color: true
+  show_snippets: true
+  max_issues: 0                  # 0 = unlimited display
+  group_by: severity             # groups by: severity, dimension, file, rule, none
+
+analysis:
+  dialect: postgresql            # Default AST Grammar
+  parallel: true                 # Hardware multithreading
+  timeout_seconds: 30.0          # Bailout for excessively complex payloads
+  max_query_length: 100000       # Prevent OOM parsing malicious squashes
+  enabled_dimensions:
+    - security
+    - performance
+    - reliability
+  disabled_rules:                # Blacklist array
+    - QUAL-STYLE-001             
+  
+schema:
+  path: schemas/prod_schema.sql  # Enables schema validation queries (column limits)
+
+compliance:
+  frameworks:
+    - pci-dss
+    - gdpr
+  strict_mode: true
+
+cost:
+  cloud_provider: snowflake
+  compute_cost_per_hour: 4.50
+  storage_cost_per_gb: 0.02
 ```
 
 ---
 
-## 🌐 Environment Variables
+## Configuration Blocks Explained
 
-You can set environment variables to control default behavior:
+### `severity`
+Controls how pipeline exits handle found issues.
+- **`fail_on`**: Crucial for CI/CD. The process returns an exit code `1` if the analysis discovers any vulnerability equal to or exceeding this threshold. Options: `critical`, `high`, `medium`, `low`, `info`, `never`.
 
-| Variable               | Purpose                                  | Example Value       |
-|------------------------|------------------------------------------|---------------------|
-| SLOWQL_DEFAULT_EXPORT  | Default export format                    | json                |
-| SLOWQL_NO_INTRO        | Disable intro animation globally         | 1                   |
+### `output`
+Governs terminal formatting.
+- **`group_by`**: Re-slices the output array visually, highly useful for filtering (`severity`, `dimension`, `file`).
 
-```Bash
-export SLOWQL_DEFAULT_EXPORT=json
-export SLOWQL_NO_INTRO=1
-```
----
+### `analysis`
+Tunes the AST processor.
+- **`timeout_seconds`**: Because SQL parsing can hit algorithmic cliffs (e.g. 5,000 deep `IN` arrays), SlowQL will dynamically drop a query block if it exceeds this threshold to save CI minutes.
+- **`disabled_rules`**: A global blacklist for specific Rule IDs (e.g., `PERF-SCAN-001`) that your company doesn't care about enforcing.
 
-## 📄 Optional Config File
-
-SlowQL can read a .slowql.toml config file from your project root.
-
-```TOML
-[defaults]
-export = "json"
-no_intro = true
-```
-This allows you to standardize behavior across teams or CI environments.
+### `compliance` & `cost`
+Configures the environment bounds for dimensions that require external realities (like specific frameworks or pricing tiers) to calculate accurate diagnostics.
 
 ---
 
-## 🧪 Verify Configuration
+## Environment Variable Overrides
 
-Run SlowQL with verbose output to confirm your settings:
+SlowQL supports native, deeply nested environment variables by reading the `SLOWQL_` prefix and utilizing the standard double-underscore `__` separator for nesting schema definitions.
 
-```Bash
-slowql --input-file queries.sql --export json --output results.json --verbose
+This enables you to lock down the baseline config in Git via `slowql.yaml`, but override outputs dynamically in your CI runners:
+
+```bash
+# Force SARIF output despite what the YAML claims
+export SLOWQL_OUTPUT__FORMAT=sarif
+
+# Enforce strict parsing
+export SLOWQL_ANALYSIS__DIALECT=snowflake
+
+# Override cost parameters dynamically (e.g., in a cloud-specific runner)
+export SLOWQL_COST__COMPUTE_COST_PER_HOUR=2.50
+
+slowql src/
 ```
----
 
-## 🔗 Related Pages
-
-- [Installation](installation.md)
-- [First Analysis](first-analysis.md)
-- [CLI Reference](../user-guide/cli-reference.md)
+This flexibility prevents pipeline configurations from bleeding into developer local setups.

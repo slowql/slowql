@@ -1,90 +1,47 @@
-# Contributing
+# Contributing Workflow
 
-We welcome contributions to SlowQL! This guide explains how to propose changes, follow coding standards, and submit pull requests.
+First and foremost, thank you for your commitment to expanding SlowQL! 
 
----
+SlowQL's community aggressively pioneers the advancement of SQL static analysis against security vulnerabilities, unbounded resource consumption, and reliability regressions.
 
-## 🧱 Contribution Workflow
+## Standard Operational Workflow
 
-1. **Fork the repository**  
-2. **Clone your fork locally**  
-3. **Create a feature branch**  
-4. **Make changes and add tests**  
-5. **Run lint, type checks, and tests**  
-6. **Commit with a clear message**  
-7. **Push your branch**  
-8. **Open a pull request (PR)**
+1. **Fork the Upstream Repository:** Clone the repository under your personal GitHub domain.
+2. **Target Working Branches:** Checkout a clean branch structurally diverging from `main`:
+   ```bash
+   git checkout -b feat/add-clickhouse-cost-rule
+   ```
+3. **Execution & Implementation:** Develop your logic, strictly implementing `ASTRule` structures and explicit `sqlglot` traversal when applicable.
+4. **Mandatory Check Suites:** Prior to formulating a Pull Request, absolutely verify the local toolchain generates zero warnings:
+   ```bash
+   ruff format .
+   ruff check .
+   mypy src/slowql --strict
+   pytest
+   ```
+5. **Issue a Pull Request:** Deploy your logic towards the primary `main` axis.
 
----
+## Code Style Conventions
 
-## 📦 Clone and Branch
+The project repository relies natively on the automation capabilities established within `pyproject.toml` to settle syntax opinions natively natively offline.
 
-```Bash
-git clone https://github.com/makroumi/slowql.git  
-cd slowql  
-git checkout -b feature/my-detector
-```
+- **Formatting:** Administered purely via the Rust-based executable `ruff format`. Execute `ruff format .` prior to commits.
+- **Linting:** Verified entirely via `ruff check .`. All configurations including `flake8` bugs, unutilized scopes, and missing docstrings must resolve `0`.
+- **Typing Framework:** Dynamic Python types are rejected. Assert static signatures natively with `mypy --strict`.
+- **Topology Restrictions:** Native 100 character line boundaries enforced inherently.
 
----
+## Conventional Commits
 
-## 🧼 Code Standards
+We aggressively follow [Conventional Commits](https://www.conventionalcommits.org/) standards. Your underlying logic must explicitly map to these syntax limits:
 
-- Python 3.11+  
-- Ruff for linting  
-- Mypy for type checking  
-- Pytest for tests  
-- MkDocs Material for documentation  
+- `feat:` Newly exposed functionalities (e.g., adding a rule logic mapping).
+- `fix:` Engine pipeline repairs and AST traversal overrides.
+- `docs:` Internal documentation re-architecting.
+- `test:` Scaling test coverage across explicit rule modules.
+- `chore:` Internal CI/CD workflow patches, maintenance, packaging dependencies.
 
-Run checks locally:
+## Pull Requests
 
-```Bash
-ruff check slowql tests  
-mypy slowql  
-pytest
-```
+Isolate PRs dynamically indicating explicit changes. Include comprehensive operational boundaries proving your logic was executed offline natively. Cross-link corresponding issue IDs executing `Closes #123`.
 
----
-
-## 📋 Commit Messages
-
-Follow conventional commit style:
-
-- `feat:` → New feature  
-- `fix:` → Bug fix  
-- `docs:` → Documentation changes  
-- `test:` → Adding or updating tests  
-- `chore:` → Maintenance tasks  
-
-Example:
-
-```Bash
-git commit -m "feat(detectors): add select_star detector"
-```
-
----
-
-## 🧪 Pull Requests
-
-- Include a description of changes  
-- Reference related issues  
-- Ensure CI passes (lint, type, tests, docs)  
-- Add documentation for new features  
-
----
-
-## 🧠 Best Practices
-
-- Keep PRs small and focused  
-- Write tests for all new detectors  
-- Document changes in `CHANGELOG.md`  
-- Use draft PRs for work in progress  
-- Engage in code review discussions  
-
----
-
-## 🔗 Related Pages
-
-- [Setup](setup.md)  
-- [Testing](testing.md)  
-- [Adding Detectors](adding-detectors.md)  
-- [Release Process](release-process.md)  
+*Pull requests containing cascading compilation faults during internal execution testing checks will be immediately deferred.*
