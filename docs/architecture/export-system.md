@@ -1,94 +1,28 @@
-# SlowQL Design Decisions
+# Export System
 
-## Overview
-SlowQL was designed to be a **cyberpunk‑styled static SQL analyzer** that balances performance, extensibility, and developer experience. This document explains the key architectural choices.
+Once the SlowQL engine translates SQL files into arrays of `Issue` dataclasses via the Rules Pipeline, the final architectural step involves formatting and exporting these findings to either human operators or downstream pipeline consumers.
 
----
+This is fundamentally managed through subclasses of the `BaseReporter`.
 
-## 1. Language & Runtime
-- **Python 3.9+** chosen for ecosystem maturity, type hints, and async/thread support.
-- Ensures compatibility with modern tooling (pytest, mypy, ruff, bandit).
+## The BaseReporter Abstraction
+Every reporter must inherit from `slowql.reporters.base.BaseReporter` and implement the `report(result: AnalysisResult)` method. Repositories decoupling logic directly via dependency injection ensures that SlowQL can easily be extended into future output topologies (e.g., direct API payloads or Jira ticketing logic) simply by creating a new reporter class.
 
----
+## Current Subsystems
 
-## 2. Query Parsing
-- **sqlparse** selected for lightweight, dependency‑free SQL parsing.
-- Alternatives (ANTLR, custom parsers) were rejected due to complexity and overhead.
+### 1. `ConsoleReporter`
+The default system orchestrator intended for human end-users. Inheriting heavily from the `rich` UI library, `console.py` handles:
+- Printing cyberpunk-styled summary banners.
+- Rendering explicit SQL text snippets surrounding the vulnerable nodes.
+- Handling ANSI escape characters for precise coloring (red for Critical/High, yellow for Medium).
+- Aggregating statistical throughput metrics (elapsed analysis time, total files processed).
 
----
+### 2. `GitHubActionsReporter`
+Activated via `--format github-actions`. It strictly bypasses visual fluff and logs standardized string outputs (`::error file=bad_query.sql,line=4,col=1::Message`).
 
-## 3. Detector System
-- **Strategy Pattern** used for detectors:
-  - Each detector encapsulates one rule.
-  - Easy to add/remove detectors without touching core analyzer.
-- **Decorator‑based auto‑registration** ensures new detectors are discovered automatically.
-- **Thread pool execution** chosen for scalability (parallel analysis of multiple queries).
+GitHub Actions automatically intercepts these specific outputs on `STDOUT` and directly annotates the exact lines of code on internal PR diff views, making it completely effortless for developers to spot violations without opening logs.
 
----
+### 3. `JsonReporter`
+Standard serialization. Generates a robust, array-based `.json` output via `--export json`. Useful when coupling SlowQL internally into larger automated orchestration systems or security aggregation platforms that parse conventional text objects.
 
-## 4. Export Layer
-- **Factory Pattern** for exporters:
-  - Supports multiple formats (Terminal, HTML, JSON, CSV).
-  - Allows plugins for future formats (e.g., Markdown, PDF).
-- **Rich library** chosen for CLI output:
-  - Provides cyberpunk aesthetic with colors, animations, and matrix rain intro.
-
----
-
-## 5. CLI Experience
-- **argparse** chosen for simplicity and built‑in help.
-- **Matrix rain intro animation** added for branding and cinematic fidelity.
-- **SYSTEM ONLINE banner** ensures tests pass and provides professional status feedback.
-
----
-
-## 6. Testing & Quality
-- **pytest** for unit/integration tests.
-- **pytest‑cov** for coverage (96% achieved).
-- **ruff + black** for linting and formatting.
-- **mypy** for type safety.
-- **bandit + pip‑audit** for security scanning.
-
----
-
-## 7. CI/CD
-- GitHub Actions chosen for portability and enterprise trust.
-- Workflows include:
-  - `ci.yml` for tests, lint, type checks.
-  - `snyk.yml` for dependency scanning.
-  - `release.yml` for semantic release automation.
-  - `docs.yml` for MkDocs deployment.
-  - `docker.yml` for multi‑arch builds.
-
----
-
-## 8. Security
-- **Static analysis only** — no query execution.
-- **No network calls** — avoids data leaks.
-- **SBOM generation** via Anchore for supply chain transparency.
-- **Dependency review** workflow to block high‑severity packages.
-
----
-
-## 9. Performance
-- Target throughput: **1000+ queries/sec**.
-- Memory footprint: **<50MB typical usage**.
-- Cold start: **<200ms**.
-- Metrics system (`metrics.py`) tracks detector timings and parse time.
-
----
-
-## 10. Release Strategy
-- **Semantic Release** ensures automated versioning and changelog updates.
-- **PyPI + Docker multi‑arch** distribution for developer and enterprise adoption.
-- **MkDocs site** for documentation, deployed via CI.
-
----
-
-## Conclusion
-SlowQL’s design emphasizes:
-- **Extensibility** (easy to add detectors/exporters).
-- **Performance** (parallel execution, lightweight parsing).
-- **Security** (static analysis, SBOM, dependency review).
-- **Developer Experience** (linting, type checks, pre‑commit hooks).
-- **Aesthetic Branding** (cyberpunk CLI, cinematic intro).
+### 4. `SarifReporter`
+A highly structured format generated via `--export sarif`. **Static Analysis Results Interchange Format (SARIF)** is a widely accepted OASIS standard. Integrating this into GitHub’s `codeql-action` populates the "Security" tab inside GitHub repositories securely, classifying SQL injections alongside native CodeQL scanning results automatically.

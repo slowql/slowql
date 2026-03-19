@@ -1,69 +1,69 @@
 # First Analysis
 
-With SlowQL installed and configured, you are ready to run your first analysis. This page demonstrates how to analyze SQL queries using different modes and interpret the results.
+With SlowQL installed and configured, you are ready to execute your first static validation. This guide demonstrates how to analyze SQL queries across multiple execution modes and strictly interpret the resulting telemetry.
 
 ---
 
-## 🔍 Analyze a SQL File
+## Analyze a SQL File
 
-The most common workflow is analyzing a file containing queries:
+The fundamental workflow involves passing a SQL file (or an entire directory) directly to the engine:
 
-```Bash
-slowql --input-file queries.sql --fast
+```bash
+slowql queries.sql --fast
 ```
-This runs a quick analysis on all queries in `queries.sql`.
+The `--fast` flag disables terminal intro animations to accelerate the return of the analysis payload.
 
 ---
 
-## 🧠 Interactive Paste Mode
+## Interactive Paste Mode
 
-If you want to test a single query quickly, use paste mode:
+If you need to rapidly benchmark a floating query snippet outside of a file structure, utilize the clipboard mode:
 
-```Bash
-slowql --paste
+```bash
+slowql --mode paste
 ```
-Paste your SQL directly into the terminal when prompted. SlowQL will analyze it immediately.
+SlowQL will temporarily hand over STDIN, allowing you to paste your SQL payload directly into the terminal buffer for immediate parsing.
 
 ---
 
-## 📤 Export Results
+## Export Results
 
-You can export analysis results to different formats for reporting or automation:
+For auditing, compliance trails, or downstream security integrations, export your findings to standard serialization formats:
 
-```Bash
-slowql --input-file queries.sql --export json --output results.json
+```bash
+slowql queries.sql --export json sarif --out build/reports/
 ```
-Supported formats: `json`, `csv`, `html`.
+**Supported Formats:** `json`, `csv`, `html`, `sarif`.
+SlowQL will drop the respective serialized payloads (e.g. `slowql_report.json`) into the target `--out` directory while still printing the console summary.
 
 ---
 
-## 🛠️ CI/CD Safe Mode
+## CI/CD Safe Mode
 
-For automated pipelines, disable animations and run fast mode:
+When running strictly within a headless environment or GitHub Action, it is critical to lock down the UI and prevent pipeline hangups:
 
-```Bash
-slowql --no-intro --fast --input-file queries.sql --export json --output results.json
+```bash
+slowql src/ --non-interactive --fail-on high --format github-actions --export sarif --out artifacts/
 ```
-This ensures clean logs and machine‑readable output.
+- `--non-interactive`: **Mandatory.** Prevents the CLI from attempting to ask human operators for missing context (like forcing dialect selection).
+- `--fail-on high`: Instructs the engine to exit with a non-zero status code if `High` or `Critical` flaws are detected, failing the pipeline run natively.
 
 ---
 
-## 📈 Interpreting Results
+## Interpreting Results
 
-SlowQL categorizes findings by severity:
+SlowQL mathematically scores identified vulnerabilities across exactly four impact strata:
 
-- **Critical**: Queries that can cause severe performance or security issues.
-- **High**: Queries likely to degrade performance significantly.
-- **Medium**: Queries with moderate inefficiencies.
-- **Low**: Minor issues or style warnings.
-
-Results are displayed in the terminal and optionally exported.
+- **Critical:** Absolute blockers. Expected to trigger catastrophic data losses (`DELETE` without `WHERE`) or severe security exfiltration vectors.
+- **High:** Severe structural flaws guaranteeing latency degradation or non-compliance (missing critical indices on joined properties).
+- **Medium:** Suboptimal technical debt. Valid but excessively expensive querying patterns (e.g. nested subqueries instead of `CTEs`, arbitrary `SELECT *`).
+- **Low:** Aesthetic drift, stylistic non-conformity, or minute optimizations.
 
 ---
 
-## 🔗 Related Pages
+## Related Documentation
 
-- [Installation](installation.md)
-- [Configuration](configuration.md)
-- [CLI Reference](../user-guide/cli-reference.md)
-- [Detectors Overview](../detectors/overview.md)
+- [Installation](installation.md): Review global vs Docker deployment strategies.
+- [Configuration](configuration.md): Define ruleset boundaries inside `slowql.yaml`.
+- [CLI Reference](../usage/cli-reference.md): Read the exhaustive engine argument list.
+- [Rules Explorer](../rules/overview.md): Browse the granular 272 AST rules.

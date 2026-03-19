@@ -1,80 +1,81 @@
-# Testing
+# Testing Guidelines
 
-This guide explains how to run and extend tests for SlowQL. It covers unit tests, integration tests, coverage, and CI validation.
+SlowQL asserts an absolute operational confidence tier. Due to the high-risk environment static analyzers operate inside during continuous integration tracks, total test coverage across `ASTRule` structures is critically enforced preventing destructive deployment regressions.
 
----
+## Pipeline Executions
 
-## 🧪 Run All Tests
+We leverage the `pytest` orchestration network completely natively.
 
-```Bash
+**Execute the full suite targeting multiple Python topologies:**
+```bash
 pytest
 ```
 
-This runs all tests in the `tests/` directory using the default configuration.
-
----
-
-## 🧩 Test Structure
-
-- `tests/unit/` → Tests for individual components (parser, detectors, CLI)  
-- `tests/integration/` → End‑to‑end tests using real SQL files  
-- `tests/data/` → Sample SQL files used in tests  
-- `conftest.py` → Shared fixtures and test setup  
-
----
-
-## 🧼 Linting and Type Checks
-
-Run lint and type checks before committing:
-
-```Bash
-ruff check slowql tests  
-mypy slowql
+**Execute explicit modular targeting:**
+```bash
+pytest tests/unit/test_rules.py -v
 ```
 
----
+## AST Test Harnessing
 
-## 📊 Coverage Report
+Whenever deploying a new generic `PatternRule` or AST structural modification (`ASTRule`), explicit unit tests verifying logical execution bounds are inherently mandated.
 
-Generate a coverage report:
+Tests should be segmented rigorously under `tests/`.
 
-```Bash
-pytest --cov=slowql --cov-report=term-missing
+### The Core Mock Assistant
+To bypass massive engine initialization layers, utilize standard model artifacts simulating an active SQL document.
+
+```python
+from slowql.core.models import Location, Query
+
+_LOC = Location(line=1, column=1)
+
+def _q(sql: str, dialect: str, query_type: str = "SELECT") -> Query:
+    return Query(
+        raw=sql, 
+        normalized=sql, 
+        dialect=dialect, 
+        location=_LOC, 
+        query_type=query_type
+    )
 ```
 
-You’ll see which lines are untested and where to improve coverage.
+For logic inheriting from `ASTRule`, `sqlglot` AST objects must be initialized inside the mock to accurately trigger the engine's deeper parser layers:
 
----
+```python
+import sqlglot
 
-## 🧪 CI Validation
-
-SlowQL uses GitHub Actions to validate every push and pull request:
-
-- Lint  
-- Type check  
-- Unit + integration tests  
-- Docs build (strict mode)
-
-You can preview the same checks locally:
-
-```Bash
-make test-all
+def _ast_q(sql: str, dialect: str) -> Query:
+    try:
+        ast = sqlglot.parse_one(sql)
+    except Exception:
+        ast = None
+        
+    return Query(
+        raw=sql, 
+        normalized=sql, 
+        dialect=dialect, 
+        location=_LOC, 
+        query_type="SELECT", 
+        ast=ast
+    )
 ```
 
----
+### Required Assertion Boundaries
 
-## 🧠 Best Practices
+Enterprise coverage relies completely on defining absolute structural checks during pull requests.
 
-- Write tests for every new detector  
-- Use realistic SQL samples in `tests/data/`  
-- Keep unit tests fast and isolated  
-- Use `pytest.mark.parametrize` for edge cases  
-- Run `pytest` before every commit
+1. **True Positive Bounds:** Verify the rule aggressively identifies the explicit SQL syntax within its approved `Dialect` parameters.
+2. **False Positive Bounds:** Provide natively secure syntax proving the engine does not improperly label mathematically equivalent structures as vulnerabilities.
+3. **Dialect Segregation:** For dialect-restricted rules (e.g. `dialects = ("tsql",)`), assert the exact string payload provided against an unapproved dialect (e.g. `postgresql`) implicitly bypasses execution constraints gracefully.
+4. **Resilient Assertions:** Because the internal rules framework routinely scales dynamically, never hardcode scalar quantities during catalog verification models:
 
----
+**Correct Validation Schema:**
+```python
+assert len(get_all_rules()) >= 270
+```
 
-## 🔗 Related Pages
-
-- [Setup](setup.md)  
-- [Contributing](contributing.md)  
-- [Adding Detectors](adding-detectors.md)  
+**Fatal Schema (`Breaks during next rule addition`):**
+```python
+assert len(get_all_rules()) == 272
+```

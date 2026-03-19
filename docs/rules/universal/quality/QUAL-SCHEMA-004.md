@@ -1,0 +1,14 @@
+# Float for Currency (QUAL-SCHEMA-004)
+
+**Dimension**: Quality
+**Severity**: High
+**Scope**: Universal (All Dialects)
+
+## Description
+Float/Double types use binary floating-point math which leads to rounding errors (e.g., 0.1 + 0.2 != 0.3). This is catastrophic for financial data.
+
+**Rationale:**
+Documentation for this rule's rationale is pending.
+
+## Remediation / Fix
+Use DECIMAL or NUMERIC for currency. Or store as integer (cents/pence). Never use floating point types for money.

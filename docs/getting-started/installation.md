@@ -1,48 +1,71 @@
 # Installation
 
-SlowQL can be installed in multiple ways depending on your environment and workflow. This page covers installation from **PyPI**, **Docker (GHCR)**, and **GitHub Releases**.
+As an embedded enterprise analyzer, SlowQL provides native deployment trajectories tailored for local developer laptops, headless CI/CD runners, and Docker ecosystems.
+
+## Prerequisites
+
+- **Python**: `3.11` or newer.
+- Operating System: Multi-platform (Linux, macOS, Windows).
 
 ---
 
-## 📦 Install from PyPI
+## Install from PyPI (Recommended)
 
-The simplest way to install SlowQL is via pip:
+The standard track for local development is via Python's package manager.
 
-```Bash
+```bash
 pip install slowql
 ```
-This will install the latest stable release directly from [PyPI](https://pypi.org/project/slowql/).
+
+### Feature Extras
+By default, the core engine installs cleanly via `sqlglot` keeping its footprint nominal. To unlock auxiliary integrations, append the designated extra tags:
+
+- **LSP Integration**: `pip install "slowql[lsp]"` (Injects `pygls` routing to power the VS Code and Neovim Editor plugins).
+- **Terminal UI**: `pip install "slowql[interactive]"` (Injects `readchar` to allow manual terminal overrides).
+- **The Kitchen Sink**: `pip install "slowql[all]"` (Loads all features seamlessly).
 
 ---
 
-## 🐳 Install via Docker (GHCR)
+## Install via Docker (GHCR)
 
-SlowQL is also available as a container image hosted on GitHub Container Registry (GHCR):
+To enforce strict version immutability in CI/CD pipelines without resolving Python environments natively, pull the GitHub Container Registry image:
 
-```Bash
+```bash
 docker pull ghcr.io/makroumi/slowql:latest
-docker run --rm -it ghcr.io/makroumi/slowql --help
 ```
-This method is ideal for isolated environments or CI/CD pipelines.
 
----
-
-## 🧬 Install from GitHub Releases
-
-You can download prebuilt binaries or source archives from the [GitHub Releases](https://github.com/makroumi/slowql/releases) page.
-
-```Bash
-wget https://github.com/makroumi/slowql/releases/download/v1.0.0/slowql-linux-amd64
-chmod +x slowql-linux-amd64
-./slowql-linux-amd64 --help
+**Executing against workspace geometries:**
+```bash
+docker run --rm -v $(pwd):/workspace -w /workspace ghcr.io/makroumi/slowql:latest \
+  --non-interactive \
+  --fail-on high \
+  --dialect postgresql \
+  schemas/*.sql
 ```
 
 ---
 
-## ✅ Verify Installation
+## Contributing & Source Construction
 
+To install SlowQL exclusively for modifying the rule engine, or interacting with the `tests/` suites directly:
 
-```Bash
+```bash
+# Clone the central project
+git clone https://github.com/makroumi/slowql.git
+cd slowql
+
+# Install natively in explicitly editable mode targeting Developer tooling
+pip install -e ".[dev]"
+```
+*(The `dev` bundle ships with `pytest`, `mypy`, `ruff`, and testing stubs)*.
+
+---
+
+## Verifying the Installation 
+
+Confirm whether the parsing binaries are accurately bound to your `$PATH`:
+
+```bash
 slowql --version
+# Outputs: SlowQL Version 1.6.0
 ```
-You should see the current version number printed to the terminal.
