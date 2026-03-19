@@ -94,6 +94,7 @@ class CaseWithoutElseRule(ASTRule):
 
     id = "QUAL-MODERN-004"
     name = "CASE Without ELSE"
+    remediation_mode = RemediationMode.SAFE_APPLY
     description = (
         "A CASE expression without ELSE returns NULL when no condition "
         "matches. This is a frequent source of unexpected NULLs that "
@@ -127,3 +128,33 @@ class CaseWithoutElseRule(ASTRule):
                         snippet=str(node)[:80],
                     ))
         return issues
+
+    def suggest_fix(self, query: Query) -> Fix | None:
+        """Append ELSE NULL before END in CASE expressions without ELSE."""
+        # Find CASE ... END without ELSE
+        # Match the last END that closes a CASE without ELSE
+        match = re.search(
+            r"\b(CASE\b(?:(?!\bCASE\b).)*?)\b(END)\b",
+            query.raw,
+            re.IGNORECASE | re.DOTALL,
+        )
+        if not match:
+            return None
+        full = match.group(0)
+        # Check if ELSE already exists
+        if re.search(r"\bELSE\b", full, re.IGNORECASE):
+            return None
+        # Replace END with ELSE NULL END
+        original_end = match.group(2)
+        start_of_end = match.start(2)
+        end_of_end = match.end(2)
+        return Fix(
+            description="Add explicit ELSE NULL (matches implicit SQL behavior)",
+            original=original_end,
+            replacement="ELSE NULL END",
+            confidence=FixConfidence.SAFE,
+            is_safe=True,
+            rule_id=self.id,
+            start=start_of_end,
+            end=end_of_end,
+        )

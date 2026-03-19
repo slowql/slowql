@@ -244,6 +244,7 @@ class PgDoBlockWithoutLanguageRule(PatternRule):
 
     id = "QUAL-PG-001"
     name = "DO Block Without LANGUAGE"
+    remediation_mode = RemediationMode.SAFE_APPLY
     description = (
         "PostgreSQL DO blocks should specify LANGUAGE explicitly. Without "
         "it, PostgreSQL defaults to plpgsql but this is implicit and "
@@ -265,6 +266,29 @@ class PgDoBlockWithoutLanguageRule(PatternRule):
         "Add LANGUAGE plpgsql: DO $$ BEGIN ... END $$ LANGUAGE plpgsql;"
     )
 
+
+    def suggest_fix(self, query: Query) -> Fix | None:
+        """Append LANGUAGE plpgsql to DO $$ blocks."""
+        # Match DO $$ ... $$ without LANGUAGE
+        match = re.search(r"(\$\$\s*;?)\s*$", query.raw.rstrip(), re.IGNORECASE)
+        if not match:
+            return None
+        # Verify LANGUAGE is not already present
+        if re.search(r"\bLANGUAGE\b", query.raw, re.IGNORECASE):
+            return None
+        original = match.group(0)
+        replacement = match.group(1) if match.group(1).endswith(";") else match.group(1) + " LANGUAGE plpgsql;"
+        if match.group(1).endswith(";"):
+            # Replace trailing ; with LANGUAGE plpgsql;
+            replacement = match.group(1)[:-1] + " LANGUAGE plpgsql;"
+        return Fix(
+            description="Add explicit LANGUAGE plpgsql",
+            original=original,
+            replacement=replacement,
+            confidence=FixConfidence.SAFE,
+            is_safe=True,
+            rule_id=self.id,
+        )
 
 class RedshiftDiststyleAllRule(PatternRule):
     """Detects DISTSTYLE ALL on potentially large tables in Redshift."""
