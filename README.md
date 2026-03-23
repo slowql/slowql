@@ -258,6 +258,20 @@ Because issues are fingerprinted via content hashes, standard edits like appendi
 
 ---
 
+## Git-Aware Analysis
+
+In CI environments, running static analysis over thousands of files on every commit is slow and unnecessary. SlowQL supports git-aware analysis to cleanly skip untouched files.
+
+```bash
+# Only analyze files that are changed, staged, or untracked
+slowql . --git-diff
+
+# Analyze files changed since branching off main
+slowql . --since main
+```
+
+---
+
 ## CLI Usage
 
 ### Primary Flags
@@ -268,6 +282,8 @@ Because issues are fingerprinted via content hashes, standard edits like appendi
 --update-baseline  Update/create the baseline file
 --fail-on          Failure threshold: critical, high, medium, low, info, never
 --non-interactive  Suppress spinners and interactive prompts
+--git-diff         Only analyze files changed in the current workspace
+--since            Analyze files changed since a specific git revision (e.g. main)
 ```
 
 ### Output Control
