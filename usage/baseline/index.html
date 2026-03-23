@@ -9,10 +9,6 @@
       
       
       
-        <link rel="prev" href="../../getting-started/first-analysis/">
-      
-      
-        <link rel="next" href="../suppression/">
       
       
         
@@ -23,7 +19,7 @@
     
     
       
-        <title>CLI Reference - SlowQL Documentation</title>
+        <title>Baseline / Diff Mode - SlowQL Documentation</title>
       
     
     
@@ -64,7 +60,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#cli-reference" class="md-skip">
+        <a href="#baseline-diff-mode" class="md-skip">
           Skip to content
         </a>
       
@@ -97,7 +93,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              CLI Reference
+              Baseline / Diff Mode
             
           </span>
         </div>
@@ -211,13 +207,11 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="./" class="md-tabs__link">
+      <li class="md-tabs__item">
+        <a href="../cli-reference/" class="md-tabs__link">
           
   
   
@@ -599,10 +593,8 @@
       
   
   
-    
   
   
-  
     
     
       
@@ -620,20 +612,17 @@
     
     
       
-        
-        
-      
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
         
           
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
             
   
   
@@ -651,7 +640,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
@@ -666,37 +655,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    CLI Reference
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../cli-reference/" class="md-nav__link">
         
   
   
@@ -712,114 +674,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#execution-syntax" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Execution Syntax
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#input-target-selection" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Input &amp; Target Selection
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#analysis-configuration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Analysis Configuration
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#output-formatting" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Output &amp; Formatting
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#safe-autofix-system" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Safe Autofix System
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#rule-introspection" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Rule Introspection
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#inline-suppression" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Inline Suppression
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#enterprise-examples" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Enterprise Examples
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -14855,10 +14709,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#execution-syntax" class="md-nav__link">
+  <a href="#how-it-works" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Execution Syntax
+        How It Works
       
     </span>
   </a>
@@ -14866,10 +14720,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#input-target-selection" class="md-nav__link">
+  <a href="#1-creating-a-baseline" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Input &amp; Target Selection
+        1. Creating a Baseline
       
     </span>
   </a>
@@ -14877,10 +14731,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#analysis-configuration" class="md-nav__link">
+  <a href="#2-using-the-baseline-diff-mode" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Analysis Configuration
+        2. Using the Baseline (Diff Mode)
       
     </span>
   </a>
@@ -14888,10 +14742,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#output-formatting" class="md-nav__link">
+  <a href="#3-updating-the-baseline" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Output &amp; Formatting
+        3. Updating the Baseline
       
     </span>
   </a>
@@ -14899,43 +14753,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#safe-autofix-system" class="md-nav__link">
+  <a href="#example-cicd-workflow-github-actions" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Safe Autofix System
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#rule-introspection" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Rule Introspection
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#inline-suppression" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Inline Suppression
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#enterprise-examples" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Enterprise Examples
+        Example CI/CD Workflow (GitHub Actions)
       
     </span>
   </a>
@@ -14959,292 +14780,60 @@
 
 
 
-<h1 id="cli-reference">CLI Reference</h1>
-<p>The SlowQL Command Line Interface (CLI) is the primary method for executing static analysis workflows. Engineered for both interactive human usage and headless CI/CD operations, the CLI exposes the full capabilities of the SlowQL engine.</p>
+<h1 id="baseline-diff-mode">Baseline / Diff Mode</h1>
+<p>Baseline (Diff) Mode allows teams to capture a snapshot of all existing issues in a codebase on day one, so that SlowQL only reports <strong>new</strong> issues on future runs. This is critical for adopting SlowQL in large, existing codebases without overwhelming developers with legacy warnings.</p>
+<p>Analogous to SonarQube's "New Code Period", this feature ensures you stop the bleeding first, and incrementally fix the baseline over time.</p>
+<h2 id="how-it-works">How It Works</h2>
+<p>SlowQL generates a <code>.slowql-baseline</code> JSON file that contains a unique "fingerprint" for every issue currently in your code. </p>
+<p>When you run SlowQL in <strong>Baseline Mode</strong>, it compares the issues it finds against the fingerprints in <code>.slowql-baseline</code>. 
+- If an issue is already in the baseline, it is <strong>suppressed</strong>.
+- If an issue is new (or has been modified), it is <strong>reported</strong>.</p>
+<p>The fingerprint is stable and ignores line numbers, meaning whitespace changes or adding/removing lines of code above the issue will <em>not</em> cause baseline issues to suddenly be reported again.</p>
 <hr />
-<h2 id="execution-syntax">Execution Syntax</h2>
-<p>The CLI accepts configuration via explicit flags or positional arguments.</p>
-<pre><code class="language-bash">slowql [OPTIONS] [FILE] [EXTRA_FILES...]
+<h2 id="1-creating-a-baseline">1. Creating a Baseline</h2>
+<p>To generate your initial baseline file, use the <code>--update-baseline</code> flag. This will analyze your codebase, save all found issues to the baseline file, and exit with a <code>0</code> code.</p>
+<pre><code class="language-bash"># Generate a baseline for the entire `queries/` directory
+slowql queries/ --update-baseline
 </code></pre>
-<blockquote>
-<p>[!TIP]
-If no file is provided, SlowQL will default to interactive mode unless <code>--non-interactive</code> is passed.</p>
-</blockquote>
+<p>By default, this creates a <code>.slowql-baseline</code> file in your current directory. You can specify a custom path if needed:</p>
+<pre><code class="language-bash">slowql queries/ --update-baseline path/to/my-custom-baseline.json
+</code></pre>
+<p>It is recommended to <strong>commit the <code>.slowql-baseline</code> file to your version control system (e.g., Git)</strong> so that all developers and CI/CD pipelines share the same baseline.</p>
 <hr />
-<h2 id="input-target-selection">Input &amp; Target Selection</h2>
-<p>These arguments define the scope of the analysis.</p>
-<table>
-<thead>
-<tr>
-<th>Flag</th>
-<th>Description</th>
-<th>Default</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>[file]</code></td>
-<td>The primary SQL file or directory to parse (positional argument).</td>
-<td>None</td>
-</tr>
-<tr>
-<td><code>[extra_files...]</code></td>
-<td>Additional SQL files. Typically used by systems like <code>pre-commit</code> which pass arrays of changed files.</td>
-<td>None</td>
-</tr>
-<tr>
-<td><code>--input-file PATH</code></td>
-<td>Explicitly define the target file (alias for the positional <code>file</code> argument).</td>
-<td>None</td>
-</tr>
-<tr>
-<td><code>--init</code></td>
-<td>Launches an interactive wizard to scaffold a <code>slowql.yaml</code> configuration profile in the current directory.</td>
-<td><code>False</code></td>
-</tr>
-<tr>
-<td><code>--mode</code></td>
-<td>Editor mode selection: <code>{auto, paste, compose}</code>. <code>auto</code> detects a TTY terminal and switches to <code>compose</code> for multi-line SQL input.</td>
-<td><code>auto</code></td>
-</tr>
-</tbody>
-</table>
+<h2 id="2-using-the-baseline-diff-mode">2. Using the Baseline (Diff Mode)</h2>
+<p>Once the baseline is created, you can run SlowQL in Baseline Mode using the <code>--baseline</code> flag.</p>
+<pre><code class="language-bash"># Only report NEW issues not in the baseline
+slowql queries/ --baseline
+</code></pre>
+<p>If issues are found but they are all present in the baseline, SlowQL will exit successfully (code <code>0</code>), allowing your CI pipeline to pass.</p>
+<p>You will see a dim message indicating how many legacy issues were suppressed:</p>
+<pre><code class="language-text">✓ Analysis complete: 0 issues found
+64 issues suppressed by baseline.
+</code></pre>
 <hr />
-<h2 id="analysis-configuration">Analysis Configuration</h2>
-<p>Modify how the parsing engine and rule registry inspect the queries.</p>
-<table>
-<thead>
-<tr>
-<th>Flag</th>
-<th>Description</th>
-<th>Default</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>--dialect</code>, <code>-d</code></td>
-<td>Forces a specific SQL dialect parser. Valid options: <code>postgresql</code>, <code>mysql</code>, <code>tsql</code>, <code>oracle</code>, <code>snowflake</code>, <code>bigquery</code>, <code>redshift</code>, <code>clickhouse</code>, <code>duckdb</code>, <code>presto</code>, <code>trino</code>, <code>spark</code>, <code>databricks</code>.</td>
-<td><em>Auto-detected</em></td>
-</tr>
-<tr>
-<td><code>--schema</code>, <code>-s</code></td>
-<td>Path to a DDL schema file (<code>.sql</code>). Enables schema-aware rules (e.g. validating missing columns or tables).</td>
-<td>None</td>
-</tr>
-<tr>
-<td><code>--baseline</code></td>
-<td>Path to a <code>.slowql-baseline</code> file. When provided, SlowQL only reports new issues not found in the baseline.</td>
-<td><code>None</code></td>
-</tr>
-<tr>
-<td><code>--update-baseline</code></td>
-<td>Analyzes target files and writes all found issues to the specified baseline file, exiting successfully.</td>
-<td><code>None</code></td>
-</tr>
-<tr>
-<td><code>--fail-on</code></td>
-<td>Threshold for returning a non-zero exit code (Pipeline failure). Options: <code>{critical, high, medium, low, info, never}</code>.</td>
-<td><code>high</code></td>
-</tr>
-<tr>
-<td><code>--no-cache</code></td>
-<td>Disables internal AST caching during the run. Useful for benchmarking or bypassing stale tokens.</td>
-<td><code>False</code></td>
-</tr>
-<tr>
-<td><code>--compare</code></td>
-<td>Enables query comparison mode for performance profiling between two SQL statements.</td>
-<td><code>False</code></td>
-</tr>
-</tbody>
-</table>
-<hr />
-<h2 id="output-formatting">Output &amp; Formatting</h2>
-<p>Control how SlowQL serializes and reports identified vulnerabilities.</p>
-<table>
-<thead>
-<tr>
-<th>Flag</th>
-<th>Description</th>
-<th>Default</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>--format</code></td>
-<td>The standard output (STDOUT) reporter. Options: <code>console</code> (Rich UI), <code>github-actions</code> (native PR annotations), <code>sarif</code> (raw JSON).</td>
-<td><code>console</code></td>
-</tr>
-<tr>
-<td><code>--export</code></td>
-<td>Auto-export formats saved to disk post-analysis. Options: <code>html</code>, <code>csv</code>, <code>json</code>, <code>sarif</code>. Multiple formats can be stacked (e.g. <code>--export json sarif</code>).</td>
-<td>None</td>
-</tr>
-<tr>
-<td><code>--out</code></td>
-<td>Output directory destination for the generated export files.</td>
-<td><code>./</code></td>
-</tr>
-<tr>
-<td><code>--verbose</code></td>
-<td>Output granular tracebacks, AST token arrays, and parser internals.</td>
-<td><code>False</code></td>
-</tr>
-<tr>
-<td><code>--export-session</code></td>
-<td>Dumps the active session history explicitly, highly useful for diagnosing headless CI environments.</td>
-<td><code>False</code></td>
-</tr>
-</tbody>
-</table>
-<hr />
-<h2 id="safe-autofix-system">Safe Autofix System</h2>
-<p>SlowQL can actively modify your raw SQL files by applying <code>RemediationMode.SAFE_APPLY</code> logic.</p>
-<blockquote>
-<p>[!WARNING]
-Due to the inherent risks of automated code modification, the <code>--fix</code> parameter currently only executes on a <strong>single file</strong> at a time. It will safely generate a <code>.bak</code> backup copy of the original payload prior to modification.</p>
-</blockquote>
-<table>
-<thead>
-<tr>
-<th>Flag</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>--diff</code></td>
-<td>Previews the exact textual changes and Git-style diffs for safe fixes in your terminal without touching the disk.</td>
-</tr>
-<tr>
-<td><code>--fix</code></td>
-<td>Overwrites the target file with safe fixes, generating a <code>&lt;filename&gt;.bak</code> backup securely in the same directory.</td>
-</tr>
-<tr>
-<td><code>--fix-report PATH</code></td>
-<td>Generates a structured JSON receipt detailing exactly which bytes were mutated during the fix execution.</td>
-</tr>
-</tbody>
-</table>
-<hr />
-<h2 id="rule-introspection">Rule Introspection</h2>
-<p>Inspect the internal metadata of the 272 built-in rules without executing analysis.</p>
-<table>
-<thead>
-<tr>
-<th>Flag</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>--list-rules</code></td>
-<td>Outputs a tabular grid of every active rule loaded into the registry.</td>
-</tr>
-<tr>
-<td><code>--explain RULE_ID</code></td>
-<td>Renders the complete documentation, rationale, and remediation guidance for a specific Issue ID (e.g. <code>slowql --explain PERF-SCAN-001</code>).</td>
-</tr>
-<tr>
-<td><code>--filter-dimension</code></td>
-<td>Filters <code>--list-rules</code> tabular output to a specific dimension natively (e.g. <code>cost</code>, <code>security</code>).</td>
-</tr>
-<tr>
-<td><code>--filter-dialect</code></td>
-<td>Filters <code>--list-rules</code> by a specific datastore capability (e.g. <code>mysql</code>).</td>
-</tr>
-</tbody>
-</table>
-<hr />
-<h2 id="inline-suppression">Inline Suppression</h2>
-<p>Rules can be silenced on a per-line, per-block, or per-file basis using directives written directly in SQL comments. This does not require any configuration file changes.</p>
-<table>
-<thead>
-<tr>
-<th>Directive</th>
-<th>Scope</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>-- slowql-disable-line RULE-ID</code></td>
-<td>The line the comment appears on</td>
-</tr>
-<tr>
-<td><code>-- slowql-disable-next-line RULE-ID</code></td>
-<td>The next non-blank, non-comment line</td>
-</tr>
-<tr>
-<td><code>-- slowql-disable RULE-ID</code></td>
-<td>All lines until a matching <code>-- slowql-enable</code></td>
-</tr>
-<tr>
-<td><code>-- slowql-enable RULE-ID</code></td>
-<td>Closes an open block suppression</td>
-</tr>
-<tr>
-<td><code>-- slowql-disable-file RULE-ID</code></td>
-<td>The entire file</td>
-</tr>
-</tbody>
-</table>
-<p>The rule ID may be an exact identifier (<code>PERF-SCAN-001</code>), a prefix (<code>PERF-SCAN</code>), comma-separated values (<code>PERF-SCAN-001, SEC-INJ-001</code>), or omitted entirely to suppress all rules for the given scope. Matching is case-insensitive.</p>
-<pre><code class="language-sql">SELECT * FROM archive;  -- slowql-disable-line PERF-SCAN-001
+<h2 id="3-updating-the-baseline">3. Updating the Baseline</h2>
+<p>Over time, you will likely fix existing issues or perhaps decide to intentionally ignore a new batch of issues. To sync the baseline with the current state of your codebase, simply re-run the update command:</p>
+<pre><code class="language-bash"># Overwrite the baseline with the current set of issues
+slowql queries/ --update-baseline
+</code></pre>
+<h2 id="example-cicd-workflow-github-actions">Example CI/CD Workflow (GitHub Actions)</h2>
+<p>Here is a typical way to integrate Baseline Mode into your CI/CD pipeline:</p>
+<pre><code class="language-yaml">name: SlowQL Analysis
+on: [push, pull_request]
 
--- slowql-disable-next-line SEC-INJ-001
-SELECT id, token FROM sessions WHERE id = $1;
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
--- slowql-disable PERF-SCAN-001
-SELECT * FROM event_stream;
-SELECT * FROM session_log;
--- slowql-enable PERF-SCAN-001
+      - name: Install SlowQL
+        run: pip install slowql
+
+      - name: Run SlowQL in Baseline Mode
+        run: slowql src/ --baseline
 </code></pre>
-<p>See <a href="../suppression/">Inline Suppression</a> for the full reference.</p>
-<hr />
-<p>Modify the aesthetic triggers, critical for continuous integration.</p>
-<table>
-<thead>
-<tr>
-<th>Flag</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>--non-interactive</code></td>
-<td><strong>Mandatory for CI/CD</strong>. Prevents SlowQL from blocking the runner by pausing for missing user inputs or dialect confirmations.</td>
-</tr>
-<tr>
-<td><code>--no-intro</code></td>
-<td>Skips the startup Cyberpunk banner sequence.</td>
-</tr>
-<tr>
-<td><code>--fast</code></td>
-<td>Deactivates CLI animations and typing layout effects for rapid execution.</td>
-</tr>
-<tr>
-<td><code>--duration SECS</code></td>
-<td>Overrides the intro animation timing.</td>
-</tr>
-</tbody>
-</table>
-<hr />
-<h2 id="enterprise-examples">Enterprise Examples</h2>
-<p><strong>Headless CI/CD Pipeline Execution:</strong></p>
-<pre><code class="language-bash">slowql src/**/*.sql \
-  --non-interactive \
-  --fail-on high \
-  --format github-actions \
-  --export sarif \
-  --out build/security-reports/
-</code></pre>
-<p><strong>Discovering Snowflake Cost Inefficiencies:</strong></p>
-<pre><code class="language-bash">slowql --list-rules --filter-dialect snowflake --filter-dimension cost
-slowql --explain COST-SF-001
-</code></pre>
-<p><strong>Safely applying automated fixes with a JSON receipt:</strong></p>
-<pre><code class="language-bash">slowql database/migrations/v2.sql --fix --fix-report fix_receipt.json
-</code></pre>
+<p>In this setup, developers can introduce new code without having to fix every pre-existing SlowQL warning, but any <em>new</em> violations they introduce will cause the build to fail.</p>
 
 
 
