@@ -746,6 +746,7 @@ def _handle_sql_input(  # noqa: PLR0912
     is_tty: bool,
     engine: SlowQL,
     enable_comparison: bool,
+    changed_files: set[Path] | None = None,
 ) -> tuple[str | None, bool]:
     """Get SQL payload from files or user input and update first_run status."""
     sql_payload: str | None = ""
@@ -759,9 +760,13 @@ def _handle_sql_input(  # noqa: PLR0912
                 # Read all .sql files in directory
                 sql_files = sorted(path.glob("*.sql"))
                 for sf in sql_files:
+                    if changed_files is not None and sf.resolve() not in changed_files:
+                        continue
                     console.print(f"[dim]Reading {sf.name}...[/dim]")
                     sql_parts.append(sf.read_text(encoding="utf-8"))
             else:
+                if changed_files is not None and path.resolve() not in changed_files:
+                    continue
                 sql_parts.append(path.read_text(encoding="utf-8"))
 
         if not sql_parts:
@@ -978,6 +983,8 @@ def run_analysis_loop(  # noqa: PLR0912, PLR0915
     initial_input_files: list[Path] | None = None,
     schema_file: Path | None = None,
     dialect: str | None = None,
+    git_diff: bool = False,
+    since: str | None = None,
 ) -> int:
     """
     Main execution pipeline with interactive loop
@@ -1035,6 +1042,13 @@ def run_analysis_loop(  # noqa: PLR0912, PLR0915
         overrides["analysis"]["dialect"] = resolved_dialect
         engine = SlowQL(config=config.with_overrides(**overrides), schema=loaded_schema)
 
+    changed_files: set[Path] | None = None
+    if git_diff or since:
+        from slowql.utils.git import get_changed_files  # noqa: PLC0415
+        changed_files = get_changed_files(since=since)
+        if not machine_readable:
+            console.print(f"[dim]Git-aware mode: analyzing {len(changed_files)} changed file(s).[/dim]")
+
     first_run = True
     current_input_files: list[Path] | None = initial_input_files
     if current_input_files is None and initial_input_file is not None:
@@ -1046,7 +1060,7 @@ def run_analysis_loop(  # noqa: PLR0912, PLR0915
         try:
             sql_payload: str | None
             sql_payload, should_continue = _handle_sql_input(
-                first_run, current_input_files, non_interactive, mode, is_tty, engine, enable_comparison
+                first_run, current_input_files, non_interactive, mode, is_tty, engine, enable_comparison, changed_files
             )
 
             if should_continue:
@@ -1543,6 +1557,12 @@ def build_argparser() -> argparse.ArgumentParser:
     # Analysis options
     analysis_group = p.add_argument_group("Analysis Options")
     analysis_group.add_argument(
+        "--git-diff", action="store_true", help="Only analyze files changed in the git branch/PR"
+    )
+    analysis_group.add_argument(
+        "--since", type=str, help="Analyze files changed since specific git revision (e.g. main)"
+    )
+    analysis_group.add_argument(
         "--no-cache", action="store_true", help="Disable query result caching"
     )
     analysis_group.add_argument(
@@ -1798,6 +1818,11 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0912, PLR0915
     update_baseline_path = args_dict.get("update_baseline", None)
     if update_baseline_path:
         loop_kwargs["update_baseline_path"] = update_baseline_path
+
+    if args_dict.get("git_diff"):
+        loop_kwargs["git_diff"] = True
+    if args_dict.get("since"):
+        loop_kwargs["since"] = args_dict["since"]
 
     return run_analysis_loop(**loop_kwargs)
 
