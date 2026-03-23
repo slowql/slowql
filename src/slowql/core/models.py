@@ -544,6 +544,7 @@ class AnalysisResult:
     timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
     version: str = "2.0.0"
     config_hash: str | None = None
+    suppressed_count: int = 0
 
     def __post_init__(self) -> None:
         """Update statistics based on issues."""

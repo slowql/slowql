@@ -22,6 +22,7 @@ from slowql.core.models import (
     Issue,
     Query,
 )
+from slowql.core.suppressions import parse_suppressions
 from slowql.parser.universal import UniversalParser
 from slowql.schema.inspector import SchemaInspector
 
@@ -213,11 +214,23 @@ class SlowQL:
         result.statistics.parse_time_ms = parse_time_ms
 
         # Run analyzers
-        issues = self._run_analyzers(queries)
+        raw_issues = self._run_analyzers(queries)
 
-        # Add issues to result
+        # Apply inline suppression directives
+        suppressed_count = 0
+        suppression_map = parse_suppressions(sql)
+        issues: list[Issue] = []
+        for issue in raw_issues:
+            if suppression_map.is_suppressed(issue.location.line, issue.rule_id):
+                suppressed_count += 1
+            else:
+                issues.append(issue)
+
+        # Add surviving issues to result
         for issue in issues:
             result.add_issue(issue)
+
+        result.suppressed_count = suppressed_count
 
         # Finalize timing
         result.statistics.analysis_time_ms = (time.perf_counter() - start_time) * 1000

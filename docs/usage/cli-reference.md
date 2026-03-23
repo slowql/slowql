@@ -87,7 +87,36 @@ Inspect the internal metadata of the 272 built-in rules without executing analys
 
 ---
 
-## UI & Headless States
+## Inline Suppression
+
+Rules can be silenced on a per-line, per-block, or per-file basis using directives written directly in SQL comments. This does not require any configuration file changes.
+
+| Directive | Scope |
+|---|---|
+| `-- slowql-disable-line RULE-ID` | The line the comment appears on |
+| `-- slowql-disable-next-line RULE-ID` | The next non-blank, non-comment line |
+| `-- slowql-disable RULE-ID` | All lines until a matching `-- slowql-enable` |
+| `-- slowql-enable RULE-ID` | Closes an open block suppression |
+| `-- slowql-disable-file RULE-ID` | The entire file |
+
+The rule ID may be an exact identifier (`PERF-SCAN-001`), a prefix (`PERF-SCAN`), comma-separated values (`PERF-SCAN-001, SEC-INJ-001`), or omitted entirely to suppress all rules for the given scope. Matching is case-insensitive.
+
+```sql
+SELECT * FROM archive;  -- slowql-disable-line PERF-SCAN-001
+
+-- slowql-disable-next-line SEC-INJ-001
+SELECT id, token FROM sessions WHERE id = $1;
+
+-- slowql-disable PERF-SCAN-001
+SELECT * FROM event_stream;
+SELECT * FROM session_log;
+-- slowql-enable PERF-SCAN-001
+```
+
+See [Inline Suppression](suppression.md) for the full reference.
+
+---
+
 
 Modify the aesthetic triggers, critical for continuous integration.
 

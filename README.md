@@ -210,6 +210,36 @@ Examples of safe autofixes:
 
 ---
 
+## Inline Suppression
+
+Rules can be silenced on a per-line, per-block, or per-file basis using directives written directly in SQL comments. No configuration file changes are required.
+
+```sql
+SELECT * FROM archive;  -- slowql-disable-line PERF-SCAN-001
+
+-- slowql-disable-next-line SEC-INJ-001
+SELECT id, token FROM sessions WHERE id = $1;
+
+-- slowql-disable PERF-SCAN
+SELECT * FROM event_stream;
+SELECT * FROM session_log;
+-- slowql-enable PERF-SCAN
+
+-- slowql-disable-file REL-001
+```
+
+| Directive | Scope |
+|---|---|
+| `-- slowql-disable-line RULE-ID` | Current line only |
+| `-- slowql-disable-next-line RULE-ID` | Next non-blank line |
+| `-- slowql-disable RULE-ID` | Open block until matching `enable` or EOF |
+| `-- slowql-enable RULE-ID` | Closes an open block |
+| `-- slowql-disable-file RULE-ID` | Entire file |
+
+The rule ID may be an exact identifier, a prefix, comma-separated values, or omitted entirely to suppress all rules for that scope. Matching is case-insensitive.
+
+---
+
 ## CLI Usage
 
 ### Primary Flags
