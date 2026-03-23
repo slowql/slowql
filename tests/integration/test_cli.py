@@ -197,6 +197,12 @@ def test_cli_nonfast_path(monkeypatch, sample_sql_file, capsys):
 # __main__ entrypoint
 # -------------------------------
 def test_cli_main_entrypoint(sample_sql_file):
+    import os
+    from pathlib import Path
+
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(Path("src").resolve())
+
     result = subprocess.run(
         [
             sys.executable,
@@ -208,9 +214,39 @@ def test_cli_main_entrypoint(sample_sql_file):
             "--input-file",
             str(sample_sql_file),
         ],
+        env=env,
         check=False,
         capture_output=True,
         text=True,
     )
     assert result.returncode == 0
     assert "SlowQL" in result.stdout
+
+
+# -------------------------------
+# Baseline / Diff Mode
+# -------------------------------
+def test_cli_update_baseline(sample_sql_file, tmp_path, capsys, monkeypatch):
+    baseline_path = tmp_path / ".slowql-baseline"
+    out, code = run_cli(
+        ["--fast", "--no-intro", "--input-file", str(sample_sql_file), "--update-baseline", str(baseline_path)],
+        capsys, monkeypatch
+    )
+    assert code == 0
+    assert "Baseline updated" in out.out
+    assert baseline_path.exists()
+
+def test_cli_use_baseline(sample_sql_file, tmp_path, capsys, monkeypatch):
+    baseline_path = tmp_path / ".slowql-baseline"
+    # 1. generate it
+    run_cli(
+        ["--fast", "--no-intro", "--input-file", str(sample_sql_file), "--update-baseline", str(baseline_path)],
+        capsys, monkeypatch
+    )
+    # 2. use it
+    out, code = run_cli(
+        ["--fast", "--no-intro", "--input-file", str(sample_sql_file), "--baseline", str(baseline_path)],
+        capsys, monkeypatch
+    )
+    assert code == 0
+    assert "suppressed by baseline" in out.out

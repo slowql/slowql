@@ -1,0 +1,6 @@
+version: v1.25.0
+ignore:
+  SNYK-PYTHON-PYGMENTS-15746419:
+    - "*":
+        reason: "No upgrade or patch available; pygments is a transitive dev dependency (via pytest) and not used in production runtime."
+        expires: "2027-03-23T00:00:00.000Z"

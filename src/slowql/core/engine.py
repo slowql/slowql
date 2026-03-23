@@ -266,6 +266,45 @@ class SlowQL:
 
         return self.analyze(sql, dialect=dialect, file_path=str(path))
 
+    def analyze_with_baseline(
+        self,
+        path: str | Path,
+        baseline_path: str | Path,
+        *,
+        dialect: str | None = None,
+    ) -> tuple[AnalysisResult, int]:
+        """
+        Analyze a file and suppress issues present in the baseline.
+
+        Args:
+            path: Path to the SQL file.
+            baseline_path: Path to the .slowql-baseline file.
+            dialect: Optional dialect override.
+
+        Returns:
+            A tuple of (AnalysisResult, suppressed_count). The result contains
+            ONLY issues that are NOT in the baseline. The suppressed_count tells
+            how many issues were hidden by the baseline.
+
+        Raises:
+            FileNotFoundError: If the input file or baseline file doesn't exist.
+            ParseError: If the SQL cannot be parsed.
+        """
+        from slowql.core.baseline import BaselineManager  # noqa: PLC0415
+
+        # Raise FileNotFoundError early if baseline is missing
+        baseline = BaselineManager.load(Path(baseline_path))
+
+        # Perform the actual run
+        full_result = self.analyze_file(path, dialect=dialect)
+
+        # Filter out baseline issues
+        filtered_result, baseline_suppressed_count = BaselineManager.filter_new(
+            full_result, baseline
+        )
+
+        return filtered_result, baseline_suppressed_count
+
     def analyze_files(
         self,
         paths: list[str | Path],

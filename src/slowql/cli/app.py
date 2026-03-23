@@ -972,6 +972,8 @@ def run_analysis_loop(  # noqa: PLR0912, PLR0915
     fail_on: str | None = None,
     fix_report: Path | None = None,
     report_format: str = "console",
+    baseline_path: Path | None = None,
+    update_baseline_path: Path | None = None,
     *,
     initial_input_files: list[Path] | None = None,
     schema_file: Path | None = None,
@@ -1060,6 +1062,29 @@ def run_analysis_loop(  # noqa: PLR0912, PLR0915
             result = _run_analysis(sql_payload, engine, cache, fast, machine_readable=machine_readable)
             if not result:
                 continue
+
+            if update_baseline_path is not None:
+                from slowql.core.baseline import BaselineManager  # noqa: PLC0415
+                baseline = BaselineManager.generate(result)
+                BaselineManager.save(baseline, update_baseline_path)
+                if not machine_readable:
+                    console.print(f"\n[green]✓ Baseline updated:[/green] {update_baseline_path} ({baseline.entry_count} entries)")
+                break
+
+            if baseline_path is not None:
+                from slowql.core.baseline import BaselineManager  # noqa: PLC0415
+                try:
+                    baseline = BaselineManager.load(baseline_path)
+                    result, b_suppressed = BaselineManager.filter_new(result, baseline)
+                    result.suppressed_count += b_suppressed
+                    if not machine_readable and b_suppressed > 0:
+                        console.print(f"[dim]{b_suppressed} issues suppressed by baseline.[/dim]")
+                except Exception as e:
+                    console.print(f"[red]Error loading baseline:[/red] {e}")
+                    if non_interactive:
+                        highest_exit_code = 1
+                        break
+                    continue
 
             highest_exit_code = max(
                 highest_exit_code,
@@ -1545,6 +1570,20 @@ def build_argparser() -> argparse.ArgumentParser:
         type=Path,
         help="Path to DDL schema file for schema-aware validation",
     )
+    analysis_group.add_argument(
+        "--baseline",
+        type=Path,
+        nargs="?",
+        const=Path(".slowql-baseline"),
+        help="Path to baseline file to suppress known issues (defaults to .slowql-baseline)",
+    )
+    analysis_group.add_argument(
+        "--update-baseline",
+        type=Path,
+        nargs="?",
+        const=Path(".slowql-baseline"),
+        help="Update or create baseline file with current issues (defaults to .slowql-baseline)",
+    )
 
     # Output options
     output_group = p.add_argument_group("Output Options")
@@ -1751,6 +1790,14 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0912, PLR0915
     fix_report = args_dict.get("fix_report", None)
     if fix_report:
         loop_kwargs["fix_report"] = fix_report
+
+    baseline_path = args_dict.get("baseline", None)
+    if baseline_path:
+        loop_kwargs["baseline_path"] = baseline_path
+
+    update_baseline_path = args_dict.get("update_baseline", None)
+    if update_baseline_path:
+        loop_kwargs["update_baseline_path"] = update_baseline_path
 
     return run_analysis_loop(**loop_kwargs)
 

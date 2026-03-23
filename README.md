@@ -240,12 +240,32 @@ The rule ID may be an exact identifier, a prefix, comma-separated values, or omi
 
 ---
 
+## Baseline Mode (Diff Mode)
+
+Baseline Mode allows you to adopt SlowQL on an existing, chaotic codebase without drowning in thousands of initial warnings. This is similar to SonarQube's "New Code Period."
+
+1. **Create a baseline:** Store all your current issues in a `.slowql-baseline` file.
+   ```bash
+   slowql queries/ --update-baseline
+   ```
+
+2. **Run against the baseline:** Now, SlowQL will only flag **new** issues introduced *after* the baseline was created.
+   ```bash
+   slowql queries/ --baseline
+   ```
+
+Because issues are fingerprinted via content hashes, standard edits like appending blank lines won't suddenly "un-suppress" your baseline issues. See the full [Baseline Docs](docs/usage/baseline.md) for CI/CD setup.
+
+---
+
 ## CLI Usage
 
 ### Primary Flags
 ```
 --input-file       Path to SQL file or directory
 --schema           Path to DDL schema file
+--baseline         Path to baseline file (suppress known issues)
+--update-baseline  Update/create the baseline file
 --fail-on          Failure threshold: critical, high, medium, low, info, never
 --non-interactive  Suppress spinners and interactive prompts
 ```

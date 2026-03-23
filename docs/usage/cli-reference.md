@@ -39,6 +39,8 @@ Modify how the parsing engine and rule registry inspect the queries.
 |---|---|---|
 | `--dialect`, `-d` | Forces a specific SQL dialect parser. Valid options: `postgresql`, `mysql`, `tsql`, `oracle`, `snowflake`, `bigquery`, `redshift`, `clickhouse`, `duckdb`, `presto`, `trino`, `spark`, `databricks`. | *Auto-detected* |
 | `--schema`, `-s` | Path to a DDL schema file (`.sql`). Enables schema-aware rules (e.g. validating missing columns or tables). | None |
+| `--baseline` | Path to a `.slowql-baseline` file. When provided, SlowQL only reports new issues not found in the baseline. | `None` |
+| `--update-baseline` | Analyzes target files and writes all found issues to the specified baseline file, exiting successfully. | `None` |
 | `--fail-on` | Threshold for returning a non-zero exit code (Pipeline failure). Options: `{critical, high, medium, low, info, never}`. | `high` |
 | `--no-cache` | Disables internal AST caching during the run. Useful for benchmarking or bypassing stale tokens. | `False` |
 | `--compare` | Enables query comparison mode for performance profiling between two SQL statements. | `False` |
