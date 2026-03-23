@@ -12,7 +12,7 @@
         <link rel="prev" href="../../getting-started/first-analysis/">
       
       
-        <link rel="next" href="../ci-cd-integration/">
+        <link rel="next" href="../suppression/">
       
       
         
@@ -614,6 +614,8 @@
       
         
       
+        
+      
     
     
     
@@ -793,10 +795,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#ui-headless-states" class="md-nav__link">
+  <a href="#inline-suppression" class="md-nav__link">
     <span class="md-ellipsis">
       
-        UI &amp; Headless States
+        Inline Suppression
       
     </span>
   </a>
@@ -818,6 +820,34 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../suppression/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inline Suppression
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -14891,10 +14921,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#ui-headless-states" class="md-nav__link">
+  <a href="#inline-suppression" class="md-nav__link">
     <span class="md-ellipsis">
       
-        UI &amp; Headless States
+        Inline Suppression
       
     </span>
   </a>
@@ -15116,7 +15146,51 @@ Due to the inherent risks of automated code modification, the <code>--fix</code>
 </tbody>
 </table>
 <hr />
-<h2 id="ui-headless-states">UI &amp; Headless States</h2>
+<h2 id="inline-suppression">Inline Suppression</h2>
+<p>Rules can be silenced on a per-line, per-block, or per-file basis using directives written directly in SQL comments. This does not require any configuration file changes.</p>
+<table>
+<thead>
+<tr>
+<th>Directive</th>
+<th>Scope</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-- slowql-disable-line RULE-ID</code></td>
+<td>The line the comment appears on</td>
+</tr>
+<tr>
+<td><code>-- slowql-disable-next-line RULE-ID</code></td>
+<td>The next non-blank, non-comment line</td>
+</tr>
+<tr>
+<td><code>-- slowql-disable RULE-ID</code></td>
+<td>All lines until a matching <code>-- slowql-enable</code></td>
+</tr>
+<tr>
+<td><code>-- slowql-enable RULE-ID</code></td>
+<td>Closes an open block suppression</td>
+</tr>
+<tr>
+<td><code>-- slowql-disable-file RULE-ID</code></td>
+<td>The entire file</td>
+</tr>
+</tbody>
+</table>
+<p>The rule ID may be an exact identifier (<code>PERF-SCAN-001</code>), a prefix (<code>PERF-SCAN</code>), comma-separated values (<code>PERF-SCAN-001, SEC-INJ-001</code>), or omitted entirely to suppress all rules for the given scope. Matching is case-insensitive.</p>
+<pre><code class="language-sql">SELECT * FROM archive;  -- slowql-disable-line PERF-SCAN-001
+
+-- slowql-disable-next-line SEC-INJ-001
+SELECT id, token FROM sessions WHERE id = $1;
+
+-- slowql-disable PERF-SCAN-001
+SELECT * FROM event_stream;
+SELECT * FROM session_log;
+-- slowql-enable PERF-SCAN-001
+</code></pre>
+<p>See <a href="../suppression/">Inline Suppression</a> for the full reference.</p>
+<hr />
 <p>Modify the aesthetic triggers, critical for continuous integration.</p>
 <table>
 <thead>
