@@ -32,6 +32,9 @@ class TestSlowQLEngineCoverage:
         config.schema_config.path = None
         config.cache_config = MagicMock()
         config.cache_config.enabled = False
+        config.plugins = MagicMock()
+        config.plugins.directories = []
+        config.plugins.modules = []
         return config
 
     def test_init_and_properties(self, mock_config):

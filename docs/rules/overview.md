@@ -51,3 +51,88 @@ slowql --list-rules --filter-dimension performance --filter-dialect postgresql
 # Read the full documentation of a specific rule
 slowql --explain PERF-SCAN-001
 ```
+
+## Custom Rule Engine
+
+SlowQL supports user-defined rules via the plugin system. Custom rules are treated as first-class citizens and integrate seamlessly with built-in rules.
+
+### YAML Rules
+
+Define pattern-based rules in a YAML file:
+
+```yaml
+# billing_rules.yml
+rules:
+  - id: "CUSTOM-BILLING-001"
+    name: "No DELETE on billing schema"
+    description: "DELETE operations on billing schema are forbidden."
+    dimension: "security"
+    severity: "critical"
+    pattern: "(?i)DELETE\\s+FROM\\s+billing\\."
+    message: "DELETE on billing schema is forbidden."
+
+  - id: "CUSTOM-AUDIT-001"
+    name: "Tables require audit columns"
+    description: "All tables must have created_at and updated_at."
+    dimension: "quality"
+    severity: "medium"
+    pattern: "(?i)CREATE\\s+TABLE"
+    message: "Table may be missing audit columns (created_at, updated_at)."
+```
+
+Supported fields per rule:
+
+| Field | Required | Description |
+|---|---|---|
+| `id` | Yes | Unique rule identifier (e.g., `CUSTOM-001`) |
+| `name` | Yes | Short human-readable name |
+| `description` | Yes | Detailed explanation of the issue |
+| `dimension` | Yes | One of: `security`, `performance`, `reliability`, `compliance`, `cost`, `quality` |
+| `severity` | Yes | One of: `critical`, `high`, `medium`, `low`, `info` |
+| `pattern` | Yes | Regular expression matched against the raw SQL string |
+| `message` | Yes | Human-readable finding message |
+| `tags` | No | List of optional tags |
+
+### Python Plugins
+
+For complex, AST-based logic, define rules directly in Python:
+
+```python
+# my_rules.py
+from slowql.rules.base import PatternRule
+from slowql.core.models import Severity, Dimension
+
+class NoBillingDeleteRule(PatternRule):
+    id = "CUSTOM-BILLING-001"
+    name = "No DELETE on billing schema"
+    description = "DELETE operations on the billing schema are forbidden."
+    severity = Severity.CRITICAL
+    dimension = Dimension.SECURITY
+    pattern = r"(?i)DELETE\s+FROM\s+billing\."
+    message_template = "Forbidden DELETE on billing schema detected."
+```
+
+### Configuration
+
+Enable plugins in `slowql.yaml`:
+
+```yaml
+plugins:
+  directories:
+    - "./my_rules"        # Scans for *.py, *.yml, *.yaml files
+  modules:
+    - "mycompany.sql_rules"  # Python module import path
+```
+
+Or pass programmatically:
+
+```python
+from slowql.core.engine import SlowQL
+from slowql.core.config import Config, PluginConfig
+
+config = Config(plugins=PluginConfig(directories=["./my_rules"]))
+engine = SlowQL(config=config)
+result = engine.analyze(sql)
+```
+
+Custom rules with duplicate IDs are automatically deduplicated (first registration wins). Errors in individual plugin files are logged as warnings and skipped gracefully — they will not prevent other rules from loading.

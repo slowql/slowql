@@ -187,6 +187,56 @@ class SlowQL:
             analyzer for analyzer in registry.get_all() if analyzer.dimension.value in enabled
         ]
 
+        # Load user-defined custom rules via the plugin system
+        plugin_cfg = self.config.plugins
+        if plugin_cfg.directories or plugin_cfg.modules:
+            self._load_plugin_rules(plugin_cfg)
+
+    def _load_plugin_rules(self, plugin_cfg: Any) -> None:
+        """Load custom rules from plugin directories and modules."""
+        from slowql.analyzers.base import RuleBasedAnalyzer  # noqa: PLC0415
+        from slowql.core.models import Dimension  # noqa: PLC0415
+        from slowql.plugins.manager import PluginManager  # noqa: PLC0415
+
+        mgr = PluginManager(
+            directories=list(plugin_cfg.directories),
+            modules=list(plugin_cfg.modules),
+        )
+        rules = mgr.load_rules()
+
+        if not rules:
+            return
+
+        # Group rules by dimension so each dimension gets its own analyzer
+        dimension_rules: dict[str, list[Any]] = {}
+        for rule in rules:
+            dim_value = rule.dimension.value
+            dimension_rules.setdefault(dim_value, []).append(rule)
+
+        for dim_value, dim_rules in dimension_rules.items():
+            # Build a concrete RuleBasedAnalyzer subclass dynamically
+            captured_rules = list(dim_rules)
+
+            class _CustomAnalyzer(RuleBasedAnalyzer):
+                name = f"custom-{dim_value}"
+                description = f"User-defined custom rules for {dim_value}"
+                priority = 200  # run after built-in analyzers
+
+                def get_rules(
+                    self, _rules: list[Any] = captured_rules
+                ) -> list[Any]:
+                    return _rules
+
+            try:
+                dimension = Dimension(dim_value)
+            except ValueError:
+                logger.warning("Unknown dimension %r for custom rules — skipped.", dim_value)
+                continue
+
+            _CustomAnalyzer.dimension = dimension
+            analyzer_instance = _CustomAnalyzer()
+            self._analyzers.append(analyzer_instance)
+
     def analyze(
         self,
         sql: str,

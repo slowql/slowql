@@ -59,6 +59,8 @@ It performs safe static analysis of your SQL source code with **no database conn
 
 **Offline-First Analysis.** Catch bugs without ever connecting to a live database. SlowQL works entirely on SQL source files, making it safe to run anywhere.
 
+**Custom Rule Engine.** Define your own organizational SQL conventions via YAML rules or Python plugins. Custom rules integrate seamlessly with the built-in catalog and support full reporting and suppression.
+
 **274 Built-in Rules.** Covers security, performance, reliability, compliance, cost, and quality. Each rule includes impact documentation, fix guidance, and severity classification.
 
 **dbt & Jinja Support.** Natively parses dbt models and SQL templates containing Jinja tags (`{{ ref() }}`, `{% if %}`, `{% for %}`). Enforces dbt best practices including missing references and hardcoded schema detection.
@@ -408,6 +410,8 @@ SQL Files → Parser (sqlglot) → AST → Analyzers → Rules → Issues → Re
 **Engine.** Orchestrates parsing, analyzer execution, schema validation, and result aggregation.
 
 **Analyzers.** Six domain-specific analyzers (Security, Performance, Reliability, Compliance, Cost, Quality), each loading rules from the catalog.
+
+**Custom Rules.** Dynamic plugin system that loads user-defined rules from YAML files (regex-based) or Python modules (AST-based) at runtime.
 
 **Rules.** 274 detection rules implemented as `PatternRule` (regex), `ASTRule` (sqlglot AST traversal), or custom `Rule` subclasses.
 

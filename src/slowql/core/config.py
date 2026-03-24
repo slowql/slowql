@@ -169,6 +169,18 @@ class CacheConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
+class PluginConfig(BaseModel):
+    """Configuration for the custom rule plugin system."""
+
+    directories: list[str] = Field(default_factory=list)
+    """Directories to scan for .py, .yml, and .yaml plugin files."""
+
+    modules: list[str] = Field(default_factory=list)
+    """Dotted Python module names to import for custom rules."""
+
+    model_config = ConfigDict(frozen=True)
+
+
 class Config(BaseModel):
     """
     Main configuration for SlowQL.
@@ -202,6 +214,9 @@ class Config(BaseModel):
 
     cache_config: CacheConfig = Field(default_factory=CacheConfig, alias="cache")
     """Cache configuration."""
+
+    plugins: PluginConfig = Field(default_factory=PluginConfig)
+    """Plugin configuration for user-defined custom rules."""
 
     model_config = ConfigDict(
         frozen=True,
