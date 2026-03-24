@@ -42,7 +42,7 @@ def test_cli_empty_file(empty_sql_file, capsys, monkeypatch):
         ["--fast", "--no-intro", "--input-file", str(empty_sql_file)], capsys, monkeypatch
     )
     assert code == 0
-    assert "Input file is empty" in out.out
+    assert "No anomalies detected" in out.out
 
 
 # -------------------------------

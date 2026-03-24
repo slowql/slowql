@@ -109,7 +109,7 @@ class TestShowIntro:
     def test_show_intro_with_intro_disabled_returns_none(self, _mock_rain, mock_console):
         out = app._show_intro(False, True, False, 0.1, machine_readable=False)
         assert out is None
-        mock_console.print.assert_called()
+        mock_console.print.assert_not_called()
 
     @patch("slowql.cli.app.console")
     @patch("slowql.cli.app.MatrixRain")
@@ -161,9 +161,11 @@ class TestHandleSqlInput:
             engine=MagicMock(),
             enable_comparison=False,
         )
-        assert payload is None
-        assert cont is True
-        mock_console.print.assert_called()
+        assert cont is False
+        assert payload is not None
+        assert isinstance(payload, list)
+        assert len(payload) == 1
+        assert payload[0].name == "a.sql"
 
     @patch("slowql.cli.app.console")
     def test_handle_sql_input_dir_multiple_files_joins_statements(self, _mock_console, tmp_path):
@@ -182,8 +184,10 @@ class TestHandleSqlInput:
         )
         assert cont is False
         assert payload is not None
-        assert "SELECT 1;" in payload
-        assert "SELECT 2;" in payload
+        assert isinstance(payload, list)
+        assert len(payload) == 2
+        assert any(p.name == "a.sql" for p in payload)
+        assert any(p.name == "b.sql" for p in payload)
 
     def test_handle_sql_input_non_interactive_no_files_breaks(self):
         payload, cont = app._handle_sql_input(

@@ -42,6 +42,7 @@ output:
 analysis:
   dialect: postgresql            # Default AST Grammar
   parallel: true                 # Hardware multithreading
+  max_workers: 0                 # Number of parallel workers (0 = auto)
   timeout_seconds: 30.0          # Bailout for excessively complex payloads
   max_query_length: 100000       # Prevent OOM parsing malicious squashes
   enabled_dimensions:

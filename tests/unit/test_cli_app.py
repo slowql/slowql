@@ -542,8 +542,8 @@ class TestRunAnalysisLoop:
 
             run_analysis_loop(non_interactive=False, initial_input_file=temp_file)
 
-            # Should analyze the file content
-            engine.analyze.assert_called_once_with("SELECT * FROM test_table;")
+            # Should analyze the file content via analyze_files
+            engine.analyze_files.assert_called_once_with([temp_file])
         finally:
             temp_file.unlink()
 
@@ -880,10 +880,11 @@ class TestArgumentParser:
         assert args.file == Path("test.sql")
 
         # Test parsing with options
-        args = parser.parse_args(["--mode", "compose", "--fast", "--non-interactive"])
+        args = parser.parse_args(["--mode", "compose", "--fast", "--non-interactive", "--jobs", "4"])
         assert args.mode == "compose"
         assert args.fast is True
         assert args.non_interactive is True
+        assert args.jobs == 4
 
 
 class TestMainFunction:
