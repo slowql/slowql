@@ -526,7 +526,7 @@ class SlowQL:
             schema_issues = self._run_schema_rules(queries)
             issues.extend(schema_issues)
 
-        return issues
+        return self._apply_severity_overrides(issues)
 
     def _run_schema_rules(self, queries: list[Query]) -> list[Issue]:
         """Run schema-aware validation rules."""
@@ -561,7 +561,37 @@ class SlowQL:
                     # Log but don't crash on rule errors
                     logger.warning(f"Schema rule {rule.id} failed: {e}")
 
-        return issues
+        return self._apply_severity_overrides(issues)
+
+    def _apply_severity_overrides(self, issues: list[Issue]) -> list[Issue]:
+        """Apply severity overrides from configuration."""
+        overrides = self.config.analysis.severity_overrides
+        if not overrides:
+            return issues
+
+        overridden_issues = []
+        for issue in issues:
+            if issue.rule_id in overrides:
+                # Create a new issue with overridden severity
+                new_issue = Issue(
+                    rule_id=issue.rule_id,
+                    message=issue.message,
+                    severity=overrides[issue.rule_id],
+                    dimension=issue.dimension,
+                    category=issue.category,
+                    location=issue.location,
+                    snippet=issue.snippet,
+                    fix=issue.fix,
+                    impact=issue.impact,
+                    documentation_url=issue.documentation_url,
+                    tags=issue.tags,
+                    metadata=issue.metadata,
+                )
+                overridden_issues.append(new_issue)
+            else:
+                overridden_issues.append(issue)
+
+        return overridden_issues
 
     def _should_run_analyzer(self, analyzer: BaseAnalyzer) -> bool:
         """Check if an analyzer should run based on configuration."""

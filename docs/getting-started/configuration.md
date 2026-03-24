@@ -51,6 +51,9 @@ analysis:
     - reliability
   disabled_rules:                # Blacklist array
     - QUAL-STYLE-001             
+  severity_overrides:            # Rule-specific level overrides
+    PERF-SCAN-001: info
+    QUAL-NULL-001: critical
   
 schema:
   path: schemas/prod_schema.sql  # Enables schema validation queries (column limits)
@@ -83,6 +86,13 @@ Governs terminal formatting.
 Tunes the AST processor.
 - **`timeout_seconds`**: Because SQL parsing can hit algorithmic cliffs (e.g. 5,000 deep `IN` arrays), SlowQL will dynamically drop a query block if it exceeds this threshold to save CI minutes.
 - **`disabled_rules`**: A global blacklist for specific Rule IDs (e.g., `PERF-SCAN-001`) that your company doesn't care about enforcing.
+- **`severity_overrides`**: Customize the severity of specific rules on a per-project basis.
+  ```yaml
+  analysis:
+    severity_overrides:
+      PERF-SCAN-001: info      # Downgrade to Info
+      QUAL-NULL-001: critical  # Upgrade to Critical
+  ```
 
 ### `compliance` & `cost`
 Configures the environment bounds for dimensions that require external realities (like specific frameworks or pricing tiers) to calculate accurate diagnostics.

@@ -28,6 +28,7 @@ class TestSlowQLEngineCoverage:
         }
         config.analysis.parallel = False
         config.analysis.max_workers = 1
+        config.analysis.severity_overrides = {}
         config.schema_config = MagicMock()
         config.schema_config.path = None
         config.cache_config = MagicMock()

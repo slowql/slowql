@@ -22,6 +22,7 @@ nav:
   - Usage Guide:
     - CLI Reference: usage/cli-reference.md
     - Inline Suppression: usage/suppression.md
+    - Severity Overrides: usage/severity-overrides.md
     - Baseline Mode: usage/baseline.md
     - CI/CD Integration: usage/ci-cd-integration.md
 

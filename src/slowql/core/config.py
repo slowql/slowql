@@ -22,6 +22,7 @@ import tomli
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from slowql.core.exceptions import ConfigurationError
+from slowql.core.models import Severity  # noqa: TC001
 
 try:
     import yaml
@@ -107,9 +108,12 @@ class AnalysisConfig(BaseModel):
     max_workers: int = 0
     """Number of parallel workers (0 = auto based on CPU count)."""
 
+    severity_overrides: dict[str, Severity] = Field(default_factory=dict)
+    """Rule IDs to severity level overrides."""
+
     model_config = ConfigDict(frozen=True)
 
-    @field_validator("enabled_dimensions", "disabled_rules", mode="before")
+    @field_validator("enabled_dimensions", "disabled_rules", "enabled_rules", mode="before")
     @classmethod
     def _validate_str_list_to_set(cls, v: Any) -> set[str] | Any:
         """Convert list to set if needed."""
