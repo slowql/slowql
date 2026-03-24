@@ -44,10 +44,12 @@ class SQLInjectionRule(PatternRule):
         "Potential SQL injection detected: String concatenation with variable '{match}'."
     )
 
-    impact = "Attackers can execute arbitrary SQL commands, accessing or destroying data."
-    rationale = "Dynamic SQL construction using concatenation is the #1 vector for SQL injection."
-    fix_guidance = "Use parameterized queries (prepared statements) instead of concatenation."
+    examples = (
+        "query = 'SELECT * FROM users WHERE name = ' + user_input;",
+        "query = 'SELECT * FROM users WHERE name = %s', (user_input,);",
+    )
     references = ("https://owasp.org/www-community/attacks/SQL_Injection",)
+
 
 
 class DynamicSQLExecutionRule(PatternRule):

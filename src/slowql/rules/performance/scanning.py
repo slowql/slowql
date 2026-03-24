@@ -37,6 +37,19 @@ class SelectStarRule(ASTRule):
     severity = Severity.MEDIUM
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_SCAN
+    
+    rationale = (
+        "SELECT * retrieves all columns from a table, which often includes large "
+        "text fields or unneeded metadata. This increases the amount of data "
+        "transferred over the network and stored in application memory. "
+        "Furthermore, using SELECT * prevented the database from using 'covering "
+        "indexes' which could significantly speed up the query."
+    )
+    examples = (
+        "SELECT * FROM users WHERE id = 1;",
+        "SELECT id, username, email FROM users WHERE id = 1;",
+    )
+
 
     def check_ast(self, query: Query, ast: Any) -> list[Issue]:
         issues = []

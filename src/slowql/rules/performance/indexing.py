@@ -38,10 +38,16 @@ class LeadingWildcardRule(PatternRule):
     pattern = r"\s+LIKE\s+['\"]%[^'\"]+['\"]"
     message_template = "Non-SARGable query: Leading wildcard in LIKE clause '{match}'."
 
-    impact = "Forces a full table scan because B-Tree indexes cannot be traversed in reverse."
-    fix_guidance = (
-        "Use Full-Text Search (e.g., Elasticsearch, Postgres FTS) for substring searches."
+    rationale = (
+        "B-Tree indexes are sorted from left to right. When a query uses a leading "
+        "wildcard (e.g., '%abc'), the database cannot use the index to find the "
+        "starting point. This forces a full table scan, which is extremely slow on large tables."
     )
+    examples = (
+        "SELECT * FROM users WHERE email LIKE '%@gmail.com';",
+        "SELECT * FROM users WHERE email LIKE 'john%@gmail.com';",
+    )
+
 
 
 class FunctionOnIndexedColumnRule(ASTRule):
