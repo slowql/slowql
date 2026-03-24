@@ -6,7 +6,8 @@ from export_docs import export_docs
 def sync():
     root_path = Path(__file__).parent.parent
     docs_path = root_path / "docs"
-    site_data_path = docs_path / "rules-site" / "src" / "data"
+    site_data_path = root_path / "rules-site" / "src" / "data"
+
     
     # 1. Export rules to docs/rules.json
     print("--- Exporting Rules ---")

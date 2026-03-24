@@ -37,7 +37,7 @@ class SelectStarRule(ASTRule):
     severity = Severity.MEDIUM
     dimension = Dimension.PERFORMANCE
     category = Category.PERF_SCAN
-    
+
     rationale = (
         "SELECT * retrieves all columns from a table, which often includes large "
         "text fields or unneeded metadata. This increases the amount of data "

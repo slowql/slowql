@@ -19,10 +19,12 @@ nav:
   - Installation: getting-started/installation.md
   - Configuration: getting-started/configuration.md
   - First Analysis: getting-started/first-analysis.md
-- Usage Guide:
-  - CLI Reference: usage/cli-reference.md
-  - Inline Suppression: usage/suppression.md
-  - CI/CD Integration: usage/ci-cd-integration.md
+  - Usage Guide:
+    - CLI Reference: usage/cli-reference.md
+    - Inline Suppression: usage/suppression.md
+    - Baseline Mode: usage/baseline.md
+    - CI/CD Integration: usage/ci-cd-integration.md
+
   - Pre-commit Hook: usage/pre-commit-hook.md
   - Editor Setup: usage/editor-setup.md
 - Rules Explorer:

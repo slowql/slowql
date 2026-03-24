@@ -4,9 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "predev": "python3 ../../scripts/sync_docs.py",
+    "predev": "python3 ../scripts/sync_docs.py",
     "dev": "vite",
-    "prebuild": "python3 ../../scripts/sync_docs.py",
+    "prebuild": "python3 ../scripts/sync_docs.py",
+
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
