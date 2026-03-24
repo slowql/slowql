@@ -8,7 +8,9 @@ It orchestrates parsing, analysis, and result aggregation.
 
 from __future__ import annotations
 
+import concurrent.futures
 import logging
+import os
 import re
 import time
 from pathlib import Path
@@ -29,9 +31,27 @@ from slowql.schema.inspector import SchemaInspector
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from slowql.analyzers.base import BaseAnalyzer
     from slowql.parser.base import BaseParser
     from slowql.schema.models import Schema
+
+
+def _analyze_file_worker(payload: dict[str, Any]) -> tuple[str, AnalysisResult | Exception]:
+    """Top-level worker function for parallel file analysis."""
+    path = payload["path"]
+    dialect = payload["dialect"]
+    config_dict = payload["config_dict"]
+    schema = payload["schema"]
+
+    try:
+        config = Config.model_validate(config_dict)
+        engine = SlowQL(config=config, schema=schema)
+        result = engine.analyze_file(path, dialect=dialect)
+        return str(path), result
+    except Exception as e:
+        return str(path), e
 
 
 class SlowQL:
@@ -305,9 +325,9 @@ class SlowQL:
 
         return filtered_result, baseline_suppressed_count
 
-    def analyze_files(
+    def analyze_files(  # noqa: PLR0912
         self,
-        paths: list[str | Path],
+        paths: Sequence[str | Path],
         *,
         dialect: str | None = None,
     ) -> AnalysisResult:
@@ -343,23 +363,56 @@ class SlowQL:
                     self._schema = detected
 
         # Second pass: analyze each file with shared schema
-        for path in paths:
-            try:
-                result = self.analyze_file(path, dialect=dialect)
-                combined_result.queries.extend(result.queries)
-                for issue in result.issues:
-                    combined_result.add_issue(issue)
-                combined_result.statistics.parse_time_ms += result.statistics.parse_time_ms
-            except (SlowQLError, FileNotFoundError):
-                # Skip files that don't exist or have known errors during batch analysis
-                logger.warning(f"Skipping file due to error: {path}")
-                continue
-            except Exception as e:
-                # Wrap unexpected errors
-                raise ParseError(
-                    f"Failed to analyze file: {path}",
-                    details=str(e),
-                ) from e
+        if self.config.analysis.parallel and len(paths) > 1:
+            max_workers = self.config.analysis.max_workers
+            if not max_workers or max_workers <= 0:
+                max_workers = os.cpu_count() or 4
+
+            config_dump = self.config.model_dump()
+            payloads = [
+                {
+                    "path": str(p),
+                    "dialect": dialect,
+                    "config_dict": config_dump,
+                    "schema": self._schema,
+                }
+                for p in paths
+            ]
+
+            with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
+                for path_str, result_or_exc in executor.map(_analyze_file_worker, payloads):
+                    if isinstance(result_or_exc, (SlowQLError, FileNotFoundError)):
+                        logger.warning(f"Skipping file due to error: {path_str}")
+                    elif isinstance(result_or_exc, Exception):
+                        raise ParseError(
+                            f"Failed to analyze file: {path_str}",
+                            details=str(result_or_exc),
+                        ) from result_or_exc
+                    else:
+                        combined_result.queries.extend(result_or_exc.queries)
+                        combined_result.statistics.total_queries += len(result_or_exc.queries)
+                        for issue in result_or_exc.issues:
+                            combined_result.add_issue(issue)
+                        combined_result.statistics.parse_time_ms += result_or_exc.statistics.parse_time_ms
+        else:
+            for path in paths:
+                try:
+                    result = self.analyze_file(path, dialect=dialect)
+                    combined_result.queries.extend(result.queries)
+                    combined_result.statistics.total_queries += len(result.queries)
+                    for issue in result.issues:
+                        combined_result.add_issue(issue)
+                    combined_result.statistics.parse_time_ms += result.statistics.parse_time_ms
+                except (SlowQLError, FileNotFoundError):
+                    # Skip files that don't exist or have known errors during batch analysis
+                    logger.warning(f"Skipping file due to error: {path}")
+                    continue
+                except Exception as e:
+                    # Wrap unexpected errors
+                    raise ParseError(
+                        f"Failed to analyze file: {path}",
+                        details=str(e),
+                    ) from e
 
         return combined_result
 

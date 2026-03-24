@@ -350,7 +350,7 @@ class TestResultOutputHandling:
                 non_interactive=True,
                 export_session_history=False,
                 input_file=tmp_path / "in.sql",
-                sql_payload="select 1",
+                sql_payload_or_paths="select 1",
                 apply_fixes=True,
                 machine_readable=True
             )

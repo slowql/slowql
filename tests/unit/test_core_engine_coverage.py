@@ -16,9 +16,18 @@ class TestSlowQLEngineCoverage:
         config.analysis = MagicMock(spec=AnalysisConfig)
         config.analysis.dialect = "postgres"
         config.analysis.max_query_length = 1000
-        config.analysis.enabled_dimensions = [d.value for d in Dimension]
         config.analysis.enabled_rules = None
         config.analysis.disabled_rules = []
+        config.analysis.enabled_dimensions = {
+            "security",
+            "performance",
+            "reliability",
+            "compliance",
+            "cost",
+            "quality",
+        }
+        config.analysis.parallel = False
+        config.analysis.max_workers = 1
         config.schema_config = MagicMock()
         config.schema_config.path = None
         return config

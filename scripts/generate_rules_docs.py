@@ -1,8 +1,8 @@
 import json
-import os
 import shutil
-import yaml
 from pathlib import Path
+
+import yaml
 
 # Paths
 ROOT_DIR = Path(__file__).parent.parent
@@ -39,7 +39,7 @@ def clean_rules_dir():
 def generate_docs():
     """Parse rules.json and write individual rule markdown files."""
     print("Loading rules.json...")
-    with open(RULES_JSON_PATH, "r", encoding="utf-8") as f:
+    with open(RULES_JSON_PATH, encoding="utf-8") as f:
         content = f.read().strip()
         if not content.startswith("["):
             if content.endswith(","):
@@ -92,7 +92,7 @@ def generate_docs():
             dim_lower = r_dim.lower()
             folder_path = DOCS_RULES_DIR / "universal" / dim_lower
             folder_path.mkdir(parents=True, exist_ok=True)
-            
+
             file_name = f"{r_id}.md"
             file_path = folder_path / file_name
             with open(file_path, "w", encoding="utf-8") as f:
@@ -102,7 +102,7 @@ def generate_docs():
             if dim_lower not in nav_tree["Universal"]:
                 nav_tree["Universal"][dim_lower] = []
             nav_tree["Universal"][dim_lower].append({f"{r_name} ({r_id})": f"rules/universal/{dim_lower}/{file_name}"})
-            
+
         else:
             # Dialect specific
             for dialect in dialects:
@@ -112,22 +112,22 @@ def generate_docs():
                     name=r_name, id=r_id, dimension=r_dim, severity=r_sev,
                     scope=scope, impact=r_impact, rationale=r_rationale, fix=r_fix
                 )
-                
+
                 dim_lower = r_dim.lower()
                 folder_path = DOCS_RULES_DIR / "dialects" / dialect_str / dim_lower
                 folder_path.mkdir(parents=True, exist_ok=True)
-                
+
                 file_name = f"{r_id}.md"
                 file_path = folder_path / file_name
                 with open(file_path, "w", encoding="utf-8") as f:
                     f.write(content)
-                
+
                 # Nav
                 if dialect_str not in nav_tree["Dialects"]:
                     nav_tree["Dialects"][dialect_str] = {}
                 if dim_lower not in nav_tree["Dialects"][dialect_str]:
                     nav_tree["Dialects"][dialect_str][dim_lower] = []
-                
+
                 nav_tree["Dialects"][dialect_str][dim_lower].append({f"{r_name} ({r_id})": f"rules/dialects/{dialect_str}/{dim_lower}/{file_name}"})
 
     return nav_tree
@@ -141,7 +141,7 @@ def sort_nav(nav_tree):
         # sort rules by name
         sorted_rules = sorted(univ[dim], key=lambda x: list(x.keys())[0])
         sorted_univ_list.append({dim.capitalize(): sorted_rules})
-    
+
     # Sort Dialects
     dialects = nav_tree["Dialects"]
     sorted_dialects_list = []
@@ -158,8 +158,8 @@ def sort_nav(nav_tree):
 
 def update_mkdocs(sorted_univ, sorted_dialects):
     print("Updating mkdocs.yml navigation...")
-    
-    with open(MKDOCS_YML_PATH, "r", encoding="utf-8") as f:
+
+    with open(MKDOCS_YML_PATH, encoding="utf-8") as f:
         config = yaml.safe_load(f)
 
     # Build the Rules Explorer nav structure

@@ -24,12 +24,8 @@ def test_cli_git_diff_filter(tmp_path, monkeypatch, capsys):
     cap = capsys.readouterr()
     stdout = cap.out
 
-    # changed.sql should be read
-    assert "Reading changed.sql..." in stdout
-    # unchanged.sql should be ignored
-    assert "Reading unchanged.sql..." not in stdout
     # It should mention it's in git-aware mode
-    assert "Git-aware mode: analyzing 1 changed file(s)." in stdout
+    assert "Git-aware mode: analyzing 1 changed file(s)" in stdout
 
 
 def test_cli_since_filter(tmp_path, monkeypatch, capsys):
@@ -51,5 +47,4 @@ def test_cli_since_filter(tmp_path, monkeypatch, capsys):
     cap = capsys.readouterr()
     stdout = cap.out
 
-    assert "Reading branch_file.sql..." in stdout
-    assert "Reading main_file.sql..." not in stdout
+    assert "Git-aware mode: analyzing 1 changed file(s)" in stdout

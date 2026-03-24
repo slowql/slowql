@@ -675,20 +675,32 @@ def _get_sql_input(
     return "\n".join(lines).strip()
 
 
-def _run_analysis(
-    sql_payload: str, engine: SlowQL, cache: QueryCache | None, fast: bool, machine_readable: bool = False
+def _run_analysis(  # noqa: PLR0912
+    sql_payload_or_paths: str | list[Path], engine: SlowQL, cache: QueryCache | None, fast: bool, machine_readable: bool = False
 ) -> AnalysisResult | None:
     """Runs analysis, using cache if available, with animations."""
     result = None
-    if cache:
-        result = cache.get(sql_payload)
+    cache_key = None
+    if isinstance(sql_payload_or_paths, str):
+        cache_key = sql_payload_or_paths
+    elif len(sql_payload_or_paths) == 1:
+        # We can cache single files easily
+        try:
+            cache_key = sql_payload_or_paths[0].read_text(encoding="utf-8")
+        except Exception:
+            pass
+
+    if cache and cache_key:
+        result = cache.get(cache_key)
         if result is not None and not machine_readable:
             console.print("[dim]Using cached results...[/dim]")
 
     if result is None:
         if machine_readable:
-            # Just run the analysis synchronously with no feedback
-            result = engine.analyze(sql_payload)
+            if isinstance(sql_payload_or_paths, str):
+                result = engine.analyze(sql_payload_or_paths)
+            else:
+                result = engine.analyze_files(sql_payload_or_paths)
         else:
             aa = AnimatedAnalyzer()
             with contextlib.suppress(Exception):
@@ -702,12 +714,17 @@ def _run_analysis(
                 BarColumn(),
                 console=console,
             ) as progress:
-                task = progress.add_task("[cyan]Analyzing...", total=1)
-                result = engine.analyze(sql_payload)
-                progress.update(task, advance=1)
+                if isinstance(sql_payload_or_paths, str):
+                    task = progress.add_task("[cyan]Analyzing...", total=1)
+                    result = engine.analyze(sql_payload_or_paths)
+                    progress.update(task, advance=1)
+                else:
+                    task = progress.add_task(f"[cyan]Analyzing {len(sql_payload_or_paths)} files...", total=1)
+                    result = engine.analyze_files(sql_payload_or_paths)
+                    progress.update(task, advance=1)
 
-        if cache and result:
-            cache.set(sql_payload, result)
+        if cache and result and cache_key:
+            cache.set(cache_key, result)
 
     return result
 
@@ -725,7 +742,7 @@ def _show_intro(intro_enabled: bool, fast: bool, is_tty: bool, intro_duration: f
             if hasattr(rain, "_selected_dialect"):
                 selected_dialect = rain._selected_dialect
 
-    if not machine_readable:
+    if not machine_readable and intro_enabled:
         console.print(
             Panel(
                 "[bold cyan]Welcome to SlowQL[/bold cyan]\n"
@@ -747,12 +764,10 @@ def _handle_sql_input(  # noqa: PLR0912
     engine: SlowQL,
     enable_comparison: bool,
     changed_files: set[Path] | None = None,
-) -> tuple[str | None, bool]:
+) -> tuple[str | list[Path] | None, bool]:
     """Get SQL payload from files or user input and update first_run status."""
-    sql_payload: str | None = ""
     if input_files and first_run:
-        sql_parts = []
-        is_single_file_arg = len(input_files) == 1 and not input_files[0].is_dir()
+        valid_paths = []
         is_single_dir_arg = len(input_files) == 1 and input_files[0].is_dir()
 
         for path in input_files:
@@ -762,46 +777,27 @@ def _handle_sql_input(  # noqa: PLR0912
                 for sf in sql_files:
                     if changed_files is not None and sf.resolve() not in changed_files:
                         continue
-                    console.print(f"[dim]Reading {sf.name}...[/dim]")
-                    sql_parts.append(sf.read_text(encoding="utf-8"))
+                    valid_paths.append(sf)
             else:
                 if changed_files is not None and path.resolve() not in changed_files:
                     continue
-                sql_parts.append(path.read_text(encoding="utf-8"))
+                valid_paths.append(path)
 
-        if not sql_parts:
+        if not valid_paths:
             if is_single_dir_arg:
                 console.print(f"[yellow]No .sql files found in {input_files[0]}[/yellow]")
             else:
                 console.print("[yellow]No input files found[/yellow]")
             return None, True
 
-        valid_parts = [p for p in sql_parts if p.strip()]
-        if not valid_parts:
-            msg = "Input file is empty" if is_single_file_arg else "Input files are empty"
-            console.print(f"[yellow]{msg}[/yellow]")
-            return None, True  # Continue loop, but don't process
-
-        if is_single_file_arg or (is_single_dir_arg and len(valid_parts) == 1):
-            sql_payload = valid_parts[0]
-        else:
-            joined_parts = []
-            for i, part in enumerate(valid_parts):
-                joined_parts.append(part)
-                if i < len(valid_parts) - 1 and not part.rstrip().endswith(";"):
-                    joined_parts.append(";\n")
-                elif i < len(valid_parts) - 1:
-                    joined_parts.append("\n")
-
-            sql_payload = "".join(joined_parts)
+        return valid_paths, False
     else:
         if non_interactive:
             return None, False  # Break loop
         sql_payload = _get_sql_input(mode, is_tty, engine, enable_comparison, first_run)
         if sql_payload is None:  # Special action like 'compare' was run
             return None, False  # Break loop
-
-    return sql_payload, False
+        return sql_payload, False
 
 
 
@@ -855,6 +851,34 @@ def _apply_safe_fixes_to_file(
 
     console.print(f"[green]✓ Applied safe fixes:[/green] {input_file}")
     console.print(f"[green]✓ Backup created:[/green] {backup_path}")
+
+def _apply_safe_fixes_to_files(
+    *,
+    input_files: list[Path] | None,
+    sql_payload_or_paths: str | list[Path],
+    engine: SlowQL,
+    result: AnalysisResult,
+    fix_report: Path | None = None,
+) -> None:
+    """Wrapper that calls _apply_safe_fixes_to_file based on input."""
+    if input_files is None or len(input_files) != 1 or not input_files[0].is_file():
+        console.print("[yellow]--fix currently supports only a single input file.[/yellow]")
+        return
+
+    if not isinstance(sql_payload_or_paths, str):
+        # We need the source string to apply fixes
+        sql_payload = input_files[0].read_text(encoding="utf-8")
+    else:
+        sql_payload = sql_payload_or_paths
+
+    _apply_safe_fixes_to_file(
+        input_file=input_files[0],
+        sql_payload=sql_payload,
+        engine=engine,
+        result=result,
+        fix_report=fix_report,
+    )
+
 def _handle_result_output(
     *,
     session: SessionManager,
@@ -867,7 +891,7 @@ def _handle_result_output(
     non_interactive: bool,
     export_session_history: bool,
     input_file: Path | None,
-    sql_payload: str,
+    sql_payload_or_paths: str | list[Path],
     apply_fixes: bool,
     machine_readable: bool,
     fix_report: Path | None = None,
@@ -889,9 +913,9 @@ def _handle_result_output(
         _preview_safe_fixes(engine, result, fix_report, input_file)
 
     if apply_fixes:
-        _apply_safe_fixes_to_file(
-            input_file=input_file,
-            sql_payload=sql_payload,
+        _apply_safe_fixes_to_files(
+            input_files=[input_file] if input_file else None,
+            sql_payload_or_paths=sql_payload_or_paths,
             engine=engine,
             result=result,
             fix_report=fix_report,
@@ -985,6 +1009,7 @@ def run_analysis_loop(  # noqa: PLR0912, PLR0915
     dialect: str | None = None,
     git_diff: bool = False,
     since: str | None = None,
+    jobs: int = 0,
 ) -> int:
     """
     Main execution pipeline with interactive loop
@@ -999,7 +1024,13 @@ def run_analysis_loop(  # noqa: PLR0912, PLR0915
     if resolved_schema_file is None and config.schema_config.path is not None:
         resolved_schema_file = Path(config.schema_config.path)
 
-    overrides: dict[str, Any] = {"output": {"verbose": verbose}}
+    overrides: dict[str, Any] = {
+        "output": {"verbose": verbose},
+        "analysis": {
+            "max_workers": jobs,
+            "parallel": jobs != 1
+        }
+    }
     if fail_on:
         overrides["severity"] = {"fail_on": fail_on}
 
@@ -1058,22 +1089,22 @@ def run_analysis_loop(  # noqa: PLR0912, PLR0915
     # Main analysis loop
     while True:
         try:
-            sql_payload: str | None
-            sql_payload, should_continue = _handle_sql_input(
+            sql_payload_or_paths: str | list[Path] | None
+            sql_payload_or_paths, should_continue = _handle_sql_input(
                 first_run, current_input_files, non_interactive, mode, is_tty, engine, enable_comparison, changed_files
             )
 
             if should_continue:
                 current_input_files = None
                 continue
-            if sql_payload is None:
+            if sql_payload_or_paths is None:
                 break
 
-            if not sql_payload.strip():
+            if (isinstance(sql_payload_or_paths, str) and not sql_payload_or_paths.strip()) or (isinstance(sql_payload_or_paths, list) and not sql_payload_or_paths):
                 continue
 
             first_run = False
-            result = _run_analysis(sql_payload, engine, cache, fast, machine_readable=machine_readable)
+            result = _run_analysis(sql_payload_or_paths, engine, cache, fast, machine_readable=machine_readable)
             if not result:
                 continue
 
@@ -1116,7 +1147,7 @@ def run_analysis_loop(  # noqa: PLR0912, PLR0915
                 non_interactive=non_interactive,
                 export_session_history=export_session_history,
                 input_file=current_input_files[0] if current_input_files is not None and len(current_input_files) == 1 else None,
-                sql_payload=sql_payload,
+                sql_payload_or_paths=sql_payload_or_paths,
                 apply_fixes=apply_fixes,
                 machine_readable=machine_readable,
                 fix_report=fix_report,
@@ -1566,6 +1597,13 @@ def build_argparser() -> argparse.ArgumentParser:
         "--no-cache", action="store_true", help="Disable query result caching"
     )
     analysis_group.add_argument(
+        "--jobs",
+        "-j",
+        type=int,
+        default=0,
+        help="Number of parallel workers for analyzing multiple files. 0 auto-detects based on CPU count. 1 disables parallel processing. (default: 0)",
+    )
+    analysis_group.add_argument(
         "--compare", action="store_true", help="Enable query comparison mode"
     )
     analysis_group.add_argument(
@@ -1823,6 +1861,8 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0912, PLR0915
         loop_kwargs["git_diff"] = True
     if args_dict.get("since"):
         loop_kwargs["since"] = args_dict["since"]
+    if "jobs" in args_dict:
+        loop_kwargs["jobs"] = args_dict["jobs"]
 
     return run_analysis_loop(**loop_kwargs)
 
