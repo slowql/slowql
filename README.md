@@ -334,6 +334,9 @@ analysis:
     - reliability
   disabled_rules:
     - PERF-SCAN-001
+  severity_overrides:
+    PERF-SCAN-001: info
+    QUAL-NULL-001: critical
 
 schema:
   path: db/schema.sql
