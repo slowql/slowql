@@ -8,7 +8,7 @@
 Log injection allows attackers to forge log entries.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Use RAISE NOTICE 'message: %', variable instead of concatenation.
+No automated or manual fix guidance is currently available for this rule.

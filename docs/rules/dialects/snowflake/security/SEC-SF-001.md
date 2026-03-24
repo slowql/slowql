@@ -8,7 +8,7 @@
 Cloud credentials appear in QUERY_HISTORY, INFORMATION_SCHEMA, and Snowflake audit logs. Any user with MONITOR privilege can see them.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Use storage integrations: CREATE STORAGE INTEGRATION ... Then reference: COPY INTO ... FROM @stage. Never embed keys in SQL.
+No automated or manual fix guidance is currently available for this rule.

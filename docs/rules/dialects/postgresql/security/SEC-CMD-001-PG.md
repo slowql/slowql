@@ -8,7 +8,7 @@
 pg_read_file and pg_execute_server_program allow reading arbitrary files and executing OS commands. Requires superuser — indicates privilege abuse.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Revoke superuser from application accounts. Never call pg_execute_server_program from application SQL. Use application-layer file operations instead.
+No automated or manual fix guidance is currently available for this rule.

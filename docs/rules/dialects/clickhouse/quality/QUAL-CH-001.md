@@ -8,7 +8,7 @@
 All data is gathered to one node for global sorting. This can exhaust memory and crash the query.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Add LIMIT to bound results. Or use ORDER BY with LIMIT BY for top-N per group patterns.
+No automated or manual fix guidance is currently available for this rule.

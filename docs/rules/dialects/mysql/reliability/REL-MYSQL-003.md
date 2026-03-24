@@ -8,7 +8,7 @@
 Data containing 4-byte Unicode characters (emoji, some CJK, mathematical symbols) will be silently truncated or rejected, causing data loss.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Replace CHARACTER SET utf8 with CHARACTER SET utf8mb4 and COLLATE utf8_general_ci with COLLATE utf8mb4_general_ci (or utf8mb4_unicode_ci). Update connection charset settings.
+No automated or manual fix guidance is currently available for this rule.

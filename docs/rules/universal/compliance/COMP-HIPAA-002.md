@@ -8,7 +8,7 @@
 Fetching all columns from healthcare tables often retrieves unnecessary protected health information, increasing the risk and scope of a potential data breach.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Explicitly list only the columns required for the specific business function. Avoid using SELECT * on tables containing PHI.
+No automated or manual fix guidance is currently available for this rule.

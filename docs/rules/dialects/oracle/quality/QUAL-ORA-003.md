@@ -8,7 +8,7 @@
 NVL() makes the predicate non-SARGable.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Replace NVL(col, val) = x with (col = x OR col IS NULL).
+No automated or manual fix guidance is currently available for this rule.

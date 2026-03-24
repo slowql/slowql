@@ -8,7 +8,7 @@
 Non-FAST_FORWARD cursors maintain key sets in tempdb, consuming I/O and storage. For read-only forward iteration this is waste.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Use DECLARE cur CURSOR FAST_FORWARD FOR SELECT ... Or better: replace the cursor with a set-based operation.
+No automated or manual fix guidance is currently available for this rule.

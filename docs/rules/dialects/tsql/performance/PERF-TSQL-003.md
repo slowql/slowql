@@ -8,7 +8,7 @@
 Implicit conversion prevents index seeks, forcing table scans.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Ensure JOIN columns have matching data types at the schema level.
+No automated or manual fix guidance is currently available for this rule.

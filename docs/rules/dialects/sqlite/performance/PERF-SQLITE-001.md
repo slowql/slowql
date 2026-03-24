@@ -8,7 +8,7 @@
 Without WAL mode, any write operation locks the entire database file, blocking all concurrent readers and writers.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Set PRAGMA journal_mode=WAL for concurrent read/write access. Note: WAL mode is persistent and only needs to be set once.
+No automated or manual fix guidance is currently available for this rule.

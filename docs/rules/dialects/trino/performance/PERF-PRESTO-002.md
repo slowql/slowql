@@ -8,7 +8,7 @@
 All rows are sent to the coordinator node for sorting. This can exhaust coordinator memory and crash the query.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Add LIMIT to bound the result. For analytics use window functions with PARTITION BY to sort within partitions.
+No automated or manual fix guidance is currently available for this rule.

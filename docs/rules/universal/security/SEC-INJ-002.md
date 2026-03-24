@@ -8,7 +8,7 @@
 Attackers can inject arbitrary SQL through unsanitized inputs passed into dynamically constructed queries, leading to data theft, privilege escalation, or complete database compromise.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Use parameterized queries or stored procedures with typed parameters. Replace string concatenation with sp_executesql parameter binding. For MySQL, use PREPARE with placeholder syntax (?) instead of variable interpolation.
+No automated or manual fix guidance is currently available for this rule.

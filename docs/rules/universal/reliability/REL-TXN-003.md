@@ -8,7 +8,7 @@
 Empty transactions acquire locks, write to WAL/transaction log, and consume connection slots for no purpose. In high-concurrency systems this adds unnecessary contention.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Remove the empty BEGIN...COMMIT block, or add the intended DML statements between them.
+No automated or manual fix guidance is currently available for this rule.

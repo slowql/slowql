@@ -8,7 +8,7 @@
 Unaliased subqueries cause syntax errors in PostgreSQL and MySQL. Even where accepted, they make the query unreadable and unreferenceable in outer query clauses.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Add an alias after the closing parenthesis: FROM (SELECT ...) AS subquery_name. Choose a descriptive alias that reflects the subquery's purpose.
+No automated or manual fix guidance is currently available for this rule.

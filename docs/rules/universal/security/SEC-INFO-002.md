@@ -8,7 +8,7 @@
 Schema enumeration reveals table names, column names, and relationships. Attackers use this for targeted SQL injection and privilege escalation. Should be restricted to DBAs only.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Restrict access to system catalogs using database permissions. Don't expose schema info through application errors. Use views to hide underlying schema from application.
+No automated or manual fix guidance is currently available for this rule.

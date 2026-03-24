@@ -8,7 +8,7 @@
 Every INSERT, UPDATE, DELETE replicates to all nodes. For large tables this multiplies write time and storage by the cluster size.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Use DISTSTYLE ALL only for small dimension tables (<1M rows). For large tables use DISTSTYLE KEY or DISTSTYLE EVEN.
+No automated or manual fix guidance is currently available for this rule.

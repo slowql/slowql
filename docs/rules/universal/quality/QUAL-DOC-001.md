@@ -8,7 +8,7 @@
 Missing comments mean the business meaning of columns must be reverse-engineered from code. This slows down onboarding and leads to data misuse.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Add COMMENT 'description' to all column definitions. Explain units (e.g., 'price in USD') and expected values.
+No automated or manual fix guidance is currently available for this rule.

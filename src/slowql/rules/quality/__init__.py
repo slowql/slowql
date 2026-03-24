@@ -5,6 +5,7 @@ Quality rules module.
 from __future__ import annotations
 
 from .complexity import *
+from .dbt import *
 from .documentation import *
 from .dry_principles import *
 from .duckdb import *
@@ -23,6 +24,8 @@ __all__ = [
     "CommentedCodeRule",
     "ComplexLogicWithoutExplanationRule",
     "CyclomaticComplexityRule",
+    "DbtHardcodedSchemaRule",
+    "DbtMissingRefRule",
     "DuckDBOldStyleCastRule",
     "DuplicateConditionRule",
     "ExcessiveCaseNestingRule",

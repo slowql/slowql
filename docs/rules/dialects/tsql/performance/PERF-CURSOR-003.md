@@ -8,7 +8,7 @@
 Forced nested loop joins perform O(n*m) comparisons. For large tables, this is catastrophic. The optimizer usually knows better.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Remove join hints and let the optimizer choose. If hint is necessary, document why.
+No automated or manual fix guidance is currently available for this rule.

@@ -8,7 +8,7 @@
 Exposing database version helps attackers identify known vulnerabilities (CVEs) specific to that version. This information should not be accessible to application users.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Never expose version info to end users. If needed for admin purposes, require authentication and log access. Return generic error messages without version details.
+No automated or manual fix guidance is currently available for this rule.

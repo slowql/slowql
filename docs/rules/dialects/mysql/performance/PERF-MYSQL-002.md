@@ -8,7 +8,7 @@
 On 1M rows, ORDER BY RAND() LIMIT 1 still reads and sorts all 1M rows.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Use random offset subquery or maintain a sampling column.
+No automated or manual fix guidance is currently available for this rule.

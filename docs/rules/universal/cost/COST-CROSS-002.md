@@ -8,7 +8,7 @@
 Cross-region queries add 50-200ms latency per request. Egress charges of $0.02-0.12/GB also apply.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Use read replicas in each region or implement a caching layer (Redis) for cross-region reads.
+No automated or manual fix guidance is currently available for this rule.

@@ -8,7 +8,7 @@
 Each repeated subquery scans underlying tables again, multiplying cost.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Extract into WITH (CTE) clause. BigQuery materializes CTEs referenced multiple times.
+No automated or manual fix guidance is currently available for this rule.

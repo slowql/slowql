@@ -8,7 +8,7 @@
 May return millions of rows, overwhelming application memory
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Add LIMIT clause for paginated or exploratory queries
+No automated or manual fix guidance is currently available for this rule.

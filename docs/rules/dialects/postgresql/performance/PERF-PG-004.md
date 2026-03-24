@@ -8,7 +8,7 @@
 Without NOWAIT, the query blocks until the lock is released.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Add NOWAIT to fail immediately or SKIP LOCKED to skip locked rows.
+No automated or manual fix guidance is currently available for this rule.

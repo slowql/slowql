@@ -8,7 +8,7 @@
 A single malformed row aborts the entire load.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Add ON_ERROR = 'CONTINUE' or 'SKIP_FILE'. Use VALIDATION_MODE for rejected rows.
+No automated or manual fix guidance is currently available for this rule.

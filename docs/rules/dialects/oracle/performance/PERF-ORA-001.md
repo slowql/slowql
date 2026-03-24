@@ -8,7 +8,7 @@
 Without NOWAIT, the session hangs waiting for row locks.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Add NOWAIT to raise ORA-00054 or SKIP LOCKED (Oracle 11g+).
+No automated or manual fix guidance is currently available for this rule.

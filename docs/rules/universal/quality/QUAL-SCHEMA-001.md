@@ -8,7 +8,7 @@
 Tables without primary keys are a major design flaw. They prevent row uniqueness, break replication, make updates slow, and hinder most database optimizations.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Add a PRIMARY KEY to the table. Usually an auto-incrementing ID or a UUID. Every table must have a unique identifier.
+No automated or manual fix guidance is currently available for this rule.

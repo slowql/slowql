@@ -8,7 +8,7 @@
 MAXDOP hints override server-level parallelism. MAXDOP 1 forces single-threaded execution. High MAXDOP values can starve other queries of CPU.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Use server or database-level MAXDOP settings. Per-query hints are rarely justified.
+No automated or manual fix guidance is currently available for this rule.

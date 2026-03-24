@@ -11,4 +11,4 @@ Attackers can execute arbitrary SQL commands, accessing or destroying data.
 Dynamic SQL construction using concatenation is the #1 vector for SQL injection.
 
 ## Remediation / Fix
-Use parameterized queries (prepared statements) instead of concatenation.
+No automated or manual fix guidance is currently available for this rule.

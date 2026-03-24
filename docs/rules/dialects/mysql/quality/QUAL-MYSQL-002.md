@@ -8,7 +8,7 @@
 Forced join order may become suboptimal as data distribution changes.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Remove STRAIGHT_JOIN. Update statistics with ANALYZE TABLE.
+No automated or manual fix guidance is currently available for this rule.

@@ -8,7 +8,7 @@
 A rogue MySQL server can read any file the client has access to.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Use LOAD DATA INFILE (server-side). Disable with --local-infile=0.
+No automated or manual fix guidance is currently available for this rule.

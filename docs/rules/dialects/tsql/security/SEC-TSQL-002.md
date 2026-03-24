@@ -8,7 +8,7 @@
 OLE Automation enables arbitrary COM object instantiation and host compromise.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Disable OLE Automation: sp_configure 'Ole Automation Procedures', 0.
+No automated or manual fix guidance is currently available for this rule.

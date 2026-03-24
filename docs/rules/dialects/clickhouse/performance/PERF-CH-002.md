@@ -8,7 +8,7 @@
 Without GLOBAL, each shard executes the right-side subquery independently. For N shards this means N redundant executions.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Use GLOBAL JOIN or GLOBAL IN for distributed subqueries: SELECT * FROM dist_table GLOBAL JOIN (SELECT ...) USING key.
+No automated or manual fix guidance is currently available for this rule.

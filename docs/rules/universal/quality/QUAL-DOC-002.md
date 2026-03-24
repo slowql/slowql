@@ -8,7 +8,7 @@
 Magic constants like 'STATUS_42' or 1001 represent business logic that is opaque to future maintainers. Without comments, it's impossible to know if the value is correct.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Add an inline comment explaining what the constant represents. E.g., WHERE status = 'A' -- A = Active.
+No automated or manual fix guidance is currently available for this rule.

@@ -8,7 +8,7 @@
 Sessions without expiration validation remain valid indefinitely. Stolen tokens provide permanent access. Violates security best practices and compliance requirements.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Always validate token expiration: WHERE token = ? AND expires_at > NOW(). Implement absolute timeouts (24h) and idle timeouts (30min). Force re-authentication for sensitive operations.
+No automated or manual fix guidance is currently available for this rule.

@@ -8,7 +8,7 @@
 OR conditions can prevent index usage depending on the query planner
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Consider rewriting as UNION ALL of two queries
+No automated or manual fix guidance is currently available for this rule.

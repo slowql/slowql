@@ -8,7 +8,7 @@
 String concatenation in EXECUTE IMMEDIATE allows arbitrary SQL injection.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Use bind variables: EXECUTE IMMEDIATE 'SELECT * FROM t WHERE id = :1' USING v_id.
+No automated or manual fix guidance is currently available for this rule.

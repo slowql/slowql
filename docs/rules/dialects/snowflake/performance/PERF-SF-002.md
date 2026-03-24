@@ -8,7 +8,7 @@
 VARIANT sorting inspects type per row, adding significant overhead.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Cast in ORDER BY: ORDER BY data:field::NUMBER.
+No automated or manual fix guidance is currently available for this rule.

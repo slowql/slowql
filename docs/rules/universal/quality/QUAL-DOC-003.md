@@ -8,7 +8,7 @@
 Queries over 20 lines without comments are 'write-only' code. They are prohibitively expensive to modify or peer-review safely.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Add header comments explaining the query's goal. Use inline comments for complex JOIN conditions or business logic branches.
+No automated or manual fix guidance is currently available for this rule.

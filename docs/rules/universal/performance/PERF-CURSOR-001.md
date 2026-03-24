@@ -8,7 +8,7 @@
 Cursors process one row at a time, requiring round-trips and preventing set-based optimizations. Cursor operations are typically 10-100x slower than equivalent set-based SQL.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Rewrite using set-based operations: UPDATE...FROM, MERGE, window functions. If cursor is truly necessary, use FAST_FORWARD READ_ONLY.
+No automated or manual fix guidance is currently available for this rule.

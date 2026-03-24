@@ -8,7 +8,7 @@
 A single NULL in the subquery result causes NOT IN to return zero rows.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Replace NOT IN (SELECT ...) with NOT EXISTS (SELECT 1 FROM ... WHERE ...).
+No automated or manual fix guidance is currently available for this rule.

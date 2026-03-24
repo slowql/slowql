@@ -8,7 +8,7 @@
 Forced indexes bypass the optimizer and may force worse plans over time.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Remove index hints. Update statistics with ANALYZE TABLE instead.
+No automated or manual fix guidance is currently available for this rule.

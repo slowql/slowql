@@ -8,7 +8,7 @@
 Schema owners have implicit full control over all objects. Ownership transfer can bypass explicit DENY permissions and grant unexpected access.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Restrict ownership changes to DBA team only. Audit all authorization changes. Use explicit permissions instead of relying on ownership.
+No automated or manual fix guidance is currently available for this rule.

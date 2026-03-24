@@ -8,7 +8,7 @@
 Without explicit path, FLATTEN depends on column position which can silently produce wrong results after schema changes.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Use explicit parameters: LATERAL FLATTEN(input => col, path => 'key').
+No automated or manual fix guidance is currently available for this rule.

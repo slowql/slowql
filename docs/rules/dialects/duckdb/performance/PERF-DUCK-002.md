@@ -8,7 +8,7 @@
 Large IN lists are evaluated as repeated OR conditions. A VALUES table with a semi-join is more efficient for DuckDB's vectorized engine.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Replace IN (1,2,...,100) with: JOIN (VALUES (1),(2),...,(100)) AS v(id) USING (id).
+No automated or manual fix guidance is currently available for this rule.

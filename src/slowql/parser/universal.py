@@ -66,6 +66,29 @@ class UniversalParser(BaseParser):
                 raise UnsupportedDialectError(dialect)
         self.default_dialect = dialect
 
+    def _strip_jinja(self, sql: str) -> str:
+        """
+        Replace Jinja syntax with spaces or safe dummy identifiers
+        to allow the SQL parser to succeed without changing string length,
+        preserving exact line and column numbers.
+        """
+        # Block comments {# ... #} -> replace with spaces
+        sql = re.sub(r'\{#.*?#\}', lambda m: ' ' * len(m.group(0)), sql, flags=re.DOTALL)
+
+        # Control blocks {% ... %} -> replace with spaces
+        sql = re.sub(r'\{%.*?%\}', lambda m: ' ' * len(m.group(0)), sql, flags=re.DOTALL)
+
+        # Expressions {{ ... }} -> replace with a dummy identifier padded with '_'
+        def repl_expr(m: re.Match[str]) -> str:
+            length = len(m.group(0))
+            prefix = '__jinja'
+            if length <= len(prefix):
+                return 'x' * length
+            return prefix + '_' * (length - len(prefix))
+
+        sql = re.sub(r'\{\{.*?\}\}', repl_expr, sql, flags=re.DOTALL)
+        return sql
+
     def parse(
         self, sql: str, *, dialect: str | None = None, file_path: str | Path | None = None
     ) -> list[Query]:
@@ -83,9 +106,10 @@ class UniversalParser(BaseParser):
         Raises:
             ParseError: If parsing fails.
         """
+        stripped_sql = self._strip_jinja(sql)
         splitter = SourceSplitter()
         try:
-            statements = splitter.split(sql)
+            statements = splitter.split(stripped_sql)
         except Exception as e:
             raise ParseError(
                 "An unexpected error occurred during SQL splitting.", details=str(e)
@@ -99,7 +123,10 @@ class UniversalParser(BaseParser):
                     dialect or self.default_dialect or self.detect_dialect(stmt.raw)
                 )
 
-                # Parse the single statement
+                # Get the true unstripped raw from the original sql
+                true_raw = sql[stmt.start_offset : stmt.end_offset]
+
+                # Parse the single statement (stripped for safety)
                 parsed = sqlglot.parse_one(
                     stmt.raw,
                     dialect=effective_dialect,
@@ -108,7 +135,7 @@ class UniversalParser(BaseParser):
 
                 # Create Query object
                 query = Query(
-                    raw=stmt.raw,
+                    raw=true_raw,
                     normalized=self.normalize(parsed, dialect=effective_dialect),
                     dialect=effective_dialect or "unknown",
                     location=Location(

@@ -8,7 +8,7 @@
 Implicit language defaults reduce code clarity and can cause errors if the default language changes or if plpgsql is not loaded.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Add LANGUAGE plpgsql: DO $$ BEGIN ... END $$ LANGUAGE plpgsql;
+No automated or manual fix guidance is currently available for this rule.

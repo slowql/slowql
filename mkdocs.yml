@@ -113,6 +113,7 @@ nav:
       - Float for Currency (QUAL-SCHEMA-004): rules/universal/quality/QUAL-SCHEMA-004.md
       - God Query (QUAL-COMPLEX-003): rules/universal/quality/QUAL-COMPLEX-003.md
       - Hardcoded Date Literal in Filter (QUAL-MODERN-002): rules/universal/quality/QUAL-MODERN-002.md
+      - Hardcoded Schema (QUAL-DBT-002): rules/universal/quality/QUAL-DBT-002.md
       - Hardcoded Test Data (QUAL-TEST-003): rules/universal/quality/QUAL-TEST-003.md
       - Hungarian Notation in Names (QUAL-NAME-003): rules/universal/quality/QUAL-NAME-003.md
       - INSERT Without Column List (QUAL-STYLE-005): rules/universal/quality/QUAL-STYLE-005.md
@@ -125,6 +126,7 @@ nav:
       - Missing Column Comments (QUAL-DOC-001): rules/universal/quality/QUAL-DOC-001.md
       - Missing Index on Foreign Key (QUAL-SCHEMA-003): rules/universal/quality/QUAL-SCHEMA-003.md
       - Missing Primary Key (QUAL-SCHEMA-001): rules/universal/quality/QUAL-SCHEMA-001.md
+      - Missing dbt Ref (QUAL-DBT-001): rules/universal/quality/QUAL-DBT-001.md
       - Non-Deterministic Query (QUAL-TEST-001): rules/universal/quality/QUAL-TEST-001.md
       - Pagination Without ORDER BY (QUAL-TEST-002): rules/universal/quality/QUAL-TEST-002.md
       - Permanent Temporary Table (QUAL-DEBT-002): rules/universal/quality/QUAL-DEBT-002.md

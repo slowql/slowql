@@ -8,7 +8,7 @@
 WHILE loops without batch limits may process unlimited rows per iteration, negating the benefits of batching.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Always use TOP/LIMIT in batched operations inside loops.
+No automated or manual fix guidance is currently available for this rule.

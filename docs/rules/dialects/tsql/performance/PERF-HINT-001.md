@@ -8,7 +8,7 @@
 Query hints freeze execution plans. As data grows and distribution changes, hinted plans become suboptimal. Hints hide underlying issues (missing indexes, bad statistics).
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Remove hints and fix root cause: update statistics, add indexes, simplify query.
+No automated or manual fix guidance is currently available for this rule.

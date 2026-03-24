@@ -8,7 +8,7 @@
 Audit log tampering destroys forensic capability and violates every compliance framework. Attackers delete logs to cover tracks. This is often evidence of active compromise.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Make audit tables append-only (no UPDATE/DELETE permissions). Use separate audit database with restricted access. Implement real-time log shipping to immutable storage.
+No automated or manual fix guidance is currently available for this rule.

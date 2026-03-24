@@ -8,7 +8,7 @@
 Prevents index usage, forces full table scan
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Use functional indexes or rewrite predicate without wrapping function
+No automated or manual fix guidance is currently available for this rule.

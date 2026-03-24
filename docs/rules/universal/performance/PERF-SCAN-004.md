@@ -8,7 +8,7 @@
 NOT IN with subquery fails silently with NULLs and disables index usage
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Rewrite as NOT EXISTS or LEFT JOIN ... WHERE col IS NULL
+No automated or manual fix guidance is currently available for this rule.

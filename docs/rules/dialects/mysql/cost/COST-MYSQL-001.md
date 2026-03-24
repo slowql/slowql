@@ -8,7 +8,7 @@
 Large result sets evict smaller, frequently-used entries from the query cache, degrading performance for other queries.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Add SQL_NO_CACHE: SELECT SQL_NO_CACHE ... for analytical or one-off queries. Note: query cache is removed in MySQL 8.0+.
+No automated or manual fix guidance is currently available for this rule.

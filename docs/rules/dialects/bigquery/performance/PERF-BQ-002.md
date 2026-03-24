@@ -8,7 +8,7 @@
 REGEXP on every row consumes slot time and increases cost.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Pre-filter with LIKE or STARTS_WITH. Use partitioned/clustered tables.
+No automated or manual fix guidance is currently available for this rule.

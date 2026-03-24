@@ -8,7 +8,7 @@
 Cross-database JOINs cannot use indexes across boundaries. Forces full table scans and data copying. In cloud, this means egress charges and 10-100x slower queries.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Denormalize data into single database or use ETL to replicate needed data. Consider microservices with API calls instead of cross-DB queries.
+No automated or manual fix guidance is currently available for this rule.

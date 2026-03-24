@@ -8,7 +8,7 @@
 A schema change (ALTER TABLE ADD COLUMN) silently shifts all values one position, causing data corruption without any error.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Always specify columns: INSERT INTO table (col1, col2) VALUES (v1, v2).
+No automated or manual fix guidance is currently available for this rule.

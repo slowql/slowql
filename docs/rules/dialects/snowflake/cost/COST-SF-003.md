@@ -8,7 +8,7 @@
 Undersized warehouse causes disk spilling, multiplying credit consumption.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Monitor query profile for spilling. Scale warehouse for heavy FLATTEN operations.
+No automated or manual fix guidance is currently available for this rule.

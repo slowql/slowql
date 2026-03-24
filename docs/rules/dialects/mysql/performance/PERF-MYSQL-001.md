@@ -8,7 +8,7 @@
 Locking too many rows blocks concurrent writes.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Add LIMIT to restrict locked rows. Use indexed WHERE clause.
+No automated or manual fix guidance is currently available for this rule.

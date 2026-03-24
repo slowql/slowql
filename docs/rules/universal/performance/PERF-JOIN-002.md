@@ -8,7 +8,7 @@
 High join count increases query plan complexity and memory usage
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Consider breaking into CTEs or denormalizing hot query paths
+No automated or manual fix guidance is currently available for this rule.

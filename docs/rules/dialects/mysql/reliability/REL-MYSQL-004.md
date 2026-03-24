@@ -8,7 +8,7 @@
 Timestamp auto-update on parent row triggers CASCADE to all children.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Separate timestamp columns from foreign key relationships.
+No automated or manual fix guidance is currently available for this rule.

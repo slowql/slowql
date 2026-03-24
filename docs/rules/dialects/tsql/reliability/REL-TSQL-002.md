@@ -8,7 +8,7 @@
 Concurrent MERGE statements can both evaluate NOT MATCHED and attempt INSERT, causing duplicate key errors. Or both evaluate MATCHED and overwrite each other's updates.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Add WITH (HOLDLOCK) to the MERGE target: MERGE INTO target WITH (HOLDLOCK) USING ... Or wrap in SERIALIZABLE transaction.
+No automated or manual fix guidance is currently available for this rule.

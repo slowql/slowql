@@ -8,7 +8,7 @@
 Forces a full table scan because B-Tree indexes cannot be traversed in reverse.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Use Full-Text Search (e.g., Elasticsearch, Postgres FTS) for substring searches.
+No automated or manual fix guidance is currently available for this rule.

@@ -8,7 +8,7 @@
 SELECT 1 FROM DUAL is Oracle-specific legacy syntax for selecting constants. It works but is non-portable and signals Oracle-specific code that cannot be migrated to PostgreSQL, MySQL, or other databases without modification.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Use SELECT 1 (no FROM clause) which works in most modern databases. Oracle 23c+ supports SELECT 1 without FROM DUAL.
+No automated or manual fix guidance is currently available for this rule.

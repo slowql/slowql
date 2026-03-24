@@ -8,7 +8,7 @@
 Queries return duplicate rows that should have been deduplicated. Aggregations like COUNT and SUM return inflated values.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Add FINAL keyword: SELECT * FROM table FINAL WHERE ... Note: FINAL forces a merge at query time which adds latency. For high-throughput reads, use OPTIMIZE TABLE periodically.
+No automated or manual fix guidance is currently available for this rule.

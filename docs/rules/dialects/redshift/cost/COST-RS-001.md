@@ -8,7 +8,7 @@
 Default PARALLEL ON creates many small S3 files. For downstream consumers expecting a single file, this requires extra processing.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Add PARALLEL OFF for single-file output (small results) or PARALLEL ON MAXFILESIZE for controlled output (large results).
+No automated or manual fix guidance is currently available for this rule.

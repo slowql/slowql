@@ -8,7 +8,7 @@
 ORDER BY in subquery is meaningless and wastes sort cost
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Remove ORDER BY from subquery unless paired with LIMIT/TOP
+No automated or manual fix guidance is currently available for this rule.

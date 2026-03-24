@@ -8,7 +8,7 @@
 Produces row count = table1_rows * table2_rows, exponential cost
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Add explicit JOIN condition or use INNER JOIN
+No automated or manual fix guidance is currently available for this rule.

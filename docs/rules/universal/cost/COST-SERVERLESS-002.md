@@ -8,7 +8,7 @@
 Serverless databases charge per second of connection time. Keeping connections alive between invocations wastes money.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Close connections immediately after query in Lambda/serverless. Use RDS Proxy for connection pooling.
+No automated or manual fix guidance is currently available for this rule.

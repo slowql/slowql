@@ -8,7 +8,7 @@
 COUNT(*) on a large table without WHERE scans every row.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-For approximate counts use: SELECT reltuples FROM pg_class WHERE relname = 'table'.
+No automated or manual fix guidance is currently available for this rule.

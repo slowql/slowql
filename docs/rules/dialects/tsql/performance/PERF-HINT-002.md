@@ -8,7 +8,7 @@
 Index hints force specific index usage regardless of statistics. When data changes, the forced index may become suboptimal, but the hint remains.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Let the optimizer choose indexes. If it chooses wrong, update statistics or create better indexes.
+No automated or manual fix guidance is currently available for this rule.

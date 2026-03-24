@@ -8,7 +8,7 @@
 After MOVE, all indexes become UNUSABLE — queries error or fall back to full scans.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Follow ALTER TABLE MOVE with ALTER INDEX ... REBUILD for every index.
+No automated or manual fix guidance is currently available for this rule.

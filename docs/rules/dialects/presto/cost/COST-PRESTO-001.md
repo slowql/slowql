@@ -8,7 +8,7 @@
 Hive tables can have thousands of partitions and hundreds of columns. SELECT * reads everything, multiplying I/O and cost.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Specify columns explicitly. Add WHERE on partition columns: WHERE dt = '2024-01-01'. Use SHOW PARTITIONS to understand layout.
+No automated or manual fix guidance is currently available for this rule.

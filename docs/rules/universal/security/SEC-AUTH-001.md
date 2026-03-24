@@ -11,4 +11,4 @@ Credentials exposed in source code or logs can be used by attackers.
 Secrets should never be stored in plain text within code or queries.
 
 ## Remediation / Fix
-Use query parameters and secrets management.
+No automated or manual fix guidance is currently available for this rule.

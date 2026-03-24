@@ -8,7 +8,7 @@
 SQL does not guarantee row order without ORDER BY. Without it, pagination can return the same row on multiple pages or skip rows entirely, leading to UI bugs.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Always add ORDER BY when using LIMIT/OFFSET. Ensure the sort key is unique (e.g., include ID) to guarantee stable sorting.
+No automated or manual fix guidance is currently available for this rule.

@@ -8,7 +8,7 @@
 DBMS_SQL bypasses static SQL parsing, enabling arbitrary SQL execution.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Use bind variables with DBMS_SQL.BIND_VARIABLE or native EXECUTE IMMEDIATE with USING.
+No automated or manual fix guidance is currently available for this rule.

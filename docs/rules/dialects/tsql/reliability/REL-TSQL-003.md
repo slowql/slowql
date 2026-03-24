@@ -8,7 +8,7 @@
 If TRUNCATE fails, the error is not caught and subsequent statements execute on stale data.
 
 **Rationale:**
-Documentation for this rule's rationale is pending.
+
 
 ## Remediation / Fix
-Always pair BEGIN TRY with BEGIN CATCH. Use THROW to re-raise errors.
+No automated or manual fix guidance is currently available for this rule.
