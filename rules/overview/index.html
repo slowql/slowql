@@ -977,6 +977,56 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#custom-rule-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Custom Rule Engine
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Custom Rule Engine">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#yaml-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        YAML Rules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#python-plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python Plugins
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -14914,6 +14964,56 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#custom-rule-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Custom Rule Engine
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Custom Rule Engine">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#yaml-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        YAML Rules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#python-plugins" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python Plugins
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -14982,6 +15082,112 @@ slowql --list-rules --filter-dimension performance --filter-dialect postgresql
 # Read the full documentation of a specific rule
 slowql --explain PERF-SCAN-001
 </code></pre>
+<h2 id="custom-rule-engine">Custom Rule Engine</h2>
+<p>SlowQL supports user-defined rules via the plugin system. Custom rules are treated as first-class citizens and integrate seamlessly with built-in rules.</p>
+<h3 id="yaml-rules">YAML Rules</h3>
+<p>Define pattern-based rules in a YAML file:</p>
+<pre><code class="language-yaml"># billing_rules.yml
+rules:
+  - id: &quot;CUSTOM-BILLING-001&quot;
+    name: &quot;No DELETE on billing schema&quot;
+    description: &quot;DELETE operations on billing schema are forbidden.&quot;
+    dimension: &quot;security&quot;
+    severity: &quot;critical&quot;
+    pattern: &quot;(?i)DELETE\\s+FROM\\s+billing\\.&quot;
+    message: &quot;DELETE on billing schema is forbidden.&quot;
+
+  - id: &quot;CUSTOM-AUDIT-001&quot;
+    name: &quot;Tables require audit columns&quot;
+    description: &quot;All tables must have created_at and updated_at.&quot;
+    dimension: &quot;quality&quot;
+    severity: &quot;medium&quot;
+    pattern: &quot;(?i)CREATE\\s+TABLE&quot;
+    message: &quot;Table may be missing audit columns (created_at, updated_at).&quot;
+</code></pre>
+<p>Supported fields per rule:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>Yes</td>
+<td>Unique rule identifier (e.g., <code>CUSTOM-001</code>)</td>
+</tr>
+<tr>
+<td><code>name</code></td>
+<td>Yes</td>
+<td>Short human-readable name</td>
+</tr>
+<tr>
+<td><code>description</code></td>
+<td>Yes</td>
+<td>Detailed explanation of the issue</td>
+</tr>
+<tr>
+<td><code>dimension</code></td>
+<td>Yes</td>
+<td>One of: <code>security</code>, <code>performance</code>, <code>reliability</code>, <code>compliance</code>, <code>cost</code>, <code>quality</code></td>
+</tr>
+<tr>
+<td><code>severity</code></td>
+<td>Yes</td>
+<td>One of: <code>critical</code>, <code>high</code>, <code>medium</code>, <code>low</code>, <code>info</code></td>
+</tr>
+<tr>
+<td><code>pattern</code></td>
+<td>Yes</td>
+<td>Regular expression matched against the raw SQL string</td>
+</tr>
+<tr>
+<td><code>message</code></td>
+<td>Yes</td>
+<td>Human-readable finding message</td>
+</tr>
+<tr>
+<td><code>tags</code></td>
+<td>No</td>
+<td>List of optional tags</td>
+</tr>
+</tbody>
+</table>
+<h3 id="python-plugins">Python Plugins</h3>
+<p>For complex, AST-based logic, define rules directly in Python:</p>
+<pre><code class="language-python"># my_rules.py
+from slowql.rules.base import PatternRule
+from slowql.core.models import Severity, Dimension
+
+class NoBillingDeleteRule(PatternRule):
+    id = &quot;CUSTOM-BILLING-001&quot;
+    name = &quot;No DELETE on billing schema&quot;
+    description = &quot;DELETE operations on the billing schema are forbidden.&quot;
+    severity = Severity.CRITICAL
+    dimension = Dimension.SECURITY
+    pattern = r&quot;(?i)DELETE\s+FROM\s+billing\.&quot;
+    message_template = &quot;Forbidden DELETE on billing schema detected.&quot;
+</code></pre>
+<h3 id="configuration">Configuration</h3>
+<p>Enable plugins in <code>slowql.yaml</code>:</p>
+<pre><code class="language-yaml">plugins:
+  directories:
+    - &quot;./my_rules&quot;        # Scans for *.py, *.yml, *.yaml files
+  modules:
+    - &quot;mycompany.sql_rules&quot;  # Python module import path
+</code></pre>
+<p>Or pass programmatically:</p>
+<pre><code class="language-python">from slowql.core.engine import SlowQL
+from slowql.core.config import Config, PluginConfig
+
+config = Config(plugins=PluginConfig(directories=[&quot;./my_rules&quot;]))
+engine = SlowQL(config=config)
+result = engine.analyze(sql)
+</code></pre>
+<p>Custom rules with duplicate IDs are automatically deduplicated (first registration wins). Errors in individual plugin files are logged as warnings and skipped gracefully — they will not prevent other rules from loading.</p>
 
 
 
