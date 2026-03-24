@@ -284,6 +284,9 @@ slowql . --since main
 --non-interactive  Suppress spinners and interactive prompts
 --git-diff         Only analyze files changed in the current workspace
 --since            Analyze files changed since a specific git revision (e.g. main)
+--cache-dir        Directory to store cache files (default: .slowql_cache)
+--no-cache         Disable query result caching
+--clear-cache      Clear cache directory before analysis
 --jobs, -j         Number of parallel workers for analyzing multiple files. (0 = auto)
 ```
 

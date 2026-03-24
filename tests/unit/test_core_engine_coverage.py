@@ -30,6 +30,8 @@ class TestSlowQLEngineCoverage:
         config.analysis.max_workers = 1
         config.schema_config = MagicMock()
         config.schema_config.path = None
+        config.cache_config = MagicMock()
+        config.cache_config.enabled = False
         return config
 
     def test_init_and_properties(self, mock_config):

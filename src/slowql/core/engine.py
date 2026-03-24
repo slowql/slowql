@@ -262,6 +262,7 @@ class SlowQL:
         path: str | Path,
         *,
         dialect: str | None = None,
+        use_cache: bool = True,
     ) -> AnalysisResult:
         """
         Analyze a SQL file for issues.
@@ -269,6 +270,7 @@ class SlowQL:
         Args:
             path: Path to the SQL file.
             dialect: Optional dialect override.
+            use_cache: Whether to use caching if enabled in config.
 
         Returns:
             AnalysisResult containing all detected issues.
@@ -284,7 +286,21 @@ class SlowQL:
 
         sql = path.read_text(encoding="utf-8")
 
-        return self.analyze(sql, dialect=dialect, file_path=str(path))
+        # Try cache
+        cache_manager = None
+        if use_cache and self.config.cache_config.enabled:
+            from slowql.core.cache import CacheManager  # noqa: PLC0415
+            cache_manager = CacheManager(self.config.cache_config.dir)
+            cached_result = cache_manager.get(path, sql, self.config.hash())
+            if cached_result is not None:
+                return cached_result
+
+        result = self.analyze(sql, dialect=dialect, file_path=str(path))
+
+        if cache_manager is not None:
+            cache_manager.set(path, sql, self.config.hash(), result)
+
+        return result
 
     def analyze_with_baseline(
         self,

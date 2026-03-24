@@ -994,6 +994,8 @@ def run_analysis_loop(  # noqa: PLR0912, PLR0915
     verbose: bool = False,
     non_interactive: bool = False,
     enable_cache: bool = True,
+    cache_dir: str = ".slowql_cache",
+    clear_cache: bool = False,
     enable_comparison: bool = False,
     show_diff: bool = False,
     export_session_history: bool = False,
@@ -1017,6 +1019,12 @@ def run_analysis_loop(  # noqa: PLR0912, PLR0915
     session = SessionManager()
     cache = QueryCache() if enable_cache else None
 
+    if clear_cache:
+        from slowql.core.cache import CacheManager  # noqa: PLC0415
+        CacheManager(cache_dir).clear()
+        if report_format not in ("json", "html", "csv", "sarif", "github-actions"):
+            console.print("[dim]Cache cleared.[/dim]")
+
     # Initialize Engine
     config = Config.find_and_load()
 
@@ -1029,6 +1037,10 @@ def run_analysis_loop(  # noqa: PLR0912, PLR0915
         "analysis": {
             "max_workers": jobs,
             "parallel": jobs != 1
+        },
+        "cache_config": {
+            "enabled": enable_cache,
+            "dir": cache_dir
         }
     }
     if fail_on:
@@ -1597,6 +1609,12 @@ def build_argparser() -> argparse.ArgumentParser:
         "--no-cache", action="store_true", help="Disable query result caching"
     )
     analysis_group.add_argument(
+        "--cache-dir", type=str, default=".slowql_cache", help="Directory to store cache files"
+    )
+    analysis_group.add_argument(
+        "--clear-cache", action="store_true", help="Clear cache directory before analysis"
+    )
+    analysis_group.add_argument(
         "--jobs",
         "-j",
         type=int,
@@ -1817,6 +1835,8 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0912, PLR0915
         "verbose": args.verbose,
         "non_interactive": args.non_interactive,
         "enable_cache": not args.no_cache,
+        "cache_dir": getattr(args, "cache_dir", ".slowql_cache"),
+        "clear_cache": getattr(args, "clear_cache", False),
         "enable_comparison": args.compare,
     }
 

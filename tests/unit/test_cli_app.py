@@ -908,6 +908,8 @@ class TestMainFunction:
         mock_args.verbose = False
         mock_args.non_interactive = False
         mock_args.no_cache = False
+        mock_args.cache_dir = ".slowql_cache"
+        mock_args.clear_cache = False
         mock_args.compare = False
         mock_args.schema = None
         mock_args.dialect = None
@@ -936,6 +938,8 @@ class TestMainFunction:
             verbose=False,
             non_interactive=False,
             enable_cache=True,
+            cache_dir=".slowql_cache",
+            clear_cache=False,
             enable_comparison=False,
         )
     @patch("slowql.cli.app.run_analysis_loop")

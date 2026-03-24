@@ -157,6 +157,18 @@ class SchemaConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
+class CacheConfig(BaseModel):
+    """Configuration for result caching."""
+
+    enabled: bool = True
+    """Enable or disable caching."""
+
+    dir: str = ".slowql_cache"
+    """Directory to store cache files."""
+
+    model_config = ConfigDict(frozen=True)
+
+
 class Config(BaseModel):
     """
     Main configuration for SlowQL.
@@ -187,6 +199,9 @@ class Config(BaseModel):
 
     schema_config: SchemaConfig = Field(default_factory=SchemaConfig, alias="schema")
     """Schema configuration."""
+
+    cache_config: CacheConfig = Field(default_factory=CacheConfig, alias="cache")
+    """Cache configuration."""
 
     model_config = ConfigDict(
         frozen=True,
