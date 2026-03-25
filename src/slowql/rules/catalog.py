@@ -194,12 +194,6 @@ from slowql.rules.quality import (
     UsingFloatForCurrencyRule,
     WildcardInColumnListRule,
 )
-from slowql.rules.schema import (
-    ColumnExistsRule,
-    CrossFileBreakingChangeRule,
-    MissingIndexRule,
-    TableExistsRule,
-)
 from slowql.rules.reliability import (
     AlterTableAddColumnVolatileDefaultRule,
     AlterTableDestructiveRule,
@@ -241,6 +235,12 @@ from slowql.rules.reliability import (
     TruncateWithoutTransactionRule,
     UnsafeWriteRule,
     Utf8InsteadOfUtf8mb4Rule,
+)
+from slowql.rules.schema import (
+    ColumnExistsRule,
+    CrossFileBreakingChangeRule,
+    MissingIndexRule,
+    TableExistsRule,
 )
 from slowql.rules.security import (
     AttachDatabaseRule,
