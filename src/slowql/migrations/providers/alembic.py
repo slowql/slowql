@@ -26,8 +26,16 @@ class AlembicSQLScanner(ast.NodeVisitor):
 
         if func_name == "create_table":
             table_name = self._get_val(args[0])
-            # Simplified: we just need enough to let DDLParser know a table exists
-            return f"CREATE TABLE {table_name} (dummy_id INT);"
+            columns = []
+            for arg in args[1:]:
+                # Check for op.Column or Column
+                if isinstance(arg, ast.Call):
+                     c_name = self._get_column_name(arg)
+                     if c_name:
+                         columns.append(f"{c_name} INT")
+
+            cols_str = ", ".join(columns) or "dummy_id INT"
+            return f"CREATE TABLE {table_name} ({cols_str});"
 
         elif func_name == "add_column":
             table_name = self._get_val(args[0])
@@ -62,6 +70,13 @@ class AlembicSQLScanner(ast.NodeVisitor):
 
         return None
 
+    def _get_column_name(self, node: ast.Call) -> str | None:
+        """Extracts column name from op.Column call."""
+        func_attr = getattr(node.func, "attr", "").lower()
+        if func_attr == "column" and len(node.args) > 0:
+            return self._get_val(node.args[0])
+        return None
+
     def _get_val(self, node: ast.AST) -> Any:
         if isinstance(node, ast.Constant):
             return node.value
@@ -71,11 +86,18 @@ class AlembicProvider(MigrationProvider):
     def detect(self, path: Path) -> bool:
         # Check if it's a directory containing alembic files
         if path.is_dir():
-            return (path / "alembic.ini").exists() or (path / "versions").is_dir()
+            return (
+                (path / "alembic.ini").exists() or
+                (path / "versions").is_dir() or
+                (path / "migrations" / "versions").is_dir()
+            )
         return False
 
     def get_migrations(self, path: Path) -> list[MigrationFile]:  # noqa: PLR0912
         versions_dir = path / "versions"
+        if not versions_dir.is_dir():
+            versions_dir = path / "migrations" / "versions"
+
         if not versions_dir.is_dir():
             # Try path as versions dir
             versions_dir = path
@@ -123,6 +145,5 @@ class AlembicProvider(MigrationProvider):
             except Exception:
                 continue
 
-        # Sort migrations topologically if possible, or just by revision if we don't have dependency graph logic yet
-        # For now, we'll return as is. The tracker might need to handle the graph.
-        return migrations
+        # Sort migrations by version string (handles 001, 002 etc.)
+        return sorted(migrations, key=lambda m: m.version)

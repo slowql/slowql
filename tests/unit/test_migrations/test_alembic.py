@@ -34,3 +34,22 @@ def test_alembic_extaction(tmp_path):
     assert "ALTER TABLE users ADD COLUMN email" in m.content
     assert "ALTER TABLE users DROP COLUMN old_field" in m.content
     assert "DROP TABLE old_table" in m.content
+
+def test_alembic_malformed_migration(tmp_path):
+    versions_dir = tmp_path / "versions"
+    versions_dir.mkdir()
+    (versions_dir / "bad.py").write_text("this is not python code")
+
+    provider = AlembicProvider()
+    migrations = provider.get_migrations(tmp_path)
+    assert len(migrations) == 0
+
+def test_alembic_missing_upgrade(tmp_path):
+    versions_dir = tmp_path / "versions"
+    versions_dir.mkdir()
+    (versions_dir / "1_no_upgrade.py").write_text("revision = '1'")
+
+    provider = AlembicProvider()
+    migrations = provider.get_migrations(tmp_path)
+    assert len(migrations) == 1
+    assert migrations[0].content == ""

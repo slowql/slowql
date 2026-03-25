@@ -409,10 +409,14 @@ class SlowQL:
 
             # Update tracker and current_schema for the NEXT migration
             for query in queries:
-                if query.is_ddl and current_schema:
+                if query.is_ddl:
+                    if current_schema is None:
+                        from slowql.schema.models import Schema  # noqa: PLC0415
+                        current_schema = Schema()
+
                     tracker.apply_ddl(query.raw)
                     from slowql.schema.ddl_parser import DDLParser  # noqa: PLC0415
-                    parser = DDLParser(dialect=query.dialect or current_schema.dialect)
+                    parser = DDLParser(dialect=query.dialect or current_schema.dialect or self.config.analysis.dialect or "postgres")
                     current_schema = parser.apply_ddl(query.raw, schema=current_schema)
 
         return combined_result

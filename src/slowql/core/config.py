@@ -86,6 +86,7 @@ class AnalysisConfig(BaseModel):
             "compliance",
             "cost",
             "quality",
+            "migration",
         }
     )
     """Which dimensions to analyze."""

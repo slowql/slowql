@@ -72,6 +72,7 @@ from slowql.rules.cost import (
     UnloadWithoutParallelRule,
     UnnecessaryConnectionPoolingRule,
 )
+from slowql.rules.migration.breaking_change import BreakingChangeRule
 from slowql.rules.performance import (
     BigQueryDistinctOnUnnestRule,
     BigQueryRegexOnLargeTableRule,
@@ -235,7 +236,6 @@ from slowql.rules.reliability import (
     UnsafeWriteRule,
     Utf8InsteadOfUtf8mb4Rule,
 )
-from slowql.rules.migration.breaking_change import BreakingChangeRule
 from slowql.rules.security import (
     AttachDatabaseRule,
     AuditTrailManipulationRule,
@@ -594,7 +594,7 @@ def get_all_rules() -> list[Rule]:
         ClickHouseMutationRule(),
         SqliteForeignKeysOffRule(),
         SparkCacheTableWithoutFilterRule(),
-        BreakingChangeRule(None),
+        BreakingChangeRule(),
 
     ]
 
