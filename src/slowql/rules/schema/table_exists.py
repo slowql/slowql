@@ -41,6 +41,9 @@ class TableExistsRule(ASTRule):
         Returns:
             List of detected issues.
         """
+        if not self.schema:
+            return []
+
         issues = []
         tables = self._get_tables(ast)
 

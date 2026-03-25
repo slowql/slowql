@@ -49,6 +49,9 @@ class MissingIndexRule(ASTRule):
         Returns:
             List of detected issues.
         """
+        if not self.schema:
+            return []
+
         issues = []
         where = ast.find(exp.Where)
         if not where:
