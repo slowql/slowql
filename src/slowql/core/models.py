@@ -470,6 +470,11 @@ class Query:
         """Check if query is a DELETE statement."""
         return self._check_type("DELETE")
 
+    @property
+    def is_ddl(self) -> bool:
+        """Check if query is a DDL statement."""
+        return (self.query_type or "").upper() in ("CREATE", "ALTER", "DROP", "TRUNCATE", "RENAME")
+
     def _check_type(self, type_name: str) -> bool:
         """Helper to check query type safely."""
         return str(self.query_type or "").upper() == type_name

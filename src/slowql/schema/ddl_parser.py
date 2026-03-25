@@ -45,37 +45,49 @@ class DDLParser:
         Raises:
             ValueError: If parsing the complete DDL string fails.
         """
+        return self.apply_ddl(ddl, Schema(dialect=self.dialect))
+
+    def apply_ddl(self, ddl: str, schema: Schema) -> Schema:
+        """
+        Apply DDL statements to an existing schema and return the updated schema.
+        """
         sqlglot_dialect = "postgres" if self.dialect == "postgresql" else self.dialect
         try:
             statements = sqlglot.parse(ddl, dialect=sqlglot_dialect)
         except Exception as e:
             raise ValueError(f"Failed to parse DDL: {e}") from e
 
-        schema = Schema(dialect=self.dialect)
+        current_schema = schema
         indexes_to_add: list[tuple[str, Index]] = []
 
         for stmt in statements:
-            if not isinstance(stmt, exp.Create):
-                continue
-
             try:
-                if isinstance(stmt.this, (exp.Schema, exp.Table)):
-                    table = self._parse_create_table(stmt)
-                    if table:
-                        schema = schema.add_table(table)
-                elif isinstance(stmt.this, exp.Index):
-                    result = self._parse_create_index(stmt)
-                    if result:
-                        indexes_to_add.append(result)
+                if isinstance(stmt, exp.Create):
+                    if isinstance(stmt.this, (exp.Schema, exp.Table)):
+                        table = self._parse_create_table(stmt)
+                        if table:
+                            current_schema = current_schema.add_table(table)
+                    elif isinstance(stmt.this, exp.Index):
+                        result = self._parse_create_index(stmt)
+                        if result:
+                            indexes_to_add.append(result)
+                elif isinstance(stmt, exp.Drop):
+                    if isinstance(stmt.this, exp.Table):
+                        table_name = stmt.this.name
+                        if current_schema.has_table(table_name):
+                            new_tables = current_schema.tables.copy()
+                            new_tables.pop(table_name)
+                            current_schema = Schema(tables=new_tables, dialect=current_schema.dialect)
+                elif isinstance(stmt, exp.Alter):
+                    current_schema = self._apply_alter(stmt, current_schema)
             except Exception as e:
                 logger.warning("Failed to parse statement %s: %s", stmt.sql(), e)
                 continue
 
         # Add indexes to tables
         for table_name, index in indexes_to_add:
-            if schema.has_table(table_name):
-                table = schema.get_table(table_name)
-                # Schema and Table are frozen, so we need to reconstruct them
+            if current_schema.has_table(table_name):
+                table = current_schema.get_table(table_name)
                 if table:
                     new_indexes = (*table.indexes, index)
                     new_table = Table(
@@ -86,9 +98,56 @@ class DDLParser:
                         primary_key=table.primary_key,
                         comment=table.comment
                     )
-                    schema = schema.add_table(new_table)
+                    current_schema = current_schema.add_table(new_table)
 
-        return schema
+        return current_schema
+
+    def _apply_alter(self, stmt: exp.Alter, schema: Schema) -> Schema:
+        """Apply an ALTER TABLE statement to the schema."""
+        table_node = stmt.find(exp.Table)
+        if not table_node or not table_node.name:
+            return schema
+        
+        table_name = table_node.name
+        if not schema.has_table(table_name):
+            return schema
+
+        table = schema.get_table(table_name)
+        if not table:
+            return schema
+
+        new_columns = list(table.columns)
+        
+        for action in stmt.args.get("actions", []):
+            # Add column
+            if isinstance(action, exp.ColumnDef):
+                col = self._parse_column(action)
+                if col:
+                    new_columns.append(col)
+            elif hasattr(action, 'arg_key') and action.arg_key == 'add_column':
+                 col_def = action.args.get("this")
+                 if isinstance(col_def, exp.ColumnDef):
+                     col = self._parse_column(col_def)
+                     if col:
+                         new_columns.append(col)
+            # Drop column
+            elif isinstance(action, exp.Drop) and isinstance(action.this, exp.Column):
+                col_name = action.this.name
+                new_columns = [c for c in new_columns if c.name != col_name]
+            elif hasattr(action, 'kind') and str(action.kind).upper() == 'DROP':
+                if hasattr(action, 'this') and isinstance(action.this, exp.Column):
+                    col_name = action.this.name
+                    new_columns = [c for c in new_columns if c.name != col_name]
+
+        new_table = Table(
+            name=table.name,
+            table_schema=table.table_schema,
+            columns=tuple(new_columns),
+            indexes=table.indexes,
+            primary_key=table.primary_key,
+            comment=table.comment
+        )
+        return schema.add_table(new_table)
 
     def _parse_create_table(self, stmt: exp.Create) -> Table | None:
         """

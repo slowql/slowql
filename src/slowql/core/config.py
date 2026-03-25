@@ -173,6 +173,21 @@ class CacheConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
+class MigrationConfig(BaseModel):
+    """Configuration for database migration analysis."""
+
+    directories: list[str] = Field(default_factory=list)
+    """Directories containing migration files."""
+
+    frameworks: set[str] | None = None
+    """Optional set of frameworks to prioritize (alembic, django, flyway, liquibase, prisma)."""
+
+    enabled: bool = True
+    """Enable or disable migration analysis."""
+
+    model_config = ConfigDict(frozen=True)
+
+
 class PluginConfig(BaseModel):
     """Configuration for the custom rule plugin system."""
 
@@ -221,6 +236,9 @@ class Config(BaseModel):
 
     plugins: PluginConfig = Field(default_factory=PluginConfig)
     """Plugin configuration for user-defined custom rules."""
+
+    migration: MigrationConfig = Field(default_factory=MigrationConfig)
+    """Migration analysis configuration."""
 
     model_config = ConfigDict(
         frozen=True,

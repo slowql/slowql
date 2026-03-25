@@ -65,6 +65,8 @@ It performs safe static analysis of your SQL source code with **no database conn
 
 **dbt & Jinja Support.** Natively parses dbt models and SQL templates containing Jinja tags (`{{ ref() }}`, `{% if %}`, `{% for %}`). Enforces dbt best practices including missing references and hardcoded schema detection.
 
+**Migration Framework Support.** Natively supports **Alembic**, **Django migrations**, **Flyway**, **Liquibase**, **Prisma Migrate**, and **Knex**. SlowQL understands the ordering, dependencies, and context of migration files to catch destructive changes before they break your existing queries.
+
 **14 SQL Dialects.** Dialect-aware analysis for PostgreSQL, MySQL, SQL Server (T-SQL), Oracle, SQLite, Snowflake, BigQuery, Redshift, ClickHouse, DuckDB, Presto, Trino, Spark, and Databricks. Universal rules fire on all dialects; dialect-specific rules only fire when relevant.
 
 **Schema-Aware Validation.** Optionally validate against your DDL files to catch missing tables, columns, and suggest indexes.

@@ -14,6 +14,7 @@ Unlike traditional linters that only format SQL, SlowQL builds a full Abstract S
 - **Dialect Guardians**: Native support for **14 SQL dialects** (PostgreSQL, MySQL, T-SQL, Snowflake, BigQuery, etc.). Rules only trigger for the dialects they explicitly target, eliminating false positives natively.
 - **Safe Autofix**: Automatically and safely format and fix bad SQL (`--fix` and `--diff`), with atomic `.bak` file generation guaranteeing operational safety.
 - **Rich Output Pipelines**: Ships with a cyberpunk-inspired terminal UI for human operability, alongside native SARIF and JSON exporters for automated pipelines.
+- **Migration Framework Support**: Natively supports Alembic, Django, Flyway, Liquibase, Prisma, and Knex with full dependency and ordering awareness.
 - **Language Server Protocol (LSP)**: Instant execution diagnostics exposed directly in VS Code via the embedded `slowql-lsp` background server.
 
 ---

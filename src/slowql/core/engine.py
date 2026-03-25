@@ -352,6 +352,70 @@ class SlowQL:
 
         return result
 
+    def analyze_migrations(self, path: str | Path) -> AnalysisResult:
+        """
+        Analyze database migrations in the given path.
+        Args:
+            path: Path to the migration directory or project root.
+
+        Returns:
+            AnalysisResult containing issues found in migrations.
+        """
+        from slowql.migrations.discovery import MigrationDiscovery  # noqa: PLC0415
+        from slowql.migrations.tracker import MigrationSchemaTracker  # noqa: PLC0415
+
+        path = Path(path)
+        discovery = MigrationDiscovery.default()
+        migrations = discovery.get_migrations(path)
+
+        if not migrations:
+            return AnalysisResult(dialect=self.config.analysis.dialect, config_hash=self.config.hash())
+
+        tracker = MigrationSchemaTracker(initial_schema=self._schema)
+        # We need to compute history based on migration sequence
+        # For simplicity in this implementation, we apply them one by one
+
+        combined_result = AnalysisResult(
+            dialect=self.config.analysis.dialect,
+            config_hash=self.config.hash()
+        )
+
+        current_schema = self._schema
+        for migration in migrations:
+            # Parse the migration content
+            queries = self._parse_sql(
+                migration.content,
+                dialect=self.config.analysis.dialect,
+                file_path=str(migration.path)
+            )
+
+            # Run migration-specific rules (breaking changes)
+            if current_schema:
+                migration_issues = self._run_migration_rules(queries, current_schema)
+                for issue in migration_issues:
+                    combined_result.add_issue(issue)
+
+            # Run normal analyzers on the migration SQL
+            old_schema = self._schema
+            self._schema = current_schema
+            try:
+                raw_issues = self._run_analyzers(queries)
+                for issue in raw_issues:
+                    combined_result.add_issue(issue)
+            finally:
+                self._schema = old_schema
+
+            combined_result.queries.extend(queries)
+
+            # Update tracker and current_schema for the NEXT migration
+            for query in queries:
+                if query.is_ddl and current_schema:
+                    tracker.apply_ddl(migration.content) # Ensure tracker stays in sync
+                    from slowql.schema.ddl_parser import DDLParser  # noqa: PLC0415
+                    DDLParser.apply_ddl(current_schema, query.sql, dialect=query.dialect)
+
+        return combined_result
+
     def analyze_with_baseline(
         self,
         path: str | Path,
@@ -399,13 +463,6 @@ class SlowQL:
     ) -> AnalysisResult:
         """
         Analyze multiple SQL files.
-
-        Args:
-            paths: List of file paths to analyze.
-            dialect: Optional dialect override.
-
-        Returns:
-            Combined AnalysisResult from all files.
         """
         combined_result = AnalysisResult(
             dialect=dialect or self.config.analysis.dialect,
@@ -417,7 +474,12 @@ class SlowQL:
             all_sql_parts = []
             for path in paths:
                 try:
-                    all_sql_parts.append(Path(path).read_text(encoding="utf-8"))
+                    p = Path(path).resolve()
+                    if p.is_file():
+                        all_sql_parts.append(p.read_text(encoding="utf-8"))
+                    elif p.is_dir():
+                        # We don't read directories as SQL text directly
+                        pass
                 except Exception:
                     pass
             if all_sql_parts:
@@ -429,7 +491,27 @@ class SlowQL:
                     self._schema = detected
 
         # Second pass: analyze each file with shared schema
-        if self.config.analysis.parallel and len(paths) > 1:
+        # Filter out migration projects from parallel processing
+        regular_paths = []
+        migration_results = []
+        
+        from slowql.migrations.discovery import MigrationDiscovery # noqa: PLC0415
+        discovery = MigrationDiscovery.default()
+
+        for path in paths:
+            p = Path(path).resolve()
+            if p.is_dir():
+                framework = discovery.detect_framework(p)
+                if framework:
+                    m_result = self.analyze_migrations(p)
+                    migration_results.append(m_result)
+                else:
+                    logger.info(f"Skipping directory {path}: not a migration project.")
+            else:
+                regular_paths.append(path)
+
+        # Handle regular files
+        if self.config.analysis.parallel and len(regular_paths) > 1:
             max_workers = self.config.analysis.max_workers
             if not max_workers or max_workers <= 0:
                 max_workers = os.cpu_count() or 4
@@ -442,7 +524,7 @@ class SlowQL:
                     "config_dict": config_dump,
                     "schema": self._schema,
                 }
-                for p in paths
+                for p in regular_paths
             ]
 
             with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
@@ -461,14 +543,13 @@ class SlowQL:
                             combined_result.add_issue(issue)
                         combined_result.statistics.parse_time_ms += result_or_exc.statistics.parse_time_ms
         else:
-            for path in paths:
+            for path in regular_paths:
                 try:
-                    result = self.analyze_file(path, dialect=dialect)
-                    combined_result.queries.extend(result.queries)
-                    combined_result.statistics.total_queries += len(result.queries)
-                    for issue in result.issues:
-                        combined_result.add_issue(issue)
-                    combined_result.statistics.parse_time_ms += result.statistics.parse_time_ms
+                    res = self.analyze_file(path, dialect=dialect)
+                    combined_result.issues.extend(res.issues)
+                    combined_result.queries.extend(res.queries)
+                    combined_result.statistics.total_queries += len(res.queries)
+                    combined_result.statistics.parse_time_ms += res.statistics.parse_time_ms
                 except (SlowQLError, FileNotFoundError):
                     # Skip files that don't exist or have known errors during batch analysis
                     logger.warning(f"Skipping file due to error: {path}")
@@ -479,6 +560,13 @@ class SlowQL:
                         f"Failed to analyze file: {path}",
                         details=str(e),
                     ) from e
+
+        # Finalize results with migration issues
+        for m_result in migration_results:
+            combined_result.issues.extend(m_result.issues)
+            combined_result.queries.extend(m_result.queries)
+            combined_result.statistics.total_queries += len(m_result.queries)
+            combined_result.statistics.parse_time_ms += m_result.statistics.parse_time_ms
 
         return combined_result
 
@@ -525,6 +613,24 @@ class SlowQL:
         if self._schema is not None:
             schema_issues = self._run_schema_rules(queries)
             issues.extend(schema_issues)
+
+        return self._apply_severity_overrides(issues)
+
+    def _run_migration_rules(self, queries: list[Query], schema_before: Schema) -> list[Issue]:
+        """Run migration-specific validation rules."""
+        from slowql.rules.migration.breaking_change import BreakingChangeRule  # noqa: PLC0415
+
+        issues: list[Issue] = []
+        rule = BreakingChangeRule(schema_before)
+
+        for query in queries:
+            try:
+                rule_issues = rule.check(query)
+                for issue in rule_issues:
+                    if self._should_report_issue(issue):
+                        issues.append(issue)
+            except Exception as e:
+                logger.warning(f"Migration rule failed: {e}")
 
         return self._apply_severity_overrides(issues)
 

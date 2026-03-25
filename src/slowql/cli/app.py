@@ -772,7 +772,15 @@ def _handle_sql_input(  # noqa: PLR0912
 
         for path in input_files:
             if path.is_dir():
-                # Read all .sql files in directory
+                # Check for migrations first
+                from slowql.migrations.discovery import MigrationDiscovery # noqa: PLC0415
+                if MigrationDiscovery.default().detect_framework(path):
+                    # It's a migration project! Return the directory itself as a special case
+                    # or handle it here. For simplicity, we'll let analyze_files handle it.
+                    valid_paths.append(path)
+                    continue
+
+                # Fallback to reading all .sql files in directory
                 sql_files = sorted(path.glob("*.sql"))
                 for sf in sql_files:
                     if changed_files is not None and sf.resolve() not in changed_files:
