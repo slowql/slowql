@@ -17,7 +17,7 @@ class BreakingChangeRule(Rule):
     Detects if a migration makes a change that breaks existing schema state.
     """
 
-    id = "MIG-001"
+    id = "MIG-BRK-001"
     name = "Breaking Schema Change"
     description = (
         "Detects destructive changes (DROP TABLE, DROP COLUMN) that may break "
@@ -27,11 +27,14 @@ class BreakingChangeRule(Rule):
     dimension = Dimension.MIGRATION
     category = Category.REL_DATA_INTEGRITY
 
-    def __init__(self, schema_before: Schema) -> None:
+    def __init__(self, schema_before: Schema | None = None) -> None:
         self.schema_before = schema_before
 
     def check(self, query: Query) -> list[Issue]:  # noqa: PLR0912
         # This rule is special because it compares query against previous schema
+        if self.schema_before is None:
+            return []
+
         # DDLParser already handles the 'is it a drop' logic, but here we provide the warning
 
         # We look for DROP statements in the query

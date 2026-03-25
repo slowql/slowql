@@ -40,43 +40,64 @@ class DjangoSQLScanner(ast.NodeVisitor):
         elif isinstance(func, ast.Name):
             op_type = func.id
 
-        kwargs = {kw.arg: kw.value for kw in node.keywords}
+        kwargs = {kw.arg: kw.value for kw in node.keywords if kw.arg}
 
         if op_type == "CreateModel":
-            val = kwargs.get("name")
-            name = self._get_val(val).lower() if val else ""
-            return f"CREATE TABLE {name} (dummy_id INT);"
+            return self._handle_create_model(node, kwargs)
+        if op_type == "AddField":
+            return self._handle_add_field(node, kwargs)
+        if op_type == "RemoveField":
+            return self._handle_remove_field(node, kwargs)
+        if op_type == "DeleteModel":
+            return self._handle_delete_model(node, kwargs)
+        if op_type == "RunSQL":
+            return self._handle_run_sql(node, kwargs)
 
-        elif op_type == "AddField":
-            m_val = kwargs.get("model_name")
-            model_name = self._get_val(m_val).lower() if m_val else ""
-            n_val = kwargs.get("name")
-            name = self._get_val(n_val) if n_val else ""
-            return f"ALTER TABLE {model_name} ADD COLUMN {name} INT;"
+        return None
 
-        elif op_type == "RemoveField":
-            m_val = kwargs.get("model_name")
-            model_name = self._get_val(m_val).lower() if m_val else ""
-            n_val = kwargs.get("name")
-            name = self._get_val(n_val) if n_val else ""
-            return f"ALTER TABLE {model_name} DROP COLUMN {name};"
+    def _handle_create_model(self, node: ast.Call, kwargs: dict[Any, Any]) -> str | None:
+        val = kwargs.get("name")
+        name = self._get_val(val).lower() if val else ""
+        fields_node = kwargs.get("fields")
+        columns = []
+        if isinstance(fields_node, ast.List):
+            for field in fields_node.elts:
+                if isinstance(field, ast.Tuple) and len(field.elts) > 0:
+                    c_name = self._get_val(field.elts[0])
+                    if c_name:
+                        columns.append(f"{c_name} INT")
 
-        elif op_type == "DeleteModel":
-            n_val = kwargs.get("name")
-            name = self._get_val(n_val).lower() if n_val else ""
-            return f"DROP TABLE {name};"
+        cols_str = ", ".join(columns) or "dummy_id INT"
+        return f"CREATE TABLE {name} ({cols_str});"
 
-        elif op_type == "RunSQL":
-            # Direct SQL
-            if node.args:
-                sql = self._get_val(node.args[0])
-                if isinstance(sql, str):
-                    return sql
-            elif "sql" in kwargs:
-                sql = self._get_val(kwargs["sql"])
-                if isinstance(sql, str):
-                    return sql
+    def _handle_add_field(self, node: ast.Call, kwargs: dict[Any, Any]) -> str | None:
+        m_val = kwargs.get("model_name")
+        model_name = self._get_val(m_val).lower() if m_val else ""
+        n_val = kwargs.get("name")
+        name = self._get_val(n_val) if n_val else ""
+        return f"ALTER TABLE {model_name} ADD COLUMN {name} INT;"
 
+    def _handle_remove_field(self, node: ast.Call, kwargs: dict[Any, Any]) -> str | None:
+        m_val = kwargs.get("model_name")
+        model_name = self._get_val(m_val).lower() if m_val else ""
+        n_val = kwargs.get("name")
+        name = self._get_val(n_val) if n_val else ""
+        return f"ALTER TABLE {model_name} DROP COLUMN {name};"
+
+    def _handle_delete_model(self, node: ast.Call, kwargs: dict[Any, Any]) -> str | None:
+        n_val = kwargs.get("name")
+        name = self._get_val(n_val).lower() if n_val else ""
+        return f"DROP TABLE {name};"
+
+    def _handle_run_sql(self, node: ast.Call, kwargs: dict[Any, Any]) -> str | None:
+        if node.args:
+            sql = self._get_val(node.args[0])
+            if isinstance(sql, str):
+                return sql
+        elif "sql" in kwargs:
+            sql = self._get_val(kwargs["sql"])
+            if isinstance(sql, str):
+                return sql
         return None
 
     def _get_val(self, node: ast.AST) -> Any:
