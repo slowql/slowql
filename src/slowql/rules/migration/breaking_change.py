@@ -1,8 +1,15 @@
 from __future__ import annotations
 
-from slowql.core.models import Category, Dimension, Issue, Query, Severity
+from typing import TYPE_CHECKING
+
+from sqlglot import exp
+
+from slowql.core.models import Category, Dimension, Issue, Severity
 from slowql.rules.base import Rule
-from slowql.schema.models import Schema
+
+if TYPE_CHECKING:
+    from slowql.core.models import Query
+    from slowql.schema.models import Schema
 
 
 class BreakingChangeRule(Rule):
@@ -23,7 +30,7 @@ class BreakingChangeRule(Rule):
     def __init__(self, schema_before: Schema) -> None:
         self.schema_before = schema_before
 
-    def check(self, query: Query) -> list[Issue]:
+    def check(self, query: Query) -> list[Issue]:  # noqa: PLR0912
         # This rule is special because it compares query against previous schema
         # DDLParser already handles the 'is it a drop' logic, but here we provide the warning
 
@@ -31,8 +38,6 @@ class BreakingChangeRule(Rule):
         ast = query.ast
         if not ast:
             return []
-
-        from sqlglot import exp
 
         issues = []
 
@@ -59,6 +64,8 @@ class BreakingChangeRule(Rule):
                 continue
 
             table_before = self.schema_before.get_table(table_name)
+            if not table_before:
+                continue
 
             for action in alter.args.get("actions", []):
                 if isinstance(action, exp.Drop) and isinstance(action.this, exp.Column):

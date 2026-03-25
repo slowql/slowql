@@ -1,6 +1,5 @@
-import pytest
-from pathlib import Path
 from slowql.migrations.providers.django import DjangoProvider
+
 
 def test_django_detection(tmp_path):
     (tmp_path / "migrations").mkdir()
@@ -12,7 +11,7 @@ def test_django_extraction(tmp_path):
     migrations_dir = tmp_path / "migrations"
     migrations_dir.mkdir(exist_ok=True)
     (migrations_dir / "__init__.py").touch()
-    
+
     migration_content = """
 class Migration(migrations.Migration):
     dependencies = [('users', '0001_initial')]
@@ -24,10 +23,10 @@ class Migration(migrations.Migration):
     ]
 """
     (migrations_dir / "0002_profile.py").write_text(migration_content)
-    
+
     provider = DjangoProvider()
     migrations = provider.get_migrations(tmp_path)
-    
+
     assert len(migrations) == 1
     m = migrations[0]
     assert m.version == "0002"

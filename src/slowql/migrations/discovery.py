@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 if TYPE_CHECKING:
     from slowql.migrations.base import MigrationFile, MigrationProvider

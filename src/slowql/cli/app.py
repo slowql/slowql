@@ -773,7 +773,7 @@ def _handle_sql_input(  # noqa: PLR0912
         for path in input_files:
             if path.is_dir():
                 # Check for migrations first
-                from slowql.migrations.discovery import MigrationDiscovery # noqa: PLC0415
+                from slowql.migrations.discovery import MigrationDiscovery  # noqa: PLC0415
                 if MigrationDiscovery.default().detect_framework(path):
                     # It's a migration project! Return the directory itself as a special case
                     # or handle it here. For simplicity, we'll let analyze_files handle it.

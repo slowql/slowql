@@ -410,9 +410,10 @@ class SlowQL:
             # Update tracker and current_schema for the NEXT migration
             for query in queries:
                 if query.is_ddl and current_schema:
-                    tracker.apply_ddl(migration.content) # Ensure tracker stays in sync
+                    tracker.apply_ddl(query.raw)
                     from slowql.schema.ddl_parser import DDLParser  # noqa: PLC0415
-                    DDLParser.apply_ddl(current_schema, query.sql, dialect=query.dialect)
+                    parser = DDLParser(dialect=query.dialect or current_schema.dialect)
+                    current_schema = parser.apply_ddl(query.raw, schema=current_schema)
 
         return combined_result
 
@@ -455,7 +456,7 @@ class SlowQL:
 
         return filtered_result, baseline_suppressed_count
 
-    def analyze_files(  # noqa: PLR0912
+    def analyze_files(  # noqa: PLR0912, PLR0915
         self,
         paths: Sequence[str | Path],
         *,
@@ -494,11 +495,14 @@ class SlowQL:
         # Filter out migration projects from parallel processing
         regular_paths = []
         migration_results = []
-        
-        from slowql.migrations.discovery import MigrationDiscovery # noqa: PLC0415
+
+        from slowql.migrations.discovery import MigrationDiscovery  # noqa: PLC0415
         discovery = MigrationDiscovery.default()
 
         for path in paths:
+            path_str = str(path)
+            if path_str == "analyze":
+                continue
             p = Path(path).resolve()
             if p.is_dir():
                 framework = discovery.detect_framework(p)
@@ -546,10 +550,11 @@ class SlowQL:
             for path in regular_paths:
                 try:
                     res = self.analyze_file(path, dialect=dialect)
-                    combined_result.issues.extend(res.issues)
                     combined_result.queries.extend(res.queries)
                     combined_result.statistics.total_queries += len(res.queries)
                     combined_result.statistics.parse_time_ms += res.statistics.parse_time_ms
+                    for issue in res.issues:
+                        combined_result.add_issue(issue)
                 except (SlowQLError, FileNotFoundError):
                     # Skip files that don't exist or have known errors during batch analysis
                     logger.warning(f"Skipping file due to error: {path}")
@@ -563,10 +568,11 @@ class SlowQL:
 
         # Finalize results with migration issues
         for m_result in migration_results:
-            combined_result.issues.extend(m_result.issues)
             combined_result.queries.extend(m_result.queries)
             combined_result.statistics.total_queries += len(m_result.queries)
             combined_result.statistics.parse_time_ms += m_result.statistics.parse_time_ms
+            for issue in m_result.issues:
+                combined_result.add_issue(issue)
 
         return combined_result
 
