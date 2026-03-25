@@ -6,7 +6,7 @@ import yaml
 
 # Paths
 ROOT_DIR = Path(__file__).parent.parent
-RULES_JSON_PATH = ROOT_DIR / "rules.json"
+RULES_JSON_PATH = ROOT_DIR / "docs" / "rules.json"
 DOCS_RULES_DIR = ROOT_DIR / "docs" / "rules"
 MKDOCS_YML_PATH = ROOT_DIR / "mkdocs.yml"
 
@@ -41,18 +41,26 @@ def generate_docs():
     print("Loading rules.json...")
     with open(RULES_JSON_PATH, encoding="utf-8") as f:
         content = f.read().strip()
-        if not content.startswith("["):
-            if content.endswith(","):
-                content = content[:-1]
-            content = f"[{content}]"
-        # json module is strict about trailing commas, we could have used ast.literal_eval but json is safer if valid
-        try:
-            rules = json.loads(content)
-        except json.decoder.JSONDecodeError:
-            # try to strip trailing comma before closing bracket
-            import re
-            content = re.sub(r",\s*]", "]", content)
-            rules = json.loads(content)
+    
+    try:
+        data = json.loads(content)
+    except json.JSONDecodeError:
+        # Fallback for slightly malformed JSON (like trailing commas)
+        import re
+        content = re.sub(r",\s*]", "]", content)
+        content = re.sub(r",\s*}", "}", content)
+        data = json.loads(content)
+
+    if isinstance(data, dict) and "flat" in data:
+        rules = data["flat"]
+    elif isinstance(data, list):
+        rules = data
+    else:
+        # Handle cases where it might be wrapped in a single-item list by previous logic
+        if isinstance(data, list) and len(data) == 1 and isinstance(data[0], dict) and "flat" in data[0]:
+            rules = data[0]["flat"]
+        else:
+            raise ValueError("Unexpected rules.json format")
 
     # Dictionary to keep track of the navigation structure
     # nav_tree = {"Universal": {dimension: [(Rule Name, path)]}, "Dialects": {dialect: {dimension: [(Rule Name, path)]}}}

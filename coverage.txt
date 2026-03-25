@@ -1,0 +1,180 @@
+============================= test session starts ==============================
+platform linux -- Python 3.14.3, pytest-9.0.2, pluggy-1.6.0
+rootdir: /home/makroumi/Desktop/dev/projects/slowql
+configfile: pytest.ini (WARNING: ignoring pytest config in pyproject.toml!)
+testpaths: tests
+plugins: cov-7.0.0, asyncio-1.3.0, anyio-4.12.1
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 1469 items
+
+tests/core/test_engine_schema.py .....                                   [  0%]
+tests/integration/test_app_code_analysis.py ..                           [  0%]
+tests/integration/test_cache_feature.py ..                               [  0%]
+tests/integration/test_cli.py ................                           [  1%]
+tests/integration/test_custom_rules.py .......                           [  2%]
+tests/integration/test_dbt.py ......                                     [  2%]
+tests/integration/test_git_integration.py ..                             [  2%]
+tests/integration/test_migrations/test_scenarios.py .....                [  3%]
+tests/schema/test_ddl_parser.py ........................................ [  5%]
+....                                                                     [  6%]
+tests/schema/test_inspector.py .......                                   [  6%]
+tests/schema/test_models.py ...................................          [  8%]
+tests/schema/test_schema_rules.py ......................                 [ 10%]
+tests/test_cmd_init.py .............................                     [ 12%]
+tests/test_dialect_filtering.py ..............................           [ 14%]
+tests/test_list_rules_explain.py ...........                             [ 15%]
+tests/test_lsp_server.py ........                                        [ 15%]
+tests/test_safe_autofix.py ...............                               [ 16%]
+tests/test_safe_autofix_expansion.py ..........                          [ 17%]
+tests/unit/test_analyze_files.py .......                                 [ 17%]
+tests/unit/test_analyzer_cost_coverage.py ....                           [ 18%]
+tests/unit/test_analyzers.py ........................................... [ 21%]
+.......                                                                  [ 21%]
+tests/unit/test_analyzers_registry_coverage.py .....                     [ 21%]
+tests/unit/test_animations.py .................                          [ 23%]
+tests/unit/test_ast_nodes_coverage.py .............                      [ 23%]
+tests/unit/test_autofix_readuncommitted.py .....                         [ 24%]
+tests/unit/test_autofixer_spans.py ......                                [ 24%]
+tests/unit/test_baseline.py .................                            [ 25%]
+tests/unit/test_cache.py ....                                            [ 26%]
+tests/unit/test_cli.py ..                                                [ 26%]
+tests/unit/test_cli_app.py ......................................        [ 28%]
+tests/unit/test_cli_app_coverage.py .....................                [ 30%]
+tests/unit/test_cli_autofix.py .............                             [ 31%]
+tests/unit/test_cli_components.py ............                           [ 31%]
+tests/unit/test_cli_schema.py ....                                       [ 32%]
+tests/unit/test_config.py .........................                      [ 33%]
+tests/unit/test_core_config_coverage.py ........                         [ 34%]
+tests/unit/test_core_engine_coverage.py ................................ [ 36%]
+...                                                                      [ 36%]
+tests/unit/test_core_exceptions_coverage.py ......                       [ 37%]
+tests/unit/test_cross_file.py .....                                      [ 37%]
+tests/unit/test_cross_file_extra.py ...                                  [ 37%]
+tests/unit/test_ddl_autodetect.py .......                                [ 38%]
+tests/unit/test_ddl_parser_coverage.py ..........                        [ 39%]
+tests/unit/test_dialect_guards.py ..............                         [ 39%]
+tests/unit/test_dialect_specific_rules.py .......                        [ 40%]
+tests/unit/test_engine_extra.py ........                                 [ 40%]
+tests/unit/test_engine_parallel.py .                                     [ 41%]
+tests/unit/test_exceptions.py ............                               [ 41%]
+tests/unit/test_exit_codes.py .............                              [ 42%]
+tests/unit/test_extractor.py .......                                     [ 43%]
+tests/unit/test_git.py ....                                              [ 43%]
+tests/unit/test_github_actions_reporter.py ...                           [ 43%]
+tests/unit/test_imports.py ..........                                    [ 44%]
+tests/unit/test_init.py ....                                             [ 44%]
+tests/unit/test_integration.py ........                                  [ 45%]
+tests/unit/test_lsp_foundation.py ...................                    [ 46%]
+tests/unit/test_migrations/test_alembic.py ....                          [ 46%]
+tests/unit/test_migrations/test_base.py ..                               [ 46%]
+tests/unit/test_migrations/test_breaking_change.py ....                  [ 47%]
+tests/unit/test_migrations/test_django.py ...                            [ 47%]
+tests/unit/test_migrations/test_others.py ..                             [ 47%]
+tests/unit/test_migrations/test_tracker.py ..                            [ 47%]
+tests/unit/test_models.py ................................               [ 49%]
+tests/unit/test_parser.py ........                                       [ 50%]
+tests/unit/test_parser_ast_coverage.py ..................                [ 51%]
+tests/unit/test_parser_base_coverage.py ..                               [ 51%]
+tests/unit/test_parser_source_mapping.py ........                        [ 52%]
+tests/unit/test_parser_tokenizer_coverage.py ........                    [ 52%]
+tests/unit/test_parser_universal_coverage.py .........                   [ 53%]
+tests/unit/test_parser_universal_extra.py .....                          [ 53%]
+tests/unit/test_plugins_manager.py ............                          [ 54%]
+tests/unit/test_plugins_yaml.py ................                         [ 55%]
+tests/unit/test_reporter_all_coverage.py ....                            [ 55%]
+tests/unit/test_reporters.py .........                                   [ 56%]
+tests/unit/test_reporters_console.py ...........                         [ 57%]
+tests/unit/test_reporters_console_coverage.py .....                      [ 57%]
+tests/unit/test_rules.py ............................................... [ 60%]
+........................................................................ [ 65%]
+........................................................................ [ 70%]
+........................................................................ [ 75%]
+........................................................................ [ 80%]
+........................................................................ [ 85%]
+........................................................................ [ 90%]
+..............................................................           [ 94%]
+tests/unit/test_rules_base.py ........                                   [ 95%]
+tests/unit/test_rules_catalog.py .....                                   [ 95%]
+tests/unit/test_sarif_reporter.py ........                               [ 95%]
+tests/unit/test_severity_override.py ......                              [ 96%]
+tests/unit/test_source_splitter_coverage.py ........                     [ 96%]
+tests/unit/test_suppressions.py ....................................     [ 99%]
+tests/unit/test_tokenizer_coverage.py ........../home/makroumi/.local/lib/python3.14/site-packages/coverage/inorout.py:577: CoverageWarning: Module slowql was previously imported, but not measured (module-not-measured); see https://coverage.readthedocs.io/en/7.13.4/messages.html#warning-module-not-measured
+  self.warn(msg, slug="module-not-measured")
+                         [100%]
+
+================================ tests coverage ================================
+_______________ coverage: platform linux, python 3.14.3-final-0 ________________
+
+Name                                              Stmts   Miss Branch BrPart  Cover   Missing
+---------------------------------------------------------------------------------------------
+src/slowql/__init__.py                               27      0      0      0   100%
+src/slowql/__main__.py                                2      2      0      0     0%   1-3
+src/slowql/analyzers/__init__.py                     10      0      0      0   100%
+src/slowql/analyzers/base.py                        131      1     30      4    97%   123->exit, 191->194, 430->433, 438
+src/slowql/analyzers/compliance/__init__.py          12      0      0      0   100%
+src/slowql/analyzers/cost/__init__.py                24      0      6      0   100%
+src/slowql/analyzers/performance/__init__.py         12      0      0      0   100%
+src/slowql/analyzers/quality/__init__.py             12      0      0      0   100%
+src/slowql/analyzers/registry.py                     95      7     18      3    91%   168-179, 207->202, 211->202
+src/slowql/analyzers/reliability/__init__.py         12      0      0      0   100%
+src/slowql/analyzers/security/__init__.py            18      0      4      0   100%
+src/slowql/cli/__init__.py                            2      0      0      0   100%
+src/slowql/cli/app.py                               914    171    360     45    78%   35, 116, 177-223, 295->275, 337, 485-510, 561-582, 668-669, 674, 686->693, 690-691, 696, 698->729, 700-703, 736, 742->745, 780-781, 791, 795-799, 880, 974->979, 1031-1034, 1055, 1076, 1078, 1091-1094, 1100->1103, 1129, 1135->1137, 1145->1154, 1147-1152, 1159->1110, 1189->1201, 1240, 1292-1310, 1316->1321, 1318-1319, 1347-1364, 1370->1375, 1372-1373, 1458-1459, 1517-1519, 1569-1570, 1764-1767, 1774, 1780, 1783, 1826, 1830, 1855, 1863, 1874
+src/slowql/cli/ui/animations.py                     315     36     98      6    87%   37, 149-151, 167, 268->277, 273, 275-276, 279-307, 322
+src/slowql/core/__init__.py                           6      0      0      0   100%
+src/slowql/core/autofixer.py                         61      4     26      4    91%   113, 116, 137, 141
+src/slowql/core/baseline.py                          62      0      6      0   100%
+src/slowql/core/cache.py                             50     10      6      0    82%   20-21, 34-35, 62-64, 81-82, 89-90
+src/slowql/core/config.py                           211      3     42      1    98%   29-30, 455
+src/slowql/core/dialects.py                          10      0      2      0   100%
+src/slowql/core/engine.py                           396     16    176      8    96%   54, 210, 234-236, 374, 414->413, 490-491, 511, 519, 555, 591->596, 655->654, 657-658, 854-856
+src/slowql/core/exceptions.py                        80      0     22      0   100%
+src/slowql/core/models.py                           293      7     38      6    95%   78, 83-85, 90, 96, 478, 512->514, 514->exit, 647->649
+src/slowql/core/suppressions.py                     111      3     70      4    96%   255->exit, 260->256, 309-310, 313
+src/slowql/lsp/__init__.py                            0      0      0      0   100%
+src/slowql/lsp/__main__.py                            3      3      0      0     0%   2-6
+src/slowql/lsp/server.py                            106     39     14      2    66%   31-80, 128-129, 213-217
+src/slowql/migrations/base.py                        12      0      0      0   100%
+src/slowql/migrations/discovery.py                   32      1      6      1    95%   39
+src/slowql/migrations/providers/alembic.py          101     16     60     15    80%   16->21, 17->21, 32->30, 34->30, 51-52, 64-69, 78, 83, 94, 103-105, 110, 121->120, 124->120, 128
+src/slowql/migrations/providers/django.py           124     12     76     18    82%   16->22, 18->17, 25->exit, 28->26, 33, 40-41, 56, 63->70, 65->64, 67->64, 97-101, 106, 113, 141->139, 144->142, 147->142, 166
+src/slowql/migrations/providers/flyway.py            15      0      4      1    95%   20->18
+src/slowql/migrations/providers/liquibase.py         28     16     10      1    39%   22-24, 28-52
+src/slowql/migrations/providers/prisma.py            19      2      8      3    81%   21, 27, 30->25
+src/slowql/migrations/tracker.py                     25      0      4      0   100%
+src/slowql/parser/__init__.py                         3      0      0      0   100%
+src/slowql/parser/ast/nodes.py                      357      2     44      1    99%   157, 241
+src/slowql/parser/base.py                            10      0      2      0   100%
+src/slowql/parser/extractor.py                       68      3     32      5    92%   37-38, 47->41, 67->64, 71->41, 113->108, 127
+src/slowql/parser/source_splitter.py                 95      3     48      4    95%   72, 74, 104->116, 170
+src/slowql/parser/tokenizer.py                      118      0     22      0   100%
+src/slowql/parser/universal.py                      134     23     46      5    83%   61, 86, 157-158, 234-247, 266-268, 273, 281-282, 287, 295-296, 332
+src/slowql/plugins/__init__.py                        3      0      0      0   100%
+src/slowql/plugins/manager.py                        82      9     26      4    88%   53, 57-58, 68-69, 90-92, 153, 162->161
+src/slowql/plugins/yaml_loader.py                    58      3     18      3    92%   156, 160, 165
+src/slowql/reporters/base.py                          6      0      0      0   100%
+src/slowql/reporters/console.py                     407     12    122     16    95%   163, 175, 227, 261, 307, 311, 357, 443, 507, 576->578, 581->584, 656, 744->746, 768, 823, 833->835
+src/slowql/reporters/github_actions_reporter.py      39      0     18      0   100%
+src/slowql/reporters/json_reporter.py                62      0     18      1    99%   68->70
+src/slowql/reporters/sarif_reporter.py               45      0     24      0   100%
+src/slowql/rules/__init__.py                          4      0      0      0   100%
+src/slowql/rules/base.py                            140      1     26      1    99%   422
+src/slowql/rules/catalog.py                          14      0      0      0   100%
+src/slowql/rules/migration/breaking_change.py        47      9     30      6    73%   43, 63, 67, 71, 76->73, 83-87
+src/slowql/rules/registry.py                        107      3     36      4    95%   45, 46->48, 48->50, 50->exit, 162-163
+src/slowql/rules/schema/__init__.py                   4      0      0      0   100%
+src/slowql/rules/schema/column_exists.py             44      3     22      3    91%   56, 61, 98
+src/slowql/rules/schema/cross_file.py                51      5     36      5    84%   35, 50->48, 55-57, 85, 95->94, 97->96
+src/slowql/rules/schema/missing_index.py             35      1     12      1    96%   73
+src/slowql/rules/schema/table_exists.py              21      0      4      0   100%
+src/slowql/schema/__init__.py                         5      0      0      0   100%
+src/slowql/schema/ddl_parser.py                     258     29    156     30    83%   71, 95, 98->109, 102->109, 104->109, 117, 127, 135->132, 152, 156, 160, 168->164, 171-175, 180-183, 235->232, 239->232, 301->290, 302->290, 336, 350->349, 370, 374, 377, 400, 416, 419->422, 423, 430-433, 469-470
+src/slowql/schema/inspector.py                       33      0      6      0   100%
+src/slowql/schema/models.py                         129      0     22      3    98%   311->310, 329->337, 333->335
+src/slowql/utils/git.py                              29      1     16      3    91%   36->40, 46->50, 68
+---------------------------------------------------------------------------------------------
+TOTAL                                              5739    456   1872    217    90%
+Coverage HTML written to dir htmlcov
+FAIL Required test coverage of 90% not reached. Total coverage: 89.71%
+======================= 1469 passed in 65.36s (0:01:05) ========================

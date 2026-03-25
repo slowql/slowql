@@ -90,6 +90,43 @@ class Index(BaseModel):
     where: str | None = None
 
 
+
+class View(BaseModel):
+    """
+    Represents a database view definition.
+
+    Attributes:
+        name: The name of the view.
+        table_schema: The schema the view belongs to.
+        definition: The original SQL definition of the view.
+        dependencies: A tuple of table/view names this view depends on.
+    """
+    model_config = ConfigDict(frozen=True)
+
+    name: str
+    table_schema: str = "public"
+    definition: str = ""
+    dependencies: tuple[str, ...] = ()
+
+
+class Procedure(BaseModel):
+    """
+    Represents a stored procedure or function.
+
+    Attributes:
+        name: The name of the procedure.
+        table_schema: The schema the procedure belongs to.
+        definition: The original SQL definition.
+        calls: A tuple of other procedure names this procedure calls.
+    """
+    model_config = ConfigDict(frozen=True)
+
+    name: str
+    table_schema: str = "public"
+    definition: str = ""
+    calls: tuple[str, ...] = ()
+
+
 class Table(BaseModel):
     """
     Represents a database table definition.
@@ -192,6 +229,8 @@ class Schema(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     tables: dict[str, Table] = Field(default_factory=dict)
+    views: dict[str, View] = Field(default_factory=dict)
+    procedures: dict[str, Procedure] = Field(default_factory=dict)
     dialect: str = "postgresql"
 
     def get_table(self, name: str) -> Table | None:
@@ -231,7 +270,34 @@ class Schema(BaseModel):
         """
         new_tables = self.tables.copy()
         new_tables[table.name] = table
-        return Schema(tables=new_tables, dialect=self.dialect)
+        return Schema(
+            tables=new_tables,
+            views=self.views,
+            procedures=self.procedures,
+            dialect=self.dialect
+        )
+
+    def add_view(self, view: View) -> Schema:
+        """Returns a new Schema instance with the added view."""
+        new_views = self.views.copy()
+        new_views[view.name] = view
+        return Schema(
+            tables=self.tables,
+            views=new_views,
+            procedures=self.procedures,
+            dialect=self.dialect
+        )
+
+    def add_procedure(self, procedure: Procedure) -> Schema:
+        """Returns a new Schema instance with the added procedure."""
+        new_procs = self.procedures.copy()
+        new_procs[procedure.name] = procedure
+        return Schema(
+            tables=self.tables,
+            views=self.views,
+            procedures=new_procs,
+            dialect=self.dialect
+        )
 
     def to_dict(self) -> dict[str, Any]:
         """

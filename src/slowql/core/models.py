@@ -449,6 +449,7 @@ class Query:
     tables: tuple[str, ...] = field(default_factory=tuple)
     columns: tuple[str, ...] = field(default_factory=tuple)
     query_type: str | None = None
+    is_ddl: bool = False
     is_dynamic: bool = False
 
     @property
@@ -472,8 +473,8 @@ class Query:
         return self._check_type("DELETE")
 
     @property
-    def is_ddl(self) -> bool:
-        """Check if query is a DDL statement."""
+    def is_ddl_type(self) -> bool:
+        """Check if query type is a DDL type."""
         return (self.query_type or "").upper() in ("CREATE", "ALTER", "DROP", "TRUNCATE", "RENAME")
 
     def _check_type(self, type_name: str) -> bool:

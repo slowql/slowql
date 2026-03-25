@@ -63,8 +63,8 @@ def test_cache_set_and_get(cache_manager: CacheManager, cache_dir: Path) -> None
     assert cached_result.config_hash == config_hash
     assert len(cached_result.queries) == 1
 
-    # Ensure ast was scrubbed before caching
-    assert cached_result.queries[0].ast is None
+    # Ensure ast was preserved during caching (required for cross-file analysis)
+    assert cached_result.queries[0].ast == "some_complex_ast_object"
 
 
 def test_cache_get_miss(cache_manager: CacheManager) -> None:

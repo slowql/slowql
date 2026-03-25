@@ -26,7 +26,6 @@ nav:
     - Baseline Mode: usage/baseline.md
     - App Code Extraction: usage/app-code-extraction.md
     - CI/CD Integration: usage/ci-cd-integration.md
-
   - Pre-commit Hook: usage/pre-commit-hook.md
   - Editor Setup: usage/editor-setup.md
 - Rules Explorer:
@@ -52,15 +51,21 @@ nav:
       - Unencrypted PHI Transit Signal (COMP-HIPAA-003): rules/universal/compliance/COMP-HIPAA-003.md
       - Unencrypted Sensitive Column Definition (COMP-SEC-001): rules/universal/compliance/COMP-SEC-001.md
     - Cost:
+      - BigQuery Query Without LIMIT (COST-BQ-002): rules/universal/cost/COST-BQ-002.md
+      - CACHE TABLE Without Filter (COST-SPARK-002): rules/universal/cost/COST-SPARK-002.md
       - COUNT(*) for Pagination Total (COST-PAGE-003): rules/universal/cost/COST-PAGE-003.md
       - Cold Start Query Pattern (COST-SERVERLESS-001): rules/universal/cost/COST-SERVERLESS-001.md
       - Cross-Database JOIN (COST-CROSS-001): rules/universal/cost/COST-CROSS-001.md
       - Cross-Region Data Transfer (COST-NETWORK-001): rules/universal/cost/COST-NETWORK-001.md
+      - Cursor Without FAST_FORWARD (COST-TSQL-001): rules/universal/cost/COST-TSQL-001.md
       - Deep Pagination Without Cursor (COST-PAGE-002): rules/universal/cost/COST-PAGE-002.md
       - Distributed Transaction Overhead (COST-CROSS-003): rules/universal/cost/COST-CROSS-003.md
       - Duplicate Index Signal (COST-IDX-001): rules/universal/cost/COST-IDX-001.md
       - Expensive Window Functions Without Partitioning (COST-COMPUTE-002): rules/universal/cost/COST-COMPUTE-002.md
+      - Full Scan Without Partition Filter (COST-SPARK-001): rules/universal/cost/COST-SPARK-001.md
+      - Full Table Scan Hint (COST-ORA-001): rules/universal/cost/COST-ORA-001.md
       - Full Table Scan on Large Tables (COST-COMPUTE-001): rules/universal/cost/COST-COMPUTE-001.md
+      - LATERAL FLATTEN Without Warehouse Consideration (COST-SF-003): rules/universal/cost/COST-SF-003.md
       - Large Table Without Partitioning (COST-PARTITION-001): rules/universal/cost/COST-PARTITION-001.md
       - Large Text Column Without Compression (COST-COMPRESS-001): rules/universal/cost/COST-COMPRESS-001.md
       - Missing Covering Index Opportunity (COST-IDX-003): rules/universal/cost/COST-IDX-003.md
@@ -68,52 +73,109 @@ nav:
       - OFFSET Pagination Without Index (COST-PAGE-001): rules/universal/cost/COST-PAGE-001.md
       - Old Data Not Archived (COST-ARCHIVE-001): rules/universal/cost/COST-ARCHIVE-001.md
       - Over-Indexed Table Signal (COST-IDX-002): rules/universal/cost/COST-IDX-002.md
+      - Query Cache Pollution (COST-MYSQL-001): rules/universal/cost/COST-MYSQL-001.md
       - Redundant Index Column Order (COST-IDX-004): rules/universal/cost/COST-IDX-004.md
       - Redundant ORDER BY in Subqueries (COST-IO-001): rules/universal/cost/COST-IO-001.md
+      - Repeated Subquery Instead of CTE (COST-BQ-003): rules/universal/cost/COST-BQ-003.md
+      - SELECT * Wastes Snowflake Credits (COST-SF-001): rules/universal/cost/COST-SF-001.md
+      - SELECT * in BigQuery Scans All Columns (COST-BQ-001): rules/universal/cost/COST-BQ-001.md
       - SELECT * in ETL/CTAS Queries (COST-STORAGE-001): rules/universal/cost/COST-STORAGE-001.md
+      - SELECT * on ClickHouse Columnar Storage (COST-CH-001): rules/universal/cost/COST-CH-001.md
+      - SELECT * on Partitioned Hive Table (COST-PRESTO-001): rules/universal/cost/COST-PRESTO-001.md
+      - UNLOAD Without PARALLEL Consideration (COST-RS-001): rules/universal/cost/COST-RS-001.md
       - Unnecessary Connection Pooling (COST-SERVERLESS-002): rules/universal/cost/COST-SERVERLESS-002.md
+    - Migration:
+      - Breaking Schema Change (MIG-BRK-001): rules/universal/migration/MIG-BRK-001.md
     - Performance:
+      - BROADCAST Hint on Large Table (PERF-SPARK-001): rules/universal/performance/PERF-SPARK-001.md
       - COALESCE/ISNULL/NVL on Indexed Column (PERF-IDX-008): rules/universal/performance/PERF-IDX-008.md
+      - COPY Without FORMAT Specification (PERF-DUCK-001): rules/universal/performance/PERF-DUCK-001.md
       - Cartesian Product (CROSS JOIN) (PERF-JOIN-001): rules/universal/performance/PERF-JOIN-001.md
+      - ClickHouse Mutation (ALTER UPDATE/DELETE) (PERF-CH-003): rules/universal/performance/PERF-CH-003.md
       - Composite Index Column Order Violation (PERF-IDX-006): rules/universal/performance/PERF-IDX-006.md
+      - Consider WAL Mode for Concurrent Access (PERF-SQLITE-001): rules/universal/performance/PERF-SQLITE-001.md
       - Correlated Subquery (PERF-SCALAR-002): rules/universal/performance/PERF-SCALAR-002.md
       - Cursor Declaration (PERF-CURSOR-001): rules/universal/performance/PERF-CURSOR-001.md
       - Deep Offset Pagination (PERF-IDX-005): rules/universal/performance/PERF-IDX-005.md
       - Excessive Column Count in SELECT (PERF-NET-001): rules/universal/performance/PERF-NET-001.md
       - Excessive Joins (PERF-JOIN-002): rules/universal/performance/PERF-JOIN-002.md
       - Expensive DISTINCT (PERF-SCAN-005): rules/universal/performance/PERF-SCAN-005.md
+      - FORCE INDEX / USE INDEX Hint (PERF-MYSQL-003): rules/universal/performance/PERF-MYSQL-003.md
       - Function on Indexed Column (PERF-IDX-001): rules/universal/performance/PERF-IDX-001.md
+      - GROUP BY Implicit Sort (Removed in MySQL 8.0) (PERF-MYSQL-004): rules/universal/performance/PERF-MYSQL-004.md
       - GROUP BY on High-Cardinality Expression (PERF-MEM-004): rules/universal/performance/PERF-MEM-004.md
       - HAVING Without GROUP BY (PERF-AGG-003): rules/universal/performance/PERF-AGG-003.md
+      - ILIKE Disables Index (PERF-PG-001): rules/universal/performance/PERF-PG-001.md
+      - Implicit Conversion in JOIN Predicate (PERF-TSQL-003): rules/universal/performance/PERF-TSQL-003.md
+      - Implicit Cross-Join on Distributed Engine (PERF-PRESTO-001): rules/universal/performance/PERF-PRESTO-001.md
       - Implicit Type Conversion on Indexed Column (PERF-IDX-003): rules/universal/performance/PERF-IDX-003.md
+      - Index Hint (PERF-HINT-002): rules/universal/performance/PERF-HINT-002.md
+      - JOIN Without GLOBAL on Distributed Table (PERF-CH-002): rules/universal/performance/PERF-CH-002.md
       - LEFT JOIN With IS NOT NULL Filter (PERF-JOIN-003): rules/universal/performance/PERF-JOIN-003.md
+      - LIKE Without COLLATE NOCASE (PERF-SQLITE-002): rules/universal/performance/PERF-SQLITE-002.md
       - Large IN Clause (PERF-MEM-001): rules/universal/performance/PERF-MEM-001.md
+      - "Large IN List \u2014 Use VALUES Table (PERF-DUCK-002)": rules/universal/performance/PERF-DUCK-002.md
       - Large Object Column in Non-Filtered Query (PERF-NET-002): rules/universal/performance/PERF-NET-002.md
       - Large Unbatched Operation (PERF-BATCH-001): rules/universal/performance/PERF-BATCH-001.md
       - Leading Wildcard Search (PERF-IDX-002): rules/universal/performance/PERF-IDX-002.md
       - Long Transaction Pattern (PERF-LOCK-003): rules/universal/performance/PERF-LOCK-003.md
       - Missing Batch Size in Loop (PERF-BATCH-002): rules/universal/performance/PERF-BATCH-002.md
+      - Missing Index on WHERE Column (SCHEMA-IDX-001): rules/universal/performance/SCHEMA-IDX-001.md
+      - Missing SET NOCOUNT ON (PERF-TSQL-001): rules/universal/performance/PERF-TSQL-001.md
       - Missing Transaction Isolation Level (PERF-LOCK-004): rules/universal/performance/PERF-LOCK-004.md
+      - NOLOCK / Read Uncommitted Hint (PERF-LOCK-002): rules/universal/performance/PERF-LOCK-002.md
       - NOT IN Subquery (PERF-SCAN-004): rules/universal/performance/PERF-SCAN-004.md
+      - NOT IN With Potentially NULLable Subquery (PERF-PG-003): rules/universal/performance/PERF-PG-003.md
+      - NOT IN on Redshift (Hash Join Explosion) (PERF-RS-003): rules/universal/performance/PERF-RS-003.md
       - Negation on Indexed Column (NOT, !=, <>) (PERF-IDX-009): rules/universal/performance/PERF-IDX-009.md
+      - Nested Loop Join Hint (PERF-CURSOR-003): rules/universal/performance/PERF-CURSOR-003.md
       - Non-SARGable OR Condition (PERF-IDX-007): rules/universal/performance/PERF-IDX-007.md
       - OR in WHERE Clause (PERF-IDX-004): rules/universal/performance/PERF-IDX-004.md
+      - ORDER BY RAND() Full Table Sort (PERF-MYSQL-002): rules/universal/performance/PERF-MYSQL-002.md
       - ORDER BY Without LIMIT in Subquery (PERF-MEM-003): rules/universal/performance/PERF-MEM-003.md
+      - ORDER BY Without LIMIT on Distributed Engine (PERF-PRESTO-002): rules/universal/performance/PERF-PRESTO-002.md
+      - ORDER BY Without LIMIT on Redshift (PERF-RS-002): rules/universal/performance/PERF-RS-002.md
       - ORDER BY in Subquery (PERF-AGG-002): rules/universal/performance/PERF-AGG-002.md
       - ORDER BY on Non-Indexed Column (PERF-SORT-001): rules/universal/performance/PERF-SORT-001.md
+      - ORDER BY on VARIANT Column (PERF-SF-002): rules/universal/performance/PERF-SF-002.md
+      - Parallel Query Hint (PERF-HINT-003): rules/universal/performance/PERF-HINT-003.md
+      - Query Optimizer Hint (PERF-HINT-001): rules/universal/performance/PERF-HINT-001.md
+      - REGEXP on Large Table Without Filter (PERF-BQ-002): rules/universal/performance/PERF-BQ-002.md
       - SELECT * Usage (PERF-SCAN-001): rules/universal/performance/PERF-SCAN-001.md
+      - SELECT * on Redshift Columnar Storage (PERF-RS-001): rules/universal/performance/PERF-RS-001.md
+      - SELECT DISTINCT on UNNEST (PERF-BQ-001): rules/universal/performance/PERF-BQ-001.md
+      - SELECT FOR UPDATE Without LIMIT (MySQL) (PERF-MYSQL-001): rules/universal/performance/PERF-MYSQL-001.md
+      - SELECT FOR UPDATE Without NOWAIT (Oracle) (PERF-ORA-001): rules/universal/performance/PERF-ORA-001.md
+      - SELECT FOR UPDATE Without NOWAIT/SKIP LOCKED (PG) (PERF-PG-004): rules/universal/performance/PERF-PG-004.md
+      - SELECT INTO Temp Table Without Index (PERF-TSQL-002): rules/universal/performance/PERF-TSQL-002.md
+      - SELECT Without PREWHERE (PERF-CH-001): rules/universal/performance/PERF-CH-001.md
+      - Scalar UDF in SELECT/WHERE (PERF-SCALAR-001): rules/universal/performance/PERF-SCALAR-001.md
+      - Table Lock Hint (PERF-LOCK-001): rules/universal/performance/PERF-LOCK-001.md
+      - UDF in WHERE Prevents Pushdown (PERF-SPARK-002): rules/universal/performance/PERF-SPARK-002.md
       - Unbounded Data Modification (PERF-SCAN-002): rules/universal/performance/PERF-SCAN-002.md
       - Unbounded SELECT (PERF-SCAN-003): rules/universal/performance/PERF-SCAN-003.md
+      - Unbounded Temp Table Creation (PERF-MEM-002): rules/universal/performance/PERF-MEM-002.md
       - Unfiltered Aggregation (PERF-AGG-001): rules/universal/performance/PERF-AGG-001.md
+      - "Unfiltered COUNT(*) \u2014 Consider reltuples (PERF-PG-002)": rules/universal/performance/PERF-PG-002.md
+      - VARIANT Column in WHERE Without CAST (PERF-SF-001): rules/universal/performance/PERF-SF-001.md
+      - WAITFOR DELAY in Production Code (PERF-TSQL-004): rules/universal/performance/PERF-TSQL-004.md
+      - WHILE Loop Pattern (PERF-CURSOR-002): rules/universal/performance/PERF-CURSOR-002.md
     - Quality:
+      - AUTOINCREMENT Overhead in SQLite (QUAL-SQLITE-001): rules/universal/quality/QUAL-SQLITE-001.md
       - Ambiguous Alias (QUAL-NAME-002): rules/universal/quality/QUAL-NAME-002.md
       - CASE Without ELSE (QUAL-MODERN-004): rules/universal/quality/QUAL-MODERN-004.md
       - Commented-Out SQL Code (QUAL-STYLE-004): rules/universal/quality/QUAL-STYLE-004.md
       - Complex Logic Without Explanation (QUAL-DOC-003): rules/universal/quality/QUAL-DOC-003.md
       - Cyclomatic Complexity in Stored Procedure (QUAL-COMPLEX-004): rules/universal/quality/QUAL-COMPLEX-004.md
+      - DISTSTYLE ALL on Large Table (QUAL-RS-001): rules/universal/quality/QUAL-RS-001.md
+      - DO Block Without LANGUAGE (QUAL-PG-001): rules/universal/quality/QUAL-PG-001.md
+      - Deprecated LOCK IN SHARE MODE (QUAL-MYSQL-003): rules/universal/quality/QUAL-MYSQL-003.md
+      - Deprecated Old-Style Type Cast (QUAL-DUCK-001): rules/universal/quality/QUAL-DUCK-001.md
+      - Deprecated SQL_CALC_FOUND_ROWS (QUAL-MYSQL-001): rules/universal/quality/QUAL-MYSQL-001.md
       - Duplicate WHERE Condition (QUAL-DRY-001): rules/universal/quality/QUAL-DRY-001.md
       - Excessive CASE Nesting (QUAL-COMPLEX-001): rules/universal/quality/QUAL-COMPLEX-001.md
       - Excessive Subquery Nesting (QUAL-COMPLEX-002): rules/universal/quality/QUAL-COMPLEX-002.md
+      - FLATTEN Without Explicit Path (QUAL-SF-001): rules/universal/quality/QUAL-SF-001.md
       - Float for Currency (QUAL-SCHEMA-004): rules/universal/quality/QUAL-SCHEMA-004.md
       - God Query (QUAL-COMPLEX-003): rules/universal/quality/QUAL-COMPLEX-003.md
       - Hardcoded Date Literal in Filter (QUAL-MODERN-002): rules/universal/quality/QUAL-MODERN-002.md
@@ -131,42 +193,83 @@ nav:
       - Missing Index on Foreign Key (QUAL-SCHEMA-003): rules/universal/quality/QUAL-SCHEMA-003.md
       - Missing Primary Key (QUAL-SCHEMA-001): rules/universal/quality/QUAL-SCHEMA-001.md
       - Missing dbt Ref (QUAL-DBT-001): rules/universal/quality/QUAL-DBT-001.md
+      - NVL in WHERE Clause (QUAL-ORA-003): rules/universal/quality/QUAL-ORA-003.md
       - Non-Deterministic Query (QUAL-TEST-001): rules/universal/quality/QUAL-TEST-001.md
+      - ORDER BY Without LIMIT on ClickHouse (QUAL-CH-001): rules/universal/quality/QUAL-CH-001.md
       - Pagination Without ORDER BY (QUAL-TEST-002): rules/universal/quality/QUAL-TEST-002.md
       - Permanent Temporary Table (QUAL-DEBT-002): rules/universal/quality/QUAL-DEBT-002.md
+      - ROWNUM Without ORDER BY (QUAL-ORA-001): rules/universal/quality/QUAL-ORA-001.md
       - Reserved Word as Identifier (QUAL-NAME-004): rules/universal/quality/QUAL-NAME-004.md
+      - SELECT FROM DUAL in Application SQL (QUAL-ORA-002): rules/universal/quality/QUAL-ORA-002.md
       - SELECT Without FROM Clause (QUAL-STYLE-001): rules/universal/quality/QUAL-STYLE-001.md
+      - SET ANSI_NULLS OFF (QUAL-TSQL-001): rules/universal/quality/QUAL-TSQL-001.md
+      - SET QUOTED_IDENTIFIER OFF (QUAL-TSQL-002): rules/universal/quality/QUAL-TSQL-002.md
+      - STRAIGHT_JOIN Hint (QUAL-MYSQL-002): rules/universal/quality/QUAL-MYSQL-002.md
       - Subquery Missing Alias (QUAL-STYLE-003): rules/universal/quality/QUAL-STYLE-003.md
       - Technical Debt Marker (QUAL-DEBT-001): rules/universal/quality/QUAL-DEBT-001.md
       - "UNION Without ALL \u2014 Implicit Deduplication (QUAL-MODERN-003)": rules/universal/quality/QUAL-MODERN-003.md
       - Wildcard in EXISTS Subquery (QUAL-STYLE-002): rules/universal/quality/QUAL-STYLE-002.md
     - Reliability:
+      - '@@IDENTITY Instead of SCOPE_IDENTITY() (REL-TSQL-001)': rules/universal/reliability/REL-TSQL-001.md
+      - ALTER TABLE ADD COLUMN With Volatile DEFAULT (REL-PG-001): rules/universal/reliability/REL-PG-001.md
+      - ALTER TABLE DROP COLUMN (SQLite Limitation) (REL-SQLITE-001): rules/universal/reliability/REL-SQLITE-001.md
+      - ALTER TABLE MOVE Without REBUILD INDEX (REL-ORA-002): rules/universal/reliability/REL-ORA-002.md
       - ALTER TABLE Without Backup Signal (REL-DATA-003): rules/universal/reliability/REL-DATA-003.md
       - Autocommit Disable Detection (REL-TXN-002): rules/universal/reliability/REL-TXN-002.md
+      - CONNECT BY Without NOCYCLE (REL-ORA-001): rules/universal/reliability/REL-ORA-001.md
+      - COPY INTO Without Explicit File Format (COST-SF-002): rules/universal/reliability/COST-SF-002.md
+      - COPY INTO Without ON_ERROR (REL-SF-001): rules/universal/reliability/REL-SF-001.md
+      - COPY Without MANIFEST (REL-RS-001): rules/universal/reliability/REL-RS-001.md
+      - CREATE INDEX Without CONCURRENTLY (REL-PG-002): rules/universal/reliability/REL-PG-002.md
       - Cascade Delete Risk (REL-FK-002): rules/universal/reliability/REL-FK-002.md
       - Catastrophic Data Loss Risk (REL-DATA-001): rules/universal/reliability/REL-DATA-001.md
+      - DML Without WHERE on BigQuery (REL-BQ-001): rules/universal/reliability/REL-BQ-001.md
       - Deadlock Pattern (REL-DEAD-001): rules/universal/reliability/REL-DEAD-001.md
       - Destructive Schema Change (DROP) (REL-DATA-004): rules/universal/reliability/REL-DATA-004.md
       - Empty Transaction Block (REL-TXN-003): rules/universal/reliability/REL-TXN-003.md
+      - INSERT IGNORE Silences Errors (REL-MYSQL-001): rules/universal/reliability/REL-MYSQL-001.md
+      - INSERT OVERWRITE Without Partition (REL-PRESTO-001): rules/universal/reliability/REL-PRESTO-001.md
+      - INSERT OVERWRITE Without Partition (REL-SPARK-001): rules/universal/reliability/REL-SPARK-001.md
       - Lock Escalation Risk (REL-DEAD-002): rules/universal/reliability/REL-DEAD-002.md
       - Long-Running Query Risk (REL-TIMEOUT-001): rules/universal/reliability/REL-TIMEOUT-001.md
+      - MERGE Without HOLDLOCK (REL-TSQL-002): rules/universal/reliability/REL-TSQL-002.md
       - Missing Retry Logic (REL-RETRY-001): rules/universal/reliability/REL-RETRY-001.md
       - Missing Savepoint in Long Transaction (REL-REC-001): rules/universal/reliability/REL-REC-001.md
       - Missing Transaction Rollback Handler (REL-TXN-001): rules/universal/reliability/REL-TXN-001.md
+      - MyISAM Engine Usage (REL-MYSQL-005): rules/universal/reliability/REL-MYSQL-005.md
+      - MySQL utf8 Instead of utf8mb4 (REL-MYSQL-003): rules/universal/reliability/REL-MYSQL-003.md
+      - Non-Existent Column (SCHEMA-COL-001): rules/universal/reliability/SCHEMA-COL-001.md
+      - Non-Existent Table (SCHEMA-TBL-001): rules/universal/reliability/SCHEMA-TBL-001.md
       - Non-Idempotent INSERT Pattern (REL-IDEM-001): rules/universal/reliability/REL-IDEM-001.md
       - Non-Idempotent UPDATE Pattern (REL-IDEM-002): rules/universal/reliability/REL-IDEM-002.md
+      - ON UPDATE CASCADE With Timestamp Column (REL-MYSQL-004): rules/universal/reliability/REL-MYSQL-004.md
       - Orphan Record Risk (REL-FK-001): rules/universal/reliability/REL-FK-001.md
+      - PRAGMA AUTONOMOUS_TRANSACTION (REL-ORA-003): rules/universal/reliability/REL-ORA-003.md
+      - PRAGMA foreign_keys = OFF (REL-SQLITE-002): rules/universal/reliability/REL-SQLITE-002.md
+      - REPLACE INTO Deletes and Reinserts (REL-MYSQL-002): rules/universal/reliability/REL-MYSQL-002.md
       - Read-Modify-Write Without Lock (REL-RACE-001): rules/universal/reliability/REL-RACE-001.md
+      - SELECT Without FINAL on ReplacingMergeTree (REL-CH-001): rules/universal/reliability/REL-CH-001.md
       - Stale Read Risk (REL-STALE-001): rules/universal/reliability/REL-STALE-001.md
       - Swallowed Exception Pattern (REL-ERR-001): rules/universal/reliability/REL-ERR-001.md
       - TOCTOU Pattern (REL-RACE-002): rules/universal/reliability/REL-RACE-002.md
+      - TRUNCATE in TRY Without CATCH (REL-TSQL-003): rules/universal/reliability/REL-TSQL-003.md
       - Truncate Without Transaction (REL-DATA-002): rules/universal/reliability/REL-DATA-002.md
+    - Schema:
+      - Cross-File Breaking Change (SCH-BRK-001): rules/universal/schema/SCH-BRK-001.md
     - Security:
+      - ATTACH DATABASE Arbitrary File Access (SEC-SQLITE-001): rules/universal/security/SEC-SQLITE-001.md
       - Audit Trail Manipulation (SEC-LOG-002): rules/universal/security/SEC-LOG-002.md
+      - CLONE Without COPY GRANTS (SEC-SF-002): rules/universal/security/SEC-SF-002.md
+      - COPY INTO With Embedded Credentials (SEC-SF-001): rules/universal/security/SEC-SF-001.md
+      - COPY With Embedded Credentials (SEC-RS-001): rules/universal/security/SEC-RS-001.md
+      - ClickHouse url() Table Function (SEC-CH-001): rules/universal/security/SEC-CH-001.md
+      - DBMS_SQL Dynamic Execution (SEC-ORA-002): rules/universal/security/SEC-ORA-002.md
+      - Dangerous Server Configuration (SEC-CFG-001): rules/universal/security/SEC-CFG-001.md
       - Data Exfiltration via File Operations (SEC-DATA-001): rules/universal/security/SEC-DATA-001.md
       - Database Version Disclosure (SEC-INFO-001): rules/universal/security/SEC-INFO-001.md
       - Default Credential Usage (SEC-CONFIG-003): rules/universal/security/SEC-CONFIG-003.md
       - Dynamic SQL Execution (SEC-INJ-002): rules/universal/security/SEC-INJ-002.md
+      - EXECUTE IMMEDIATE With Concatenation (SEC-ORA-003): rules/universal/security/SEC-ORA-003.md
       - Excessive Privileges (GRANT ALL) (SEC-AUTH-005): rules/universal/security/SEC-AUTH-005.md
       - Grant to PUBLIC Role (SEC-AUTH-002): rules/universal/security/SEC-AUTH-002.md
       - Hardcoded Database Credentials (SEC-CONFIG-001): rules/universal/security/SEC-CONFIG-001.md
@@ -176,8 +279,14 @@ nav:
       - Insecure Session Token Storage (SEC-SESSION-001): rules/universal/security/SEC-SESSION-001.md
       - LDAP Injection in Directory Queries (SEC-INJ-007): rules/universal/security/SEC-INJ-007.md
       - LIKE Clause Wildcard Injection (SEC-INJ-006): rules/universal/security/SEC-INJ-006.md
+      - LOAD DATA LOCAL INFILE (SEC-MYSQL-001): rules/universal/security/SEC-MYSQL-001.md
       - Local File Inclusion (SEC-PATH-002): rules/universal/security/SEC-PATH-002.md
       - NoSQL Injection Pattern (SEC-INJ-008): rules/universal/security/SEC-INJ-008.md
+      - OLE Automation (sp_OACreate) (SEC-TSQL-002): rules/universal/security/SEC-TSQL-002.md
+      - OPENROWSET / OPENDATASOURCE Usage (SEC-TSQL-001): rules/universal/security/SEC-TSQL-001.md
+      - OS Command Injection (PostgreSQL) (SEC-CMD-001-PG): rules/universal/security/SEC-CMD-001-PG.md
+      - OS Command Injection (SQL Server) (SEC-CMD-001): rules/universal/security/SEC-CMD-001.md
+      - Oracle UTL Package Access (SEC-ORA-001): rules/universal/security/SEC-ORA-001.md
       - Overly Permissive CORS/Access (SEC-CONFIG-004): rules/universal/security/SEC-CONFIG-004.md
       - Overprivileged Execution Context (SEC-PRIV-001): rules/universal/security/SEC-PRIV-001.md
       - Password Policy Bypass (SEC-AUTH-004): rules/universal/security/SEC-AUTH-004.md
@@ -185,11 +294,14 @@ nav:
       - Plaintext Password in Query (SEC-CRYPTO-002): rules/universal/security/SEC-CRYPTO-002.md
       - Potential SQL Injection (SEC-INJ-001): rules/universal/security/SEC-INJ-001.md
       - Privilege Escalation via Role Grant (SEC-AUTHZ-001): rules/universal/security/SEC-AUTHZ-001.md
+      - RAISE NOTICE Log Injection (SEC-PG-003): rules/universal/security/SEC-PG-003.md
       - Regex Denial of Service (ReDoS) (SEC-DOS-002): rules/universal/security/SEC-DOS-002.md
       - Remote/Linked Data Access (SEC-DATA-002): rules/universal/security/SEC-DATA-002.md
+      - SECURITY DEFINER Without search_path (SEC-PG-004): rules/universal/security/SEC-PG-004.md
       - SQL Injection via JSON Functions (SEC-INJ-011): rules/universal/security/SEC-INJ-011.md
       - Schema Information Disclosure (SEC-INFO-002): rules/universal/security/SEC-INFO-002.md
       - Schema Ownership Change (SEC-AUTHZ-002): rules/universal/security/SEC-AUTHZ-002.md
+      - Search Path Manipulation (SEC-PG-002): rules/universal/security/SEC-PG-002.md
       - Second-Order SQL Injection Risk (SEC-INJ-005): rules/universal/security/SEC-INJ-005.md
       - Sensitive Data in Error Output (SEC-LOG-001): rules/universal/security/SEC-LOG-001.md
       - Server-Side Request Forgery via Database (SEC-SSRF-001): rules/universal/security/SEC-SSRF-001.md
@@ -205,193 +317,8 @@ nav:
       - Weak Hashing Algorithm (SEC-CRYPTO-001): rules/universal/security/SEC-CRYPTO-001.md
       - Weak SSL/TLS Configuration (SEC-CONFIG-002): rules/universal/security/SEC-CONFIG-002.md
       - XML/XPath Injection (SEC-INJ-009): rules/universal/security/SEC-INJ-009.md
-  - Dialects:
-    - Bigquery:
-      - Cost:
-        - BigQuery Query Without LIMIT (COST-BQ-002): rules/dialects/bigquery/cost/COST-BQ-002.md
-        - Repeated Subquery Instead of CTE (COST-BQ-003): rules/dialects/bigquery/cost/COST-BQ-003.md
-        - SELECT * in BigQuery Scans All Columns (COST-BQ-001): rules/dialects/bigquery/cost/COST-BQ-001.md
-      - Performance:
-        - REGEXP on Large Table Without Filter (PERF-BQ-002): rules/dialects/bigquery/performance/PERF-BQ-002.md
-        - SELECT DISTINCT on UNNEST (PERF-BQ-001): rules/dialects/bigquery/performance/PERF-BQ-001.md
-      - Reliability:
-        - DML Without WHERE on BigQuery (REL-BQ-001): rules/dialects/bigquery/reliability/REL-BQ-001.md
-    - Clickhouse:
-      - Cost:
-        - SELECT * on ClickHouse Columnar Storage (COST-CH-001): rules/dialects/clickhouse/cost/COST-CH-001.md
-      - Performance:
-        - ClickHouse Mutation (ALTER UPDATE/DELETE) (PERF-CH-003): rules/dialects/clickhouse/performance/PERF-CH-003.md
-        - JOIN Without GLOBAL on Distributed Table (PERF-CH-002): rules/dialects/clickhouse/performance/PERF-CH-002.md
-        - SELECT Without PREWHERE (PERF-CH-001): rules/dialects/clickhouse/performance/PERF-CH-001.md
-      - Quality:
-        - ORDER BY Without LIMIT on ClickHouse (QUAL-CH-001): rules/dialects/clickhouse/quality/QUAL-CH-001.md
-      - Reliability:
-        - SELECT Without FINAL on ReplacingMergeTree (REL-CH-001): rules/dialects/clickhouse/reliability/REL-CH-001.md
-      - Security:
-        - ClickHouse url() Table Function (SEC-CH-001): rules/dialects/clickhouse/security/SEC-CH-001.md
-    - Databricks:
-      - Cost:
-        - CACHE TABLE Without Filter (COST-SPARK-002): rules/dialects/databricks/cost/COST-SPARK-002.md
-        - Full Scan Without Partition Filter (COST-SPARK-001): rules/dialects/databricks/cost/COST-SPARK-001.md
-      - Performance:
-        - BROADCAST Hint on Large Table (PERF-SPARK-001): rules/dialects/databricks/performance/PERF-SPARK-001.md
-        - UDF in WHERE Prevents Pushdown (PERF-SPARK-002): rules/dialects/databricks/performance/PERF-SPARK-002.md
-      - Reliability:
-        - INSERT OVERWRITE Without Partition (REL-SPARK-001): rules/dialects/databricks/reliability/REL-SPARK-001.md
-    - Duckdb:
-      - Performance:
-        - COPY Without FORMAT Specification (PERF-DUCK-001): rules/dialects/duckdb/performance/PERF-DUCK-001.md
-        - "Large IN List \u2014 Use VALUES Table (PERF-DUCK-002)": rules/dialects/duckdb/performance/PERF-DUCK-002.md
-      - Quality:
-        - Deprecated Old-Style Type Cast (QUAL-DUCK-001): rules/dialects/duckdb/quality/QUAL-DUCK-001.md
-    - Mysql:
-      - Cost:
-        - Query Cache Pollution (COST-MYSQL-001): rules/dialects/mysql/cost/COST-MYSQL-001.md
-      - Performance:
-        - FORCE INDEX / USE INDEX Hint (PERF-MYSQL-003): rules/dialects/mysql/performance/PERF-MYSQL-003.md
-        - GROUP BY Implicit Sort (Removed in MySQL 8.0) (PERF-MYSQL-004): rules/dialects/mysql/performance/PERF-MYSQL-004.md
-        - Index Hint (PERF-HINT-002): rules/dialects/mysql/performance/PERF-HINT-002.md
-        - ORDER BY RAND() Full Table Sort (PERF-MYSQL-002): rules/dialects/mysql/performance/PERF-MYSQL-002.md
-        - SELECT FOR UPDATE Without LIMIT (MySQL) (PERF-MYSQL-001): rules/dialects/mysql/performance/PERF-MYSQL-001.md
-      - Quality:
-        - Deprecated LOCK IN SHARE MODE (QUAL-MYSQL-003): rules/dialects/mysql/quality/QUAL-MYSQL-003.md
-        - Deprecated SQL_CALC_FOUND_ROWS (QUAL-MYSQL-001): rules/dialects/mysql/quality/QUAL-MYSQL-001.md
-        - STRAIGHT_JOIN Hint (QUAL-MYSQL-002): rules/dialects/mysql/quality/QUAL-MYSQL-002.md
-      - Reliability:
-        - INSERT IGNORE Silences Errors (REL-MYSQL-001): rules/dialects/mysql/reliability/REL-MYSQL-001.md
-        - MyISAM Engine Usage (REL-MYSQL-005): rules/dialects/mysql/reliability/REL-MYSQL-005.md
-        - MySQL utf8 Instead of utf8mb4 (REL-MYSQL-003): rules/dialects/mysql/reliability/REL-MYSQL-003.md
-        - ON UPDATE CASCADE With Timestamp Column (REL-MYSQL-004): rules/dialects/mysql/reliability/REL-MYSQL-004.md
-        - REPLACE INTO Deletes and Reinserts (REL-MYSQL-002): rules/dialects/mysql/reliability/REL-MYSQL-002.md
-      - Security:
-        - LOAD DATA LOCAL INFILE (SEC-MYSQL-001): rules/dialects/mysql/security/SEC-MYSQL-001.md
-    - Oracle:
-      - Cost:
-        - Full Table Scan Hint (COST-ORA-001): rules/dialects/oracle/cost/COST-ORA-001.md
-      - Performance:
-        - SELECT FOR UPDATE Without NOWAIT (Oracle) (PERF-ORA-001): rules/dialects/oracle/performance/PERF-ORA-001.md
-      - Quality:
-        - NVL in WHERE Clause (QUAL-ORA-003): rules/dialects/oracle/quality/QUAL-ORA-003.md
-        - ROWNUM Without ORDER BY (QUAL-ORA-001): rules/dialects/oracle/quality/QUAL-ORA-001.md
-        - SELECT FROM DUAL in Application SQL (QUAL-ORA-002): rules/dialects/oracle/quality/QUAL-ORA-002.md
-      - Reliability:
-        - ALTER TABLE MOVE Without REBUILD INDEX (REL-ORA-002): rules/dialects/oracle/reliability/REL-ORA-002.md
-        - CONNECT BY Without NOCYCLE (REL-ORA-001): rules/dialects/oracle/reliability/REL-ORA-001.md
-        - PRAGMA AUTONOMOUS_TRANSACTION (REL-ORA-003): rules/dialects/oracle/reliability/REL-ORA-003.md
-      - Security:
-        - DBMS_SQL Dynamic Execution (SEC-ORA-002): rules/dialects/oracle/security/SEC-ORA-002.md
-        - EXECUTE IMMEDIATE With Concatenation (SEC-ORA-003): rules/dialects/oracle/security/SEC-ORA-003.md
-        - Oracle UTL Package Access (SEC-ORA-001): rules/dialects/oracle/security/SEC-ORA-001.md
-    - Postgresql:
-      - Performance:
-        - ILIKE Disables Index (PERF-PG-001): rules/dialects/postgresql/performance/PERF-PG-001.md
-        - NOT IN With Potentially NULLable Subquery (PERF-PG-003): rules/dialects/postgresql/performance/PERF-PG-003.md
-        - SELECT FOR UPDATE Without NOWAIT/SKIP LOCKED (PG) (PERF-PG-004): rules/dialects/postgresql/performance/PERF-PG-004.md
-        - "Unfiltered COUNT(*) \u2014 Consider reltuples (PERF-PG-002)": rules/dialects/postgresql/performance/PERF-PG-002.md
-      - Quality:
-        - DO Block Without LANGUAGE (QUAL-PG-001): rules/dialects/postgresql/quality/QUAL-PG-001.md
-      - Reliability:
-        - ALTER TABLE ADD COLUMN With Volatile DEFAULT (REL-PG-001): rules/dialects/postgresql/reliability/REL-PG-001.md
-        - CREATE INDEX Without CONCURRENTLY (REL-PG-002): rules/dialects/postgresql/reliability/REL-PG-002.md
-      - Security:
-        - OS Command Injection (PostgreSQL) (SEC-CMD-001-PG): rules/dialects/postgresql/security/SEC-CMD-001-PG.md
-        - RAISE NOTICE Log Injection (SEC-PG-003): rules/dialects/postgresql/security/SEC-PG-003.md
-        - SECURITY DEFINER Without search_path (SEC-PG-004): rules/dialects/postgresql/security/SEC-PG-004.md
-        - Search Path Manipulation (SEC-PG-002): rules/dialects/postgresql/security/SEC-PG-002.md
-        - pg_sleep Usage Detected (SEC-PG-001): rules/dialects/postgresql/security/SEC-PG-001.md
-    - Presto:
-      - Cost:
-        - SELECT * on Partitioned Hive Table (COST-PRESTO-001): rules/dialects/presto/cost/COST-PRESTO-001.md
-      - Performance:
-        - Implicit Cross-Join on Distributed Engine (PERF-PRESTO-001): rules/dialects/presto/performance/PERF-PRESTO-001.md
-        - ORDER BY Without LIMIT on Distributed Engine (PERF-PRESTO-002): rules/dialects/presto/performance/PERF-PRESTO-002.md
-      - Reliability:
-        - INSERT OVERWRITE Without Partition (REL-PRESTO-001): rules/dialects/presto/reliability/REL-PRESTO-001.md
-    - Redshift:
-      - Cost:
-        - UNLOAD Without PARALLEL Consideration (COST-RS-001): rules/dialects/redshift/cost/COST-RS-001.md
-      - Performance:
-        - NOT IN on Redshift (Hash Join Explosion) (PERF-RS-003): rules/dialects/redshift/performance/PERF-RS-003.md
-        - ORDER BY Without LIMIT on Redshift (PERF-RS-002): rules/dialects/redshift/performance/PERF-RS-002.md
-        - SELECT * on Redshift Columnar Storage (PERF-RS-001): rules/dialects/redshift/performance/PERF-RS-001.md
-      - Quality:
-        - DISTSTYLE ALL on Large Table (QUAL-RS-001): rules/dialects/redshift/quality/QUAL-RS-001.md
-      - Reliability:
-        - COPY Without MANIFEST (REL-RS-001): rules/dialects/redshift/reliability/REL-RS-001.md
-      - Security:
-        - COPY With Embedded Credentials (SEC-RS-001): rules/dialects/redshift/security/SEC-RS-001.md
-    - Snowflake:
-      - Cost:
-        - LATERAL FLATTEN Without Warehouse Consideration (COST-SF-003): rules/dialects/snowflake/cost/COST-SF-003.md
-        - SELECT * Wastes Snowflake Credits (COST-SF-001): rules/dialects/snowflake/cost/COST-SF-001.md
-      - Performance:
-        - ORDER BY on VARIANT Column (PERF-SF-002): rules/dialects/snowflake/performance/PERF-SF-002.md
-        - VARIANT Column in WHERE Without CAST (PERF-SF-001): rules/dialects/snowflake/performance/PERF-SF-001.md
-      - Quality:
-        - FLATTEN Without Explicit Path (QUAL-SF-001): rules/dialects/snowflake/quality/QUAL-SF-001.md
-      - Reliability:
-        - COPY INTO Without Explicit File Format (COST-SF-002): rules/dialects/snowflake/reliability/COST-SF-002.md
-        - COPY INTO Without ON_ERROR (REL-SF-001): rules/dialects/snowflake/reliability/REL-SF-001.md
-      - Security:
-        - CLONE Without COPY GRANTS (SEC-SF-002): rules/dialects/snowflake/security/SEC-SF-002.md
-        - COPY INTO With Embedded Credentials (SEC-SF-001): rules/dialects/snowflake/security/SEC-SF-001.md
-    - Spark:
-      - Cost:
-        - CACHE TABLE Without Filter (COST-SPARK-002): rules/dialects/spark/cost/COST-SPARK-002.md
-        - Full Scan Without Partition Filter (COST-SPARK-001): rules/dialects/spark/cost/COST-SPARK-001.md
-      - Performance:
-        - BROADCAST Hint on Large Table (PERF-SPARK-001): rules/dialects/spark/performance/PERF-SPARK-001.md
-        - UDF in WHERE Prevents Pushdown (PERF-SPARK-002): rules/dialects/spark/performance/PERF-SPARK-002.md
-      - Reliability:
-        - INSERT OVERWRITE Without Partition (REL-SPARK-001): rules/dialects/spark/reliability/REL-SPARK-001.md
-    - Sqlite:
-      - Performance:
-        - Consider WAL Mode for Concurrent Access (PERF-SQLITE-001): rules/dialects/sqlite/performance/PERF-SQLITE-001.md
-        - LIKE Without COLLATE NOCASE (PERF-SQLITE-002): rules/dialects/sqlite/performance/PERF-SQLITE-002.md
-      - Quality:
-        - AUTOINCREMENT Overhead in SQLite (QUAL-SQLITE-001): rules/dialects/sqlite/quality/QUAL-SQLITE-001.md
-      - Reliability:
-        - ALTER TABLE DROP COLUMN (SQLite Limitation) (REL-SQLITE-001): rules/dialects/sqlite/reliability/REL-SQLITE-001.md
-        - PRAGMA foreign_keys = OFF (REL-SQLITE-002): rules/dialects/sqlite/reliability/REL-SQLITE-002.md
-      - Security:
-        - ATTACH DATABASE Arbitrary File Access (SEC-SQLITE-001): rules/dialects/sqlite/security/SEC-SQLITE-001.md
-    - Trino:
-      - Cost:
-        - SELECT * on Partitioned Hive Table (COST-PRESTO-001): rules/dialects/trino/cost/COST-PRESTO-001.md
-      - Performance:
-        - Implicit Cross-Join on Distributed Engine (PERF-PRESTO-001): rules/dialects/trino/performance/PERF-PRESTO-001.md
-        - ORDER BY Without LIMIT on Distributed Engine (PERF-PRESTO-002): rules/dialects/trino/performance/PERF-PRESTO-002.md
-      - Reliability:
-        - INSERT OVERWRITE Without Partition (REL-PRESTO-001): rules/dialects/trino/reliability/REL-PRESTO-001.md
-    - Tsql:
-      - Cost:
-        - Cursor Without FAST_FORWARD (COST-TSQL-001): rules/dialects/tsql/cost/COST-TSQL-001.md
-      - Performance:
-        - Implicit Conversion in JOIN Predicate (PERF-TSQL-003): rules/dialects/tsql/performance/PERF-TSQL-003.md
-        - Index Hint (PERF-HINT-002): rules/dialects/tsql/performance/PERF-HINT-002.md
-        - Missing SET NOCOUNT ON (PERF-TSQL-001): rules/dialects/tsql/performance/PERF-TSQL-001.md
-        - NOLOCK / Read Uncommitted Hint (PERF-LOCK-002): rules/dialects/tsql/performance/PERF-LOCK-002.md
-        - Nested Loop Join Hint (PERF-CURSOR-003): rules/dialects/tsql/performance/PERF-CURSOR-003.md
-        - Parallel Query Hint (PERF-HINT-003): rules/dialects/tsql/performance/PERF-HINT-003.md
-        - Query Optimizer Hint (PERF-HINT-001): rules/dialects/tsql/performance/PERF-HINT-001.md
-        - SELECT INTO Temp Table Without Index (PERF-TSQL-002): rules/dialects/tsql/performance/PERF-TSQL-002.md
-        - Scalar UDF in SELECT/WHERE (PERF-SCALAR-001): rules/dialects/tsql/performance/PERF-SCALAR-001.md
-        - Table Lock Hint (PERF-LOCK-001): rules/dialects/tsql/performance/PERF-LOCK-001.md
-        - Unbounded Temp Table Creation (PERF-MEM-002): rules/dialects/tsql/performance/PERF-MEM-002.md
-        - WAITFOR DELAY in Production Code (PERF-TSQL-004): rules/dialects/tsql/performance/PERF-TSQL-004.md
-        - WHILE Loop Pattern (PERF-CURSOR-002): rules/dialects/tsql/performance/PERF-CURSOR-002.md
-      - Quality:
-        - SET ANSI_NULLS OFF (QUAL-TSQL-001): rules/dialects/tsql/quality/QUAL-TSQL-001.md
-        - SET QUOTED_IDENTIFIER OFF (QUAL-TSQL-002): rules/dialects/tsql/quality/QUAL-TSQL-002.md
-      - Reliability:
-        - '@@IDENTITY Instead of SCOPE_IDENTITY() (REL-TSQL-001)': rules/dialects/tsql/reliability/REL-TSQL-001.md
-        - MERGE Without HOLDLOCK (REL-TSQL-002): rules/dialects/tsql/reliability/REL-TSQL-002.md
-        - TRUNCATE in TRY Without CATCH (REL-TSQL-003): rules/dialects/tsql/reliability/REL-TSQL-003.md
-      - Security:
-        - Dangerous Server Configuration (SEC-CFG-001): rules/dialects/tsql/security/SEC-CFG-001.md
-        - OLE Automation (sp_OACreate) (SEC-TSQL-002): rules/dialects/tsql/security/SEC-TSQL-002.md
-        - OPENROWSET / OPENDATASOURCE Usage (SEC-TSQL-001): rules/dialects/tsql/security/SEC-TSQL-001.md
-        - OS Command Injection (SQL Server) (SEC-CMD-001): rules/dialects/tsql/security/SEC-CMD-001.md
+      - pg_sleep Usage Detected (SEC-PG-001): rules/universal/security/SEC-PG-001.md
+  - Dialects: []
 - Architecture:
   - System Design: architecture/system-design.md
   - Parser Engine: architecture/parser-engine.md

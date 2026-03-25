@@ -194,6 +194,12 @@ from slowql.rules.quality import (
     UsingFloatForCurrencyRule,
     WildcardInColumnListRule,
 )
+from slowql.rules.schema import (
+    ColumnExistsRule,
+    CrossFileBreakingChangeRule,
+    MissingIndexRule,
+    TableExistsRule,
+)
 from slowql.rules.reliability import (
     AlterTableAddColumnVolatileDefaultRule,
     AlterTableDestructiveRule,
@@ -595,6 +601,10 @@ def get_all_rules() -> list[Rule]:
         SqliteForeignKeysOffRule(),
         SparkCacheTableWithoutFilterRule(),
         BreakingChangeRule(),
+        TableExistsRule(),
+        ColumnExistsRule(),
+        MissingIndexRule(),
+        CrossFileBreakingChangeRule(),
 
     ]
 

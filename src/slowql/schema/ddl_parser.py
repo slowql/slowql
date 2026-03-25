@@ -1,4 +1,5 @@
 import logging
+import re
 from typing import Any
 
 import sqlglot
@@ -8,8 +9,10 @@ from slowql.schema.models import (
     Column,
     ColumnType,
     Index,
+    Procedure,
     Schema,
     Table,
+    View,
 )
 
 logger = logging.getLogger(__name__)
@@ -47,7 +50,7 @@ class DDLParser:
         """
         return self.apply_ddl(ddl, Schema(dialect=self.dialect))
 
-    def apply_ddl(self, ddl: str, schema: Schema) -> Schema:  # noqa: PLR0912
+    def apply_ddl(self, ddl: str, schema: Schema) -> Schema:
         """
         Apply DDL statements to an existing schema and return the updated schema.
         """
@@ -63,21 +66,11 @@ class DDLParser:
         for stmt in statements:
             try:
                 if isinstance(stmt, exp.Create):
-                    if isinstance(stmt.this, (exp.Schema, exp.Table)):
-                        table = self._parse_create_table(stmt)
-                        if table:
-                            current_schema = current_schema.add_table(table)
-                    elif isinstance(stmt.this, exp.Index):
-                        result = self._parse_create_index(stmt)
-                        if result:
-                            indexes_to_add.append(result)
+                    current_schema = self._handle_create_stmt(stmt, current_schema, indexes_to_add)
+                elif isinstance(stmt, exp.Command):
+                    current_schema = self._handle_command_stmt(stmt, current_schema)
                 elif isinstance(stmt, exp.Drop):
-                    if isinstance(stmt.this, exp.Table):
-                        table_name = stmt.this.name
-                        if current_schema.has_table(table_name):
-                            new_tables = current_schema.tables.copy()
-                            new_tables.pop(table_name)
-                            current_schema = Schema(tables=new_tables, dialect=current_schema.dialect)
+                    current_schema = self._handle_drop_stmt(stmt, current_schema)
                 elif isinstance(stmt, exp.Alter):
                     current_schema = self._apply_alter(stmt, current_schema)
             except Exception as e:
@@ -85,7 +78,57 @@ class DDLParser:
                 logger.warning("Failed to parse statement %s: %s", stmt_sql, e)
                 continue
 
-        # Add indexes to tables
+        return self._finalize_indexes(current_schema, indexes_to_add)
+
+    def _handle_create_stmt(self, stmt: exp.Create, schema: Schema, indexes_to_add: list[tuple[str, Index]]) -> Schema:
+        """Handle CREATE statements."""
+        kind = str(stmt.args.get("kind") or "").upper()
+        current_schema = schema
+
+        if kind == "TABLE" or (not kind and isinstance(stmt.this, (exp.Schema, exp.Table))):
+            table = self._parse_create_table(stmt)
+            if table:
+                current_schema = current_schema.add_table(table)
+            # Also check for inline index definitions if any
+            result = self._parse_create_index(stmt)
+            if result:
+                indexes_to_add.append(result)
+        elif kind == "VIEW":
+            view = self._parse_create_view(stmt)
+            if view:
+                current_schema = current_schema.add_view(view)
+        elif kind in ("PROCEDURE", "FUNCTION") or isinstance(stmt.this, exp.UserDefinedFunction):
+            proc = self._parse_create_procedure(stmt)
+            if proc:
+                current_schema = current_schema.add_procedure(proc)
+        elif isinstance(stmt.this, exp.Index):
+            result = self._parse_create_index(stmt)
+            if result:
+                indexes_to_add.append(result)
+
+        return current_schema
+
+    def _handle_command_stmt(self, stmt: exp.Command, schema: Schema) -> Schema:
+        """Handle Command statements (often dialect-specific)."""
+        if str(stmt.this).upper().startswith("CREATE"):
+            proc = self._parse_create_procedure(stmt)
+            if proc:
+                return schema.add_procedure(proc)
+        return schema
+
+    def _handle_drop_stmt(self, stmt: exp.Drop, schema: Schema) -> Schema:
+        """Handle DROP statements."""
+        if isinstance(stmt.this, exp.Table):
+            table_name = stmt.this.name
+            if schema.has_table(table_name):
+                new_tables = schema.tables.copy()
+                new_tables.pop(table_name)
+                return Schema(tables=new_tables, dialect=schema.dialect)
+        return schema
+
+    def _finalize_indexes(self, schema: Schema, indexes_to_add: list[tuple[str, Index]]) -> Schema:
+        """Add collected indexes to the schema."""
+        current_schema = schema
         for table_name, index in indexes_to_add:
             if current_schema.has_table(table_name):
                 table = current_schema.get_table(table_name)
@@ -100,7 +143,6 @@ class DDLParser:
                         comment=table.comment
                     )
                     current_schema = current_schema.add_table(new_table)
-
         return current_schema
 
     def _apply_alter(self, stmt: exp.Alter, schema: Schema) -> Schema:
@@ -320,6 +362,91 @@ class DDLParser:
         )
 
         return (table_name, index)
+
+    def _parse_create_view(self, stmt: exp.Create) -> View | None:
+        """Parse a CREATE VIEW statement."""
+        view_node = stmt.this
+        if not view_node:
+            return None
+
+        view_name = view_node.name
+        if not view_name and hasattr(view_node, "this"):
+            view_name = view_node.this.name if hasattr(view_node.this, "name") else str(view_node.this)
+
+        if not view_name:
+            return None
+
+        # Extract dependencies (tables/views referenced in the view definition)
+        dependencies = []
+        for table in stmt.find_all(exp.Table):
+            if table.name and table.name != view_name:
+                dependencies.append(table.name)
+
+        return View(
+            name=view_name,
+            table_schema=getattr(stmt.this, "db", "public") or "public",
+            definition=stmt.sql(),
+            dependencies=tuple(set(dependencies)),
+        )
+
+    def _parse_create_procedure(self, stmt: exp.Create | exp.Command) -> Procedure | None:
+        """Parse a CREATE PROCEDURE or CREATE FUNCTION statement."""
+        if isinstance(stmt, exp.Command):
+            # Fallback for dialect-specific syntax that sqlglot parses as a Command
+            cmd_text = str(stmt.this)
+            # Simple regex to extract name: CREATE PROCEDURE name(...)
+            match = re.search(r"CREATE\s+(?:PROCEDURE|FUNCTION)\s+([\w\.]+)", cmd_text, re.IGNORECASE)
+            if not match:
+                return None
+            proc_name = match.group(1).split(".")[-1]
+
+            # Simple regex for calls
+            calls = re.findall(r"CALL\s+([\w\.]+)", cmd_text, re.IGNORECASE)
+            calls = [c.split(".")[-1] for c in calls]
+
+            return Procedure(
+                name=proc_name,
+                table_schema="public", # Hard to tell from regex reliably
+                definition=cmd_text,
+                calls=tuple(set(calls)),
+            )
+
+        proc_node = stmt.this
+        if not isinstance(proc_node, exp.UserDefinedFunction):
+            return None
+
+        proc_name = proc_node.name
+        if not proc_name and hasattr(proc_node, "this"):
+            proc_name = proc_node.this.name if hasattr(proc_node.this, "name") else str(proc_node.this)
+
+        if not proc_name:
+            return None
+
+        # Extract call graph (other procedures called)
+        # This is a bit tricky as procedure bodies can be complex
+        calls = []
+        # Look for CALL statements
+        for call in stmt.find_all(exp.Command):
+            if str(call.this).upper().startswith("CALL "):
+                parts = str(call.this).split()
+                if len(parts) > 1:
+                    calls.append(parts[1].split("(")[0].split(".")[-1])
+
+        # Regex fallback for unparsed bodies (common in PG/MySQL)
+        definition = stmt.sql()
+        regex_calls = re.findall(r"CALL\s+([\w\.]+)", definition, re.IGNORECASE)
+        for c in regex_calls:
+            calls.append(c.split(".")[-1])
+
+        # Also look for function calls in expressions if it's a simple function
+        # For now, we'll keep it conservative to CALL statements for procedures
+
+        return Procedure(
+            name=proc_name,
+            table_schema=getattr(proc_node, "db", "public") or "public",
+            definition=definition,
+            calls=tuple(set(calls)),
+        )
 
     def _map_sql_type(self, data_type: Any) -> ColumnType:
         """

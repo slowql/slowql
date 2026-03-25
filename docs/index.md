@@ -10,7 +10,8 @@ Unlike traditional linters that only format SQL, SlowQL builds a full Abstract S
 
 ## Key Features
 
-- **272 Auto-Discovered Rules**: Comprehensive coverage strictly categorized across six dimensions: Security, Performance, Cost, Reliability, Compliance, and Quality.
+- **279 Built-in Rules**: Comprehensive coverage strictly categorized across six dimensions: Security, Performance, Cost, Reliability, Compliance, and Quality.
+- **Cross-File Analysis**: Detect breaking changes across multiple files, transitive view dependencies, and stored procedure call graphs.
 - **Dialect Guardians**: Native support for **14 SQL dialects** (PostgreSQL, MySQL, T-SQL, Snowflake, BigQuery, etc.). Rules only trigger for the dialects they explicitly target, eliminating false positives natively.
 - **Safe Autofix**: Automatically and safely format and fix bad SQL (`--fix` and `--diff`), with atomic `.bak` file generation guaranteeing operational safety.
 - **Rich Output Pipelines**: Ships with a cyberpunk-inspired terminal UI for human operability, alongside native SARIF and JSON exporters for automated pipelines.
@@ -38,4 +39,4 @@ Ready to formally secure and optimize your database architectures?
 
 - [**Quick Start**](getting-started/quick-start.md) - Deploy your first analysis environment in 5 minutes.
 - [**CI/CD Integration**](usage/ci-cd-integration.md) - Enforce headless pipelines within GitHub Actions or GitLab.
-- [**Rule Overview**](rules/overview.md) - Browse the exact boundaries of all 272 security and performance assertions.
+- [**Rule Overview**](rules/overview.md) - Browse the exact boundaries of all 279 security and performance assertions.

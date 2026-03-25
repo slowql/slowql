@@ -150,6 +150,7 @@ class UniversalParser(BaseParser):
                     tables=tuple(self._extract_tables_from_ast(parsed)),
                     columns=tuple(self._extract_columns_from_ast(parsed)),
                     query_type=self._get_query_type_from_ast(parsed),
+                    is_ddl=self._is_ddl(parsed),
                 )
                 queries.append(query)
 
@@ -324,3 +325,9 @@ class UniversalParser(BaseParser):
             return str(ast.this).upper().split()[0]
 
         return type(ast).__name__.upper()
+
+    def _is_ddl(self, ast: Any) -> bool:
+        """Check if the AST represents a DDL statement."""
+        if not ast:
+            return False
+        return isinstance(ast, (exp.Create, exp.Drop, exp.Alter, exp.Command))

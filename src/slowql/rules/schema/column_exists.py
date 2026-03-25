@@ -22,7 +22,7 @@ class ColumnExistsRule(ASTRule):
     dimension: ClassVar[Dimension] = Dimension.RELIABILITY
     remediation_mode: ClassVar[RemediationMode] = RemediationMode.GUIDANCE_ONLY
 
-    def __init__(self, schema: Schema):
+    def __init__(self, schema: Schema | None = None):
         """
         Initialize the rule.
 

@@ -4120,6 +4120,81 @@
       "tags": [],
       "fix_guidance": "Cache only needed partitions: CACHE TABLE t OPTIONS ('partitionFilter' = \"dt = '2024-01-01'\"). Or use CACHE LAZY TABLE to defer until first access.",
       "documentation_url": "https://slowql.dev/rules/cost-spark-002"
+    },
+    {
+      "id": "MIG-BRK-001",
+      "name": "Breaking Schema Change",
+      "description": "Detects destructive changes (DROP TABLE, DROP COLUMN) that may break existing application code or subsequent migrations.",
+      "severity": "high",
+      "dimension": "migration",
+      "category": "data-integrity",
+      "impact": "",
+      "rationale": "",
+      "examples": [],
+      "references": [],
+      "tags": [],
+      "fix_guidance": "",
+      "documentation_url": "https://slowql.dev/rules/mig-brk-001"
+    },
+    {
+      "id": "SCHEMA-TBL-001",
+      "name": "Non-Existent Table",
+      "description": "Query references a table that does not exist in the schema",
+      "severity": "critical",
+      "dimension": "reliability",
+      "category": null,
+      "impact": "",
+      "rationale": "",
+      "examples": [],
+      "references": [],
+      "tags": [],
+      "fix_guidance": "",
+      "documentation_url": "https://slowql.dev/rules/schema-tbl-001"
+    },
+    {
+      "id": "SCHEMA-COL-001",
+      "name": "Non-Existent Column",
+      "description": "Query references a column that does not exist in the table",
+      "severity": "critical",
+      "dimension": "reliability",
+      "category": null,
+      "impact": "",
+      "rationale": "",
+      "examples": [],
+      "references": [],
+      "tags": [],
+      "fix_guidance": "",
+      "documentation_url": "https://slowql.dev/rules/schema-col-001"
+    },
+    {
+      "id": "SCHEMA-IDX-001",
+      "name": "Missing Index on WHERE Column",
+      "description": "Query filters on a column without an index, which may cause full table scans",
+      "severity": "medium",
+      "dimension": "performance",
+      "category": null,
+      "impact": "",
+      "rationale": "",
+      "examples": [],
+      "references": [],
+      "tags": [],
+      "fix_guidance": "",
+      "documentation_url": "https://slowql.dev/rules/schema-idx-001"
+    },
+    {
+      "id": "SCH-BRK-001",
+      "name": "Cross-File Breaking Change",
+      "description": "Detects destructive changes (DROP, ALTER DROP) that break queries defined in other files of the project.",
+      "severity": "high",
+      "dimension": "schema",
+      "category": "data-integrity",
+      "impact": "",
+      "rationale": "",
+      "examples": [],
+      "references": [],
+      "tags": [],
+      "fix_guidance": "",
+      "documentation_url": "https://slowql.dev/rules/sch-brk-001"
     }
   ],
   "grouped": {
@@ -6131,6 +6206,21 @@
         "tags": [],
         "fix_guidance": "Use ReplacingMergeTree or CollapsingMergeTree for logical deletes/updates. Reserve ALTER TABLE mutations for rare bulk corrections.",
         "documentation_url": "https://slowql.dev/rules/perf-ch-003"
+      },
+      {
+        "id": "SCHEMA-IDX-001",
+        "name": "Missing Index on WHERE Column",
+        "description": "Query filters on a column without an index, which may cause full table scans",
+        "severity": "medium",
+        "dimension": "performance",
+        "category": null,
+        "impact": "",
+        "rationale": "",
+        "examples": [],
+        "references": [],
+        "tags": [],
+        "fix_guidance": "",
+        "documentation_url": "https://slowql.dev/rules/schema-idx-001"
       }
     ],
     "reliability": [
@@ -6763,6 +6853,36 @@
         "tags": [],
         "fix_guidance": "Set PRAGMA foreign_keys = ON at connection startup. Note: this must be set per-connection, not per-database.",
         "documentation_url": "https://slowql.dev/rules/rel-sqlite-002"
+      },
+      {
+        "id": "SCHEMA-TBL-001",
+        "name": "Non-Existent Table",
+        "description": "Query references a table that does not exist in the schema",
+        "severity": "critical",
+        "dimension": "reliability",
+        "category": null,
+        "impact": "",
+        "rationale": "",
+        "examples": [],
+        "references": [],
+        "tags": [],
+        "fix_guidance": "",
+        "documentation_url": "https://slowql.dev/rules/schema-tbl-001"
+      },
+      {
+        "id": "SCHEMA-COL-001",
+        "name": "Non-Existent Column",
+        "description": "Query references a column that does not exist in the table",
+        "severity": "critical",
+        "dimension": "reliability",
+        "category": null,
+        "impact": "",
+        "rationale": "",
+        "examples": [],
+        "references": [],
+        "tags": [],
+        "fix_guidance": "",
+        "documentation_url": "https://slowql.dev/rules/schema-col-001"
       }
     ],
     "compliance": [
@@ -8254,6 +8374,40 @@
         "tags": [],
         "fix_guidance": "Cache only needed partitions: CACHE TABLE t OPTIONS ('partitionFilter' = \"dt = '2024-01-01'\"). Or use CACHE LAZY TABLE to defer until first access.",
         "documentation_url": "https://slowql.dev/rules/cost-spark-002"
+      }
+    ],
+    "migration": [
+      {
+        "id": "MIG-BRK-001",
+        "name": "Breaking Schema Change",
+        "description": "Detects destructive changes (DROP TABLE, DROP COLUMN) that may break existing application code or subsequent migrations.",
+        "severity": "high",
+        "dimension": "migration",
+        "category": "data-integrity",
+        "impact": "",
+        "rationale": "",
+        "examples": [],
+        "references": [],
+        "tags": [],
+        "fix_guidance": "",
+        "documentation_url": "https://slowql.dev/rules/mig-brk-001"
+      }
+    ],
+    "schema": [
+      {
+        "id": "SCH-BRK-001",
+        "name": "Cross-File Breaking Change",
+        "description": "Detects destructive changes (DROP, ALTER DROP) that break queries defined in other files of the project.",
+        "severity": "high",
+        "dimension": "schema",
+        "category": "data-integrity",
+        "impact": "",
+        "rationale": "",
+        "examples": [],
+        "references": [],
+        "tags": [],
+        "fix_guidance": "",
+        "documentation_url": "https://slowql.dev/rules/sch-brk-001"
       }
     ]
   }

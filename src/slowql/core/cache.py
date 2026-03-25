@@ -71,8 +71,9 @@ class CacheManager:
         cache_file = self.cache_dir / f"{key}.cache"
 
         # Scrub AST to save space and avoid pickle issues
-        for query in result.queries:
-            query.ast = None
+        # BUT: Do not mutate the original result object in-place!
+        # For now, we keep the AST to support cross-file analysis on cached results.
+        # If we want to save space, we should deepcopy the result first.
 
         try:
             with cache_file.open("wb") as f:

@@ -155,7 +155,7 @@ class SlowQL:
         This is intentionally conservative — it only triggers on
         CREATE TABLE, not CREATE VIEW, CREATE INDEX, etc.
         """
-        if not re.search(r"\bCREATE\s+TABLE\b", sql, re.IGNORECASE):
+        if not re.search(r"\bCREATE\s+(TABLE|VIEW|PROCEDURE|FUNCTION)\b", sql, re.IGNORECASE):
             return None
 
         try:
@@ -583,12 +583,15 @@ class SlowQL:
                     ) from e
 
         # Finalize results with migration issues
-        for m_result in migration_results:
-            combined_result.queries.extend(m_result.queries)
-            combined_result.statistics.total_queries += len(m_result.queries)
-            combined_result.statistics.parse_time_ms += m_result.statistics.parse_time_ms
-            for issue in m_result.issues:
+        for m_res in migration_results:
+            for issue in m_res.issues:
                 combined_result.add_issue(issue)
+
+        # Third pass: run cross-file project-level rules
+        if self.config.analysis.enabled_dimensions:
+             cross_file_issues = self._run_cross_file_rules(combined_result)
+             for issue in cross_file_issues:
+                 combined_result.add_issue(issue)
 
         return combined_result
 
@@ -688,6 +691,18 @@ class SlowQL:
                 except Exception as e:
                     # Log but don't crash on rule errors
                     logger.warning(f"Schema rule {rule.id} failed: {e}")
+
+        return self._apply_severity_overrides(issues)
+
+    def _run_cross_file_rules(self, result: AnalysisResult) -> list[Issue]:
+        """Run project-level rules across all queries in the project."""
+        from slowql.rules.schema.cross_file import CrossFileBreakingChangeRule  # noqa: PLC0415
+
+        issues: list[Issue] = []
+        rule = CrossFileBreakingChangeRule()
+
+        # This rule uses the complete AnalysisResult to see all queries
+        issues.extend(rule.check_project(result))
 
         return self._apply_severity_overrides(issues)
 

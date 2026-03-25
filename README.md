@@ -2,7 +2,7 @@
 
 SlowQL is a **production-focused offline SQL static analyzer** that catches security vulnerabilities, performance regressions, reliability issues, compliance risks, cost inefficiencies, and code quality problems before they reach production.
 
-It performs safe static analysis of your SQL source code with **no database connection required**. SlowQL ships with **275 built-in rules** covering **14 SQL dialects**, and is built for modern engineering teams supporting CI/CD pipelines, pre-commit hooks, GitHub Actions, SARIF output, LSP, and automated fixes.
+It performs safe static analysis of your SQL source code with **no database connection required**. SlowQL ships with **279 built-in rules** covering **14 SQL dialects**, and is built for modern engineering teams supporting CI/CD pipelines, pre-commit hooks, GitHub Actions, SARIF output, LSP, and automated fixes.
 
 ---
 
@@ -61,7 +61,9 @@ It performs safe static analysis of your SQL source code with **no database conn
 
 **Custom Rule Engine.** Define your own organizational SQL conventions via YAML rules or Python plugins. Custom rules integrate seamlessly with the built-in catalog and support full reporting and suppression.
 
-**274 Built-in Rules.** Covers security, performance, reliability, compliance, cost, and quality. Each rule includes impact documentation, fix guidance, and severity classification.
+**279 Built-in Rules.** Covers security, performance, reliability, compliance, cost, and quality. Each rule includes impact documentation, fix guidance, and severity classification.
+
+**Cross-File SQL Analysis.** Detect breaking changes across multiple files. SlowQL understands relationships between DDL, views, and procedures, flagging when a schema change in one file (e.g., `DROP COLUMN`) breaks a query in another.
 
 **dbt & Jinja Support.** Natively parses dbt models and SQL templates containing Jinja tags (`{{ ref() }}`, `{% if %}`, `{% for %}`). Enforces dbt best practices including missing references and hardcoded schema detection.
 
@@ -158,7 +160,7 @@ Schema findings:
 
 ## Rule Coverage
 
-SlowQL ships with **275 rules** across six dimensions:
+SlowQL ships with **279 rules** across six dimensions:
 
 | Dimension | Focus | Rules |
 |-----------|-------|------:|
@@ -309,7 +311,7 @@ slowql . --since main
 --diff                          Preview safe autofix diff
 --fix                           Apply safe autofixes (single file, creates .bak)
 --fix-report                    Write JSON report of fixes
---list-rules                    List all 275 rules with severity, dimension, and dialect
+--list-rules                    List all 279 rules with severity, dimension, and dialect
 --list-rules --filter-dimension Filter by dimension (security, performance, etc.)
 --list-rules --filter-dialect   Filter by dialect (postgresql, mysql, etc.)
 --explain RULE-ID               Show full documentation for a specific rule
@@ -423,7 +425,7 @@ SQL Files → Parser (sqlglot) → AST → Analyzers → Rules → Issues → Re
 
 **Custom Rules.** Dynamic plugin system that loads user-defined rules from YAML files (regex-based) or Python modules (AST-based) at runtime.
 
-**Rules.** 274 detection rules implemented as `PatternRule` (regex), `ASTRule` (sqlglot AST traversal), or custom `Rule` subclasses.
+**Rules.** 279 detection rules implemented as `PatternRule` (regex), `ASTRule` (sqlglot AST traversal), or custom `Rule` subclasses.
 
 **Schema Inspector.** Parses DDL files into a schema model. Enables table/column existence checks and index suggestions.
 
