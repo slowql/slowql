@@ -28,7 +28,7 @@ class DjangoSQLScanner(ast.NodeVisitor):
                 if stmt:
                     self.statements.append(stmt)
 
-    def _convert_django_op(self, node: ast.AST) -> str | None:
+    def _convert_django_op(self, node: ast.AST) -> str | None:  # noqa: PLR0911
         if not isinstance(node, ast.Call):
             return None
 
@@ -43,21 +43,27 @@ class DjangoSQLScanner(ast.NodeVisitor):
         kwargs = {kw.arg: kw.value for kw in node.keywords}
 
         if op_type == "CreateModel":
-            name = self._get_val(kwargs.get("name")).lower()
+            val = kwargs.get("name")
+            name = self._get_val(val).lower() if val else ""
             return f"CREATE TABLE {name} (dummy_id INT);"
 
         elif op_type == "AddField":
-            model_name = self._get_val(kwargs.get("model_name")).lower()
-            name = self._get_val(kwargs.get("name"))
+            m_val = kwargs.get("model_name")
+            model_name = self._get_val(m_val).lower() if m_val else ""
+            n_val = kwargs.get("name")
+            name = self._get_val(n_val) if n_val else ""
             return f"ALTER TABLE {model_name} ADD COLUMN {name} INT;"
 
         elif op_type == "RemoveField":
-            model_name = self._get_val(kwargs.get("model_name")).lower()
-            name = self._get_val(kwargs.get("name"))
+            m_val = kwargs.get("model_name")
+            model_name = self._get_val(m_val).lower() if m_val else ""
+            n_val = kwargs.get("name")
+            name = self._get_val(n_val) if n_val else ""
             return f"ALTER TABLE {model_name} DROP COLUMN {name};"
 
         elif op_type == "DeleteModel":
-            name = self._get_val(kwargs.get("name")).lower()
+            n_val = kwargs.get("name")
+            name = self._get_val(n_val).lower() if n_val else ""
             return f"DROP TABLE {name};"
 
         elif op_type == "RunSQL":

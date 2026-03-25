@@ -20,10 +20,9 @@ class AlembicSQLScanner(ast.NodeVisitor):
                     self.statements.append(stmt)
         self.generic_visit(node)
 
-    def _convert_op_call(self, node: ast.Call) -> str | None:
-        func_name = node.func.attr if hasattr(node.func, "attr") else ""  # type: ignore
+    def _convert_op_call(self, node: ast.Call) -> str | None:  # noqa: PLR0911
+        func_name = node.func.attr if hasattr(node.func, "attr") else ""
         args = node.args
-        # kwargs = {kw.arg: kw.value for kw in node.keywords}
 
         if func_name == "create_table":
             table_name = self._get_val(args[0])
@@ -39,7 +38,7 @@ class AlembicSQLScanner(ast.NodeVisitor):
                 if func_attr == "column" and len(col_node.args) > 0:
                     col_name = self._get_val(col_node.args[0])
                     return f"ALTER TABLE {table_name} ADD COLUMN {col_name} INT;"
-            
+
             # Fallback if first arg is the name
             col_name = self._get_val(col_node)
             return f"ALTER TABLE {table_name} ADD COLUMN {col_name} INT;"
@@ -75,7 +74,7 @@ class AlembicProvider(MigrationProvider):
             return (path / "alembic.ini").exists() or (path / "versions").is_dir()
         return False
 
-    def get_migrations(self, path: Path) -> list[MigrationFile]:
+    def get_migrations(self, path: Path) -> list[MigrationFile]:  # noqa: PLR0912
         versions_dir = path / "versions"
         if not versions_dir.is_dir():
             # Try path as versions dir
@@ -115,10 +114,10 @@ class AlembicProvider(MigrationProvider):
                 sql_content = "\n".join(scanner.statements)
 
                 migrations.append(MigrationFile(
-                    version=revision,
+                    version=str(revision),
                     path=file,
                     content=sql_content,
-                    depends_on=[down_revision] if down_revision else (),
+                    depends_on=[str(down_revision)] if down_revision else (),
                     metadata={"framework": "alembic"}
                 ))
             except Exception:

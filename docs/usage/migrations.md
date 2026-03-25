@@ -38,7 +38,7 @@ slowql ./migrations/versions/v1_init.py --input-file ./migrations/versions/v2_ad
 
 SlowQL includes specific rules for migrations, such as:
 
-- **Destructive Changes:** Detecting `DROP COLUMN` or `RENAME TABLE` that might break existing queries.
+- **Destructive Changes (`MIG-BRK-001`):** Detecting `DROP COLUMN` or `RENAME TABLE` that might break existing queries.
 - **Locking Issues:** Identifying DDL operations that perform full table locks on large tables.
 - **Idempotency:** Ensuring migrations can be safely run multiple times without error.
 - **Dialect Compatibility:** Verifying that migration SQL is valid for your target database dialect.

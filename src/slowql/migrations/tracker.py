@@ -17,6 +17,14 @@ class MigrationSchemaTracker:
     def __init__(self, initial_schema: Schema | None = None) -> None:
         self.initial_schema = initial_schema or Schema()
 
+    def apply_ddl(self, ddl: str) -> Schema:
+        """
+        Apply a single DDL statement to the current schema state.
+        """
+        parser = DDLParser(dialect=self.initial_schema.dialect)
+        self.initial_schema = parser.apply_ddl(ddl, schema=self.initial_schema)
+        return self.initial_schema
+
     def apply_migrations(self, migrations: list[MigrationFile]) -> Schema:
         """
         Apply a list of migrations in order and return the final schema state.

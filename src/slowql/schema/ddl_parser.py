@@ -47,7 +47,7 @@ class DDLParser:
         """
         return self.apply_ddl(ddl, Schema(dialect=self.dialect))
 
-    def apply_ddl(self, ddl: str, schema: Schema) -> Schema:
+    def apply_ddl(self, ddl: str, schema: Schema) -> Schema:  # noqa: PLR0912
         """
         Apply DDL statements to an existing schema and return the updated schema.
         """
@@ -81,7 +81,8 @@ class DDLParser:
                 elif isinstance(stmt, exp.Alter):
                     current_schema = self._apply_alter(stmt, current_schema)
             except Exception as e:
-                logger.warning("Failed to parse statement %s: %s", stmt.sql(), e)
+                stmt_sql = stmt.sql() if stmt and hasattr(stmt, "sql") else "unknown"
+                logger.warning("Failed to parse statement %s: %s", stmt_sql, e)
                 continue
 
         # Add indexes to tables
@@ -107,7 +108,7 @@ class DDLParser:
         table_node = stmt.find(exp.Table)
         if not table_node or not table_node.name:
             return schema
-        
+
         table_name = table_node.name
         if not schema.has_table(table_name):
             return schema
@@ -117,7 +118,7 @@ class DDLParser:
             return schema
 
         new_columns = list(table.columns)
-        
+
         for action in stmt.args.get("actions", []):
             # Add column
             if isinstance(action, exp.ColumnDef):

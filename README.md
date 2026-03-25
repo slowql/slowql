@@ -2,7 +2,7 @@
 
 SlowQL is a **production-focused offline SQL static analyzer** that catches security vulnerabilities, performance regressions, reliability issues, compliance risks, cost inefficiencies, and code quality problems before they reach production.
 
-It performs safe static analysis of your SQL source code with **no database connection required**. SlowQL ships with **274 built-in rules** covering **14 SQL dialects**, and is built for modern engineering teams supporting CI/CD pipelines, pre-commit hooks, GitHub Actions, SARIF output, LSP, and automated fixes.
+It performs safe static analysis of your SQL source code with **no database connection required**. SlowQL ships with **275 built-in rules** covering **14 SQL dialects**, and is built for modern engineering teams supporting CI/CD pipelines, pre-commit hooks, GitHub Actions, SARIF output, LSP, and automated fixes.
 
 ---
 
@@ -153,7 +153,7 @@ Schema findings:
 
 ## Rule Coverage
 
-SlowQL ships with **274 rules** across six dimensions:
+SlowQL ships with **275 rules** across six dimensions:
 
 | Dimension | Focus | Rules |
 |-----------|-------|------:|
@@ -304,7 +304,7 @@ slowql . --since main
 --diff                          Preview safe autofix diff
 --fix                           Apply safe autofixes (single file, creates .bak)
 --fix-report                    Write JSON report of fixes
---list-rules                    List all 274 rules with severity, dimension, and dialect
+--list-rules                    List all 275 rules with severity, dimension, and dialect
 --list-rules --filter-dimension Filter by dimension (security, performance, etc.)
 --list-rules --filter-dialect   Filter by dialect (postgresql, mysql, etc.)
 --explain RULE-ID               Show full documentation for a specific rule

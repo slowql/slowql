@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from pathlib import Path
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -26,7 +28,7 @@ class MigrationFile:
     path: Path
     content: str
     depends_on: Sequence[str] = ()
-    metadata: dict[str, Any] = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class MigrationProvider(ABC):
@@ -39,11 +41,11 @@ class MigrationProvider(ABC):
         """
         Check if the given path contains migrations for this framework.
         """
-        pass
+        ...
 
     @abstractmethod
     def get_migrations(self, path: Path) -> list[MigrationFile]:
         """
         Scan the path and return a list of migration files.
         """
-        pass
+        ...
