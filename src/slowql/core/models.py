@@ -449,6 +449,7 @@ class Query:
     tables: tuple[str, ...] = field(default_factory=tuple)
     columns: tuple[str, ...] = field(default_factory=tuple)
     query_type: str | None = None
+    is_dynamic: bool = False
 
     @property
     def is_select(self) -> bool:

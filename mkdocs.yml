@@ -24,6 +24,7 @@ nav:
     - Inline Suppression: usage/suppression.md
     - Severity Overrides: usage/severity-overrides.md
     - Baseline Mode: usage/baseline.md
+    - App Code Extraction: usage/app-code-extraction.md
     - CI/CD Integration: usage/ci-cd-integration.md
 
   - Pre-commit Hook: usage/pre-commit-hook.md

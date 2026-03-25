@@ -13,6 +13,7 @@ import logging
 import os
 import re
 import time
+from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -25,6 +26,7 @@ from slowql.core.models import (
     Query,
 )
 from slowql.core.suppressions import parse_suppressions
+from slowql.parser.extractor import SQLExtractor
 from slowql.parser.universal import UniversalParser
 from slowql.schema.inspector import SchemaInspector
 
@@ -516,7 +518,17 @@ class SlowQL:
                 else:
                     logger.info(f"Skipping directory {path}: not a migration project.")
             else:
-                regular_paths.append(path)
+                p = Path(path).resolve()
+                if p.suffix.lower() in (".py", ".ts", ".js", ".java", ".go", ".rb"):
+                    # Extract SQL from application code
+                    app_code_result = self.analyze_app_code(p)
+                    combined_result.queries.extend(app_code_result.queries)
+                    combined_result.statistics.total_queries += len(app_code_result.queries)
+                    combined_result.statistics.parse_time_ms += app_code_result.statistics.parse_time_ms
+                    for issue in app_code_result.issues:
+                        combined_result.add_issue(issue)
+                else:
+                    regular_paths.append(path)
 
         # Handle regular files
         if self.config.analysis.parallel and len(regular_paths) > 1:
@@ -768,3 +780,64 @@ class SlowQL:
                     }
                 )
         return rules
+
+    def analyze_app_code(self, path: str | Path) -> AnalysisResult:
+        """
+        Extract and analyze SQL from application code files.
+        """
+        path = Path(path)
+        content = path.read_text(encoding="utf-8")
+        extractor = SQLExtractor()
+
+        suffix = path.suffix.lower()
+        extracted = []
+        if suffix == ".py":
+            extracted = extractor.extract_from_python(content, str(path))
+        elif suffix in (".ts", ".js"):
+            extracted = extractor.extract_from_typescript(content, str(path))
+        elif suffix == ".java":
+            extracted = extractor.extract_from_java(content, str(path))
+        elif suffix == ".go":
+            extracted = extractor.extract_from_go(content, str(path))
+        elif suffix == ".rb":
+            extracted = extractor.extract_from_ruby(content, str(path))
+
+        combined_result = AnalysisResult(
+            dialect=self.config.analysis.dialect,
+            config_hash=self.config.hash(),
+        )
+
+        for ext in extracted:
+            try:
+                # Parse each extracted string as SQL
+                queries = self.parser.parse(
+                    ext.raw,
+                    dialect=self.config.analysis.dialect,
+                    file_path=ext.file_path
+                )
+
+                # Adjust location to match original file position
+                for q in queries:
+                    # q.location.line is relative to the extracted string
+                    # We need to offset it by the extraction start line
+                    # ext.line is the line where the string starts in the app code
+                    q.location = replace(
+                        q.location,
+                        line=ext.line + q.location.line - 1,
+                        column=ext.column if q.location.line == 1 else q.location.column,
+                        file=ext.file_path
+                    )
+                    q.is_dynamic = ext.is_dynamic
+
+                combined_result.queries.extend(queries)
+
+                # Run analyzers
+                raw_issues = self._run_analyzers(queries)
+                for issue in raw_issues:
+                    combined_result.add_issue(issue)
+
+            except Exception as e:
+                logger.warning(f"Failed to parse extracted SQL from {path}:{ext.line}: {e}")
+                continue
+
+        return combined_result

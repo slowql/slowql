@@ -77,6 +77,8 @@ It performs safe static analysis of your SQL source code with **no database conn
 
 **Editor Integration.** VS Code extension via [slowql-vscode](https://marketplace.visualstudio.com/items?itemName=Makroumi.slowql-vscode) and foundational LSP server for other editors.
 
+**Application Code SQL Extraction.** Automatically extract and analyze SQL strings embedded in **Python**, **TypeScript/JavaScript**, **Java**, **Go**, and **Ruby** files. SlowQL uses language-specific heuristics (ASID-based for Python, regex for others) to find SQL, even inside f-strings and template literals, and flags potential injection risks in dynamic constructions.
+
 ---
 
 ## Installation
@@ -105,9 +107,12 @@ Requirements: Python 3.11+, Linux / macOS / Windows.
 
 ## Quick Start
 
-Analyze a SQL file:
-```bash
 slowql queries.sql
+```
+
+Analyze application code (extracts SQL strings automatically):
+```bash
+slowql src/app.py src/services/
 ```
 
 Analyze with schema validation:

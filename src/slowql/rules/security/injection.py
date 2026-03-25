@@ -41,8 +41,29 @@ class SQLInjectionRule(PatternRule):
 
     pattern = r"(['\"]\s*\+\s*[a-zA-Z_]\w*)|([a-zA-Z_]\w*\s*\+\s*['\"])"
     message_template = (
-        "Potential SQL injection detected: String concatenation with variable '{match}'."
+        "Potential SQL injection detected: String concatenation or dynamic construction with variable '{match}'."
     )
+
+    def check(self, query: Query) -> list[Issue]:
+        issues = super().check(query)
+
+        if query.is_dynamic:
+            # Check if we already found an issue via pattern
+            if not issues:
+                issues.append(
+                    self.create_issue(
+                        query=query,
+                        message="Potential SQL injection: Query is dynamically constructed (e.g., f-string or template literal).",
+                        snippet=query.raw[:100],
+                        impact="Using string interpolation to build SQL queries is a primary source of SQL injection vulnerabilities.",
+                        fix=Fix(
+                            description="Use parameterized queries instead of string interpolation.",
+                            replacement="",
+                            is_safe=False
+                        )
+                    )
+                )
+        return issues
 
     examples = (
         "query = 'SELECT * FROM users WHERE name = ' + user_input;",
