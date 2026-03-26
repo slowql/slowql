@@ -40,3 +40,6 @@ pnpm-debug.log*
 
 # OS/editor noise
 .DS_Store
+
+# Local cache
+.slowql_cache/

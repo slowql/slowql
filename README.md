@@ -406,6 +406,25 @@ Install [slowql-vscode](https://marketplace.visualstudio.com/items?itemName=Makr
 
 ---
 
+### Query Complexity Scoring
+
+SlowQL now provides a numerical complexity score (0-100) for every analyzed query, helping teams enforce quality policies and track complexity trends.
+
+- **Structural Analysis:** Scores are calculated based on joins, subqueries, and aggregations.
+- **Trend Tracking:** Persistent tracking of queries allows you to see if complexity is increasing or decreasing over time.
+- **Visual Spectrum:** A new "Query Complexity Spectrum" in the terminal output highlights the most complex queries at a glance.
+
+#### Configuration
+
+You can enable/disable complexity scoring and set thresholds for "optimal", "complex", and "critical" queries in your `.slowql.yml`:
+
+```yaml
+complexity:
+  enabled: true
+  threshold_optimal: 40
+  threshold_complex: 70
+```
+
 ## Architecture
 
 SlowQL is a modular pipeline:

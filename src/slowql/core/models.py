@@ -451,6 +451,8 @@ class Query:
     query_type: str | None = None
     is_ddl: bool = False
     is_dynamic: bool = False
+    complexity_score: int = 0
+    complexity_trend: int | None = None
 
     @property
     def is_select(self) -> bool:
@@ -485,6 +487,18 @@ class Query:
         """Hash based on normalized SQL."""
         return hash(self.normalized)
 
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "raw": self.raw,
+            "normalized": self.normalized,
+            "dialect": self.dialect,
+            "location": self.location.to_dict(),
+            "query_type": self.query_type,
+            "complexity_score": self.complexity_score,
+            "complexity_trend": self.complexity_trend,
+        }
+
 
 @dataclass(slots=True)
 class Statistics:
@@ -506,6 +520,8 @@ class Statistics:
     by_dimension: dict[Dimension, int] = field(default_factory=dict)
     analysis_time_ms: float = 0.0
     parse_time_ms: float = 0.0
+    max_complexity: int = 0
+    avg_complexity: float = 0.0
 
     def __post_init__(self) -> None:
         """Initialize severity and dimension counts."""
@@ -523,6 +539,8 @@ class Statistics:
             "by_dimension": {k.value: v for k, v in self.by_dimension.items()},
             "analysis_time_ms": self.analysis_time_ms,
             "parse_time_ms": self.parse_time_ms,
+            "max_complexity": self.max_complexity,
+            "avg_complexity": self.avg_complexity,
         }
 
 
@@ -561,6 +579,12 @@ class AnalysisResult:
         """Recalculate statistics from issues."""
         self.statistics.total_issues = len(self.issues)
         self.statistics.total_queries = len(self.queries)
+
+        # Calculate complexity stats
+        if self.queries:
+            total_complexity = sum(q.complexity_score for q in self.queries)
+            self.statistics.max_complexity = max(q.complexity_score for q in self.queries)
+            self.statistics.avg_complexity = total_complexity / len(self.queries)
 
         # Reset counts
         for severity in Severity:
@@ -623,6 +647,7 @@ class AnalysisResult:
             "issues": [i.to_dict() for i in self.issues],
             "statistics": self.statistics.to_dict(),
             "dialect": self.dialect,
+            "queries": [q.to_dict() for q in self.queries],
             "timestamp": self.timestamp.isoformat(),
             "version": self.version,
             "config_hash": self.config_hash,
