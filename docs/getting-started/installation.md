@@ -67,5 +67,5 @@ Confirm whether the parsing binaries are accurately bound to your `$PATH`:
 
 ```bash
 slowql --version
-# Outputs: SlowQL Version 1.6.0
+# Outputs: SlowQL Version 1.6.2
 ```

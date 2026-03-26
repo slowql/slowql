@@ -392,7 +392,7 @@ compliance:
 ```yaml
 repos:
   - repo: https://github.com/makroumi/slowql
-    rev: v1.5.0
+    rev: v1.6.2
     hooks:
       - id: slowql
         args: [--fail-on, high]
