@@ -102,7 +102,8 @@ class ConsoleReporter(BaseReporter):
         # 7. Detailed issues table
         self._show_issues_table_v2(result)
 
-        # 8. Summary statistics frequency bands
+        # 8. Complexity Summary (New section)
+        self._show_complexity_section(result)
 
         # 9. Recommended actions
         self._show_next_steps(result)
@@ -121,6 +122,13 @@ class ConsoleReporter(BaseReporter):
             f"[cyan]Scanned {queries_count} queries[/] • "
             f"[bold magenta]{total_issues} anomalies detected[/]"
         )
+
+        complexity_text = ""
+        if result.statistics.max_complexity > 0:
+            avg = result.statistics.avg_complexity
+            max_c = result.statistics.max_complexity
+            complexity_text = f" [dim]•[/] [bold yellow]Avg Complexity: {avg:.1f}[/] [dim]•[/] [bold orange1]Max: {max_c}[/]"
+            subtitle_text += complexity_text
 
         grid = Table.grid(expand=True)
         grid.add_column(justify="center", ratio=1)
@@ -542,6 +550,7 @@ class ConsoleReporter(BaseReporter):
         table.add_column("Severity", width=12, justify="center", no_wrap=True)
         table.add_column("Rule ID", width=14, style="cyan", no_wrap=True)
         table.add_column("Issue Type", ratio=1, overflow="fold", style="bold white")
+        table.add_column("Complexity", width=10, justify="center", no_wrap=True)
         table.add_column("Loc", width=8, justify="right", style="dim cyan", no_wrap=True)
         table.add_column("Impact & Fix", ratio=2, overflow="fold", style="white")
 
@@ -566,6 +575,20 @@ class ConsoleReporter(BaseReporter):
             issue_msg = issue.message
             loc_str = f"Ln {issue.location}" if issue.location else "-"
 
+            # Find corresponding query complexity
+            complexity_display = "[dim]-[/]"
+            query = next((q for q in result.queries if q.location == issue.location), None)
+            if query and query.complexity_score > 0:
+                score = query.complexity_score
+                c_color = "green" if score < 40 else "yellow" if score < 70 else "red"
+                trend_icon = ""
+                if query.complexity_trend is not None:
+                    if query.complexity_trend > 0:
+                        trend_icon = " [red]↑[/]"
+                    elif query.complexity_trend < 0:
+                        trend_icon = " [green]↓[/]"
+                complexity_display = f"[{c_color}]{score}[/]{trend_icon}"
+
             # Combined Impact + Fix for context, allow wrapping
             # Only show the "➤ Fix" line if a real fix is present
             fix_line = ""
@@ -587,8 +610,58 @@ class ConsoleReporter(BaseReporter):
                 severity_display,
                 rule_id,
                 issue_msg,
+                complexity_display,
                 loc_str,
                 impact_str,
+            )
+
+        self.console.print(table)
+        self.console.print()
+
+    def _show_complexity_section(self, result: AnalysisResult) -> None:
+        """Render a summary of query complexity scores and trends."""
+        if not result.queries or all(q.complexity_score == 0 for q in result.queries):
+            return
+
+        self.console.print()
+        self.console.print(Rule("QUERY COMPLEXITY SPECTRUM", style="bold orange1"))
+        self.console.print()
+
+        table = Table(
+            box=box.SQUARE,
+            show_edge=False,
+            expand=True,
+            padding=(0, 1),
+            header_style="bold white on rgb(40,30,20)",
+            border_style="dim orange1",
+        )
+
+        table.add_column("Query Snippet", ratio=1, style="dim cyan")
+        table.add_column("Score", width=10, justify="center")
+        table.add_column("Trend", width=10, justify="center")
+        table.add_column("Status", width=15, justify="center")
+
+        sorted_queries = sorted(result.queries, key=lambda x: x.complexity_score, reverse=True)[:10]
+
+        for query in sorted_queries:
+            score = query.complexity_score
+            snippet = query.raw[:60].replace("\n", " ") + "..." if len(query.raw) > 60 else query.raw.replace("\n", " ")
+
+            c_color = "green" if score < 40 else "yellow" if score < 70 else "red"
+            status = "OPTIMAL" if score < 40 else "COMPLEX" if score < 70 else "CRITICAL"
+
+            trend_display = "[dim]STABLE[/]"
+            if query.complexity_trend is not None:
+                if query.complexity_trend > 0:
+                    trend_display = f"[red]↑ +{query.complexity_trend}[/]"
+                elif query.complexity_trend < 0:
+                    trend_display = f"[green]↓ {query.complexity_trend}[/]"
+
+            table.add_row(
+                snippet,
+                f"[{c_color} bold]{score}[/]",
+                trend_display,
+                f"[{c_color}]{status}[/]"
             )
 
         self.console.print(table)

@@ -201,6 +201,18 @@ class PluginConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
+class ComplexityConfig(BaseModel):
+    """Configuration for query complexity scoring."""
+
+    threshold: int = 60
+    """Complexity score threshold (0-100). Queries above this are flagged."""
+
+    enabled: bool = True
+    """Enable or disable complexity scoring."""
+
+    model_config = ConfigDict(frozen=True)
+
+
 class Config(BaseModel):
     """
     Main configuration for SlowQL.
@@ -240,6 +252,9 @@ class Config(BaseModel):
 
     migration: MigrationConfig = Field(default_factory=MigrationConfig)
     """Migration analysis configuration."""
+
+    complexity: ComplexityConfig = Field(default_factory=ComplexityConfig)
+    """Query complexity scoring configuration."""
 
     model_config = ConfigDict(
         frozen=True,

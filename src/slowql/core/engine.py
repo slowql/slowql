@@ -9,6 +9,7 @@ It orchestrates parsing, analysis, and result aggregation.
 from __future__ import annotations
 
 import concurrent.futures
+import hashlib
 import logging
 import os
 import re
@@ -25,6 +26,7 @@ from slowql.core.models import (
     Issue,
     Query,
 )
+from slowql.core.scoring import ComplexityScorer, TrendTracker
 from slowql.core.suppressions import parse_suppressions
 from slowql.parser.extractor import SQLExtractor
 from slowql.parser.universal import UniversalParser
@@ -303,6 +305,29 @@ class SlowQL:
             result.add_issue(issue)
 
         result.suppressed_count = suppressed_count
+
+        # Calculate complexity scores and update statistics
+        if self.config.complexity.enabled:
+            scorer = ComplexityScorer()
+            # Shared TrendTracker for the analysis run, using default or config cache dir
+            trend_tracker = TrendTracker(cache_dir=self.config.cache_config.dir)
+
+            total_complexity = 0
+            for query in queries:
+                # Get issues for this specific query
+                query_issues = [i for i in issues if i.location == query.location]
+                query.complexity_score = scorer.calculate_score(query, query_issues)
+
+                # Track trend using hash of normalized SQL
+                query_id = hashlib.sha256(query.normalized.encode()).hexdigest()
+                query.complexity_trend = trend_tracker.get_trend(query_id, query.complexity_score)
+
+                # Update statistics
+                result.statistics.max_complexity = max(result.statistics.max_complexity, query.complexity_score)
+                total_complexity += query.complexity_score
+
+            if queries:
+                result.statistics.avg_complexity = total_complexity / len(queries)
 
         # Finalize timing
         result.statistics.analysis_time_ms = (time.perf_counter() - start_time) * 1000

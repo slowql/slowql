@@ -33,9 +33,12 @@ class TestSlowQLEngineCoverage:
         config.schema_config.path = None
         config.cache_config = MagicMock()
         config.cache_config.enabled = False
+        config.cache_config.dir = ".slowql_cache"
         config.plugins = MagicMock()
         config.plugins.directories = []
         config.plugins.modules = []
+        config.complexity = MagicMock()
+        config.complexity.enabled = True
         return config
 
     def test_init_and_properties(self, mock_config):
@@ -188,7 +191,12 @@ class TestSlowQLEngineCoverage:
         # Test full analyze flow with mocks
         engine = SlowQL(config=mock_config)
         mock_p = MagicMock()
-        mock_p.parse.return_value = [MagicMock()]
+        mock_query = MagicMock()
+        mock_query.normalized = "SELECT 1"
+        mock_query.raw = "SELECT 1"
+        mock_query.complexity_score = 0
+        mock_query.complexity_trend = None
+        mock_p.parse.return_value = [mock_query]
         engine._parser = mock_p
 
         with patch.object(engine, "_run_analyzers", return_value=[create_issue()]):
@@ -407,7 +415,12 @@ class TestSlowQLEngineCoverage:
         with patch.object(engine, "_analyzers", [analyzer]):
             engine._analyzers_loaded = True
             # Exercise _run_analyzers through analyze
-            with patch.object(engine, "_parse_sql", return_value=[MagicMock()]):
+            mock_query = MagicMock()
+            mock_query.normalized = "SELECT 1"
+            mock_query.raw = "SELECT 1"
+            mock_query.complexity_score = 0
+            mock_query.complexity_trend = None
+            with patch.object(engine, "_parse_sql", return_value=[mock_query]):
                 result = engine.analyze("SELECT 1")
                 assert len(result.issues) == 1
 

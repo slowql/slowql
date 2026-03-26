@@ -11,6 +11,8 @@ class TestConsoleReporterCoverage:
         result.issues = []
         result.queries = ["SELECT 1"]
         result.version = "1.0.0"
+        result.statistics = MagicMock()
+        result.statistics.max_complexity = 0
 
         with patch.object(reporter.console, "print") as mock_print:
             reporter.report(result)
@@ -73,8 +75,12 @@ class TestConsoleReporterCoverage:
             stats.by_dimension[i.dimension] += 1
         stats.total_issues = len(issues)
 
+        mock_query = MagicMock()
+        mock_query.complexity_score = 0
+        mock_query.complexity_trend = None
+        mock_query.raw = "SELECT 1"
         result = AnalysisResult(
-            issues=issues, statistics=stats, queries=[MagicMock()], version="1.0.0"
+            issues=issues, statistics=stats, queries=[mock_query], version="1.0.0"
         )
 
         # Patch console to avoid visual output but verify logical calls
@@ -85,6 +91,8 @@ class TestConsoleReporterCoverage:
         reporter = ConsoleReporter()
         result = MagicMock(spec=AnalysisResult)
         result.issues = []
+        result.statistics = MagicMock()
+        result.statistics.max_complexity = 0
         with patch.object(reporter.console, "print"):
             reporter._show_heatmap_section(result)  # Should return early
 
