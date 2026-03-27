@@ -81,7 +81,7 @@ It performs safe static analysis of your SQL source code with **no database conn
 
 **Editor Integration.** VS Code extension via [slowql-vscode](https://marketplace.visualstudio.com/items?itemName=Makroumi.slowql-vscode) and foundational LSP server for other editors.
 
-**Application Code SQL Extraction.** Automatically extract and analyze SQL strings embedded in **Python**, **TypeScript/JavaScript**, **Java**, **Go**, and **Ruby** files. SlowQL uses language-specific heuristics (ASID-based for Python, regex for others) to find SQL, even inside f-strings and template literals, and flags potential injection risks in dynamic constructions.
+**Application Code SQL Extraction.** Automatically extract and analyze SQL strings embedded in **Python**, **TypeScript/JavaScript**, **Java**, **Go**, and **Ruby** files. SlowQL uses language-specific heuristics to find SQL, flagging potential injection risks in dynamic constructions.
 
 ---
 
@@ -111,6 +111,7 @@ Requirements: Python 3.11+, Linux / macOS / Windows.
 
 ## Quick Start
 
+```bash
 slowql queries.sql
 ```
 
@@ -165,9 +166,9 @@ SlowQL ships with **282 rules** across six dimensions:
 | Dimension | Focus | Rules |
 |-----------|-------|------:|
 | Security | SQL injection, privilege escalation, credential exposure, SSRF | 61 |
-| Performance | Full scans, indexing, joins, locking, sorting, pagination | 56 |
-| Reliability | Data loss prevention, transactions, race conditions, idempotency | 35 |
-| Quality | Naming, complexity, null handling, modern SQL, style, dbt, dead SQL | 43 |
+| Performance | Full scans, indexing, joins, locking, sorting, pagination | 73 |
+| Reliability | Data loss prevention, transactions, race conditions, idempotency | 44 |
+| Quality | Naming, complexity, null handling, style, dbt, dead SQL | 51 |
 | Cost | Cloud warehouse optimization, storage, compute, network | 33 |
 | Compliance | GDPR, HIPAA, PCI-DSS, SOX, CCPA | 18 |
 
@@ -179,9 +180,9 @@ SlowQL ships with **282 rules** across six dimensions:
 |---------|---------------:|---------|
 | PostgreSQL | 12 | `pg_sleep` detection, `SECURITY DEFINER` without `search_path`, `CREATE INDEX` without `CONCURRENTLY` |
 | MySQL | 15 | `LOAD DATA LOCAL INFILE`, `utf8` vs `utf8mb4`, `ORDER BY RAND()`, MyISAM detection |
-| T-SQL (SQL Server) | 22 | `OPENROWSET`, `sp_OACreate`, `@@IDENTITY`, `MERGE` without `HOLDLOCK`, `SET NOCOUNT ON` |
-| Oracle | 10 | `UTL_HTTP`/`UTL_FILE`, `EXECUTE IMMEDIATE` injection, `CONNECT BY` without `NOCYCLE` |
-| Snowflake | 8 | `COPY INTO` credentials, `VARIANT` in `WHERE`, `CLONE` without `COPY GRANTS` |
+| T-SQL (SQL Server) | 23 | `OPENROWSET`, `sp_OACreate`, `@@IDENTITY`, `MERGE` without `HOLDLOCK`, `SET NOCOUNT ON` |
+| Oracle | 11 | `UTL_HTTP`/`UTL_FILE`, `EXECUTE IMMEDIATE` injection, `CONNECT BY` without `NOCYCLE` |
+| Snowflake | 9 | `COPY INTO` credentials, `VARIANT` in `WHERE`, `CLONE` without `COPY GRANTS` |
 | BigQuery | 6 | `SELECT *` cost, `DISTINCT` on `UNNEST`, repeated subqueries |
 | SQLite | 6 | `ATTACH DATABASE` file access, `PRAGMA foreign_keys = OFF`, `AUTOINCREMENT` overhead |
 | Redshift | 7 | `COPY` with embedded credentials, `COPY` without `MANIFEST`, `DISTSTYLE ALL` |
@@ -190,7 +191,7 @@ SlowQL ships with **282 rules** across six dimensions:
 | Presto / Trino | 4 | Implicit cross-joins, `INSERT OVERWRITE` without partition, `ORDER BY` without `LIMIT` |
 | Spark / Databricks | 5 | `BROADCAST` on large table, UDF in `WHERE`, `CACHE TABLE` without filter |
 
-The remaining 165 rules are universal and fire on all dialects.
+The remaining 175 rules are universal and fire on all dialects.
 
 ---
 
@@ -301,6 +302,7 @@ slowql . --since main
 --no-cache         Disable query result caching
 --clear-cache      Clear cache directory before analysis
 --jobs, -j         Number of parallel workers for analyzing multiple files. (0 = auto)
+--compare          Enable query comparison mode
 ```
 
 ### Output Control
@@ -346,6 +348,9 @@ analysis:
   severity_overrides:
     PERF-SCAN-001: info
     QUAL-NULL-001: critical
+
+# Configuration is discovered from the analyzed directory or any parent.
+# This allows project-specific and per-directory configuration.
 
 schema:
   path: db/schema.sql
@@ -410,9 +415,8 @@ Install [slowql-vscode](https://marketplace.visualstudio.com/items?itemName=Makr
 
 SlowQL now provides a numerical complexity score (0-100) for every analyzed query, helping teams enforce quality policies and track complexity trends.
 
-- **Structural Analysis:** Scores are calculated based on joins, subqueries, and aggregations.
-- **Trend Tracking:** Persistent tracking of queries allows you to see if complexity is increasing or decreasing over time.
-- **Visual Spectrum:** A new "Query Complexity Spectrum" in the terminal output highlights the most complex queries at a glance.
+- **Spectral Analysis:** Scores are calculated based on structural patterns like joins, subqueries, and aggregations.
+- **Visual Feedback:** Terminal output highlights query complexity to help identify candidates for optimization.
 
 #### Configuration
 
