@@ -332,6 +332,11 @@ class SlowQL:
         # Finalize timing
         result.statistics.analysis_time_ms = (time.perf_counter() - start_time) * 1000
 
+        # Run cross-file rules (like Dead SQL Detection)
+        cross_file_issues = self._run_cross_file_rules(result)
+        for issue in cross_file_issues:
+            result.add_issue(issue)
+
         return result
 
     def analyze_file(
@@ -652,6 +657,9 @@ class SlowQL:
 
             # Run analyzer on each query
             for query in queries:
+                print(f"DEBUG: Running analyzer {analyzer.name} on query {query.query_type}")
+                for rule in analyzer.rules:
+                    print(f"  DEBUG: Rule {rule.id} (enabled={rule.enabled})")
                 analyzer_issues = analyzer.analyze(query, config=self.config)
 
                 # Filter issues by rule configuration
@@ -721,13 +729,30 @@ class SlowQL:
 
     def _run_cross_file_rules(self, result: AnalysisResult) -> list[Issue]:
         """Run project-level rules across all queries in the project."""
-        from slowql.rules.schema.cross_file import CrossFileBreakingChangeRule  # noqa: PLC0415
-
         issues: list[Issue] = []
-        rule = CrossFileBreakingChangeRule()
 
-        # This rule uses the complete AnalysisResult to see all queries
-        issues.extend(rule.check_project(result))
+        # Run all rules that implement check_project
+        for analyzer in self.analyzers:
+            if not self._should_run_analyzer(analyzer):
+                continue
+
+            for rule in analyzer.rules:
+                if not rule.enabled:
+                    continue
+
+                try:
+                    rule_issues = rule.check_project(result)
+                    for issue in rule_issues:
+                        if self._should_report_issue(issue):
+                            issues.append(issue)
+                except Exception as e:
+                    logger.warning(f"Project rule {rule.id} failed: {e}")
+
+        # Also run schema rules if schema is loaded
+        if self._schema is not None:
+             from slowql.rules.schema.cross_file import CrossFileBreakingChangeRule  # noqa: PLC0415
+             rule = CrossFileBreakingChangeRule()
+             issues.extend(rule.check_project(result))
 
         return self._apply_severity_overrides(issues)
 

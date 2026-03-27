@@ -194,6 +194,7 @@ from slowql.rules.quality import (
     UsingFloatForCurrencyRule,
     WildcardInColumnListRule,
 )
+from slowql.rules.quality.dead_sql import DuplicateQueryRule, UnreachableCodeRule, UnusedObjectRule
 from slowql.rules.reliability import (
     AlterTableAddColumnVolatileDefaultRule,
     AlterTableDestructiveRule,
@@ -605,7 +606,9 @@ def get_all_rules() -> list[Rule]:
         ColumnExistsRule(),
         MissingIndexRule(),
         CrossFileBreakingChangeRule(),
-
+        UnusedObjectRule(),
+        UnreachableCodeRule(),
+        DuplicateQueryRule(),
     ]
 
 

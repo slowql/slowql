@@ -2,7 +2,7 @@
 
 SlowQL is a **production-focused offline SQL static analyzer** that catches security vulnerabilities, performance regressions, reliability issues, compliance risks, cost inefficiencies, and code quality problems before they reach production.
 
-It performs safe static analysis of your SQL source code with **no database connection required**. SlowQL ships with **279 built-in rules** covering **14 SQL dialects**, and is built for modern engineering teams supporting CI/CD pipelines, pre-commit hooks, GitHub Actions, SARIF output, LSP, and automated fixes.
+It performs safe static analysis of your SQL source code with **no database connection required**. SlowQL ships with **282 built-in rules** covering **14 SQL dialects**, and is built for modern engineering teams supporting CI/CD pipelines, pre-commit hooks, GitHub Actions, SARIF output, LSP, and automated fixes.
 
 ---
 
@@ -61,7 +61,9 @@ It performs safe static analysis of your SQL source code with **no database conn
 
 **Custom Rule Engine.** Define your own organizational SQL conventions via YAML rules or Python plugins. Custom rules integrate seamlessly with the built-in catalog and support full reporting and suppression.
 
-**279 Built-in Rules.** Covers security, performance, reliability, compliance, cost, and quality. Each rule includes impact documentation, fix guidance, and severity classification.
+**282 Built-in Rules.** Covers security, performance, reliability, compliance, cost, and quality. Each rule includes impact documentation, fix guidance, and severity classification.
+
+**Dead SQL Detection.** Safely identify unused database objects and redundant code. SlowQL detects unused views, stored procedures, and functions by analyzing definitions and usages across your entire project. It also flags unreachable code paths in procedures (e.g., after `RETURN`) and near-duplicate queries that should be consolidated.
 
 **Cross-File SQL Analysis.** Detect breaking changes across multiple files. SlowQL understands relationships between DDL, views, and procedures, flagging when a schema change in one file (e.g., `DROP COLUMN`) breaks a query in another.
 
@@ -158,16 +160,14 @@ Schema findings:
 
 ---
 
-## Rule Coverage
-
-SlowQL ships with **279 rules** across six dimensions:
+SlowQL ships with **282 rules** across six dimensions:
 
 | Dimension | Focus | Rules |
 |-----------|-------|------:|
 | Security | SQL injection, privilege escalation, credential exposure, SSRF | 61 |
 | Performance | Full scans, indexing, joins, locking, sorting, pagination | 56 |
 | Reliability | Data loss prevention, transactions, race conditions, idempotency | 35 |
-| Quality | Naming, complexity, null handling, modern SQL, style, dbt | 40 |
+| Quality | Naming, complexity, null handling, modern SQL, style, dbt, dead SQL | 43 |
 | Cost | Cloud warehouse optimization, storage, compute, network | 33 |
 | Compliance | GDPR, HIPAA, PCI-DSS, SOX, CCPA | 18 |
 
@@ -311,7 +311,7 @@ slowql . --since main
 --diff                          Preview safe autofix diff
 --fix                           Apply safe autofixes (single file, creates .bak)
 --fix-report                    Write JSON report of fixes
---list-rules                    List all 279 rules with severity, dimension, and dialect
+--list-rules                    List all 282 rules with severity, dimension, and dialect
 --list-rules --filter-dimension Filter by dimension (security, performance, etc.)
 --list-rules --filter-dialect   Filter by dialect (postgresql, mysql, etc.)
 --explain RULE-ID               Show full documentation for a specific rule
@@ -444,7 +444,7 @@ SQL Files → Parser (sqlglot) → AST → Analyzers → Rules → Issues → Re
 
 **Custom Rules.** Dynamic plugin system that loads user-defined rules from YAML files (regex-based) or Python modules (AST-based) at runtime.
 
-**Rules.** 279 detection rules implemented as `PatternRule` (regex), `ASTRule` (sqlglot AST traversal), or custom `Rule` subclasses.
+**Rules.** 282 detection rules implemented as `PatternRule` (regex), `ASTRule` (sqlglot AST traversal), or custom `Rule` subclasses.
 
 **Schema Inspector.** Parses DDL files into a schema model. Enables table/column existence checks and index suggestions.
 

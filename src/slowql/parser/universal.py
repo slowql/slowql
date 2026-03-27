@@ -116,12 +116,19 @@ class UniversalParser(BaseParser):
             ) from e
         queries = []
 
+        # Normalize dialect for sqlglot
+        if dialect == "postgresql":
+            dialect = "postgres"
+        elif dialect == "mssql":
+            dialect = "tsql"
+
         for i, stmt in enumerate(statements):
             try:
                 # Use provided dialect, then default, then auto-detect
                 effective_dialect = (
                     dialect or self.default_dialect or self.detect_dialect(stmt.raw)
                 )
+
 
                 # Get the true unstripped raw from the original sql
                 true_raw = sql[stmt.start_offset : stmt.end_offset]

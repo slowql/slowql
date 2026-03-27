@@ -31,7 +31,7 @@ from slowql.rules.registry import RuleRegistry, get_rule_registry
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from slowql.core.models import Query
+    from slowql.core.models import AnalysisResult, Query
 
 
 @dataclass(frozen=True)
@@ -340,6 +340,22 @@ class Rule(ABC):
             A Fix object if an automatic fix is available, otherwise None.
         """
         return None
+
+    def check_project(self, result: AnalysisResult) -> list[Issue]:
+        """
+        Check the entire project for issues.
+
+        This method is called after all individual queries have been analyzed.
+        It allows rules to perform cross-file analysis or identify
+        patterns across multiple queries.
+
+        Args:
+            result: The complete analysis result containing all queries.
+
+        Returns:
+            List of detected project-level issues.
+        """
+        return []
 
 
 class PatternRule(Rule):

@@ -34,7 +34,7 @@ class SourceSplitter:
     preserving exact source text and offsets.
     """
 
-    def split(self, sql: str) -> list[StatementSlice]:  # noqa: PLR0912
+    def split(self, sql: str) -> list[StatementSlice]:
         """
         Split a SQL string into individual statements.
 
@@ -57,52 +57,17 @@ class SourceSplitter:
             if stmt_sql_start >= n:
                 break
 
-            # 2. Track where we are in the state machine to find the semicolon
-            j = stmt_sql_start
-            found_semicolon = False
-            while j < n:
-                char = sql[j]
-                if char == "'":
-                    j = self._skip_quoted(sql, j, n, "'")
-                elif char == '"':
-                    j = self._skip_quoted(sql, j, n, '"')
-                elif char == '`':
-                    j = self._skip_quoted(sql, j, n, '`')
-                elif char == '-' and j + 1 < n and sql[j + 1] == '-':
-                    j = self._skip_line_comment(sql, j, n)
-                elif char == '/' and j + 1 < n and sql[j + 1] == '*':
-                    j = self._skip_block_comment(sql, j, n)
-                elif char == ';':
-                    found_semicolon = True
-                    j += 1
-                    break
-                else:
-                    j += 1
+            # 2. Find the end of the statement
+            stmt_end, found_semicolon = self._find_statement_end(sql, stmt_sql_start, n)
 
-            # 3. We found a statement boundary (semicolon or EOF)
-            # The raw text is from stmt_sql_start to j, but we trim trailing whitespace (except the ;)
-            stmt_end = j
+            # 3. Handle the statement text
             raw = sql[stmt_sql_start:stmt_end]
-
-            # If we didn't end on a semicolon, we might have trailing whitespace to trim
             if not found_semicolon:
                 raw_trimmed = raw.rstrip()
                 stmt_end = stmt_sql_start + len(raw_trimmed)
                 raw = raw_trimmed
-            else:
-                # If we have a semicolon, it's at j-1. We should trim whitespace BETWEEN the last token and ; if needed?
-                # Actually, "exclude trailing whitespace after the statement terminator"
-                # If sql is "SELECT 1;  ", raw should be "SELECT 1;"
-                # Current j is after the semicolon. So raw is "SELECT 1;" (if it was "SELECT 1; ")
-                # Let's just rstrip the raw but ensure if last char was ;, we keep it.
-                # Simplified: raw is already mapped to j. If we found a semicolon, j is just after it.
-                # If there was a semicolon, we don't trim anything because the semicolon is the terminator.
-                # Wait, "SELECT 1 ;  " -> raw should be "SELECT 1 ;"
-                # My logic: stmt_sql_start="S", j=" " (after ;). raw="SELECT 1 ;". Correct.
-                pass
 
             if raw:
-                # Calculate line/column for stmt_sql_start
                 line, column = self._get_location(sql, stmt_sql_start)
                 slices.append(StatementSlice(
                     raw=raw,
@@ -112,10 +77,50 @@ class SourceSplitter:
                     column=column
                 ))
 
-            # Move i to j to continue searching for the next statement
-            i = j
+            i = stmt_end
+            if found_semicolon and i < n and sql[i-1] == ';':
+                 # Already incremented in _find_statement_end
+                 pass
+
+            # Ensure we always move forward
+            if i <= stmt_sql_start and n > 0:
+                i = stmt_sql_start + 1
 
         return slices
+
+    def _find_statement_end(self, sql: str, start: int, n: int) -> tuple[int, bool]:
+        """Find the end offset of the current statement and whether it ended with a semicolon."""
+        j = start
+        block_depth = 0
+        start_block_keywords = {"BEGIN", "CASE"}
+
+        while j < n:
+            char = sql[j]
+            if char in ("'", '"', '`'):
+                j = self._skip_quoted(sql, j, n, char)
+            elif char == '-' and j + 1 < n and sql[j + 1] == '-':
+                j = self._skip_line_comment(sql, j, n)
+            elif char == '/' and j + 1 < n and sql[j + 1] == '*':
+                j = self._skip_block_comment(sql, j, n)
+            elif char.isalpha():
+                word = ""
+                k = j
+                while k < n and (sql[k].isalnum() or sql[k] == '_'):
+                    word += sql[k]
+                    k += 1
+
+                upper_word = word.upper()
+                if upper_word in start_block_keywords:
+                    block_depth += 1
+                elif upper_word == "END":
+                    block_depth = max(0, block_depth - 1)
+                j = k
+            elif char == ';' and block_depth == 0:
+                return j + 1, True
+            else:
+                j += 1
+
+        return j, False
 
     def _find_first_token(self, sql: str, start: int, n: int) -> int:
         """Find the index of the first character that is not whitespace or part of a comment."""
