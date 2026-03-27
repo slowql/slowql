@@ -268,6 +268,8 @@ class TestEngineAnalyzeWithBaseline:
             return [baseline_issue, new_issue]
 
         monkeypatch.setattr(engine, "_run_analyzers", mock_run_analyzers)
+        # Mock cross-file rules to avoid DuplicateQueryRule adding unexpected issues
+        monkeypatch.setattr(engine, "_run_cross_file_rules", lambda _: [])
 
         # Create a dummy file for analyze_with_baseline to read
         test_file = tmp_path / "test.sql"
