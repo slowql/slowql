@@ -1641,7 +1641,7 @@ def build_argparser() -> argparse.ArgumentParser:
         "--dialect",
         "-d",
         choices=[
-            "postgresql", "mysql", "tsql", "oracle", "sqlite",
+            "postgresql", "postgres", "pg", "mysql", "mariadb", "tsql", "mssql", "sqlserver", "oracle", "sqlite",
             "snowflake", "bigquery", "redshift", "clickhouse",
             "duckdb", "presto", "trino", "spark", "databricks",
         ],

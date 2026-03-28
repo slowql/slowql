@@ -657,9 +657,6 @@ class SlowQL:
 
             # Run analyzer on each query
             for query in queries:
-                print(f"DEBUG: Running analyzer {analyzer.name} on query {query.query_type}")
-                for rule in analyzer.rules:
-                    print(f"  DEBUG: Rule {rule.id} (enabled={rule.enabled})")
                 analyzer_issues = analyzer.analyze(query, config=self.config)
 
                 # Filter issues by rule configuration
