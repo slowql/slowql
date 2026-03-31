@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "slowql"
-version = "1.6.3"
+version = "1.6.4"
 description = "Next-generation SQL analyzer: Security, Performance, Compliance, Cost optimization"
 readme = "README.md"
 license = "Apache-2.0"

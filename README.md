@@ -81,7 +81,7 @@ It performs safe static analysis of your SQL source code with **no database conn
 
 **Editor Integration.** VS Code extension via [slowql-vscode](https://marketplace.visualstudio.com/items?itemName=Makroumi.slowql-vscode) and foundational LSP server for other editors.
 
-**Application Code SQL Extraction.** Automatically extract and analyze SQL strings embedded in **Python**, **TypeScript/JavaScript**, **Java**, **Go**, and **Ruby** files. SlowQL uses language-specific heuristics to find SQL, flagging potential injection risks in dynamic constructions.
+**Application Code SQL Extraction.** Automatically extract and analyze SQL strings embedded in **Python**, **TypeScript/JavaScript**, **Java**, **Go**, **Ruby**, and **MyBatis XML mapper** files. SlowQL uses language‑specific heuristics (AST for Python, regex for others) and a dedicated MyBatis XML parser to find SQL, flagging potential injection risks in dynamic constructions. It distinguishes safe `#{param}` parameterization from unsafe `${param}` interpolation and marks queries using dynamic MyBatis tags (`<if>`, `<where>`, `<set>`, etc.) as dynamic.
 
 ---
 
@@ -126,9 +126,12 @@ slowql queries.sql --schema schema.sql
 ```
 
 Run in CI mode with failure thresholds:
+### Analyze MyBatis mapper files:
 ```bash
-slowql --non-interactive --input-file sql/ --fail-on high --format github-actions
+slowql src/main/resources/mapper/UserMapper.xml
+slowql src/main/resources/mapper/ --schema db/schema.sql
 ```
+
 
 Preview and apply safe fixes:
 ```bash
@@ -172,7 +175,56 @@ SlowQL ships with **282 rules** across six dimensions:
 | Cost | Cloud warehouse optimization, storage, compute, network | 33 |
 | Compliance | GDPR, HIPAA, PCI-DSS, SOX, CCPA | 18 |
 
-### Dialect-Specific Rules
+## MyBatis XML Support
+
+**MyBatis** is a popular Java/Spring ORM framework that uses XML mapper files to define SQL statements. SlowQL now parses these mapper files and applies all existing SQL rules.
+
+### Supported MyBatis Tags
+- `<select>`, `<insert>`, `<update>`, `<delete>`, `<sql>`
+- Dynamic tags: `<if>`, `<where>`, `<set>`, `<foreach>`, `<choose>`, `<when>`, `<otherwise>`, `<trim>`
+
+### Parameter Syntax
+- Safe: `#{param}` – uses prepared‑statement style parameterization.
+- Unsafe: `${param}` – direct string interpolation, flagged as potential SQL injection.
+
+### Dynamic SQL Detection
+Queries containing any dynamic tags are marked `is_dynamic = True` and are analyzed for injection and performance issues.
+
+### Example
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<mapper namespace="com.example.UserMapper">
+  <!-- Safe -->
+  <select id="findUserById" resultType="User">
+    SELECT * FROM users WHERE id = #{id}
+  </select>
+
+  <!-- Unsafe -->
+  <select id="searchUsers" resultType="User">
+    SELECT * FROM users WHERE name LIKE ${searchTerm}
+  </select>
+
+  <!-- Dynamic -->
+  <update id="updateUser">
+    UPDATE users
+    <set>
+      <if test="name != null">name = #{name},</if>
+      <if test="email != null">email = #{email},</if>
+    </set>
+    WHERE id = #{id}
+  </update>
+</mapper>
+```
+
+SlowQL will extract three statements, flag `SELECT *` (PERF‑SCAN‑001), flag unsafe `${}` (SEC‑INJ‑001), and mark the update as dynamic.
+
+### Relevant Rules
+- `SEC‑INJ‑001` … `SEC‑INJ‑011` – injection patterns.
+- `PERF‑SCAN‑001` – `SELECT *`.
+- `QUAL‑DBT‑001` – hard‑coded table names.
+
+## Dialect‑Specific Rules
 
 107 rules are dialect-aware, firing only on the relevant database engine:
 

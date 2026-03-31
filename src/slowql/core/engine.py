@@ -28,7 +28,8 @@ from slowql.core.models import (
 )
 from slowql.core.scoring import ComplexityScorer, TrendTracker
 from slowql.core.suppressions import parse_suppressions
-from slowql.parser.extractor import SQLExtractor
+from slowql.parser.extractor import ExtractedQuery, SQLExtractor
+from slowql.parser.mybatis import MyBatisExtractor, is_mybatis_file
 from slowql.parser.universal import UniversalParser
 from slowql.schema.inspector import SchemaInspector
 
@@ -366,6 +367,13 @@ class SlowQL:
         if not path.exists():
             raise FileNotFoundError(str(path))
 
+        # Route non-SQL files to app code analyzer
+        suffix = path.suffix.lower()
+        if suffix in (".py", ".ts", ".js", ".java", ".go", ".rb"):
+            return self.analyze_app_code(path)
+        if suffix == ".xml" and is_mybatis_file(str(path)):
+            return self.analyze_app_code(path)
+
         sql = path.read_text(encoding="utf-8")
 
         # Try cache
@@ -549,8 +557,17 @@ class SlowQL:
                     logger.info(f"Skipping directory {path}: not a migration project.")
             else:
                 p = Path(path).resolve()
+                # Route application code and MyBatis XML to app code analyzer
                 if p.suffix.lower() in (".py", ".ts", ".js", ".java", ".go", ".rb"):
                     # Extract SQL from application code
+                    app_code_result = self.analyze_app_code(p)
+                    combined_result.queries.extend(app_code_result.queries)
+                    combined_result.statistics.total_queries += len(app_code_result.queries)
+                    combined_result.statistics.parse_time_ms += app_code_result.statistics.parse_time_ms
+                    for issue in app_code_result.issues:
+                        combined_result.add_issue(issue)
+                elif p.suffix.lower() == ".xml" and is_mybatis_file(str(p)):
+                    # Extract SQL from MyBatis mapper XML
                     app_code_result = self.analyze_app_code(p)
                     combined_result.queries.extend(app_code_result.queries)
                     combined_result.statistics.total_queries += len(app_code_result.queries)
@@ -853,7 +870,22 @@ class SlowQL:
 
         suffix = path.suffix.lower()
         extracted = []
-        if suffix == ".py":
+
+        # Handle MyBatis XML mapper files
+        if suffix == ".xml" and is_mybatis_file(str(path)):
+            mybatis_extractor = MyBatisExtractor()
+            mybatis_queries = mybatis_extractor.extract(content, str(path))
+            # Convert MyBatisQuery to ExtractedQuery-like format for processing
+            for mq in mybatis_queries:
+                extracted.append(ExtractedQuery(
+                    raw=mq.raw,
+                    line=mq.line,
+                    column=mq.column,
+                    file_path=mq.file_path,
+                    is_dynamic=mq.is_dynamic,
+                    language="mybatis"
+                ))
+        elif suffix == ".py":
             extracted = extractor.extract_from_python(content, str(path))
         elif suffix in (".ts", ".js"):
             extracted = extractor.extract_from_typescript(content, str(path))

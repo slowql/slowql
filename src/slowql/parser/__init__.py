@@ -42,6 +42,8 @@ __all__ = [
     "Function",
     "Join",
     "Literal",
+    "MyBatisExtractor",
+    "MyBatisQuery",
     "OrderBy",
     "Query",
     "Select",
@@ -49,4 +51,7 @@ __all__ = [
     "Table",
     "UnaryOp",
     "Where",
+    "is_mybatis_file",
 ]
+
+from slowql.parser.mybatis import MyBatisExtractor, MyBatisQuery, is_mybatis_file
