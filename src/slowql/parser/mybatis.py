@@ -138,10 +138,49 @@ class MyBatisExtractor:
         if element.text:
             yield element.text.strip()
 
-        # Process children (handles nested <if>, <where>, etc.)
+        # Process children with semantic awareness
         for child in element:
-            # Recurse into child
-            yield from self._collect_sql_text(child)
+            tag = child.tag.lower() if isinstance(child.tag, str) else ""
+
+            if tag == "set":
+                # Reconstruct SET keyword + contents
+                set_parts = list(self._collect_sql_text(child))
+                if set_parts:
+                    # Join parts, strip trailing comma
+                    set_body = " ".join(p for p in set_parts if p)
+                    set_body = set_body.rstrip().rstrip(",")
+                    yield f"SET {set_body}"
+            elif tag == "where":
+                # Reconstruct WHERE keyword + contents
+                where_parts = list(self._collect_sql_text(child))
+                if where_parts:
+                    where_body = " ".join(p for p in where_parts if p)
+                    # Strip leading AND/OR
+                    import re as _re
+                    where_body = _re.sub(r"^\s*(AND|OR)\s+", "", where_body, flags=_re.IGNORECASE)
+                    yield f"WHERE {where_body}"
+            elif tag == "trim":
+                # Handle <trim prefix="WHERE"> etc.
+                prefix = child.get("prefix", "")
+                suffix_override = child.get("suffix", "")
+                prefix_overrides = child.get("prefixOverrides", "")
+                trim_parts = list(self._collect_sql_text(child))
+                if trim_parts:
+                    trim_body = " ".join(p for p in trim_parts if p)
+                    if prefix_overrides:
+                        import re as _re
+                        for po in prefix_overrides.split("|"):
+                            trim_body = _re.sub(
+                                rf"^\s*{po.strip()}\s+", "", trim_body, flags=_re.IGNORECASE
+                            )
+                    if prefix:
+                        yield f"{prefix} {trim_body}"
+                    else:
+                        yield trim_body
+            else:
+                # Default: recurse into child
+                yield from self._collect_sql_text(child)
+
             # Get tail text (text after closing tag)
             if child.tail:
                 yield child.tail.strip()
@@ -171,30 +210,26 @@ class MyBatisExtractor:
         tag_name: str,
         statement_id: str,
         content: str,
-        line_offsets: list[int]
+        line_offsets: list[int],
     ) -> tuple[int, int]:
         """Find the line and column of an element in the original content."""
-        # Search for the opening tag pattern
-        if statement_id != "anonymous":
-            pattern = rf'<{tag_name}[^>]*id\\s*=\\s*["\']{statement_id}["\'"]'
-        else:
-            pattern = f"<{tag_name}[^>]*>"
-
-        match = re.search(pattern, content, re.IGNORECASE)
-        if match:
-            pos = match.start()
-            # Find which line this position is on
-            line = 1
-            for i, offset in enumerate(line_offsets):
-                if offset > pos:
-                    line = i
-                    break
-                line = i + 1
-            # Column is position minus start of line
-            col_start = line_offsets[line - 1] if line > 0 else 0
-            column = pos - col_start + 1
-            return line, column
-
+        lines = content.splitlines()
+        for line_num, line_text in enumerate(lines, 1):
+            line_lower = line_text.lower()
+            if f"<{tag_name}" not in line_lower:
+                continue
+            if statement_id != "anonymous":
+                normalized = line_lower.replace(" ", "")
+                if (
+                    f'id="{statement_id.lower()}"' in normalized
+                    or f"id='{statement_id.lower()}'" in normalized
+                ):
+                    col = line_text.lower().find(f"<{tag_name}") + 1
+                    return line_num, max(col, 1)
+            else:
+                col = line_text.lower().find(f"<{tag_name}") + 1
+                return line_num, max(col, 1)
+        return 1, 1  # Fallback
         return 1, 1  # Default if not found
 
     def _extract_via_regex(self, content: str, file_path: str) -> list[MyBatisQuery]:
