@@ -554,7 +554,36 @@ class SlowQL:
                     m_result = self.analyze_migrations(p)
                     migration_results.append(m_result)
                 else:
-                    logger.info(f"Skipping directory {path}: not a migration project.")
+                    # Recursively enumerate all supported files in directory
+                    supported_extensions = {
+                        ".sql", ".py", ".ts", ".js",
+                        ".java", ".go", ".rb", ".xml",
+                    }
+                    for found in sorted(p.rglob("*")):
+                        if not found.is_file():
+                            continue
+                        suffix = found.suffix.lower()
+                        if suffix not in supported_extensions:
+                            continue
+                        if suffix in (".py", ".ts", ".js", ".java", ".go", ".rb"):
+                            app_code_result = self.analyze_app_code(found)
+                            combined_result.queries.extend(app_code_result.queries)
+                            combined_result.statistics.total_queries += len(app_code_result.queries)
+                            combined_result.statistics.parse_time_ms += app_code_result.statistics.parse_time_ms
+                            for issue in app_code_result.issues:
+                                combined_result.add_issue(issue)
+                        elif suffix == ".xml" and is_mybatis_file(str(found)):
+                            app_code_result = self.analyze_app_code(found)
+                            combined_result.queries.extend(app_code_result.queries)
+                            combined_result.statistics.total_queries += len(app_code_result.queries)
+                            combined_result.statistics.parse_time_ms += app_code_result.statistics.parse_time_ms
+                            for issue in app_code_result.issues:
+                                combined_result.add_issue(issue)
+                        elif suffix == ".xml":
+                            # Non-MyBatis XML — skip silently
+                            pass
+                        else:
+                            regular_paths.append(found)
             else:
                 p = Path(path).resolve()
                 # Route application code and MyBatis XML to app code analyzer
