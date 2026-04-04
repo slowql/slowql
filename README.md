@@ -347,7 +347,8 @@ slowql . --since main
 --baseline         Path to baseline file (suppress known issues)
 --update-baseline  Update/create the baseline file
 --fail-on          Failure threshold: critical, high, medium, low, info, never
---non-interactive  Suppress spinners and interactive prompts
+--interactive      Opt-in to full interactive experience (animations, menus, dialect selector)
+--non-interactive  (deprecated, now the default) Explicitly disable interactive mode
 --git-diff         Only analyze files changed in the current workspace
 --since            Analyze files changed since a specific git revision (e.g. main)
 --cache-dir        Directory to store cache files (default: .slowql_cache)
@@ -441,7 +442,7 @@ compliance:
 - name: SlowQL Analysis
   run: |
     pip install slowql
-    slowql --non-interactive --input-file sql/ --schema db/schema.sql --fail-on high --format github-actions
+    slowql --input-file sql/ --schema db/schema.sql --fail-on high --format github-actions
 ```
 
 ### Pre-commit

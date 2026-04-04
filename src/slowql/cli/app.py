@@ -1646,7 +1646,7 @@ def build_argparser() -> argparse.ArgumentParser:
             "duckdb", "presto", "trino", "spark", "databricks",
         ],
         default=None,
-        help="SQL dialect for dialect-specific rules (default: prompt in interactive, universal-only in CI)",
+        help="SQL dialect for dialect-specific rules (default: auto-detect from config, universal otherwise)",
     )
     analysis_group.add_argument(
         "--schema",
@@ -1742,7 +1742,12 @@ def build_argparser() -> argparse.ArgumentParser:
         "--duration", type=float, default=3.0, help="Intro animation duration (seconds)"
     )
     ui_group.add_argument(
-        "--non-interactive", action="store_true", help="Non-interactive mode for CI/CD"
+        "--interactive", action="store_true",
+        help="Opt-in to full interactive experience (animations, menus, dialect selector)"
+    )
+    ui_group.add_argument(
+        "--non-interactive", action="store_true",
+        help="(deprecated, now the default) Non-interactive mode for CI/CD"
     )
 
     return p
@@ -1831,7 +1836,11 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0912, PLR0915
         if fix_target.is_dir():
             parser.error("--fix currently supports only a single file, not a directory")
 
-    # Run analysis loop
+    # Interactive mode: only when explicitly requested via --interactive AND on a TTY
+    is_tty = sys.stdin.isatty() and sys.stdout.isatty()
+    effective_interactive = args.interactive and is_tty and not args.non_interactive
+    effective_non_interactive = not effective_interactive
+
     loop_kwargs: dict[str, Any] = {
         "intro_enabled": not args.no_intro,
         "intro_duration": args.duration,
@@ -1841,7 +1850,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0912, PLR0915
         "out_dir": args.out,
         "fast": args.fast,
         "verbose": args.verbose,
-        "non_interactive": args.non_interactive,
+        "non_interactive": effective_non_interactive,
         "enable_cache": not args.no_cache,
         "cache_dir": getattr(args, "cache_dir", ".slowql_cache"),
         "clear_cache": getattr(args, "clear_cache", False),

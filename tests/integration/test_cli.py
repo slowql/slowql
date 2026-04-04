@@ -94,16 +94,23 @@ def test_cli_invalid_export_format(sample_sql_file, tmp_path, capsys, monkeypatc
 def test_cli_paste_mode(monkeypatch, capsys):
     inputs = iter(["SELECT * FROM users;"])
     monkeypatch.setattr("builtins.input", lambda: next(inputs, ""))
-    out, code = run_cli(["--fast", "--no-intro", "--mode", "paste"], capsys, monkeypatch)
+    # Paste mode requires interactive + TTY
+    monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+    monkeypatch.setattr("sys.stdout.isatty", lambda: True)
+    out, code = run_cli(["--fast", "--no-intro", "--mode", "paste", "--interactive"], capsys, monkeypatch)
     assert code == 0
     assert "SlowQL" in out.out
 
 
 def test_cli_paste_mode_empty(monkeypatch, capsys):
     monkeypatch.setattr("builtins.input", lambda: "quit")
-    out, code = run_cli(["--fast", "--no-intro", "--mode", "paste"], capsys, monkeypatch)
+    # Paste mode requires interactive + TTY
+    monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+    monkeypatch.setattr("sys.stdout.isatty", lambda: True)
+    out, code = run_cli(["--fast", "--no-intro", "--mode", "paste", "--interactive"], capsys, monkeypatch)
     assert code == 0
     assert "Analysis interrupted" in out.out
+
 
 
 # -------------------------------

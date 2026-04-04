@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Changed
+- **Reversed Interactive Default**: `slowql queries.sql` now runs instant analysis with no animation and no dialect selector by default. Use `--interactive` to opt-in to the full animated experience.
+- **Dialect Auto-Detection**: Dialect is now resolved from config or CLI `--dialect` flag. The interactive dialect selector only appears with `--interactive`.
+- **`--non-interactive` Deprecated**: The flag still works for backward compatibility but is now the default behavior.
+
+---
+
 ## [1.6.2] - 2026-03-25
 
 ### Fixed

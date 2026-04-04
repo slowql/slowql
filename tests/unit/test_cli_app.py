@@ -874,12 +874,18 @@ class TestArgumentParser:
         args = parser.parse_args([])
         assert args.mode == "auto"
         assert args.non_interactive is False
+        assert args.interactive is False
 
         # Test parsing with file
         args = parser.parse_args(["test.sql"])
         assert args.file == Path("test.sql")
 
-        # Test parsing with options
+        # Test parsing with --interactive flag
+        args = parser.parse_args(["--interactive"])
+        assert args.interactive is True
+        assert args.non_interactive is False
+
+        # Test backward compat: --non-interactive still works
         args = parser.parse_args(["--mode", "compose", "--fast", "--non-interactive", "--jobs", "4"])
         assert args.mode == "compose"
         assert args.fast is True
@@ -890,11 +896,16 @@ class TestArgumentParser:
 class TestMainFunction:
     """Test main function."""
 
+    @patch("slowql.cli.app.sys")
     @patch("slowql.cli.app.init_cli")
     @patch("slowql.cli.app.build_argparser")
     @patch("slowql.cli.app.run_analysis_loop")
-    def test_main(self, mock_run_loop, mock_build_parser, mock_init_cli):
-        """Test main function."""
+    def test_main_default_non_interactive(self, mock_run_loop, mock_build_parser, mock_init_cli, mock_sys):
+        """Test main defaults to non-interactive when --interactive is not passed."""
+        mock_sys.stdin.isatty.return_value = True
+        mock_sys.stdout.isatty.return_value = True
+        mock_sys.argv = ["slowql"]
+
         mock_parser = MagicMock()
         mock_args = MagicMock()
         mock_args.file = None
@@ -906,6 +917,7 @@ class TestMainFunction:
         mock_args.out = Path("reports")
         mock_args.fast = False
         mock_args.verbose = False
+        mock_args.interactive = False
         mock_args.non_interactive = False
         mock_args.no_cache = False
         mock_args.cache_dir = ".slowql_cache"
@@ -927,6 +939,7 @@ class TestMainFunction:
 
         mock_init_cli.assert_called_once()
         mock_build_parser.assert_called_once()
+        # Default: non_interactive=True (no --interactive flag)
         mock_run_loop.assert_called_once_with(
             intro_enabled=True,
             intro_duration=3.0,
@@ -936,12 +949,147 @@ class TestMainFunction:
             out_dir=Path("reports"),
             fast=False,
             verbose=False,
-            non_interactive=False,
+            non_interactive=True,
             enable_cache=True,
             cache_dir=".slowql_cache",
             clear_cache=False,
             enable_comparison=False,
         )
+
+    @patch("slowql.cli.app.sys")
+    @patch("slowql.cli.app.init_cli")
+    @patch("slowql.cli.app.build_argparser")
+    @patch("slowql.cli.app.run_analysis_loop")
+    def test_main_interactive_flag_on_tty(self, mock_run_loop, mock_build_parser, mock_init_cli, mock_sys):
+        """Test main enables interactive mode when --interactive is passed on a TTY."""
+        mock_sys.stdin.isatty.return_value = True
+        mock_sys.stdout.isatty.return_value = True
+        mock_sys.argv = ["slowql"]
+
+        mock_parser = MagicMock()
+        mock_args = MagicMock()
+        mock_args.file = None
+        mock_args.input_file = None
+        mock_args.no_intro = False
+        mock_args.duration = 3.0
+        mock_args.mode = "auto"
+        mock_args.export = None
+        mock_args.out = Path("reports")
+        mock_args.fast = False
+        mock_args.verbose = False
+        mock_args.interactive = True
+        mock_args.non_interactive = False
+        mock_args.no_cache = False
+        mock_args.cache_dir = ".slowql_cache"
+        mock_args.clear_cache = False
+        mock_args.compare = False
+        mock_args.schema = None
+        mock_args.dialect = None
+        mock_args.extra_files = []
+        mock_args.list_rules = False
+        mock_args.init = False
+        mock_args.explain = None
+        mock_args.filter_dimension = None
+        mock_args.filter_dialect = None
+
+        mock_parser.parse_args.return_value = mock_args
+        mock_build_parser.return_value = mock_parser
+
+        main()
+
+        kwargs = mock_run_loop.call_args[1]
+        # --interactive on TTY -> non_interactive=False
+        assert kwargs["non_interactive"] is False
+
+    @patch("slowql.cli.app.sys")
+    @patch("slowql.cli.app.init_cli")
+    @patch("slowql.cli.app.build_argparser")
+    @patch("slowql.cli.app.run_analysis_loop")
+    def test_main_interactive_flag_no_tty(self, mock_run_loop, mock_build_parser, mock_init_cli, mock_sys):
+        """Test --interactive is ignored when stdin is not a TTY."""
+        mock_sys.stdin.isatty.return_value = False
+        mock_sys.stdout.isatty.return_value = False
+        mock_sys.argv = ["slowql"]
+
+        mock_parser = MagicMock()
+        mock_args = MagicMock()
+        mock_args.file = None
+        mock_args.input_file = None
+        mock_args.no_intro = False
+        mock_args.duration = 3.0
+        mock_args.mode = "auto"
+        mock_args.export = None
+        mock_args.out = Path("reports")
+        mock_args.fast = False
+        mock_args.verbose = False
+        mock_args.interactive = True
+        mock_args.non_interactive = False
+        mock_args.no_cache = False
+        mock_args.cache_dir = ".slowql_cache"
+        mock_args.clear_cache = False
+        mock_args.compare = False
+        mock_args.schema = None
+        mock_args.dialect = None
+        mock_args.extra_files = []
+        mock_args.list_rules = False
+        mock_args.init = False
+        mock_args.explain = None
+        mock_args.filter_dimension = None
+        mock_args.filter_dialect = None
+
+        mock_parser.parse_args.return_value = mock_args
+        mock_build_parser.return_value = mock_parser
+
+        main()
+
+        kwargs = mock_run_loop.call_args[1]
+        # --interactive but no TTY -> still non_interactive=True
+        assert kwargs["non_interactive"] is True
+
+    @patch("slowql.cli.app.sys")
+    @patch("slowql.cli.app.init_cli")
+    @patch("slowql.cli.app.build_argparser")
+    @patch("slowql.cli.app.run_analysis_loop")
+    def test_main_non_interactive_overrides_interactive(self, mock_run_loop, mock_build_parser, mock_init_cli, mock_sys):
+        """Test --non-interactive overrides --interactive for backward compat."""
+        mock_sys.stdin.isatty.return_value = True
+        mock_sys.stdout.isatty.return_value = True
+        mock_sys.argv = ["slowql"]
+
+        mock_parser = MagicMock()
+        mock_args = MagicMock()
+        mock_args.file = None
+        mock_args.input_file = None
+        mock_args.no_intro = False
+        mock_args.duration = 3.0
+        mock_args.mode = "auto"
+        mock_args.export = None
+        mock_args.out = Path("reports")
+        mock_args.fast = False
+        mock_args.verbose = False
+        mock_args.interactive = True
+        mock_args.non_interactive = True
+        mock_args.no_cache = False
+        mock_args.cache_dir = ".slowql_cache"
+        mock_args.clear_cache = False
+        mock_args.compare = False
+        mock_args.schema = None
+        mock_args.dialect = None
+        mock_args.extra_files = []
+        mock_args.list_rules = False
+        mock_args.init = False
+        mock_args.explain = None
+        mock_args.filter_dimension = None
+        mock_args.filter_dialect = None
+
+        mock_parser.parse_args.return_value = mock_args
+        mock_build_parser.return_value = mock_parser
+
+        main()
+
+        kwargs = mock_run_loop.call_args[1]
+        # --non-interactive always wins
+        assert kwargs["non_interactive"] is True
     @patch("slowql.cli.app.run_analysis_loop")
     def test_main_with_multiple_positional_files(self, mock_loop):
         """Test main with multiple positional files (like pre-commit)."""

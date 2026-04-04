@@ -282,6 +282,7 @@ class TestAnalysisLoop:
                 out=Path("reports"),
                 fast=True,
                 verbose=False,
+                interactive=False,
                 non_interactive=True,
                 no_cache=False,
                 compare=False,
