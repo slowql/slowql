@@ -132,7 +132,10 @@ def test_cli_version_output(capsys, monkeypatch):
 
 
 def test_cli_intro_banner(sample_sql_file, capsys, monkeypatch):
-    out, code = run_cli(["--fast", "--input-file", str(sample_sql_file)], capsys, monkeypatch)
+    # Intro banner requires --interactive + TTY (suppressed by default)
+    monkeypatch.setattr("sys.stdin.isatty", lambda: True)
+    monkeypatch.setattr("sys.stdout.isatty", lambda: True)
+    out, code = run_cli(["--fast", "--input-file", str(sample_sql_file), "--interactive"], capsys, monkeypatch)
     assert code == 0
     assert "Welcome to SlowQL" in out.out
 

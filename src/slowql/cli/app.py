@@ -729,10 +729,17 @@ def _run_analysis(  # noqa: PLR0912
     return result
 
 
-def _show_intro(intro_enabled: bool, fast: bool, is_tty: bool, intro_duration: float, machine_readable: bool = False) -> str | None:
+def _show_intro(
+    intro_enabled: bool,
+    fast: bool,
+    is_tty: bool,
+    intro_duration: float,
+    machine_readable: bool = False,
+    non_interactive: bool = False,
+) -> str | None:
     """Displays the intro animation and welcome banner."""
     selected_dialect: str | None = None
-    if machine_readable:
+    if machine_readable or non_interactive:
         return None
 
     if intro_enabled and not fast and is_tty:
@@ -800,8 +807,8 @@ def _handle_sql_input(  # noqa: PLR0912
 
         return valid_paths, False
     else:
-        if non_interactive:
-            return None, False  # Break loop
+        if non_interactive and not is_tty:
+            return None, False  # Break loop only in non-TTY (CI/pipe) contexts
         sql_payload = _get_sql_input(mode, is_tty, engine, enable_comparison, first_run)
         if sql_payload is None:  # Special action like 'compare' was run
             return None, False  # Break loop
@@ -1086,7 +1093,7 @@ def run_analysis_loop(  # noqa: PLR0912, PLR0915
 
     is_tty = sys.stdin.isatty() and sys.stdout.isatty()
 
-    intro_dialect = _show_intro(intro_enabled, fast, is_tty, intro_duration, machine_readable=machine_readable)
+    intro_dialect = _show_intro(intro_enabled, fast, is_tty, intro_duration, machine_readable=machine_readable, non_interactive=non_interactive)
     if intro_dialect and not resolved_dialect:
         resolved_dialect = intro_dialect
         overrides["analysis"] = overrides.get("analysis", {})
