@@ -10,6 +10,7 @@ The CLI accepts configuration via explicit flags or positional arguments.
 
 ```bash
 slowql [OPTIONS] [FILE] [EXTRA_FILES...]
+slowql init [--dialect DIALECT] [--fail-on SEVERITY]
 ```
 
 > [!TIP]
@@ -26,7 +27,7 @@ These arguments define the scope of the analysis.
 | `[file]` | The primary SQL file or directory to parse (positional argument). | None |
 | `[extra_files...]` | Additional SQL files. Typically used by systems like `pre-commit` which pass arrays of changed files. | None |
 | `--input-file PATH` | Explicitly define the target file (alias for the positional `file` argument). | None |
-| `--init` | Launches an interactive wizard to scaffold a `slowql.yaml` configuration profile in the current directory. | `False` |
+| `--init`, `init` | Scaffolds a `slowql.yaml` configuration profile in the current directory. Launches an interactive wizard by default, or runs non-interactively if `--dialect` and `--fail-on` arguments are provided. | `False` |
 | `--mode` | Editor mode selection: `{auto, paste, compose}`. `auto` detects a TTY terminal and switches to `compose` for multi-line SQL input. | `auto` |
 
 ---

@@ -126,6 +126,11 @@ slowql queries.sql --schema schema.sql
 ```
 
 Run in CI mode with failure thresholds:
+```bash
+slowql init --dialect postgresql --fail-on high
+slowql src/ --fail-on high
+```
+
 ### Analyze MyBatis mapper files:
 ```bash
 slowql src/main/resources/mapper/UserMapper.xml

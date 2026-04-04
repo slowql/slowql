@@ -1214,7 +1214,7 @@ def run_analysis_loop(  # noqa: PLR0912, PLR0915
 
 
 
-def _cmd_init() -> int:  # noqa: PLR0912 PLR0915
+def _cmd_init(dialect: str | None = None, fail_on: str | None = None) -> int:  # noqa: PLR0912 PLR0915
     """Interactive wizard to create a slowql.yaml config file."""
     from pathlib import Path  # noqa: PLC0415
 
@@ -1251,12 +1251,16 @@ def _cmd_init() -> int:  # noqa: PLR0912 PLR0915
 
     # Overwrite check
     if config_path.exists():
-        console.print(f"[yellow]Config already exists:[/yellow] {config_path}")
-        choice = Prompt.ask("Overwrite?", choices=["y", "n"], default="n")
-        if choice == "n":
-            console.print("[dim]Aborted.[/dim]")
-            return 1
-        console.print()
+        if dialect is not None or fail_on is not None:
+            console.print(f"[yellow]Config already exists, overwriting:[/yellow] {config_path}")
+            console.print()
+        else:
+            console.print(f"[yellow]Config already exists:[/yellow] {config_path}")
+            choice = Prompt.ask("Overwrite?", choices=["y", "n"], default="n")
+            if choice == "n":
+                console.print("[dim]Aborted.[/dim]")
+                return 1
+            console.print()
 
     # Dialect selection
     DIALECTS = [
@@ -1295,7 +1299,9 @@ def _cmd_init() -> int:  # noqa: PLR0912 PLR0915
             subtitle_align="center",
         )
 
-    if HAVE_READCHAR:
+    if dialect is not None:
+        selected_dialect = dialect
+    elif HAVE_READCHAR:
         try:
             import readchar as _rc  # noqa: PLC0415
             with Live(_render_dialect(dialect_idx), refresh_per_second=30, console=console, transient=True) as live:
@@ -1350,7 +1356,9 @@ def _cmd_init() -> int:  # noqa: PLR0912 PLR0915
             subtitle_align="center",
         )
 
-    if HAVE_READCHAR:
+    if fail_on is not None:
+        selected_threshold = fail_on
+    elif HAVE_READCHAR:
         try:
             with Live(_render_threshold(threshold_idx), refresh_per_second=30, console=console, transient=True) as live:
                 while True:
@@ -1778,6 +1786,9 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0912, PLR0915
         lsp_main()
         return 0
 
+    if argv and argv[0] == "init":
+        argv = ["--init", *argv[1:]]
+
     parser = build_argparser()
     args = parser.parse_args(argv)
 
@@ -1792,7 +1803,9 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0912, PLR0915
         return _cmd_explain(args.explain)
 
     if getattr(args, "init", False):
-        return _cmd_init()
+        init_dialect = getattr(args, "dialect", None)
+        init_fail_on = getattr(args, "fail_on", None)
+        return _cmd_init(dialect=init_dialect, fail_on=init_fail_on)
 
     # Handle positional file arg compatibility
     input_files_list: list[Path] = []

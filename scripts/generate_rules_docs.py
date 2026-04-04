@@ -41,7 +41,7 @@ def generate_docs():
     print("Loading rules.json...")
     with open(RULES_JSON_PATH, encoding="utf-8") as f:
         content = f.read().strip()
-    
+
     try:
         data = json.loads(content)
     except json.JSONDecodeError:
@@ -55,12 +55,11 @@ def generate_docs():
         rules = data["flat"]
     elif isinstance(data, list):
         rules = data
+    # Handle cases where it might be wrapped in a single-item list by previous logic
+    elif isinstance(data, list) and len(data) == 1 and isinstance(data[0], dict) and "flat" in data[0]:
+        rules = data[0]["flat"]
     else:
-        # Handle cases where it might be wrapped in a single-item list by previous logic
-        if isinstance(data, list) and len(data) == 1 and isinstance(data[0], dict) and "flat" in data[0]:
-            rules = data[0]["flat"]
-        else:
-            raise ValueError("Unexpected rules.json format")
+        raise ValueError("Unexpected rules.json format")
 
     # Dictionary to keep track of the navigation structure
     # nav_tree = {"Universal": {dimension: [(Rule Name, path)]}, "Dialects": {dialect: {dimension: [(Rule Name, path)]}}}
