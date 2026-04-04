@@ -1,6 +1,6 @@
 # Rules Overview
 
-SlowQL ships with **272 analysis rules** designed to catch mistakes before they impact production. Rules are categorized across **6 dimensions** and graded on **4 severity levels**.
+SlowQL ships with **282 analysis rules** designed to catch mistakes before they impact production. Rules are categorized across **6 dimensions** and graded on **4 severity levels**.
 
 ## Dimensions
 
@@ -42,7 +42,7 @@ Many rules are designated with `FixConfidence.SAFE` and `RemediationMode.SAFE_AP
 The fastest way to view details about specific rules is directly via the CLI:
 
 ```bash
-# List all 272 rules
+# List all 282 rules
 slowql --list-rules
 
 # Filter rules to only show Performance checks for Postgres

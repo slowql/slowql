@@ -33,7 +33,7 @@ class ReliabilityAnalyzer(RuleBasedAnalyzer):
     priority = 15  # High priority, just after security
 
     def get_rules(self) -> list[Rule]:
-        """Load ALL reliability rules from catalog (19 rules)."""
+        """Load ALL reliability rules from catalog (44 rules)."""
         from slowql.rules.catalog import get_rules_by_dimension
 
         return get_rules_by_dimension(self.dimension.value)

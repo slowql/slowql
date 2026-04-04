@@ -33,7 +33,7 @@ class PerformanceAnalyzer(RuleBasedAnalyzer):
     priority = 20
 
     def get_rules(self) -> list[Rule]:
-        """Load ALL performance rules from catalog (39 rules)."""
+        """Load ALL performance rules from catalog (73 rules)."""
         from slowql.rules.catalog import get_rules_by_dimension
 
         return get_rules_by_dimension(self.dimension.value)
