@@ -37,7 +37,7 @@ class SecurityAnalyzer(RuleBasedAnalyzer):
     priority = 10  # High priority, security first
 
     def get_rules(self) -> list[Rule]:
-        """Load ALL security rules from catalog (45 rules)."""
+        """Load ALL security rules from catalog (61 rules)."""
         from slowql.rules.catalog import get_rules_by_dimension
 
         return get_rules_by_dimension(self.dimension.value)

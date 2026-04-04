@@ -1,10 +1,10 @@
 # SlowQL for VS Code
 
-Static SQL analysis with 272 built-in rules across 14 SQL dialects. Catches security vulnerabilities, performance regressions, reliability issues, compliance risks, cost inefficiencies, and code quality problems as you type. No database connection required.
+Static SQL analysis with 282 built-in rules across 14 SQL dialects. Catches security vulnerabilities, performance regressions, reliability issues, compliance risks, cost inefficiencies, and code quality problems as you type. No database connection required.
 
 ## Features
 
-**272 rules across six dimensions:**
+**282 rules across six dimensions:**
 
 | Dimension | What it catches |
 |-----------|----------------|
@@ -19,7 +19,7 @@ Static SQL analysis with 272 built-in rules across 14 SQL dialects. Catches secu
 
 PostgreSQL, MySQL, SQL Server (T-SQL), Oracle, SQLite, Snowflake, BigQuery, Redshift, ClickHouse, DuckDB, Presto, Trino, Spark, Databricks.
 
-107 rules are dialect-aware and only fire on the relevant engine. 165 universal rules fire on all dialects.
+107 rules are dialect-aware and only fire on the relevant engine. 175 universal rules fire on all dialects.
 
 **Schema-aware validation.** Point SlowQL at your DDL files to detect references to non-existent tables, columns, and get index suggestions.
 
