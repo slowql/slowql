@@ -129,6 +129,37 @@ class TestCmdInit:
         config = yaml.safe_load((tmp_path / "slowql.yaml").read_text())
         assert config["output"]["format"] == "text"
 
+    def test_non_interactive_init_with_args(self, tmp_path, monkeypatch):
+        """Init works without prompts when dialect and fail_on are provided."""
+        import yaml
+        monkeypatch.chdir(tmp_path)
+
+        with patch("slowql.cli.app.HAVE_READCHAR", False), patch("slowql.cli.app.Prompt") as mock_prompt:
+            result = _cmd_init(dialect="postgresql", fail_on="high")
+
+        assert result == 0
+        mock_prompt.ask.assert_not_called()
+        config = yaml.safe_load((tmp_path / "slowql.yaml").read_text())
+        assert config["analysis"]["dialect"] == "postgresql"
+        assert config["severity"]["fail_on"] == "high"
+
+    def test_init_skips_prompts_when_args_provided_overwrite(self, tmp_path, monkeypatch):
+        """Init overwrites without prompt when args provided."""
+        import yaml
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "slowql.yaml").write_text("existing: true")
+
+        with patch("slowql.cli.app.HAVE_READCHAR", False), patch("slowql.cli.app.Prompt") as mock_prompt:
+            result = _cmd_init(dialect="mysql", fail_on="critical")
+
+        assert result == 0
+        mock_prompt.ask.assert_not_called()
+        config = yaml.safe_load((tmp_path / "slowql.yaml").read_text())
+        assert config.get("existing") is None
+        assert config["analysis"]["dialect"] == "mysql"
+        assert config["severity"]["fail_on"] == "critical"
+
+
 
 class TestCmdListRulesFilters:
     """Additional filter tests for list-rules."""

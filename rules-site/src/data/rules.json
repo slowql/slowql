@@ -4195,6 +4195,51 @@
       "tags": [],
       "fix_guidance": "",
       "documentation_url": "https://slowql.dev/rules/sch-brk-001"
+    },
+    {
+      "id": "QUAL-DEAD-001",
+      "name": "Unused Database Object",
+      "description": "",
+      "severity": "medium",
+      "dimension": "quality",
+      "category": "technical_debt",
+      "impact": "",
+      "rationale": "",
+      "examples": [],
+      "references": [],
+      "tags": [],
+      "fix_guidance": "",
+      "documentation_url": "https://slowql.dev/rules/qual-dead-001"
+    },
+    {
+      "id": "QUAL-DEAD-002",
+      "name": "Unreachable Code",
+      "description": "",
+      "severity": "medium",
+      "dimension": "quality",
+      "category": "technical_debt",
+      "impact": "",
+      "rationale": "",
+      "examples": [],
+      "references": [],
+      "tags": [],
+      "fix_guidance": "",
+      "documentation_url": "https://slowql.dev/rules/qual-dead-002"
+    },
+    {
+      "id": "QUAL-DEAD-003",
+      "name": "Duplicate Query",
+      "description": "",
+      "severity": "low",
+      "dimension": "quality",
+      "category": "technical_debt",
+      "impact": "",
+      "rationale": "",
+      "examples": [],
+      "references": [],
+      "tags": [],
+      "fix_guidance": "",
+      "documentation_url": "https://slowql.dev/rules/qual-dead-003"
     }
   ],
   "grouped": {
@@ -7877,6 +7922,51 @@
         "tags": [],
         "fix_guidance": "Remove SET QUOTED_IDENTIFIER OFF. Use single quotes for strings and double quotes or square brackets for identifiers.",
         "documentation_url": "https://slowql.dev/rules/qual-tsql-002"
+      },
+      {
+        "id": "QUAL-DEAD-001",
+        "name": "Unused Database Object",
+        "description": "",
+        "severity": "medium",
+        "dimension": "quality",
+        "category": "technical_debt",
+        "impact": "",
+        "rationale": "",
+        "examples": [],
+        "references": [],
+        "tags": [],
+        "fix_guidance": "",
+        "documentation_url": "https://slowql.dev/rules/qual-dead-001"
+      },
+      {
+        "id": "QUAL-DEAD-002",
+        "name": "Unreachable Code",
+        "description": "",
+        "severity": "medium",
+        "dimension": "quality",
+        "category": "technical_debt",
+        "impact": "",
+        "rationale": "",
+        "examples": [],
+        "references": [],
+        "tags": [],
+        "fix_guidance": "",
+        "documentation_url": "https://slowql.dev/rules/qual-dead-002"
+      },
+      {
+        "id": "QUAL-DEAD-003",
+        "name": "Duplicate Query",
+        "description": "",
+        "severity": "low",
+        "dimension": "quality",
+        "category": "technical_debt",
+        "impact": "",
+        "rationale": "",
+        "examples": [],
+        "references": [],
+        "tags": [],
+        "fix_guidance": "",
+        "documentation_url": "https://slowql.dev/rules/qual-dead-003"
       }
     ],
     "cost": [

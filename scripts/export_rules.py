@@ -1,5 +1,4 @@
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -22,7 +21,7 @@ def export_rules():
         metadata = rule.metadata
         data = metadata.to_dict()
         flat_rules.append(data)
-        
+
         dimension = data["dimension"]
         if dimension not in grouped_rules:
             grouped_rules[dimension] = []
@@ -35,10 +34,10 @@ def export_rules():
 
     output_path = Path(__file__).parent.parent / "docs" / "rules.json"
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     with open(output_path, "w") as f:
         json.dump(output_data, f, indent=2)
-    
+
     print(f"Exported {len(flat_rules)} rules to {output_path}")
 
 

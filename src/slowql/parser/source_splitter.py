@@ -102,6 +102,8 @@ class SourceSplitter:
                 j = self._skip_line_comment(sql, j, n)
             elif char == '/' and j + 1 < n and sql[j + 1] == '*':
                 j = self._skip_block_comment(sql, j, n)
+            elif char == '$' and j + 1 < n:
+                j = self._skip_dollar_quoted(sql, j, n)
             elif char.isalpha():
                 word = ""
                 k = j
@@ -173,3 +175,14 @@ class SourceSplitter:
                 return i + 2
             i += 1
         return n
+
+    def _skip_dollar_quoted(self, sql: str, start: int, n: int) -> int:
+        end_dollar = sql.find('$', start + 1)
+        if end_dollar != -1 and end_dollar - start <= 30:
+            tag = sql[start:end_dollar + 1]
+            inner_tag = tag[1:-1]
+            if all(c.isalnum() or c == '_' for c in inner_tag):
+                closing_pos = sql.find(tag, end_dollar + 1)
+                if closing_pos != -1:
+                    return closing_pos + len(tag)
+        return start + 1
