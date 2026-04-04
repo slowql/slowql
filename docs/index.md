@@ -40,3 +40,17 @@ Ready to formally secure and optimize your database architectures?
 - [**Quick Start**](getting-started/quick-start.md) - Deploy your first analysis environment in 5 minutes.
 - [**CI/CD Integration**](usage/ci-cd-integration.md) - Enforce headless pipelines within GitHub Actions or GitLab.
 - [**Rule Overview**](rules/overview.md) - Browse the exact boundaries of all 279 security and performance assertions.
+
+### Explore the Rule Catalog via CLI
+Quickly discover and understand rules directly from your terminal:
+```bash
+slowql --list-rules
+slowql --explain PERF-SCAN-001
+```
+
+### Python API Integration
+You don't need the CLI to use SlowQL. Integrate static analysis directly within your Python applications:
+```python
+import slowql
+result = slowql.analyze("SELECT * FROM users")
+```

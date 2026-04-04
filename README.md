@@ -139,6 +139,20 @@ slowql queries.sql --diff
 slowql queries.sql --fix --fix-report fix-report.json
 ```
 
+### Explore the Rule Catalog
+List all built-in rules dynamically or get detailed documentation for a specific rule:
+```bash
+slowql --list-rules
+slowql --explain PERF-SCAN-001
+```
+
+### Python API integration
+Integrate SlowQL directly into your Python scripts with three lines of code:
+```python
+import slowql
+result = slowql.analyze("SELECT * FROM users")
+```
+
 ---
 
 ## Schema-Aware Validation
