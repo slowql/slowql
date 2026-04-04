@@ -1,7 +1,6 @@
 """Targeted coverage tests for mybatis.py uncovered lines."""
 from __future__ import annotations
 
-import pytest
 from slowql.parser.mybatis import MyBatisExtractor, is_mybatis_file
 
 

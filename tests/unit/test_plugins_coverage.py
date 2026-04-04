@@ -1,12 +1,9 @@
 """Targeted coverage tests for plugins/manager.py uncovered lines."""
 from __future__ import annotations
 
-import sys
 import tempfile
 from pathlib import Path
 
-import pytest
-from slowql.core.config import Config, PluginConfig
 from slowql.plugins.manager import PluginManager
 
 

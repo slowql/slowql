@@ -132,7 +132,7 @@ class MyBatisExtractor:
             is_dynamic=is_dynamic
         )
 
-    def _collect_sql_text(self, element: ET.Element) -> Iterator[str]:
+    def _collect_sql_text(self, element: ET.Element) -> Iterator[str]:  # noqa: PLR0912
         """Recursively collect all SQL text from an element and its children."""
         # Get direct text
         if element.text:
@@ -156,22 +156,19 @@ class MyBatisExtractor:
                 if where_parts:
                     where_body = " ".join(p for p in where_parts if p)
                     # Strip leading AND/OR
-                    import re as _re
-                    where_body = _re.sub(r"^\s*(AND|OR)\s+", "", where_body, flags=_re.IGNORECASE)
+                    where_body = re.sub(r"^\s*(AND|OR)\s+", "", where_body, flags=re.IGNORECASE)
                     yield f"WHERE {where_body}"
             elif tag == "trim":
                 # Handle <trim prefix="WHERE"> etc.
                 prefix = child.get("prefix", "")
-                suffix_override = child.get("suffix", "")
                 prefix_overrides = child.get("prefixOverrides", "")
                 trim_parts = list(self._collect_sql_text(child))
                 if trim_parts:
                     trim_body = " ".join(p for p in trim_parts if p)
                     if prefix_overrides:
-                        import re as _re
                         for po in prefix_overrides.split("|"):
-                            trim_body = _re.sub(
-                                rf"^\s*{po.strip()}\s+", "", trim_body, flags=_re.IGNORECASE
+                            trim_body = re.sub(
+                                rf"^\s*{po.strip()}\s+", "", trim_body, flags=re.IGNORECASE
                             )
                     if prefix:
                         yield f"{prefix} {trim_body}"

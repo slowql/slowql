@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import pytest
+
 from slowql.core.exceptions import UnsupportedDialectError
 from slowql.parser.universal import UniversalParser
 

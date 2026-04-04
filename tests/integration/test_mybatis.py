@@ -106,8 +106,8 @@ def test_mybatis_file_detection():
 def test_mybatis_recursive_directory_scan():
     """Test that engine recursively scans directories for MyBatis XML files."""
     import tempfile
-    import os
-    from slowql.core.config import Config, AnalysisConfig
+
+    from slowql.core.config import AnalysisConfig, Config
 
     with tempfile.TemporaryDirectory() as tmpdir:
         # Multi-service structure
@@ -149,7 +149,7 @@ def test_mybatis_non_mapper_xml_ignored():
     <select id="findAll" resultType="User">SELECT id FROM users</select>
 </mapper>""")
 
-        from slowql.core.config import Config, AnalysisConfig
+        from slowql.core.config import AnalysisConfig, Config
         config = Config(analysis=AnalysisConfig(parallel=False))
         engine = SlowQL(config=config)
         result = engine.analyze_files([p])
@@ -161,7 +161,6 @@ def test_mybatis_non_mapper_xml_ignored():
 
 def test_mybatis_malformed_xml_fallback():
     """Test regex fallback for malformed XML."""
-    import tempfile
     from slowql.parser.mybatis import MyBatisExtractor
 
     malformed = """<?xml version="1.0"?>

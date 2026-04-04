@@ -565,14 +565,7 @@ class SlowQL:
                         suffix = found.suffix.lower()
                         if suffix not in supported_extensions:
                             continue
-                        if suffix in (".py", ".ts", ".js", ".java", ".go", ".rb"):
-                            app_code_result = self.analyze_app_code(found)
-                            combined_result.queries.extend(app_code_result.queries)
-                            combined_result.statistics.total_queries += len(app_code_result.queries)
-                            combined_result.statistics.parse_time_ms += app_code_result.statistics.parse_time_ms
-                            for issue in app_code_result.issues:
-                                combined_result.add_issue(issue)
-                        elif suffix == ".xml" and is_mybatis_file(str(found)):
+                        if suffix in (".py", ".ts", ".js", ".java", ".go", ".rb") or (suffix == ".xml" and is_mybatis_file(str(found))):
                             app_code_result = self.analyze_app_code(found)
                             combined_result.queries.extend(app_code_result.queries)
                             combined_result.statistics.total_queries += len(app_code_result.queries)
@@ -604,7 +597,7 @@ class SlowQL:
                     for issue in app_code_result.issues:
                         combined_result.add_issue(issue)
                 else:
-                    regular_paths.append(path)
+                    regular_paths.append(Path(path))
 
         # Handle regular files
         if self.config.analysis.parallel and len(regular_paths) > 1:
