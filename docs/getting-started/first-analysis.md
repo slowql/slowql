@@ -43,9 +43,9 @@ SlowQL will drop the respective serialized payloads (e.g. `slowql_report.json`) 
 When running strictly within a headless environment or GitHub Action, it is critical to lock down the UI and prevent pipeline hangups:
 
 ```bash
-slowql src/ --non-interactive --fail-on high --format github-actions --export sarif --out artifacts/
+slowql src/ --fail-on high --format github-actions --export sarif --out artifacts/
 ```
-- `--non-interactive`: **Mandatory.** Prevents the CLI from attempting to ask human operators for missing context (like forcing dialect selection).
+- `--non-interactive`: Extraneous when `<file>` arguments are provided, as SlowQL now defaults to non-interactive mode immediately to guarantee CI/CD safety by bypassing UI elements and dialect selectors.
 - `--fail-on high`: Instructs the engine to exit with a non-zero status code if `High` or `Critical` flaws are detected, failing the pipeline run natively.
 
 ---

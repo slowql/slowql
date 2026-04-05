@@ -2,7 +2,7 @@
 
 Deploying SlowQL natively into your CI/CD pipeline guarantees that dangerous query regressions, expensive table scans, and SQL injections are blocked before they ever hit your staging or production environments.
 
-By leveraging SlowQL's headless mode (`--non-interactive`) and standard output formats, it conforms seamlessly to enterprise security checkpoints.
+By leveraging SlowQL's default headless mode internally triggered when processing files in workflows, it conforms seamlessly to enterprise security checkpoints.
 
 ---
 
@@ -45,9 +45,8 @@ jobs:
       - name: Run SlowQL Pipeline
         id: slowql_scan
         run: |
-          # The --non-interactive flag prevents hanging on TTY prompts
+          # SlowQL auto-detects non-interactive mode natively when files are provided
           slowql \
-            --non-interactive \
             --fail-on high \
             --format github-actions \
             --export sarif \
@@ -78,7 +77,7 @@ slowql-enterprise-scan:
   before_script:
     - pip install slowql
   script:
-    - slowql --non-interactive --fail-on medium --format console **/*.sql
+    - slowql --fail-on medium --format console **/*.sql
   artifacts:
     when: always
     paths:
@@ -104,7 +103,7 @@ pipelines:
           name: SlowQL Architecture Validation
           script:
             - pip install slowql
-            - slowql --non-interactive --fail-on high --format console source/**/*.sql
+            - slowql --fail-on high --format console source/**/*.sql
 ```
 
 ---
@@ -131,7 +130,6 @@ pipeline {
                     pip install slowql
                     
                     slowql \
-                        --non-interactive \
                         --fail-on critical \
                         --dialect postgresql \
                         db/migrations/*.sql
@@ -147,6 +145,5 @@ pipeline {
 ## Key Headless Considerations
 
 When running in CI/CD, always ensure the following flags are present:
-1. `--non-interactive`: Removes UI overhead such as TTY prompts and pauses.
-2. `--fail-on {severity}`: Dictates your strictness policy. We recommend starting with `--fail-on critical` for legacy repositories and tightening to `high` or `medium` over time.
-3. `--dialect`: Supplying the dialect natively inside the pipeline command guarantees the Universal Parser isn't wasting processing time attempting to guess syntax configurations across thousands of migration files.
+1. `--fail-on {severity}`: Dictates your strictness policy. We recommend starting with `--fail-on critical` for legacy repositories and tightening to `high` or `medium` over time.
+2. `--dialect`: Supplying the dialect natively inside the pipeline command guarantees the Universal Parser isn't wasting processing time attempting to guess syntax configurations across thousands of migration files.

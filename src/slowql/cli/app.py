@@ -1749,8 +1749,8 @@ def build_argparser() -> argparse.ArgumentParser:
         help="Write JSON report of previewed or applied safe fixes",
     )
 
-    # UI options
     ui_group = p.add_argument_group("UI Options")
+    ui_group.add_argument("--select-dialect", action="store_true", help="Prompt for dialect selection interactively")
     ui_group.add_argument("--no-intro", action="store_true", help="Skip intro animation")
     ui_group.add_argument("--fast", action="store_true", help="Fast mode: minimal animations")
     ui_group.add_argument(
@@ -1832,7 +1832,16 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0912, PLR0915
     elif len(input_files_list) > 1:
         initial_files = input_files_list
 
+    if input_files_list:
+        args.non_interactive = True
+        args.no_intro = True
+
     args_dict = getattr(args, "__dict__", {})
+
+    if args_dict.get("select_dialect", False):
+        user_dialect = prompt_dialect()
+        if user_dialect:
+            args.dialect = user_dialect
     diff_enabled = bool(args_dict.get("diff", False))
     fix_enabled = bool(args_dict.get("fix", False))
     export_session_enabled = bool(args_dict.get("export_session", False))

@@ -366,7 +366,8 @@ slowql . --since main
 --baseline         Path to baseline file (suppress known issues)
 --update-baseline  Update/create the baseline file
 --fail-on          Failure threshold: critical, high, medium, low, info, never
---interactive      Opt-in to full interactive experience (animations, menus, dialect selector)
+--interactive      Opt-in to full interactive experience (animations, menus) when no inputs are provided
+--select-dialect   Opt-in to prompt for dialect selection interactively
 --non-interactive  (deprecated, now the default) Explicitly disable interactive mode
 --git-diff         Only analyze files changed in the current workspace
 --since            Analyze files changed since a specific git revision (e.g. main)

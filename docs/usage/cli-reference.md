@@ -125,7 +125,8 @@ Modify the aesthetic triggers, critical for continuous integration.
 
 | Flag | Description |
 |---|---|
-| `--non-interactive` | **Mandatory for CI/CD**. Prevents SlowQL from blocking the runner by pausing for missing user inputs or dialect confirmations. |
+| `--non-interactive` | Prevents SlowQL from blocking the runner by pausing for missing user inputs or dialect confirmations. (Now the default whenever input files are given) |
+| `--select-dialect` | Forces the CLI to prompt for interactive dialect selection. |
 | `--no-intro` | Skips the startup Cyberpunk banner sequence. |
 | `--fast` | Deactivates CLI animations and typing layout effects for rapid execution. |
 | `--duration SECS` | Overrides the intro animation timing. |

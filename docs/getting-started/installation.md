@@ -37,7 +37,6 @@ docker pull ghcr.io/makroumi/slowql:latest
 **Executing against workspace geometries:**
 ```bash
 docker run --rm -v $(pwd):/workspace -w /workspace ghcr.io/makroumi/slowql:latest \
-  --non-interactive \
   --fail-on high \
   --dialect postgresql \
   schemas/*.sql

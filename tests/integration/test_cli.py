@@ -131,11 +131,16 @@ def test_cli_version_output(capsys, monkeypatch):
     assert "slowql" in out.out.lower()
 
 
-def test_cli_intro_banner(sample_sql_file, capsys, monkeypatch):
+def test_cli_intro_banner(capsys, monkeypatch):
     # Intro banner requires --interactive + TTY (suppressed by default)
     monkeypatch.setattr("sys.stdin.isatty", lambda: True)
     monkeypatch.setattr("sys.stdout.isatty", lambda: True)
-    out, code = run_cli(["--fast", "--input-file", str(sample_sql_file), "--interactive"], capsys, monkeypatch)
+    # Prevent MatrixRain from hanging
+    monkeypatch.setattr("slowql.cli.ui.animations.time.sleep", lambda _: None)
+    monkeypatch.setattr("slowql.cli.ui.animations.HAVE_READCHAR", False)
+    # Using paste mode to easily control the input
+    monkeypatch.setattr("builtins.input", lambda *_, **__: "quit")
+    out, code = run_cli(["--interactive", "--duration", "0.1", "--mode", "paste"], capsys, monkeypatch)
     assert code == 0
     assert "Welcome to SlowQL" in out.out
 

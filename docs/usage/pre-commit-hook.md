@@ -33,13 +33,12 @@ repos:
         args: [
             "--dialect", "postgresql",
             "--fail-on", "high",
-            "--non-interactive", # MANDATORY for avoiding prompt hangups
             "--fast"
         ]
 ```
 
-> [!IMPORTANT]
-> The `--non-interactive` flag is **mandatory** for pre-commit hooks. If omitted, SlowQL may attempt to interactively prompt the developer via terminal `STDIN`, which Git strictly blocks during commit phases.
+> [!NOTE]
+> Because `pre-commit` provides file paths automatically, SlowQL enters non-interactive mode by default, guaranteeing it will never hang your commit process by waiting for `STDIN`.
 
 ---
 
