@@ -10734,10 +10734,10 @@ SlowQL will drop the respective serialized payloads (e.g. <code>slowql_report.js
 <hr />
 <h2 id="cicd-safe-mode">CI/CD Safe Mode</h2>
 <p>When running strictly within a headless environment or GitHub Action, it is critical to lock down the UI and prevent pipeline hangups:</p>
-<pre><code class="language-bash">slowql src/ --non-interactive --fail-on high --format github-actions --export sarif --out artifacts/
+<pre><code class="language-bash">slowql src/ --fail-on high --format github-actions --export sarif --out artifacts/
 </code></pre>
 <ul>
-<li><code>--non-interactive</code>: <strong>Mandatory.</strong> Prevents the CLI from attempting to ask human operators for missing context (like forcing dialect selection).</li>
+<li><code>--non-interactive</code>: Extraneous when <code>&lt;file&gt;</code> arguments are provided, as SlowQL now defaults to non-interactive mode immediately to guarantee CI/CD safety by bypassing UI elements and dialect selectors.</li>
 <li><code>--fail-on high</code>: Instructs the engine to exit with a non-zero status code if <code>High</code> or <code>Critical</code> flaws are detected, failing the pipeline run natively.</li>
 </ul>
 <hr />

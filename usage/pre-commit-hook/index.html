@@ -10723,13 +10723,12 @@
         args: [
             &quot;--dialect&quot;, &quot;postgresql&quot;,
             &quot;--fail-on&quot;, &quot;high&quot;,
-            &quot;--non-interactive&quot;, # MANDATORY for avoiding prompt hangups
             &quot;--fast&quot;
         ]
 </code></pre>
 <blockquote>
-<p>[!IMPORTANT]
-The <code>--non-interactive</code> flag is <strong>mandatory</strong> for pre-commit hooks. If omitted, SlowQL may attempt to interactively prompt the developer via terminal <code>STDIN</code>, which Git strictly blocks during commit phases.</p>
+<p>[!NOTE]
+Because <code>pre-commit</code> provides file paths automatically, SlowQL enters non-interactive mode by default, guaranteeing it will never hang your commit process by waiting for <code>STDIN</code>.</p>
 </blockquote>
 <hr />
 <h2 id="the-fix-automation-limitation">🛠️ The <code>--fix</code> Automation Limitation</h2>

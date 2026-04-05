@@ -10748,7 +10748,6 @@
 </code></pre>
 <p><strong>Executing against workspace geometries:</strong></p>
 <pre><code class="language-bash">docker run --rm -v $(pwd):/workspace -w /workspace ghcr.io/makroumi/slowql:latest \
-  --non-interactive \
   --fail-on high \
   --dialect postgresql \
   schemas/*.sql

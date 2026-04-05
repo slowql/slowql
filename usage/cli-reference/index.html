@@ -11010,7 +11010,11 @@ SELECT * FROM session_log;
 <tbody>
 <tr>
 <td><code>--non-interactive</code></td>
-<td><strong>Mandatory for CI/CD</strong>. Prevents SlowQL from blocking the runner by pausing for missing user inputs or dialect confirmations.</td>
+<td>Prevents SlowQL from blocking the runner by pausing for missing user inputs or dialect confirmations. (Now the default whenever input files are given)</td>
+</tr>
+<tr>
+<td><code>--select-dialect</code></td>
+<td>Forces the CLI to prompt for interactive dialect selection.</td>
 </tr>
 <tr>
 <td><code>--no-intro</code></td>

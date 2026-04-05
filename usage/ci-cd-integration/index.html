@@ -10692,7 +10692,7 @@
 
 <h1 id="cicd-integration">CI/CD Integration</h1>
 <p>Deploying SlowQL natively into your CI/CD pipeline guarantees that dangerous query regressions, expensive table scans, and SQL injections are blocked before they ever hit your staging or production environments.</p>
-<p>By leveraging SlowQL's headless mode (<code>--non-interactive</code>) and standard output formats, it conforms seamlessly to enterprise security checkpoints.</p>
+<p>By leveraging SlowQL's default headless mode internally triggered when processing files in workflows, it conforms seamlessly to enterprise security checkpoints.</p>
 <hr />
 <h2 id="1-github-actions-recommended">1. GitHub Actions (Recommended)</h2>
 <p>GitHub Actions offers the most streamlined integration by utilizing the <code>--format github-actions</code> flag. This outputs diagnostics using GitHub's native <code>::error file=...::</code> syntax, placing explicit squiggly lines and comments <strong>directly on the changed code in your Pull Requests</strong>.</p>
@@ -10729,9 +10729,8 @@ jobs:
       - name: Run SlowQL Pipeline
         id: slowql_scan
         run: |
-          # The --non-interactive flag prevents hanging on TTY prompts
+          # SlowQL auto-detects non-interactive mode natively when files are provided
           slowql \
-            --non-interactive \
             --fail-on high \
             --format github-actions \
             --export sarif \
@@ -10757,7 +10756,7 @@ slowql-enterprise-scan:
   before_script:
     - pip install slowql
   script:
-    - slowql --non-interactive --fail-on medium --format console **/*.sql
+    - slowql --fail-on medium --format console **/*.sql
   artifacts:
     when: always
     paths:
@@ -10779,7 +10778,7 @@ pipelines:
           name: SlowQL Architecture Validation
           script:
             - pip install slowql
-            - slowql --non-interactive --fail-on high --format console source/**/*.sql
+            - slowql --fail-on high --format console source/**/*.sql
 </code></pre>
 <hr />
 <h2 id="4-jenkins-pipeline-jenkinsfile">4. Jenkins Pipeline (Jenkinsfile)</h2>
@@ -10801,7 +10800,6 @@ pipelines:
                     pip install slowql
 
                     slowql \
-                        --non-interactive \
                         --fail-on critical \
                         --dialect postgresql \
                         db/migrations/*.sql
@@ -10814,9 +10812,8 @@ pipelines:
 <hr />
 <h2 id="key-headless-considerations">Key Headless Considerations</h2>
 <p>When running in CI/CD, always ensure the following flags are present:
-1. <code>--non-interactive</code>: Removes UI overhead such as TTY prompts and pauses.
-2. <code>--fail-on {severity}</code>: Dictates your strictness policy. We recommend starting with <code>--fail-on critical</code> for legacy repositories and tightening to <code>high</code> or <code>medium</code> over time.
-3. <code>--dialect</code>: Supplying the dialect natively inside the pipeline command guarantees the Universal Parser isn't wasting processing time attempting to guess syntax configurations across thousands of migration files.</p>
+1. <code>--fail-on {severity}</code>: Dictates your strictness policy. We recommend starting with <code>--fail-on critical</code> for legacy repositories and tightening to <code>high</code> or <code>medium</code> over time.
+2. <code>--dialect</code>: Supplying the dialect natively inside the pipeline command guarantees the Universal Parser isn't wasting processing time attempting to guess syntax configurations across thousands of migration files.</p>
 
 
 
