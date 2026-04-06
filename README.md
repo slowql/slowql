@@ -1,12 +1,12 @@
+<div align="center">
+
+<img src="assets/logo.png" alt="SlowQL Logo" width="250" />
+
 # SlowQL
 
-SlowQL is a **production-focused offline SQL static analyzer** that catches security vulnerabilities, performance regressions, reliability issues, compliance risks, cost inefficiencies, and code quality problems before they reach production.
+**Production-focused offline SQL static analyzer.**
 
-It performs safe static analysis of your SQL source code with **no database connection required**. SlowQL ships with **282 built-in rules** covering **14 SQL dialects**, and is built for modern engineering teams supporting CI/CD pipelines, pre-commit hooks, GitHub Actions, SARIF output, LSP, and automated fixes.
-
----
-
-<!-- Distribution -->
+Catch security vulnerabilities, performance regressions, reliability issues, compliance risks, cost inefficiencies, and code quality problems before they reach production.
 
 <p align="center">
   <a href="https://github.com/makroumi/slowql/releases"><img src="https://img.shields.io/github/v/release/makroumi/slowql?logo=github&label=release&color=4c1" alt="Release"></a>
@@ -20,38 +20,41 @@ It performs safe static analysis of your SQL source code with **no database conn
 <p align="center">
   <a href="https://hub.docker.com/r/makroumi/slowql"><img src="https://img.shields.io/docker/pulls/makroumi/slowql?logo=docker&logoColor=white&label=Docker%20pulls" alt="Docker Pulls"></a>
   <a href="https://pypistats.org/packages/slowql"><img src="https://img.shields.io/pypi/dm/slowql?logo=pypi&logoColor=white&label=PyPI%20downloads" alt="PyPI Downloads"></a>
-</p>
-
----
-
-<!-- Build & Quality -->
-
-<p align="center">
   <a href="https://github.com/makroumi/slowql/actions/workflows/ci.yml"><img src="https://github.com/makroumi/slowql/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://codecov.io/gh/makroumi/slowql"><img src="https://codecov.io/gh/makroumi/slowql/graph/badge.svg" alt="Coverage"></a>
-  <a href="https://github.com/astral-sh/ruff"><img src="https://img.shields.io/badge/lint-ruff-46a758?logo=ruff&logoColor=white" alt="Ruff"></a>
-  <a href="http://mypy-lang.org/"><img src="https://img.shields.io/badge/types-mypy-blue?logo=python&logoColor=white" alt="Mypy"></a>
-  <a href="https://github.com/makroumi/slowql/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
 </p>
 
----
-
-<!-- Community -->
-
 <p align="center">
+  <a href="https://github.com/astral-sh/ruff"><img src="https://img.shields.io/badge/lint-ruff-46a758?logo=ruff&logoColor=white" alt="Ruff"></a>
+  <a href="http://mypy-lang.org/"><img src="https://img.shields.io/badge/types-mypy-blue?logo=python&logoColor=white" alt="Mypy"></a>
   <a href="https://github.com/makroumi/slowql/stargazers"><img src="https://img.shields.io/github/stars/makroumi/slowql?style=social" alt="Stars"></a>
   <a href="https://github.com/makroumi/slowql/issues"><img src="https://img.shields.io/github/issues/makroumi/slowql?logo=github" alt="Issues"></a>
   <a href="https://github.com/makroumi/slowql/discussions"><img src="https://img.shields.io/github/discussions/makroumi/slowql?logo=github" alt="Discussions"></a>
   <a href="https://github.com/makroumi/slowql/graphs/contributors"><img src="https://img.shields.io/github/contributors/makroumi/slowql?logo=github&color=success" alt="Contributors"></a>
   <a href="https://github.com/sponsors/makroumi"><img src="https://img.shields.io/badge/Sponsor-GitHub%20Sponsors-ea4aaa?logo=githubsponsors&logoColor=white" alt="Sponsor"></a>
   <a href="https://snyk.io/test/github/makroumi/slowql"><img src="https://snyk.io/test/github/makroumi/slowql/badge.svg" alt="Known Vulnerabilities"></a>
+  <a href="https://github.com/makroumi/slowql/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
 </p>
+
+*It performs safe static analysis of your SQL source code with **no database connection required**. SlowQL ships with **282 built-in rules** covering **14 SQL dialects**, and is built for modern engineering teams supporting CI/CD pipelines, pre-commit hooks, GitHub Actions, SARIF output, LSP, and automated fixes.*
+
+<br/>
+
+<a href="#-quick-start"><strong>Quick Start</strong></a>
+<span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
+<a href="#-installation"><strong>Installation</strong></a>
+<span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
+<a href="#-safe-autofix"><strong>Autofix</strong></a>
+<span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
+<a href="#vscode-extension"><strong>VS Code Info</strong></a>
+
+</div>
 
 ---
 
-<p align="center">
-  <img src="assets/slowql.gif" alt="SlowQL CLI demo" width="850">
-</p>
+<div align="center">
+  <img src="assets/slowql.gif" alt="SlowQL CLI demo" width="850" style="border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+</div>
 
 ---
 
@@ -478,7 +481,7 @@ repos:
 
 ---
 
-## VS Code Extension
+## <a id="vscode-extension"></a>🔌 VS Code Extension
 
 Install [slowql-vscode](https://marketplace.visualstudio.com/items?itemName=Makroumi.slowql-vscode) from the VS Code Marketplace for real-time SQL analysis in your editor. The extension uses the SlowQL LSP server for diagnostics.
 
