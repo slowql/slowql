@@ -4,6 +4,9 @@
 
 <br/>
 
+
+[![Sponsor SlowQL](https://img.shields.io/badge/Sponsor%20SlowQL-%F0%9F%92%B0-brightgreen)](https://github.com/sponsors/slowql)
+
 **Production-focused offline SQL static analyzer.**
 
 Catch security vulnerabilities, performance regressions, reliability issues, compliance risks, cost inefficiencies, and code quality problems before they reach production.
