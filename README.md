@@ -9,31 +9,80 @@
 Catch security vulnerabilities, performance regressions, reliability issues, compliance risks, cost inefficiencies, and code quality problems before they reach production.
 
 <p align="center">
-  <a href="https://github.com/makroumi/slowql/releases"><img src="https://img.shields.io/github/v/release/makroumi/slowql?logo=github&label=release&color=4c1" alt="Release"></a>
-  <a href="https://pypi.org/project/slowql/"><img src="https://img.shields.io/pypi/v/slowql?logo=pypi&logoColor=white&label=PyPI&color=3775A9" alt="PyPI"></a>
-  <a href="https://pypi.org/project/slowql/"><img src="https://img.shields.io/pypi/pyversions/slowql?logo=python&logoColor=white&label=Python" alt="Python"></a>
-  <a href="https://hub.docker.com/r/makroumi/slowql"><img src="https://img.shields.io/docker/v/makroumi/slowql?logo=docker&logoColor=white&label=Docker&color=2496ED" alt="Docker"></a>
-  <a href="https://github.com/makroumi/slowql/pkgs/container/slowql"><img src="https://img.shields.io/badge/GHCR-available-181717?logo=github&logoColor=white" alt="GHCR"></a>
-  <a href="https://marketplace.visualstudio.com/items?itemName=Makroumi.slowql-vscode"><img src="https://img.shields.io/visual-studio-marketplace/v/Makroumi.slowql-vscode?logo=visualstudiocode&logoColor=white&label=VS%20Code&color=007ACC" alt="VS Code"></a>
+  <!-- Distribution -->
+  <a href="https://github.com/makroumi/slowql/releases">
+    <img src="https://img.shields.io/github/v/release/makroumi/slowql?logo=github&label=Release&color=4c1" alt="GitHub Release">
+  </a>
+  <a href="https://pypi.org/project/slowql/">
+    <img src="https://img.shields.io/pypi/v/slowql?logo=pypi&logoColor=white&label=PyPI&color=3775A9" alt="PyPI">
+  </a>
+  <a href="https://pypi.org/project/slowql/">
+    <img src="https://img.shields.io/pypi/pyversions/slowql?logo=python&logoColor=white&label=Python" alt="Python Versions">
+  </a>
 </p>
 
 <p align="center">
-  <a href="https://hub.docker.com/r/makroumi/slowql"><img src="https://img.shields.io/docker/pulls/makroumi/slowql?logo=docker&logoColor=white&label=Docker%20pulls" alt="Docker Pulls"></a>
-  <a href="https://pypistats.org/packages/slowql"><img src="https://img.shields.io/pypi/dm/slowql?logo=pypi&logoColor=white&label=PyPI%20downloads" alt="PyPI Downloads"></a>
-  <a href="https://github.com/makroumi/slowql/actions/workflows/ci.yml"><img src="https://github.com/makroumi/slowql/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://codecov.io/gh/makroumi/slowql"><img src="https://codecov.io/gh/makroumi/slowql/graph/badge.svg" alt="Coverage"></a>
+  <!-- Platforms / Containers -->
+  <a href="https://hub.docker.com/r/makroumi/slowql">
+    <img src="https://img.shields.io/docker/v/makroumi/slowql?logo=docker&logoColor=white&label=Docker&color=2496ED" alt="Docker Version">
+  </a>
+  <a href="https://github.com/makroumi/slowql/pkgs/container/slowql">
+    <img src="https://img.shields.io/badge/GHCR-available-181717?logo=github&logoColor=white" alt="GitHub Container Registry">
+  </a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=Makroumi.slowql-vscode">
+    <img src="https://img.shields.io/visual-studio-marketplace/v/Makroumi.slowql-vscode?logo=visualstudiocode&logoColor=white&label=VS%20Code&color=007ACC" alt="VS Code Extension">
+  </a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/astral-sh/ruff"><img src="https://img.shields.io/badge/lint-ruff-46a758?logo=ruff&logoColor=white" alt="Ruff"></a>
-  <a href="http://mypy-lang.org/"><img src="https://img.shields.io/badge/types-mypy-blue?logo=python&logoColor=white" alt="Mypy"></a>
-  <a href="https://github.com/makroumi/slowql/stargazers"><img src="https://img.shields.io/github/stars/makroumi/slowql?style=social" alt="Stars"></a>
-  <a href="https://github.com/makroumi/slowql/issues"><img src="https://img.shields.io/github/issues/makroumi/slowql?logo=github" alt="Issues"></a>
-  <a href="https://github.com/makroumi/slowql/discussions"><img src="https://img.shields.io/github/discussions/makroumi/slowql?logo=github" alt="Discussions"></a>
-  <a href="https://github.com/makroumi/slowql/graphs/contributors"><img src="https://img.shields.io/github/contributors/makroumi/slowql?logo=github&color=success" alt="Contributors"></a>
-  <a href="https://github.com/sponsors/makroumi"><img src="https://img.shields.io/badge/Sponsor-GitHub%20Sponsors-ea4aaa?logo=githubsponsors&logoColor=white" alt="Sponsor"></a>
-  <a href="https://snyk.io/test/github/makroumi/slowql"><img src="https://snyk.io/test/github/makroumi/slowql/badge.svg" alt="Known Vulnerabilities"></a>
-  <a href="https://github.com/makroumi/slowql/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License"></a>
+  <!-- Stats & Health -->
+  <a href="https://hub.docker.com/r/makroumi/slowql">
+    <img src="https://img.shields.io/docker/pulls/makroumi/slowql?logo=docker&logoColor=white&label=Pulls" alt="Docker Pulls">
+  </a>
+  <a href="https://pypistats.org/packages/slowql">
+    <img src="https://img.shields.io/pypi/dm/slowql?logo=pypi&logoColor=white&label=Downloads" alt="PyPI Downloads">
+  </a>
+  <a href="https://github.com/makroumi/slowql/actions/workflows/ci.yml">
+    <img src="https://github.com/makroumi/slowql/actions/workflows/ci.yml/badge.svg" alt="CI Status">
+  </a>
+  <a href="https://codecov.io/gh/makroumi/slowql">
+    <img src="https://codecov.io/gh/makroumi/slowql/graph/badge.svg" alt="Code Coverage">
+  </a>
+</p>
+
+<p align="center">
+  <!-- Quality & Community -->
+  <a href="https://github.com/astral-sh/ruff">
+    <img src="https://img.shields.io/badge/lint-ruff-46a758?logo=ruff&logoColor=white" alt="Ruff Linter">
+  </a>
+  <a href="http://mypy-lang.org/">
+    <img src="https://img.shields.io/badge/types-mypy-blue?logo=python&logoColor=white" alt="Mypy">
+  </a>
+  <a href="https://github.com/makroumi/slowql/stargazers">
+    <img src="https://img.shields.io/github/stars/makroumi/slowql?style=flat&logo=github" alt="GitHub Stars">
+  </a>
+  <a href="https://github.com/makroumi/slowql/issues">
+    <img src="https://img.shields.io/github/issues/makroumi/slowql?logo=github" alt="Issues">
+  </a>
+  <a href="https://github.com/makroumi/slowql/discussions">
+    <img src="https://img.shields.io/github/discussions/makroumi/slowql?logo=github" alt="Discussions">
+  </a>
+  <a href="https://github.com/makroumi/slowql/graphs/contributors">
+    <img src="https://img.shields.io/github/contributors/makroumi/slowql?logo=github&color=success" alt="Contributors">
+  </a>
+</p>
+
+<p align="center">
+  <!-- Sponsors & Security & License -->
+  <a href="https://github.com/sponsors/makroumi">
+    <img src="https://img.shields.io/badge/Sponsor-%F0%9F%92%96%20GitHub%20Sponsors-ea4aaa?logo=githubsponsors&logoColor=white" alt="Sponsor">
+  </a>
+  <a href="https://snyk.io/test/github/makroumi/slowql">
+    <img src="https://snyk.io/test/github/makroumi/slowql/badge.svg" alt="Vulnerabilities">
+  </a>
+  <a href="https://github.com/makroumi/slowql/blob/main/LICENSE">
+    <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License">
+  </a>
 </p>
 
 *It performs safe static analysis of your SQL source code with **no database connection required**. SlowQL ships with **282 built-in rules** covering **14 SQL dialects**, and is built for modern engineering teams supporting CI/CD pipelines, pre-commit hooks, GitHub Actions, SARIF output, LSP, and automated fixes.*
