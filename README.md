@@ -10,8 +10,8 @@ Catch security vulnerabilities, performance regressions, reliability issues, com
 
 <p align="center">
   <!-- Release & Version -->
-  <a href="https://github.com/makroumi/slowql/releases">
-    <img src="https://img.shields.io/github/v/release/makroumi/slowql?logo=github&label=Release&color=4c1" />
+  <a href="https://github.com/slowql/slowql/releases">
+    <img src="https://img.shields.io/github/v/release/slowql/slowql?logo=github&label=Release&color=4c1" />
   </a>
   <a href="https://pypi.org/project/slowql/">
     <img src="https://img.shields.io/pypi/v/slowql?logo=pypi&logoColor=white&label=PyPI&color=3775A9" />
@@ -26,7 +26,7 @@ Catch security vulnerabilities, performance regressions, reliability issues, com
   <a href="https://hub.docker.com/r/makroumi/slowql">
     <img src="https://img.shields.io/docker/v/makroumi/slowql?logo=docker&label=Docker&color=2496ED" />
   </a>
-  <a href="https://github.com/makroumi/slowql/pkgs/container/slowql">
+  <a href="https://github.com/slowql/slowql/pkgs/container/slowql">
     <img src="https://img.shields.io/badge/GHCR-available-181717?logo=github" />
   </a>
   <a href="https://marketplace.visualstudio.com/items?itemName=Makroumi.slowql-vscode">
@@ -42,21 +42,21 @@ Catch security vulnerabilities, performance regressions, reliability issues, com
   <a href="https://hub.docker.com/r/makroumi/slowql">
     <img src="https://img.shields.io/docker/pulls/makroumi/slowql?logo=docker&label=Pulls" />
   </a>
-  <a href="https://github.com/makroumi/slowql/stargazers">
-    <img src="https://img.shields.io/github/stars/makroumi/slowql?logo=github&label=Stars" />
+  <a href="https://github.com/slowql/slowql/stargazers">
+    <img src="https://img.shields.io/github/stars/slowql/slowql?logo=github&label=Stars" />
   </a>
 </p>
 
 <p align="center">
   <!-- Quality & CI -->
-  <a href="https://github.com/makroumi/slowql/actions/workflows/ci.yml">
-    <img src="https://img.shields.io/github/actions/workflow/status/makroumi/slowql/ci.yml?label=CI&logo=githubactions" />
+  <a href="https://github.com/slowql/slowql/actions/workflows/ci.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/slowql/slowql/ci.yml?label=CI&logo=githubactions" />
   </a>
-  <a href="https://codecov.io/gh/makroumi/slowql">
-    <img src="https://codecov.io/gh/makroumi/slowql/graph/badge.svg" />
+  <a href="https://codecov.io/gh/slowql/slowql">
+    <img src="https://codecov.io/gh/slowql/slowql/graph/badge.svg" />
   </a>
-  <a href="https://snyk.io/test/github/makroumi/slowql">
-    <img src="https://snyk.io/test/github/makroumi/slowql/badge.svg" />
+  <a href="https://snyk.io/test/github/slowql/slowql">
+    <img src="https://snyk.io/test/github/slowql/slowql/badge.svg" />
   </a>
 </p>
 
@@ -72,14 +72,14 @@ Catch security vulnerabilities, performance regressions, reliability issues, com
 
 <p align="center">
   <!-- Community -->
-  <a href="https://github.com/makroumi/slowql/issues">
-    <img src="https://img.shields.io/github/issues/makroumi/slowql?logo=github&label=Issues" />
+  <a href="https://github.com/slowql/slowql/issues">
+    <img src="https://img.shields.io/github/issues/slowql/slowql?logo=github&label=Issues" />
   </a>
-  <a href="https://github.com/makroumi/slowql/discussions">
-    <img src="https://img.shields.io/github/discussions/makroumi/slowql?logo=github&label=Discussions" />
+  <a href="https://github.com/slowql/slowql/discussions">
+    <img src="https://img.shields.io/github/discussions/slowql/slowql?logo=github&label=Discussions" />
   </a>
-  <a href="https://github.com/makroumi/slowql/graphs/contributors">
-    <img src="https://img.shields.io/github/contributors/makroumi/slowql?logo=github&color=success" />
+  <a href="https://github.com/slowql/slowql/graphs/contributors">
+    <img src="https://img.shields.io/github/contributors/slowql/slowql?logo=github&color=success" />
   </a>
 </p>
 
@@ -88,7 +88,7 @@ Catch security vulnerabilities, performance regressions, reliability issues, com
   <a href="https://github.com/sponsors/makroumi">
     <img src="https://img.shields.io/badge/Sponsor-GitHub%20Sponsors-ea4aaa?logo=githubsponsors" />
   </a>
-  <a href="https://github.com/makroumi/slowql/blob/main/LICENSE">
+  <a href="https://github.com/slowql/slowql/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" />
   </a>
 </p>
@@ -489,7 +489,7 @@ compliance:
 ### GitHub Action (Official)
 
 ```yaml
-- uses: makroumi/slowql-action@v1
+- uses: slowql/slowql-action@v1
   with:
     path: "./sql/**/*.sql"
     schema: "db/schema.sql"
@@ -510,7 +510,7 @@ compliance:
 
 ```yaml
 repos:
-  - repo: https://github.com/makroumi/slowql
+  - repo: https://github.com/slowql/slowql
     rev: v1.6.2
     hooks:
       - id: slowql
@@ -575,7 +575,7 @@ SQL Files → Parser (sqlglot) → AST → Analyzers → Rules → Issues → Re
 ## Development
 
 ```bash
-git clone https://github.com/makroumi/slowql.git
+git clone https://github.com/slowql/slowql.git
 pip install -e ".[dev]"
 
 pytest
@@ -589,9 +589,9 @@ mypy src/slowql
 
 Apache License 2.0. See [LICENSE](LICENSE).
 
-**Issues:** [github.com/makroumi/slowql/issues](https://github.com/makroumi/slowql/issues)
+**Issues:** [github.com/slowql/slowql/issues](https://github.com/slowql/slowql/issues)
 
-**Discussions:** [github.com/makroumi/slowql/discussions](https://github.com/makroumi/slowql/discussions)
+**Discussions:** [github.com/slowql/slowql/discussions](https://github.com/slowql/slowql/discussions)
 
 ---
 

@@ -13,7 +13,7 @@ Please consult these documents based on the type of contribution you are plannin
 ## Quick Start
 
 ```bash
-git clone https://github.com/makroumi/slowql.git
+git clone https://github.com/slowql/slowql.git
 cd slowql
 python -m venv .venv
 source .venv/bin/activate

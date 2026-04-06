@@ -102,7 +102,7 @@ If using a virtual environment, set slowql.command to the full path:
 
 ## Links
 
-- GitHub: https://github.com/makroumi/slowql
+- GitHub: https://github.com/slowql/slowql
 - PyPI: https://pypi.org/project/slowql/
-- Issues: https://github.com/makroumi/slowql/issues
-- CLI Documentation: https://github.com/makroumi/slowql\#readme
+- Issues: https://github.com/slowql/slowql/issues
+- CLI Documentation: https://github.com/slowql/slowql\#readme

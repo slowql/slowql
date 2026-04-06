@@ -21,11 +21,11 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/makroumi/slowql"
+    "url": "https://github.com/slowql/slowql"
   },
-  "homepage": "https://github.com/makroumi/slowql",
+  "homepage": "https://github.com/slowql/slowql",
   "bugs": {
-    "url": "https://github.com/makroumi/slowql/issues"
+    "url": "https://github.com/slowql/slowql/issues"
   },
   "keywords": [
     "sql",

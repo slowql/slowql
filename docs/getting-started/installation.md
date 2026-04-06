@@ -31,12 +31,12 @@ By default, the core engine installs cleanly via `sqlglot` keeping its footprint
 To enforce strict version immutability in CI/CD pipelines without resolving Python environments natively, pull the GitHub Container Registry image:
 
 ```bash
-docker pull ghcr.io/makroumi/slowql:latest
+docker pull ghcr.io/slowql/slowql:latest
 ```
 
 **Executing against workspace geometries:**
 ```bash
-docker run --rm -v $(pwd):/workspace -w /workspace ghcr.io/makroumi/slowql:latest \
+docker run --rm -v $(pwd):/workspace -w /workspace ghcr.io/slowql/slowql:latest \
   --fail-on high \
   --dialect postgresql \
   schemas/*.sql
@@ -50,7 +50,7 @@ To install SlowQL exclusively for modifying the rule engine, or interacting with
 
 ```bash
 # Clone the central project
-git clone https://github.com/makroumi/slowql.git
+git clone https://github.com/slowql/slowql.git
 cd slowql
 
 # Install natively in explicitly editable mode targeting Developer tooling

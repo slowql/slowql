@@ -10,7 +10,7 @@ Create or append slowly to `.pre-commit-config.yaml` located in the absolute roo
 
 ```yaml
 repos:
-  - repo: https://github.com/makroumi/slowql
+  - repo: https://github.com/slowql/slowql
     rev: v1.6.0 # Highly recommended to pin to a specific release
     hooks:
       - id: slowql
@@ -26,7 +26,7 @@ You can explicitly pass SlowQL configurations using the `args` array. This compl
 
 ```yaml
 repos:
-  - repo: https://github.com/makroumi/slowql
+  - repo: https://github.com/slowql/slowql
     rev: v1.6.0
     hooks:
       - id: slowql
