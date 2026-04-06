@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/logo.png" alt="SlowQL Logo" width="600" />
+<img src="assets/logo.png" alt="SlowQL Logo" style="width: 600px; height: 130px; object-fit: cover; object-position: center;" />
 
 <br/>
 
