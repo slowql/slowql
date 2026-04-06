@@ -93,6 +93,8 @@ Catch security vulnerabilities, performance regressions, reliability issues, com
   </a>
 </p>
 
+</div>
+
 
 ## Why SlowQL
 
