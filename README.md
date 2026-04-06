@@ -3,9 +3,15 @@
 <img src="assets/logo.png" alt="SlowQL Logo" style="width: 600px; height: 200px; object-fit: cover; object-position: center;" />
 
 <br/>
-
-
-[![Sponsor SlowQL](https://img.shields.io/badge/Sponsor%20SlowQL-%F0%9F%92%B0-brightgreen)](https://github.com/sponsors/slowql)
+<p align="center">
+  <!-- Support & License -->
+  <a href="https://github.com/slowql/slowql/blob/main/LICENSE">
+    <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" />
+  </a>
+  <a href="https://github.com/sponsors/slowql">
+    <img src="https://img.shields.io/badge/Sponsor%20SlowQL-%F0%9F%92%B0-brightgreen" />
+  </a>
+</p>
 
 **Production-focused offline SQL static analyzer.**
 
@@ -83,16 +89,6 @@ Catch security vulnerabilities, performance regressions, reliability issues, com
   </a>
   <a href="https://github.com/slowql/slowql/graphs/contributors">
     <img src="https://img.shields.io/github/contributors/slowql/slowql?logo=github&color=success" />
-  </a>
-</p>
-
-<p align="center">
-  <!-- Support & License -->
-  <a href="https://github.com/sponsors/makroumi">
-    <img src="https://img.shields.io/badge/Sponsor-GitHub%20Sponsors-ea4aaa?logo=githubsponsors" />
-  </a>
-  <a href="https://github.com/slowql/slowql/blob/main/LICENSE">
-    <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" />
   </a>
 </p>
 
