@@ -10744,10 +10744,10 @@
 <hr />
 <h2 id="install-via-docker-ghcr">Install via Docker (GHCR)</h2>
 <p>To enforce strict version immutability in CI/CD pipelines without resolving Python environments natively, pull the GitHub Container Registry image:</p>
-<pre><code class="language-bash">docker pull ghcr.io/makroumi/slowql:latest
+<pre><code class="language-bash">docker pull ghcr.io/slowql/slowql:latest
 </code></pre>
 <p><strong>Executing against workspace geometries:</strong></p>
-<pre><code class="language-bash">docker run --rm -v $(pwd):/workspace -w /workspace ghcr.io/makroumi/slowql:latest \
+<pre><code class="language-bash">docker run --rm -v $(pwd):/workspace -w /workspace ghcr.io/slowql/slowql:latest \
   --fail-on high \
   --dialect postgresql \
   schemas/*.sql
@@ -10756,7 +10756,7 @@
 <h2 id="contributing-source-construction">Contributing &amp; Source Construction</h2>
 <p>To install SlowQL exclusively for modifying the rule engine, or interacting with the <code>tests/</code> suites directly:</p>
 <pre><code class="language-bash"># Clone the central project
-git clone https://github.com/makroumi/slowql.git
+git clone https://github.com/slowql/slowql.git
 cd slowql
 
 # Install natively in explicitly editable mode targeting Developer tooling

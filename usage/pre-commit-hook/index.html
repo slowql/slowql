@@ -10706,7 +10706,7 @@
 <h2 id="basic-setup">Basic Setup</h2>
 <p>Create or append slowly to <code>.pre-commit-config.yaml</code> located in the absolute root of your project repository.</p>
 <pre><code class="language-yaml">repos:
-  - repo: https://github.com/makroumi/slowql
+  - repo: https://github.com/slowql/slowql
     rev: v1.6.0 # Highly recommended to pin to a specific release
     hooks:
       - id: slowql
@@ -10716,7 +10716,7 @@
 <h2 id="overriding-standard-arguments">Overriding Standard Arguments</h2>
 <p>You can explicitly pass SlowQL configurations using the <code>args</code> array. This completely bypasses the local <code>slowql.yaml</code> configuration if necessary.</p>
 <pre><code class="language-yaml">repos:
-  - repo: https://github.com/makroumi/slowql
+  - repo: https://github.com/slowql/slowql
     rev: v1.6.0
     hooks:
       - id: slowql
