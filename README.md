@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="assets/logo.png" alt="SlowQL Logo" width="250" />
+<img src="assets/logo.png" alt="SlowQL Logo" width="600" />
 
-# SlowQL
+<br/>
 
 **Production-focused offline SQL static analyzer.**
 
@@ -53,7 +53,7 @@ Catch security vulnerabilities, performance regressions, reliability issues, com
 ---
 
 <div align="center">
-  <img src="assets/slowql.gif" alt="SlowQL CLI demo" width="850" style="border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+  <img src="demo.gif" alt="SlowQL CLI demo" width="850" style="border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
 </div>
 
 ---
