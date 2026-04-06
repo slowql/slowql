@@ -111,11 +111,11 @@ all = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/makroumi/slowql"
+Homepage = "https://github.com/slowql/slowql"
 Documentation = "https://slowql.dev/docs"
-Repository = "https://github.com/makroumi/slowql"
-Issues = "https://github.com/makroumi/slowql/issues"
-Changelog = "https://github.com/makroumi/slowql/blob/main/CHANGELOG.md"
+Repository = "https://github.com/slowql/slowql"
+Issues = "https://github.com/slowql/slowql/issues"
+Changelog = "https://github.com/slowql/slowql/blob/main/CHANGELOG.md"
 
 [project.scripts]
 slowql = "slowql.cli.app:main"

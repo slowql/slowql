@@ -181,7 +181,7 @@ jobs:
         id: meta-ghcr
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/makroumi/slowql
+          images: ghcr.io/slowql/slowql
           tags: |
             type=ref,event=branch
             type=ref,event=pr

@@ -13,7 +13,7 @@ To contribute upstream to SlowQL, you must configure a native enterprise develop
 1. **Clone the Source Engine**
    Ensure you fork the repository prior to cloning down your working copy:
    ```bash
-   git clone https://github.com/makroumi/slowql.git
+   git clone https://github.com/slowql/slowql.git
    cd slowql
    ```
 

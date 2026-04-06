@@ -74,7 +74,7 @@ git push origin v1.6.1
 Navigate to the GitHub UI and convert the Tag into a robust Release securely pasting the corresponding `CHANGELOG.md` segment.
 
 ### 3. GitHub Container Registry (GHCR)
-The master GitHub Action natively intercepts new Tags and automatically compiles, scans, and deposits the immutable Docker Image into `ghcr.io/makroumi/slowql:latest` and `ghcr.io/makroumi/slowql:v1.6.1`.
+The master GitHub Action natively intercepts new Tags and automatically compiles, scans, and deposits the immutable Docker Image into `ghcr.io/slowql/slowql:latest` and `ghcr.io/slowql/slowql:v1.6.1`.
 
 ## Pipeline Best Practices
 
