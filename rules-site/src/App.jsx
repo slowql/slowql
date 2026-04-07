@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { HashRouter as Router, Routes, Route, Link, useParams, useLocation } from 'react-router-dom'
 import { Search, ChevronRight, ChevronDown, AlertTriangle, Info, Shield, Zap, Home, ExternalLink, Book, Layers, Box, Terminal, GitBranch, Settings } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion' // eslint-disable-line no-unused-vars
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rulesData from './data/rules.json'

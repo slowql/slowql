@@ -16,26 +16,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.6.2] - 2026-03-25
+## [1.6.5] - 2026-04-03
+
+### Added
+- **MyBatis Parser Enhancements**: Significantly improved the robustness of the MyBatis XML parser and expanded test coverage for complex nested queries.
 
 ### Fixed
-- Synchronized documentation and rule counts across all platforms.
-- Updated version metadata in configuration and environment files.
+- **Internal Quality**: Resolved a suite of linting and style errors across the codebase to maintain strict CI/CD compliance.
+
+---
+
+## [1.6.4] - 2026-03-31
+
+### Added
+- **MyBatis Support**: Introduced initial support for analyzing SQL within MyBatis XML mapper files.
+
+### Fixed
+- **VS Code Extension Security**: Updated extension dependencies to resolve high-severity security advisories.
+
+---
+
+## [1.6.3] - 2026-03-28
+
+### Added
+- **New Rule**: Implemented `UnreachableCodeRule` as a parent-independent check.
+- **T-SQL Support**: Added raw-text fallback for analyzing T-SQL procedure bodies.
+
+### Fixed
+- **Dialect Aliasing**: CLI now correctly resolves common dialect aliases (e.g., `postgres` -> `postgresql`, `pg` -> `postgresql`, `mssql` -> `tsql`).
+- **Clean Output**: Removed internal debug print statements from the analysis pipeline.
+
+### Changed
+- **Documentation**: Verified and synchronized rule counts in README to match the actual 272-rule registry.
+
+---
+
+## [1.6.2] - 2026-03-25
+
+### Added
+- **Query Complexity Scoring**: Implemented query complexity scoring and trend tracking framework for performance auditing.
+
+### Fixed
+- **Import Sorting**: Resolved import sorting issues in `catalog.py`.
+- **Sync**: Synchronized documentation and rule counts across all platforms.
+- **Metadata**: Updated version metadata in configuration and environment files.
+
+---
 
 ## [1.6.1] - 2026-03-19
 
 ### Added
-- **Massive Documentation Overhaul (`docs/`)**: Comprehensively rewrote the entire MkDocs hierarchy to strict enterprise standards, permanently eliminating emojis, legacy jargon, and non-deterministic formatting.
-- **Architecture Navigation**: Exposed internal orchestration mechanics detailing `system-design`, `parser-engine`, `rule-system`, `export-system`, and `lsp-integration`.
-- **Comprehensive Usage Tier**: Expanded CI/CD integration pipelines (GitHub Actions, SARIF payloads) and explicitly documented VS Code Extension installations leveraging internal `pygls` routing.
-- **Python API Framework**: Systematized programmatic integrations demonstrating offline `Query` construction natively hooking into `BaseReporter` JSON artifacts.
+- **Severity Migration Framework**: Comprehensive support for tracking rule severity across database migration tools (Alembic, Django, Flyway, Liquibase, Prisma, Knex).
+- **Custom Rule Engine**: Implemented support for user-defined YAML and Python plugins.
+- **Parallel Processing**: Added parallel batch processing for file analysis, significantly reducing runtime on large repositories.
+- **Git-Aware Analysis**: Added `--git-diff` and `--since` flags for analyzing only changed files.
+- **Incremental Analysis**: Implemented Baseline/Diff mode for tracking new violations over time.
+- **Inline Suppression**: Added the `--slowql-ignore` system for targeted rule suppression within SQL files.
+- **Dbt and Jinja Support**: Added support for analyzing Dbt projects and Jinja-templated SQL files.
+- **Hash-based Caching**: Implemented file caching to skip analysis for unchanged documents.
+- **Safe Autofix Expansion**: Added 2 additional safe autofixes for `CASE ELSE NULL` and `DO LANGUAGE plpgsql`.
+- **Massive Documentation Overhaul**: Completely rewritten MkDocs hierarchy with enterprise-standard clarity.
 
 ### Changed
-- **Development Contribution Guards**: Restructured local `adding-rules.md` documentation mapping exact `dialects = ("tsql", "snowflake")` arrays and enforcing `ruff`/`mypy` checks sequentially.
-- **Version Control Hooks**: Deprecated raw `python -m build` references internally in exchange for defining accurate `hatchling` compilation workflows matching `pyproject.toml`.
+- **Development Contribution Guards**: Restructured contribution documentation and enforced sequential CI checks.
+- **Build Workflows**: Switched to `hatchling` compilation matching `pyproject.toml`.
 
 ### Removed
-- **Legacy Purge**: Eradicated deprecated structural documents (e.g., `adding-detectors.md`) generating parsing conflicts during compilation.
+- **Legacy Components**: Removed deprecated structural documents and obsolete parsers.
 
 ---
 
@@ -77,6 +124,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Non-interactive session export now requires explicit `--export-session`.
 - Multi-file CLI input improved for automation/pre-commit style use.
+
+---
+
+## [1.4.0] - 2026-03-09
+
+### Added
+- **Major Rule Expansion**: Reached 171 rules spanning Security, Performance, Cost, Reliability, and quality dimensions.
+- **Batch 3 (Reliability)**: 6 new rules covering data integrity and transaction handling.
+- **Batch 4 (Compliance)**: 6 new rules covering GDPR and auditing requirements.
+- **Batch 5 (Quality)**: 9 new rules covering style, modern SQL practices, and DRY principles.
+
+### Changed
+- **Architecture**: Modularized `catalog.py` into a dimension-based structure for better maintainability.
+
+### Fixed
+- Improved `.gitignore` and configuration handling for optional dependencies.
 
 ---
 
