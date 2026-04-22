@@ -9,6 +9,7 @@ from .dbt import *
 from .documentation import *
 from .dry_principles import *
 from .duckdb import *
+from .jsonb_style import JSONBOperatorSpacingRule
 from .modern_sql import *
 from .naming import *
 from .null_handling import *
@@ -37,6 +38,7 @@ __all__ = [
     "ImplicitJoinRule",
     "InconsistentTableNamingRule",
     "InsertWithoutColumnListRule",
+    "JSONBOperatorSpacingRule",
     "LackOfIndexingOnForeignKeyRule",
     "LongQueryRule",
     "MagicStringWithoutCommentRule",

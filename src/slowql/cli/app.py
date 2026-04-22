@@ -788,7 +788,7 @@ def _handle_sql_input(  # noqa: PLR0912
                     continue
 
                 # Fallback to reading all .sql files in directory
-                sql_files = sorted(path.glob("*.sql"))
+                sql_files = sorted(path.rglob("*.sql"))
                 for sf in sql_files:
                     if changed_files is not None and sf.resolve() not in changed_files:
                         continue

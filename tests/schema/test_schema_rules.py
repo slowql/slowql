@@ -285,3 +285,102 @@ def test_rule_severity_levels(table_rule, column_rule, index_rule):
     assert table_rule.severity == Severity.CRITICAL
     assert column_rule.severity == Severity.CRITICAL
     assert index_rule.severity == Severity.MEDIUM
+
+
+# --- JSONB Index Detection Tests ---
+
+@pytest.fixture
+def jsonb_schema():
+    """Create a test schema with a JSONB column."""
+    events = Table(
+        name="events",
+        columns=(
+            Column(name="id", type=ColumnType.INTEGER, primary_key=True),
+            Column(name="uid", type=ColumnType.INTEGER),
+            Column(name="params", type=ColumnType.JSONB),
+            Column(name="data", type=ColumnType.JSONB),
+        ),
+        indexes=(),
+        primary_key=("id",),
+    )
+    return Schema(tables={"events": events})
+
+
+@pytest.fixture
+def jsonb_index_rule(jsonb_schema):
+    return MissingIndexRule(jsonb_schema)
+
+
+def test_jsonb_extraction_missing_index(parser, jsonb_index_rule):
+    """Test JSONB ->> operator triggers GIN index suggestion."""
+    query = parser.parse_single("SELECT * FROM events WHERE params ->> 'oid' = 2", dialect="postgres")
+    issues = jsonb_index_rule.check(query)
+    assert len(issues) == 1
+    assert "JSONB" in issues[0].message
+    assert "GIN" in issues[0].message
+    assert issues[0].fix is not None
+    assert "GIN" in issues[0].fix.replacement
+
+
+def test_jsonb_extraction_with_json_key(parser, jsonb_index_rule):
+    """Test that expression index is suggested when JSON key is extractable."""
+    query = parser.parse_single("SELECT * FROM events WHERE params ->> 'oid' = 2", dialect="postgres")
+    issues = jsonb_index_rule.check(query)
+    assert len(issues) == 1
+    # Should suggest both GIN and expression index
+    assert "Option 1" in issues[0].fix.replacement
+    assert "Option 2" in issues[0].fix.replacement
+    assert "params ->> 'oid'" in issues[0].fix.replacement
+
+
+def test_jsonb_and_regular_column_both_flagged(parser, jsonb_index_rule):
+    """Test that both JSONB and regular columns are flagged, without duplicates."""
+    query = parser.parse_single("SELECT * FROM events WHERE uid = 1 AND params ->> 'oid' = 2", dialect="postgres")
+    issues = jsonb_index_rule.check(query)
+    # uid (regular) + params (JSONB) = 2 issues, no duplicate for params
+    assert len(issues) == 2
+    messages = [i.message for i in issues]
+    assert any("uid" in m and "JSONB" not in m for m in messages)
+    assert any("JSONB" in m and "params" in m for m in messages)
+
+
+def test_jsonb_no_duplicate_for_same_column(parser, jsonb_index_rule):
+    """Test that params is not flagged twice (once as regular, once as JSONB)."""
+    query = parser.parse_single("SELECT * FROM events WHERE params ->> 'oid' = 2", dialect="postgres")
+    issues = jsonb_index_rule.check(query)
+    # Should only have the JSONB-specific issue, not a duplicate regular one
+    assert len(issues) == 1
+    assert "JSONB" in issues[0].message
+
+
+def test_jsonb_no_schema_returns_empty(parser):
+    """Test that rule returns empty when no schema is provided."""
+    rule = MissingIndexRule(schema=None)
+    query = parser.parse_single("SELECT * FROM events WHERE params ->> 'oid' = 2", dialect="postgres")
+    issues = rule.check(query)
+    assert issues == []
+
+
+def test_jsonb_column_not_in_schema(parser, jsonb_schema):
+    """Test JSONB extraction on a column not in schema."""
+    rule = MissingIndexRule(jsonb_schema)
+    query = parser.parse_single("SELECT * FROM events WHERE metadata ->> 'key' = 1", dialect="postgres")
+    issues = rule.check(query)
+    # metadata doesn't exist in schema, so no issue
+    assert len(issues) == 0
+
+
+def test_jsonb_no_where_clause(parser, jsonb_index_rule):
+    """Test that rule returns empty when no WHERE clause."""
+    query = parser.parse_single("SELECT * FROM events", dialect="postgres")
+    issues = jsonb_index_rule.check(query)
+    assert issues == []
+
+
+def test_jsonb_arrow_operator(parser, jsonb_index_rule):
+    """Test JSONB -> operator (JSONExtract, not JSONExtractScalar)."""
+    query = parser.parse_single("SELECT * FROM events WHERE params -> 'oid' = '\"val\"'", dialect="postgres")
+    issues = jsonb_index_rule.check(query)
+    # Should detect the -> operator too
+    assert len(issues) >= 1
+    assert any("JSONB" in i.message or "params" in i.message for i in issues)
