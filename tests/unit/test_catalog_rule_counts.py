@@ -10,12 +10,12 @@ from slowql.rules.catalog import get_all_rules, get_rules_by_dimension
 
 # ── Source of truth: catalog.py ──────────────────────────────────────────
 
-EXPECTED_TOTAL = 282
+EXPECTED_TOTAL = 283
 
 EXPECTED_PER_DIMENSION: dict[str, int] = {
     "security": 61,
     "performance": 73,
-    "quality": 51,
+    "quality": 52,
     "cost": 33,
     "compliance": 18,
     "reliability": 44,
@@ -23,7 +23,7 @@ EXPECTED_PER_DIMENSION: dict[str, int] = {
     "schema": 1,
 }
 
-EXPECTED_DIALECT_AWARE = 107
+EXPECTED_DIALECT_AWARE = 108
 EXPECTED_UNIVERSAL = 175
 
 

@@ -165,6 +165,7 @@ from slowql.rules.quality import (
     ImplicitJoinRule,
     InconsistentTableNamingRule,
     InsertWithoutColumnListRule,
+    JSONBOperatorSpacingRule,
     LackOfIndexingOnForeignKeyRule,
     LongQueryRule,
     MagicStringWithoutCommentRule,
@@ -609,6 +610,7 @@ def get_all_rules() -> list[Rule]:
         UnusedObjectRule(),
         UnreachableCodeRule(),
         DuplicateQueryRule(),
+        JSONBOperatorSpacingRule(),
     ]
 
 
