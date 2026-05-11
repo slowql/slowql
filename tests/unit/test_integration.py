@@ -29,7 +29,7 @@ def test_analyze_with_dialect():
 
 def test_analyze_file(tmp_path):
     """Test analyze_file function."""
-    sql_file = tmp_path / "test.sql"
+    sql_file = tmp_path / "query.sql"
     sql_file.write_text("SELECT * FROM users")
     result = analyze_file(str(sql_file))
     assert isinstance(result, AnalysisResult)
