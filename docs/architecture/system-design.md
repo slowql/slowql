@@ -44,7 +44,17 @@ The `AnalyzerRegistry` natively discovers and loads these components from entry 
 Inside `RuleBasedAnalyzer`, every single active rule (`ASTRule` or `PatternRule`) is executed against the parsed ASTs. 
 Because `slowql` enforces strict Dialect Guardians (e.g., `dialects=("snowflake",)` on rules), the pipeline automatically and safely skips rules that aren't relevant to the current dialect, practically eliminating false positives. 
 
-## 5. Result Aggregation
+## 5. Context-Aware Filtering
+
+Before result aggregation, the Engine classifies each file into a source context (migration, test, seed, dbt_model, application, adhoc, etc.) using path patterns and content heuristics. A three-layer filter then removes false positives:
+
+1. **Allowlist**: Non-production contexts only see security (SEC-) and reliability (REL-) rules.
+2. **Deny list**: Context-specific exclusions (e.g., SEC-INJ-005 denied in migrations because data is developer-controlled).
+3. **Cross-file filter**: Project-level rules respect per-file context.
+
+See [Context-Aware Analysis](context-awareness.md) for the full specification.
+
+## 6. Result Aggregation
 Finally, any triggered rule yields an `Issue` object containing the `RemediationMode`, `Severity`, explicit location, and potentially a `FixConfidence.SAFE` replacement string.
 
 The Engine accumulates these into an `AnalysisResult` dataclass and passes them to the configured **Reporter** (e.g., Cyberpunk TUI Console, `SARIF` for CI/CD Pipeline, or JSON hook).

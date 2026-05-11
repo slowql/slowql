@@ -74,6 +74,24 @@ cost:
 
 ## Configuration Blocks Explained
 
+### Context-Aware Analysis
+
+SlowQL automatically classifies files into source contexts (migration, test, seed, dbt_model, application, etc.) and filters rules accordingly. This requires zero configuration - it works out of the box based on your directory structure.
+
+| Directory Pattern | Context | Rules Active |
+|---|---|---|
+| migrations/, alembic/versions/ | migration | SEC-, REL- |
+| tests/, spec/, *test*.sql | test | SEC-, REL- |
+| seeds/, fixtures/ | seed | SEC-, REL- |
+| schema.sql, ddl/ | ddl_schema | SEC-, REL-, COMP- |
+| models/*.sql | dbt_model | All (except PERF-SCAN-003) |
+| src/ | application | All (except QUAL-DBT-*) |
+| No file path | adhoc | All (except QUAL-DBT-*) |
+
+See [Context-Aware Analysis](../architecture/context-awareness.md) for details and customization.
+
+---
+
 ### `severity`
 Controls how pipeline exits handle found issues.
 - **`fail_on`**: Crucial for CI/CD. The process returns an exit code `1` if the analysis discovers any vulnerability equal to or exceeding this threshold. Options: `critical`, `high`, `medium`, `low`, `info`, `never`.

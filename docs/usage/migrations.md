@@ -43,6 +43,19 @@ SlowQL includes specific rules for migrations, such as:
 - **Idempotency:** Ensuring migrations can be safely run multiple times without error.
 - **Dialect Compatibility:** Verifying that migration SQL is valid for your target database dialect.
 
+## Context-Aware Filtering
+
+SlowQL automatically recognizes migration files and filters out irrelevant rules. Only security (SEC-) and reliability (REL-) rules fire on migrations - performance, cost, quality, and compliance noise is eliminated entirely.
+
+Specific exclusions for migrations:
+- SEC-INJ-005 (second-order injection) is suppressed because migration data is developer-controlled, not user input.
+- PERF-SCAN-001 (SELECT *) is suppressed because migrations routinely select all columns.
+- QUAL-DBT-001 (missing dbt ref) is suppressed because migrations use raw table names.
+
+This means your migrations only surface issues that matter: idempotency guards (REL-IDEM-001), missing transactions, and genuine security concerns.
+
+See [Context-Aware Analysis](../architecture/context-awareness.md) for the full specification.
+
 ## Configuration
 
 You can configure migration analysis in your `slowql.toml`:
