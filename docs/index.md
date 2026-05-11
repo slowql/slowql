@@ -13,6 +13,7 @@ Unlike traditional linters that only format SQL, SlowQL builds a full Abstract S
 - **279 Built-in Rules**: Comprehensive coverage strictly categorized across six dimensions: Security, Performance, Cost, Reliability, Compliance, and Quality.
 - **Cross-File Analysis**: Detect breaking changes across multiple files, transitive view dependencies, and stored procedure call graphs.
 - **Dialect Guardians**: Native support for **14 SQL dialects** (PostgreSQL, MySQL, T-SQL, Snowflake, BigQuery, etc.). Rules only trigger for the dialects they explicitly target, eliminating false positives natively.
+- **Context-Aware Analysis**: Automatically classifies files as migrations, tests, seeds, dbt models, or application code and filters rules accordingly. Migrations do not flag SELECT *, tests do not warn about missing LIMIT, and app code does not suggest dbt syntax. [Learn more](architecture/context-awareness.md)
 - **Safe Autofix**: Automatically and safely format and fix bad SQL (`--fix` and `--diff`), with atomic `.bak` file generation guaranteeing operational safety.
 - **Rich Output Pipelines**: Ships with a cyberpunk-inspired terminal UI for human operability, alongside native SARIF and JSON exporters for automated pipelines.
 - **Migration Framework Support**: Natively supports Alembic, Django, Flyway, Liquibase, Prisma, and Knex with full dependency and ordering awareness.

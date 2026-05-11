@@ -2,7 +2,9 @@
 
 SlowQL supports inline suppression directives written as SQL line comments. These directives instruct the engine to skip specific rules for a given line, block, or file without modifying your analysis configuration.
 
-Suppression directives are the standard escape hatch available in every production-grade linter. They exist for cases where a rule fires correctly by design but is not applicable to a specific context, such as an intentional full table scan inside a data migration or a known false positive in generated SQL.
+SlowQL automatically filters false positives via [context-aware analysis](../architecture/context-awareness.md) before suppression directives are evaluated. Migration files, test files, seed files, and schema files each receive a tailored rule set that eliminates noise without manual configuration. Suppression directives are only needed for edge cases that slip past context filtering.
+
+Suppression directives are the standard escape hatch available in every production-grade linter. They exist for cases where a rule fires correctly by design but is not applicable to a specific line, such as an intentional full table scan inside a one-off maintenance script or a known false positive in generated SQL.
 
 ---
 
