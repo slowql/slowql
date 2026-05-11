@@ -453,6 +453,7 @@ class Query:
     is_dynamic: bool = False
     complexity_score: int = 0
     complexity_trend: int | None = None
+    source_context: str = ""
 
     @property
     def is_select(self) -> bool:
@@ -497,6 +498,7 @@ class Query:
             "query_type": self.query_type,
             "complexity_score": self.complexity_score,
             "complexity_trend": self.complexity_trend,
+            "source_context": self.source_context,
         }
 
 

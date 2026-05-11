@@ -224,16 +224,6 @@ markers = [
 source = ["src/slowql"]
 branch = true
 parallel = true
-omit = [
-    "src/slowql/rules/security/*.py",
-    "src/slowql/rules/performance/*.py",
-    "src/slowql/rules/cost/*.py",
-    "src/slowql/rules/reliability/*.py",
-    "src/slowql/rules/compliance/*.py",
-    "src/slowql/rules/quality/*.py",
-]
-
-[tool.coverage.report]
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",
