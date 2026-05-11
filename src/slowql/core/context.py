@@ -44,10 +44,14 @@ _PATH_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"(?:^|/)liquibase/", re.I), MIGRATION),
     (re.compile(r"(?:^|/)prisma/migrations/", re.I), MIGRATION),
     (re.compile(r"(?:^|/)src/main/resources/db/migration/", re.I), MIGRATION),
-    # Tests
+    # dbt (must come before test filename pattern so models/test.sql → dbt_model)
+    (re.compile(r"(?:^|/)models?/.*\.sql$", re.I), DBT_MODEL),
+    (re.compile(r"(?:^|/)dbt_models?/", re.I), DBT_MODEL),
+    # Tests (directory-based, more specific)
     (re.compile(r"(?:^|/)tests?/", re.I), TEST),
     (re.compile(r"(?:^|/)spec/", re.I), TEST),
     (re.compile(r"(?:^|/)__tests__/", re.I), TEST),
+    # Tests (filename-based, less specific — must come after dbt)
     (re.compile(r"(?:^|/)[^/]*test[^/]*\.sql$", re.I), TEST),
     # Seeds/fixtures
     (re.compile(r"(?:^|/)seeds?/", re.I), SEED),
@@ -56,9 +60,6 @@ _PATH_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"(?:^|/)schema\.sql$", re.I), DDL_SCHEMA),
     (re.compile(r"(?:^|/)schema/", re.I), DDL_SCHEMA),
     (re.compile(r"(?:^|/)ddl/", re.I), DDL_SCHEMA),
-    # dbt
-    (re.compile(r"(?:^|/)models?/.*\.sql$", re.I), DBT_MODEL),
-    (re.compile(r"(?:^|/)dbt_models?/", re.I), DBT_MODEL),
 ]
 
 _CONTENT_MARKERS: list[tuple[re.Pattern[str], str]] = [
@@ -88,6 +89,22 @@ _CONTEXT_ALLOWED_PREFIXES: dict[str, frozenset[str]] = {
     TEST: frozenset({"SEC-", "REL-"}),
     SEED: frozenset({"SEC-", "REL-"}),
     DDL_SCHEMA: frozenset({"SEC-", "REL-", "COMP-"}),
+}
+
+# Per-context deny list: rules that are false positives even though their
+# prefix is allowed (or for production contexts where no allowlist applies).
+_CONTEXT_DENIED_RULES: dict[str, frozenset[str]] = {
+    # Migration data is developer-controlled, not user input
+    MIGRATION: frozenset({"SEC-INJ-005"}),
+    # Test cleanup is intentional
+    TEST: frozenset({"REL-FK-002", "REL-DEAD-002"}),
+    # Seed data is developer-controlled, not user input
+    SEED: frozenset({"SEC-INJ-005"}),
+    # dbt ref syntax only makes sense in dbt models
+    APPLICATION: frozenset({"QUAL-DBT-001", "QUAL-DBT-002"}),
+    ADHOC: frozenset({"QUAL-DBT-001", "QUAL-DBT-002"}),
+    # dbt models don't use LIMIT
+    DBT_MODEL: frozenset({"PERF-SCAN-003"}),
 }
 
 
@@ -154,6 +171,10 @@ def filter_issues_by_context(
     Returns:
         Filtered list of issues (may be shorter than input).
     """
+    # Step 1: Apply deny list (all contexts)
+    denied = _CONTEXT_DENIED_RULES.get(source_context, frozenset())
+
+    # Step 2: Production contexts pass through (minus denied)
     if not source_context or source_context in (
         ADHOC,
         APPLICATION,
@@ -161,14 +182,18 @@ def filter_issues_by_context(
         VIEW_DEF,
         STORED_PROC,
     ):
-        return issues
+        if not denied:
+            return issues
+        return [i for i in issues if i.rule_id not in denied]
 
+    # Step 3: Non-production contexts use allowlist (minus denied)
     allowed = _CONTEXT_ALLOWED_PREFIXES.get(source_context)
     if not allowed:
-        return issues
+        return [] if denied else issues
 
     return [
         issue
         for issue in issues
-        if any(issue.rule_id.startswith(prefix) for prefix in allowed)
+        if issue.rule_id not in denied
+        and any(issue.rule_id.startswith(prefix) for prefix in allowed)
     ]

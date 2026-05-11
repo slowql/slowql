@@ -344,6 +344,7 @@ class SlowQL:
 
         # Run cross-file rules (like Dead SQL Detection)
         cross_file_issues = self._run_cross_file_rules(result)
+        cross_file_issues = filter_issues_by_context(cross_file_issues, source_ctx)
         for issue in cross_file_issues:
             result.add_issue(issue)
 
@@ -671,8 +672,13 @@ class SlowQL:
         # Third pass: run cross-file project-level rules
         if self.config.analysis.enabled_dimensions:
              cross_file_issues = self._run_cross_file_rules(combined_result)
+             # Filter cross-file issues by the context of their source file
              for issue in cross_file_issues:
-                 combined_result.add_issue(issue)
+                 file_path = issue.location.file if issue.location else None
+                 ctx = classify_source(file_path) if file_path else "adhoc"
+                 filtered = filter_issues_by_context([issue], ctx)
+                 for fi in filtered:
+                     combined_result.add_issue(fi)
 
         return combined_result
 

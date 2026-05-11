@@ -62,12 +62,12 @@ def test_dbt_missing_ref_rule():
     engine.config = engine.config.with_overrides(analysis={"enabled_rules": ["QUAL-DBT-001"]})
 
     sql = "SELECT * FROM my_table"
-    result = engine.analyze(sql)
+    result = engine.analyze(sql, file_path="models/my_model.sql")
     assert len(result.issues) == 1
     assert result.issues[0].rule_id == "QUAL-DBT-001"
 
     sql_ok = "SELECT * FROM {{ ref('my_table') }}"
-    result_ok = engine.analyze(sql_ok)
+    result_ok = engine.analyze(sql_ok, file_path="models/my_model_ok.sql")
     assert len(result_ok.issues) == 0
 
 def test_dbt_hardcoded_schema_rule():
@@ -76,11 +76,11 @@ def test_dbt_hardcoded_schema_rule():
     engine.config = engine.config.with_overrides(analysis={"enabled_rules": ["QUAL-DBT-002"]})
 
     sql = "SELECT * FROM my_schema.my_table"
-    result = engine.analyze(sql)
+    result = engine.analyze(sql, file_path="models/my_model.sql")
     assert len(result.issues) == 1
     assert result.issues[0].rule_id == "QUAL-DBT-002"
 
     sql_ok = "SELECT * FROM {{ source('my_source', 'my_table') }}"
-    result_ok = engine.analyze(sql_ok)
+    result_ok = engine.analyze(sql_ok, file_path="models/my_model_ok.sql")
     assert len(result_ok.issues) == 0
 
