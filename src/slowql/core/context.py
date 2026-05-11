@@ -48,7 +48,7 @@ _PATH_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"(?:^|/)tests?/", re.I), TEST),
     (re.compile(r"(?:^|/)spec/", re.I), TEST),
     (re.compile(r"(?:^|/)__tests__/", re.I), TEST),
-    (re.compile(r"(?:^|/).*test.*\.sql$", re.I), TEST),
+    (re.compile(r"(?:^|/)[^/]*test[^/]*\.sql$", re.I), TEST),
     # Seeds/fixtures
     (re.compile(r"(?:^|/)seeds?/", re.I), SEED),
     (re.compile(r"(?:^|/)fixtures?/", re.I), SEED),
@@ -76,45 +76,18 @@ _APP_EXTENSIONS = frozenset(
 )
 
 # ---------------------------------------------------------------------------
-# Context suppression rules
+# Context allowlist rules
 # ---------------------------------------------------------------------------
-# Rules suppressed per context. These produce false positives because the
-# pattern is intentional/acceptable in the given context.
+# For non-production contexts, only rules with allowed prefixes pass through.
+# Production contexts (APPLICATION, ADHOC, DBT_MODEL, VIEW_DEF, STORED_PROC)
+# get full analysis with no filtering.
 # ---------------------------------------------------------------------------
 
-_CONTEXT_SUPPRESSED: dict[str, frozenset[str]] = {
-    MIGRATION: frozenset({
-        "PERF-SCAN-001",   # SELECT * is fine in migrations
-        "PERF-SCAN-002",   # UPDATE/DELETE without WHERE is fine in migrations
-        "PERF-SCAN-005",   # DISTINCT in migrations is fine
-        "QUAL-STYLE-001",  # Style rules not relevant in migrations
-        "QUAL-STYLE-002",  # Same
-        "QUAL-NULL-001",   # NULL comparisons fine in migrations
-        "QUAL-NULL-002",   # Same
-    }),
-    TEST: frozenset({
-        "PERF-SCAN-001",   # SELECT * fine in tests
-        "PERF-SCAN-002",   # Missing WHERE fine in tests
-        "PERF-SCAN-005",   # DISTINCT fine in tests
-        "QUAL-STYLE-001",  # Style not relevant in tests
-        "QUAL-STYLE-002",  # Same
-    }),
-    SEED: frozenset({
-        "PERF-SCAN-001",   # SELECT * fine in seeds
-        "PERF-SCAN-002",   # Missing WHERE fine in seeds
-        "QUAL-STYLE-001",  # Style not relevant in seeds
-    }),
-    DDL_SCHEMA: frozenset({
-        "PERF-SCAN-001",   # SELECT * in schema files is fine
-    }),
-}
-
-# Prefix-based suppression: if a context suppresses a prefix, all rules with
-# that prefix are suppressed. Avoids listing every numbered variant.
-_CONTEXT_SUPPRESSED_PREFIXES: dict[str, frozenset[str]] = {
-    MIGRATION: frozenset({"PERF-IDX-", "SCHEMA-IDX-"}),
-    TEST: frozenset({"PERF-IDX-"}),
-    SEED: frozenset({"PERF-IDX-"}),
+_CONTEXT_ALLOWED_PREFIXES: dict[str, frozenset[str]] = {
+    MIGRATION: frozenset({"SEC-", "REL-"}),
+    TEST: frozenset({"SEC-", "REL-"}),
+    SEED: frozenset({"SEC-", "REL-"}),
+    DDL_SCHEMA: frozenset({"SEC-", "REL-", "COMP-"}),
 }
 
 
@@ -166,7 +139,13 @@ def filter_issues_by_context(
     issues: list[Issue], source_context: str
 ) -> list[Issue]:
     """
-    Filter out issues that are suppressed by the source context.
+    Filter issues by source context using an allowlist.
+
+    Production contexts (APPLICATION, ADHOC, DBT_MODEL, VIEW_DEF, STORED_PROC)
+    receive full analysis with no filtering.
+
+    Non-production contexts (MIGRATION, TEST, SEED, DDL_SCHEMA) only see
+    rules with allowed prefixes (SEC-, REL- etc.).
 
     Args:
         issues: List of issues to filter.
@@ -175,27 +154,21 @@ def filter_issues_by_context(
     Returns:
         Filtered list of issues (may be shorter than input).
     """
-    if not source_context or source_context in (ADHOC, APPLICATION):
+    if not source_context or source_context in (
+        ADHOC,
+        APPLICATION,
+        DBT_MODEL,
+        VIEW_DEF,
+        STORED_PROC,
+    ):
         return issues
 
-    suppressed = _CONTEXT_SUPPRESSED.get(source_context, frozenset())
-    suppressed_prefixes = _CONTEXT_SUPPRESSED_PREFIXES.get(
-        source_context, frozenset()
-    )
-
-    if not suppressed and not suppressed_prefixes:
+    allowed = _CONTEXT_ALLOWED_PREFIXES.get(source_context)
+    if not allowed:
         return issues
 
-    result: list[Issue] = []
-    for issue in issues:
-        # Exact match
-        if issue.rule_id in suppressed:
-            continue
-        # Prefix match
-        if suppressed_prefixes and any(
-            issue.rule_id.startswith(p) for p in suppressed_prefixes
-        ):
-            continue
-        result.append(issue)
-
-    return result
+    return [
+        issue
+        for issue in issues
+        if any(issue.rule_id.startswith(prefix) for prefix in allowed)
+    ]

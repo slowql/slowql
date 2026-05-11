@@ -250,8 +250,8 @@ class TestEngineAnalyzeWithBaseline:
         from slowql.core.engine import SlowQL
 
         # 1. Create a dummy baseline
-        # The file will be "test.sql" instead of None
-        baseline_issue = create_issue("PERF-001", "SELECT 1", "test.sql")
+        # The file will be "query.sql" instead of None
+        baseline_issue = create_issue("PERF-001", "SELECT 1", "query.sql")
         baseline = BaselineManager.generate(create_result([baseline_issue]))
 
         baseline_path = tmp_path / ".slowql-baseline"
@@ -260,7 +260,7 @@ class TestEngineAnalyzeWithBaseline:
         # 2. Setup engine with monkeypatched _run_analyzers
         engine = SlowQL(auto_discover=False)
 
-        new_issue = create_issue("SEC-001", "SELECT 2", "test.sql")
+        new_issue = create_issue("SEC-001", "SELECT 2", "query.sql")
 
         # When engine.analyze_file is called, it will eventually call _run_analyzers
         # We make it return BOTH issues (the old one and the new one)
@@ -272,7 +272,7 @@ class TestEngineAnalyzeWithBaseline:
         monkeypatch.setattr(engine, "_run_cross_file_rules", lambda _: [])
 
         # Create a dummy file for analyze_with_baseline to read
-        test_file = tmp_path / "test.sql"
+        test_file = tmp_path / "query.sql"
         test_file.write_text("SELECT 1; SELECT 2;", "utf-8")
 
         # 3. Call the new method
@@ -293,7 +293,7 @@ class TestEngineAnalyzeWithBaseline:
         engine = SlowQL(auto_discover=False)
         baseline_path = tmp_path / "missing.json"
 
-        test_file = tmp_path / "test.sql"
+        test_file = tmp_path / "query.sql"
         test_file.write_text("SELECT 1;", "utf-8")
 
         with pytest.raises(SlowQLFileNotFoundError, match="Baseline file not found"):
