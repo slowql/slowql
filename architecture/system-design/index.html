@@ -10111,10 +10111,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#5-result-aggregation" class="md-nav__link">
+  <a href="#5-context-aware-filtering" class="md-nav__link">
     <span class="md-ellipsis">
       
-        5. Result Aggregation
+        5. Context-Aware Filtering
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-result-aggregation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Result Aggregation
       
     </span>
   </a>
@@ -10683,10 +10694,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#5-result-aggregation" class="md-nav__link">
+  <a href="#5-context-aware-filtering" class="md-nav__link">
     <span class="md-ellipsis">
       
-        5. Result Aggregation
+        5. Context-Aware Filtering
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-result-aggregation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Result Aggregation
       
     </span>
   </a>
@@ -10744,7 +10766,15 @@
 <h2 id="4-the-execution-pipeline">4. The Execution Pipeline</h2>
 <p>Inside <code>RuleBasedAnalyzer</code>, every single active rule (<code>ASTRule</code> or <code>PatternRule</code>) is executed against the parsed ASTs. 
 Because <code>slowql</code> enforces strict Dialect Guardians (e.g., <code>dialects=("snowflake",)</code> on rules), the pipeline automatically and safely skips rules that aren't relevant to the current dialect, practically eliminating false positives. </p>
-<h2 id="5-result-aggregation">5. Result Aggregation</h2>
+<h2 id="5-context-aware-filtering">5. Context-Aware Filtering</h2>
+<p>Before result aggregation, the Engine classifies each file into a source context (migration, test, seed, dbt_model, application, adhoc, etc.) using path patterns and content heuristics. A three-layer filter then removes false positives:</p>
+<ol>
+<li><strong>Allowlist</strong>: Non-production contexts only see security (SEC-) and reliability (REL-) rules.</li>
+<li><strong>Deny list</strong>: Context-specific exclusions (e.g., SEC-INJ-005 denied in migrations because data is developer-controlled).</li>
+<li><strong>Cross-file filter</strong>: Project-level rules respect per-file context.</li>
+</ol>
+<p>See <a href="../context-awareness/">Context-Aware Analysis</a> for the full specification.</p>
+<h2 id="6-result-aggregation">6. Result Aggregation</h2>
 <p>Finally, any triggered rule yields an <code>Issue</code> object containing the <code>RemediationMode</code>, <code>Severity</code>, explicit location, and potentially a <code>FixConfidence.SAFE</code> replacement string.</p>
 <p>The Engine accumulates these into an <code>AnalysisResult</code> dataclass and passes them to the configured <strong>Reporter</strong> (e.g., Cyberpunk TUI Console, <code>SARIF</code> for CI/CD Pipeline, or JSON hook).</p>
 

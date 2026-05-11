@@ -639,6 +639,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#context-aware-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context-Aware Analysis
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#severity" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -10724,6 +10735,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#context-aware-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context-Aware Analysis
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#severity" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -10863,6 +10885,56 @@ cost:
 </code></pre>
 <hr />
 <h2 id="configuration-blocks-explained">Configuration Blocks Explained</h2>
+<h3 id="context-aware-analysis">Context-Aware Analysis</h3>
+<p>SlowQL automatically classifies files into source contexts (migration, test, seed, dbt_model, application, etc.) and filters rules accordingly. This requires zero configuration - it works out of the box based on your directory structure.</p>
+<table>
+<thead>
+<tr>
+<th>Directory Pattern</th>
+<th>Context</th>
+<th>Rules Active</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>migrations/, alembic/versions/</td>
+<td>migration</td>
+<td>SEC-, REL-</td>
+</tr>
+<tr>
+<td>tests/, spec/, <em>test</em>.sql</td>
+<td>test</td>
+<td>SEC-, REL-</td>
+</tr>
+<tr>
+<td>seeds/, fixtures/</td>
+<td>seed</td>
+<td>SEC-, REL-</td>
+</tr>
+<tr>
+<td>schema.sql, ddl/</td>
+<td>ddl_schema</td>
+<td>SEC-, REL-, COMP-</td>
+</tr>
+<tr>
+<td>models/*.sql</td>
+<td>dbt_model</td>
+<td>All (except PERF-SCAN-003)</td>
+</tr>
+<tr>
+<td>src/</td>
+<td>application</td>
+<td>All (except QUAL-DBT-*)</td>
+</tr>
+<tr>
+<td>No file path</td>
+<td>adhoc</td>
+<td>All (except QUAL-DBT-*)</td>
+</tr>
+</tbody>
+</table>
+<p>See <a href="../../architecture/context-awareness/">Context-Aware Analysis</a> for details and customization.</p>
+<hr />
 <h3 id="severity"><code>severity</code></h3>
 <p>Controls how pipeline exits handle found issues.
 - <strong><code>fail_on</code></strong>: Crucial for CI/CD. The process returns an exit code <code>1</code> if the analysis discovers any vulnerability equal to or exceeding this threshold. Options: <code>critical</code>, <code>high</code>, <code>medium</code>, <code>low</code>, <code>info</code>, <code>never</code>.</p>

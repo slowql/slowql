@@ -9,10 +9,6 @@
       
       
       
-        <link rel="prev" href="../cli-reference/">
-      
-      
-        <link rel="next" href="../severity-overrides/">
       
       
         
@@ -23,7 +19,7 @@
     
     
       
-        <title>Inline Suppression - SlowQL Documentation</title>
+        <title>Context-Aware Analysis - SlowQL Documentation</title>
       
     
     
@@ -64,7 +60,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#inline-suppression" class="md-skip">
+        <a href="#context-aware-analysis" class="md-skip">
           Skip to content
         </a>
       
@@ -97,7 +93,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Inline Suppression
+              Context-Aware Analysis
             
           </span>
         </div>
@@ -189,12 +185,10 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
+      <li class="md-tabs__item">
         <a href="../../getting-started/quick-start/" class="md-tabs__link">
           
   
@@ -239,7 +233,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../architecture/system-design/" class="md-tabs__link">
+        <a href="../system-design/" class="md-tabs__link">
           
   
   
@@ -398,10 +392,8 @@
       
   
   
-    
   
   
-  
     
     
       
@@ -423,20 +415,17 @@
     
     
       
-        
-        
-      
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
         
           
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
             
   
   
@@ -454,7 +443,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
             
@@ -581,10 +570,8 @@
                 
   
   
-    
   
   
-  
     
     
       
@@ -607,11 +594,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_5" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_5" >
         
           
           <label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="0">
@@ -632,7 +619,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_5_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_5_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_2_5">
             <span class="md-nav__icon md-icon"></span>
             
@@ -650,7 +637,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../cli-reference/" class="md-nav__link">
+      <a href="../../usage/cli-reference/" class="md-nav__link">
         
   
   
@@ -675,37 +662,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Inline Suppression
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../usage/suppression/" class="md-nav__link">
         
   
   
@@ -721,131 +681,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#directives" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Directives
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Directives">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#suppress-the-current-line" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Suppress the current line
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#suppress-the-next-line" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Suppress the next line
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#suppress-a-block" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Suppress a block
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#suppress-the-entire-file" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Suppress the entire file
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#rule-id-formats" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Rule ID formats
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#suppression-inside-string-literals" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Suppression inside string literals
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#reporting" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Reporting
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#when-to-use-suppression" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        When to use suppression
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -858,7 +693,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../severity-overrides/" class="md-nav__link">
+      <a href="../../usage/severity-overrides/" class="md-nav__link">
         
   
   
@@ -886,7 +721,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../baseline/" class="md-nav__link">
+      <a href="../../usage/baseline/" class="md-nav__link">
         
   
   
@@ -914,7 +749,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../app-code-extraction/" class="md-nav__link">
+      <a href="../../usage/app-code-extraction/" class="md-nav__link">
         
   
   
@@ -942,7 +777,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ci-cd-integration/" class="md-nav__link">
+      <a href="../../usage/ci-cd-integration/" class="md-nav__link">
         
   
   
@@ -978,7 +813,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../pre-commit-hook/" class="md-nav__link">
+      <a href="../../usage/pre-commit-hook/" class="md-nav__link">
         
   
   
@@ -1006,7 +841,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../editor-setup/" class="md-nav__link">
+      <a href="../../usage/editor-setup/" class="md-nav__link">
         
   
   
@@ -10150,7 +9985,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../architecture/system-design/" class="md-nav__link">
+      <a href="../system-design/" class="md-nav__link">
         
   
   
@@ -10178,7 +10013,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../architecture/parser-engine/" class="md-nav__link">
+      <a href="../parser-engine/" class="md-nav__link">
         
   
   
@@ -10206,7 +10041,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../architecture/rule-system/" class="md-nav__link">
+      <a href="../rule-system/" class="md-nav__link">
         
   
   
@@ -10234,7 +10069,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../architecture/export-system/" class="md-nav__link">
+      <a href="../export-system/" class="md-nav__link">
         
   
   
@@ -10262,7 +10097,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../architecture/lsp-integration/" class="md-nav__link">
+      <a href="../lsp-integration/" class="md-nav__link">
         
   
   
@@ -10669,22 +10504,44 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#directives" class="md-nav__link">
+  <a href="#why-context-matters" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Directives
+        Why Context Matters
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Directives">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#supported-contexts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Supported Contexts
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#three-layer-filtering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Three-Layer Filtering
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Three-Layer Filtering">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#suppress-the-current-line" class="md-nav__link">
+  <a href="#layer-1-allowlist" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Suppress the current line
+        Layer 1: Allowlist
       
     </span>
   </a>
@@ -10692,10 +10549,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#suppress-the-next-line" class="md-nav__link">
+  <a href="#layer-2-deny-list" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Suppress the next line
+        Layer 2: Deny List
       
     </span>
   </a>
@@ -10703,21 +10560,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#suppress-a-block" class="md-nav__link">
+  <a href="#layer-3-cross-file-filtering" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Suppress a block
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#suppress-the-entire-file" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Suppress the entire file
+        Layer 3: Cross-File Filtering
       
     </span>
   </a>
@@ -10730,10 +10576,49 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#rule-id-formats" class="md-nav__link">
+  <a href="#classification-logic" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Rule ID formats
+        Classification Logic
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Classification Logic">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#path-pattern-priority" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Path Pattern Priority
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#filename-matching" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Filename Matching
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example Output
       
     </span>
   </a>
@@ -10741,10 +10626,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#suppression-inside-string-literals" class="md-nav__link">
+  <a href="#when-context-is-not-enough" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Suppression inside string literals
+        When Context Is Not Enough
       
     </span>
   </a>
@@ -10752,21 +10637,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#reporting" class="md-nav__link">
+  <a href="#api-reference" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Reporting
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#when-to-use-suppression" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        When to use suppression
+        API Reference
       
     </span>
   </a>
@@ -10790,69 +10664,156 @@
 
 
 
-<h1 id="inline-suppression">Inline Suppression</h1>
-<p>SlowQL supports inline suppression directives written as SQL line comments. These directives instruct the engine to skip specific rules for a given line, block, or file without modifying your analysis configuration.</p>
-<p>SlowQL automatically filters false positives via <a href="../../architecture/context-awareness/">context-aware analysis</a> before suppression directives are evaluated. Migration files, test files, seed files, and schema files each receive a tailored rule set that eliminates noise without manual configuration. Suppression directives are only needed for edge cases that slip past context filtering.</p>
-<p>Suppression directives are the standard escape hatch available in every production-grade linter. They exist for cases where a rule fires correctly by design but is not applicable to a specific line, such as an intentional full table scan inside a one-off maintenance script or a known false positive in generated SQL.</p>
-<hr />
-<h2 id="directives">Directives</h2>
-<h3 id="suppress-the-current-line">Suppress the current line</h3>
-<pre><code class="language-sql">SELECT * FROM archive_audit_log;  -- slowql-disable-line PERF-SCAN-001
+<h1 id="context-aware-analysis">Context-Aware Analysis</h1>
+<p>SlowQL automatically classifies every SQL file into a <strong>source context</strong> and filters its analysis accordingly. This eliminates false positives without requiring manual suppression - migration files will not flag SELECT *, test files will not warn about missing LIMIT, and application code will not suggest dbt ref() syntax.</p>
+<h2 id="why-context-matters">Why Context Matters</h2>
+<p>A SELECT * in a migration is routine. The same query in production application code is a performance risk. Without context awareness, a linter treats both identically - either flooding migrations with noise or missing real issues in application code.</p>
+<p>SlowQL solves this by classifying each file before analysis and applying context-specific filtering.</p>
+<h2 id="supported-contexts">Supported Contexts</h2>
+<table>
+<thead>
+<tr>
+<th>Context</th>
+<th>Classification Method</th>
+<th>Filtering</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>migration</td>
+<td>Path: migrations/, alembic/versions/, db/migrate/, flyway/, liquibase/, prisma/migrations/</td>
+<td>Allowlist: SEC-, REL- only</td>
+</tr>
+<tr>
+<td>test</td>
+<td>Path: tests/, spec/, <strong>tests</strong>/, or filename <em>test</em>.sql</td>
+<td>Allowlist: SEC-, REL- only</td>
+</tr>
+<tr>
+<td>seed</td>
+<td>Path: seeds/, fixtures/</td>
+<td>Allowlist: SEC-, REL- only</td>
+</tr>
+<tr>
+<td>ddl_schema</td>
+<td>Path: schema.sql, schema/, ddl/</td>
+<td>Allowlist: SEC-, REL-, COMP-</td>
+</tr>
+<tr>
+<td>dbt_model</td>
+<td>Path: models/*.sql, dbt_models/</td>
+<td>Full analysis (deny: PERF-SCAN-003)</td>
+</tr>
+<tr>
+<td>application</td>
+<td>Path: src/, content heuristics</td>
+<td>Full analysis (deny: QUAL-DBT-*)</td>
+</tr>
+<tr>
+<td>adhoc</td>
+<td>No file path, or unrecognized path</td>
+<td>Full analysis (deny: QUAL-DBT-*)</td>
+</tr>
+<tr>
+<td>view_def</td>
+<td>Content: CREATE OR REPLACE VIEW</td>
+<td>Full analysis</td>
+</tr>
+<tr>
+<td>stored_proc</td>
+<td>Content: CREATE PROCEDURE/CREATE FUNCTION</td>
+<td>Full analysis</td>
+</tr>
+</tbody>
+</table>
+<h2 id="three-layer-filtering">Three-Layer Filtering</h2>
+<p>SlowQL applies three layers of filtering to achieve 100% precision:</p>
+<h3 id="layer-1-allowlist">Layer 1: Allowlist</h3>
+<p>Non-production contexts (migration, test, seed, ddl_schema) only see rules with allowed prefixes. By default, only SEC- (security) and REL- (reliability) rules pass through. Schema files also see COMP- (compliance) rules.</p>
+<p>This means performance, cost, quality, and compliance noise is eliminated entirely in non-production files.</p>
+<h3 id="layer-2-deny-list">Layer 2: Deny List</h3>
+<p>Even within allowed prefixes, specific rules produce false positives in certain contexts. The deny list removes these:</p>
+<table>
+<thead>
+<tr>
+<th>Context</th>
+<th>Denied Rules</th>
+<th>Reason</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>migration</td>
+<td>SEC-INJ-005</td>
+<td>Migration data is developer-controlled, not user input</td>
+</tr>
+<tr>
+<td>seed</td>
+<td>SEC-INJ-005</td>
+<td>Seed data is developer-controlled, not user input</td>
+</tr>
+<tr>
+<td>test</td>
+<td>REL-FK-002, REL-DEAD-002, SEC-AUTHZ-003</td>
+<td>Test cleanup is intentional; no tenant scoping needed</td>
+</tr>
+<tr>
+<td>application</td>
+<td>QUAL-DBT-001, QUAL-DBT-002</td>
+<td>Not a dbt project</td>
+</tr>
+<tr>
+<td>adhoc</td>
+<td>QUAL-DBT-001, QUAL-DBT-002</td>
+<td>Not a dbt project</td>
+</tr>
+<tr>
+<td>dbt_model</td>
+<td>PERF-SCAN-003</td>
+<td>dbt models do not use LIMIT</td>
+</tr>
+</tbody>
+</table>
+<h3 id="layer-3-cross-file-filtering">Layer 3: Cross-File Filtering</h3>
+<p>Cross-file rules (like unused object detection QUAL-DEAD-001) run after per-file analysis. SlowQL applies the same context filtering to cross-file issues based on the source file that produced them, preventing bypass.</p>
+<h2 id="classification-logic">Classification Logic</h2>
+<p>Files are classified in priority order:</p>
+<ol>
+<li><strong>Path patterns</strong> (highest confidence) - directory structure and filename matching</li>
+<li><strong>Content heuristics</strong> - CREATE OR REPLACE VIEW, CREATE PROCEDURE, etc.</li>
+<li><strong>Default</strong> - adhoc for raw SQL strings with no file path</li>
+</ol>
+<h3 id="path-pattern-priority">Path Pattern Priority</h3>
+<p>More specific patterns match first. For example:
+- models/test.sql -&gt; dbt_model (directory match, not filename match)
+- tests/test.sql -&gt; test (directory match)
+- mytest.sql -&gt; test (filename match)</p>
+<h3 id="filename-matching">Filename Matching</h3>
+<p>The test filename pattern (<em>test</em>.sql) only matches within a single path component. This prevents false matches on pytest temporary directories like pytest-9/test_analyze_file0/query.sql.</p>
+<h2 id="example-output">Example Output</h2>
+<pre><code>migrations/001_create_users.sql  -&gt; migration  -&gt; 1 issue  (REL-IDEM-001)
+tests/test_queries.sql           -&gt; test       -&gt; 0 issues (clean)
+seeds/sample_data.sql            -&gt; seed       -&gt; 1 issue  (REL-IDEM-001)
+models/users_recent.sql          -&gt; dbt_model  -&gt; 4 issues (performance + quality)
+src/db/queries.sql               -&gt; adhoc      -&gt; 7 issues (full analysis)
+schema.sql                       -&gt; ddl_schema -&gt; 1 issue  (COMP-RET-001)
 </code></pre>
-<p>The directive must appear on the same line as the statement it suppresses. Only the specified rule is skipped; all other rules continue to fire on that line.</p>
-<hr />
-<h3 id="suppress-the-next-line">Suppress the next line</h3>
-<pre><code class="language-sql">-- slowql-disable-next-line SEC-INJ-001
-SELECT id, password_hash FROM users WHERE id = $1;
+<h2 id="when-context-is-not-enough">When Context Is Not Enough</h2>
+<p>If a rule fires correctly but is contextually inapplicable to a specific line, use <a href="../../usage/suppression/">inline suppression</a> as a last resort. Context-aware filtering handles the broad patterns; suppression handles the edge cases.</p>
+<h2 id="api-reference">API Reference</h2>
+<pre><code>from slowql.core.context import classify_source, filter_issues_by_context
+
+# Classify a file
+context = classify_source("migrations/001_create_users.sql")
+# -&gt; "migration"
+
+# Classify raw SQL (no file)
+context = classify_source(None, "SELECT * FROM users")
+# -&gt; "adhoc"
+
+# Filter issues by context
+filtered = filter_issues_by_context(issues, "migration")
 </code></pre>
-<p>The directive must appear on the line immediately before the target statement. Blank lines between the directive and the target are allowed; the engine skips them and applies suppression to the next non-blank, non-comment line.</p>
-<hr />
-<h3 id="suppress-a-block">Suppress a block</h3>
-<pre><code class="language-sql">-- slowql-disable PERF-SCAN-001
-SELECT * FROM event_stream;
-SELECT * FROM session_log;
--- slowql-enable PERF-SCAN-001
-</code></pre>
-<p>All lines between the <code>disable</code> and <code>enable</code> directives are suppressed for the named rule. If no matching <code>enable</code> is present, suppression applies to the remainder of the file.</p>
-<hr />
-<h3 id="suppress-the-entire-file">Suppress the entire file</h3>
-<pre><code class="language-sql">-- slowql-disable-file PERF-SCAN-001
-</code></pre>
-<p>This directive can appear anywhere in the file. It suppresses the named rule for every issue found in that file, regardless of line number.</p>
-<hr />
-<h2 id="rule-id-formats">Rule ID formats</h2>
-<p>All four directives accept the following formats for the rule identifier:</p>
-<p><strong>Exact rule ID.</strong> Only the specified rule is suppressed.</p>
-<pre><code class="language-sql">SELECT * FROM t;  -- slowql-disable-line PERF-SCAN-001
-</code></pre>
-<p><strong>Prefix.</strong> All rules whose ID starts with the prefix are suppressed.</p>
-<pre><code class="language-sql">SELECT * FROM t;  -- slowql-disable-line PERF-SCAN
-</code></pre>
-<p>The prefix <code>PERF-SCAN</code> would suppress <code>PERF-SCAN-001</code>, <code>PERF-SCAN-002</code>, and any other rule in that group.</p>
-<p><strong>Multiple rule IDs.</strong> Comma-separated values are supported on a single directive.</p>
-<pre><code class="language-sql">SELECT * FROM t;  -- slowql-disable-line PERF-SCAN-001, SEC-INJ-001
-</code></pre>
-<p><strong>No rule ID.</strong> Omitting the rule ID suppresses all rules for that scope.</p>
-<pre><code class="language-sql">SELECT * FROM t;  -- slowql-disable-line
-</code></pre>
-<p>Matching is case-insensitive. <code>perf-scan-001</code> and <code>PERF-SCAN-001</code> are equivalent.</p>
-<hr />
-<h2 id="suppression-inside-string-literals">Suppression inside string literals</h2>
-<p>Directives inside SQL string literals are ignored. The following does not suppress anything:</p>
-<pre><code class="language-sql">SELECT '-- slowql-disable-line PERF-SCAN-001' AS note FROM t;
-</code></pre>
-<hr />
-<h2 id="reporting">Reporting</h2>
-<p>Suppressed issues are not included in the reported output or counted toward severity thresholds. The engine tracks how many issues were suppressed per run and exposes that count via the Python API in <code>AnalysisResult.suppressed_count</code>.</p>
-<hr />
-<h2 id="when-to-use-suppression">When to use suppression</h2>
-<p>Suppression should be the last resort, applied only when a rule fires correctly but is contextually inapplicable. Common legitimate uses:</p>
-<ul>
-<li>Intentional full table scans inside maintenance scripts or backfill jobs.</li>
-<li>Known false positives in generated SQL that cannot be refactored.</li>
-<li>Schema migration files where destructive operations are expected.</li>
-</ul>
-<p>For persistent patterns, prefer <code>disabled_rules</code> in your configuration file, which disables a rule globally across all files.</p>
 
 
 

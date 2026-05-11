@@ -10781,6 +10781,7 @@
 <li><strong>279 Built-in Rules</strong>: Comprehensive coverage strictly categorized across six dimensions: Security, Performance, Cost, Reliability, Compliance, and Quality.</li>
 <li><strong>Cross-File Analysis</strong>: Detect breaking changes across multiple files, transitive view dependencies, and stored procedure call graphs.</li>
 <li><strong>Dialect Guardians</strong>: Native support for <strong>14 SQL dialects</strong> (PostgreSQL, MySQL, T-SQL, Snowflake, BigQuery, etc.). Rules only trigger for the dialects they explicitly target, eliminating false positives natively.</li>
+<li><strong>Context-Aware Analysis</strong>: Automatically classifies files as migrations, tests, seeds, dbt models, or application code and filters rules accordingly. Migrations do not flag SELECT *, tests do not warn about missing LIMIT, and app code does not suggest dbt syntax. <a href="architecture/context-awareness/">Learn more</a></li>
 <li><strong>Safe Autofix</strong>: Automatically and safely format and fix bad SQL (<code>--fix</code> and <code>--diff</code>), with atomic <code>.bak</code> file generation guaranteeing operational safety.</li>
 <li><strong>Rich Output Pipelines</strong>: Ships with a cyberpunk-inspired terminal UI for human operability, alongside native SARIF and JSON exporters for automated pipelines.</li>
 <li><strong>Migration Framework Support</strong>: Natively supports Alembic, Django, Flyway, Liquibase, Prisma, and Knex with full dependency and ordering awareness.</li>

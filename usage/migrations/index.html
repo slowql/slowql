@@ -10548,6 +10548,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#context-aware-filtering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context-Aware Filtering
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#configuration" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -10611,6 +10622,14 @@ slowql ./migrations/versions/v1_init.py --input-file ./migrations/versions/v2_ad
 <li><strong>Idempotency:</strong> Ensuring migrations can be safely run multiple times without error.</li>
 <li><strong>Dialect Compatibility:</strong> Verifying that migration SQL is valid for your target database dialect.</li>
 </ul>
+<h2 id="context-aware-filtering">Context-Aware Filtering</h2>
+<p>SlowQL automatically recognizes migration files and filters out irrelevant rules. Only security (SEC-) and reliability (REL-) rules fire on migrations - performance, cost, quality, and compliance noise is eliminated entirely.</p>
+<p>Specific exclusions for migrations:
+- SEC-INJ-005 (second-order injection) is suppressed because migration data is developer-controlled, not user input.
+- PERF-SCAN-001 (SELECT *) is suppressed because migrations routinely select all columns.
+- QUAL-DBT-001 (missing dbt ref) is suppressed because migrations use raw table names.</p>
+<p>This means your migrations only surface issues that matter: idempotency guards (REL-IDEM-001), missing transactions, and genuine security concerns.</p>
+<p>See <a href="../../architecture/context-awareness/">Context-Aware Analysis</a> for the full specification.</p>
 <h2 id="configuration">Configuration</h2>
 <p>You can configure migration analysis in your <code>slowql.toml</code>:</p>
 <pre><code class="language-toml">[analysis]
