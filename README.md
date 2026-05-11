@@ -111,6 +111,8 @@ Catch security vulnerabilities, performance regressions, reliability issues, com
 
 **Migration Framework Support.** Natively supports **Alembic**, **Django migrations**, **Flyway**, **Liquibase**, **Prisma Migrate**, and **Knex**. SlowQL understands the ordering, dependencies, and context of migration files to catch destructive changes before they break your existing queries.
 
+**Context-Aware Analysis.** Automatically classifies files as migrations, tests, seeds, dbt models, or application code and filters rules accordingly. Migrations do not flag SELECT *, tests do not warn about missing LIMIT, and app code does not suggest dbt syntax. Zero false positives by design.
+
 **14 SQL Dialects.** Dialect-aware analysis for PostgreSQL, MySQL, SQL Server (T-SQL), Oracle, SQLite, Snowflake, BigQuery, Redshift, ClickHouse, DuckDB, Presto, Trino, Spark, and Databricks. Universal rules fire on all dialects; dialect-specific rules only fire when relevant.
 
 **Schema-Aware Validation.** Optionally validate against your DDL files to catch missing tables, columns, and suggest indexes.
@@ -547,15 +549,19 @@ complexity:
 SlowQL is a modular pipeline:
 
 ```
-SQL Files → Parser (sqlglot) → AST → Analyzers → Rules → Issues → Reporters
-                                 ↑                          ↓
-                           Schema Inspector            AutoFixer
-                           (DDL parsing)           (safe text fixes)
+SQL Files → Parser (sqlglot) → AST → Context → Analyzers → Rules → Issues → Reporters
+                                 ↑   Classify    ↑          ↓
+                           Schema Inspector |     AutoFixer
+                           (DDL parsing)    |  (safe text fixes)
+                                             +-- 3-layer filter
+                                                 (allow/deny/cross-file)
 ```
 
 **Parser.** Uses [sqlglot](https://github.com/tobymao/sqlglot) for multi-dialect SQL parsing. Handles statement splitting, dialect detection, and AST generation.
 
-**Engine.** Orchestrates parsing, analyzer execution, schema validation, and result aggregation.
+**Engine.** Orchestrates parsing, context classification, analyzer execution, schema validation, and result aggregation.
+
+**Context Classifier.** Classifies each file into a source context (migration, test, seed, dbt_model, application, etc.) and applies three-layer filtering to eliminate false positives before issues reach reporters.
 
 **Analyzers.** Six domain-specific analyzers (Security, Performance, Reliability, Compliance, Cost, Quality), each loading rules from the catalog.
 
