@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any
 
 from slowql.analyzers.registry import get_registry
 from slowql.core.config import Config
+from slowql.core.context import classify_source, filter_issues_by_context
 from slowql.core.exceptions import FileNotFoundError, ParseError, SlowQLError
 from slowql.core.models import (
     AnalysisResult,
@@ -288,8 +289,16 @@ class SlowQL:
         )
         result.statistics.parse_time_ms = parse_time_ms
 
+        # Classify source context
+        source_ctx = classify_source(file_path, sql)
+        for q in queries:
+            q.source_context = source_ctx
+
         # Run analyzers
         raw_issues = self._run_analyzers(queries)
+
+        # Filter issues by source context
+        raw_issues = filter_issues_by_context(raw_issues, source_ctx)
 
         # Apply inline suppression directives
         suppressed_count = 0
@@ -439,7 +448,10 @@ class SlowQL:
             old_schema = self._schema
             self._schema = current_schema
             try:
+                for q in queries:
+                    q.source_context = "migration"
                 raw_issues = self._run_analyzers(queries)
+                raw_issues = filter_issues_by_context(raw_issues, "migration")
                 for issue in raw_issues:
                     combined_result.add_issue(issue)
             finally:
@@ -947,8 +959,13 @@ class SlowQL:
 
                 combined_result.queries.extend(queries)
 
+                # Classify and tag source context
+                for q in queries:
+                    q.source_context = "application"
+
                 # Run analyzers
                 raw_issues = self._run_analyzers(queries)
+                raw_issues = filter_issues_by_context(raw_issues, "application")
                 for issue in raw_issues:
                     combined_result.add_issue(issue)
 
