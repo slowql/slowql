@@ -44,14 +44,15 @@ _PATH_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"(?:^|/)liquibase/", re.I), MIGRATION),
     (re.compile(r"(?:^|/)prisma/migrations/", re.I), MIGRATION),
     (re.compile(r"(?:^|/)src/main/resources/db/migration/", re.I), MIGRATION),
-    # dbt (must come before test filename pattern so models/test.sql → dbt_model)
-    (re.compile(r"(?:^|/)models?/.*\.sql$", re.I), DBT_MODEL),
-    (re.compile(r"(?:^|/)dbt_models?/", re.I), DBT_MODEL),
-    # Tests (directory-based, more specific)
+    # Tests (directory-based -- must come before dbt so tests/models/foo.sql -> test)
     (re.compile(r"(?:^|/)tests?/", re.I), TEST),
     (re.compile(r"(?:^|/)spec/", re.I), TEST),
     (re.compile(r"(?:^|/)__tests__/", re.I), TEST),
-    # Tests (filename-based, less specific — must come after dbt)
+    # dbt (must come before test filename pattern so models/test.sql -> dbt_model)
+    (re.compile(r"(?:^|/)models?/.*\.sql$", re.I), DBT_MODEL),
+    (re.compile(r"(?:^|/)dbt_models?/", re.I), DBT_MODEL),
+    # Tests (filename-based, less specific -- must come after dbt)
+    (re.compile(r"(?:^|/)[^/]*test[^/]*\.sql$", re.I), TEST),
     (re.compile(r"(?:^|/)[^/]*test[^/]*\.sql$", re.I), TEST),
     # Seeds/fixtures
     (re.compile(r"(?:^|/)seeds?/", re.I), SEED),
@@ -72,6 +73,9 @@ _CONTENT_MARKERS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"--\s*migrate:\s*(up|down)", re.I), MIGRATION),
     (re.compile(r"\{\{\s*ref\s*\(", re.M), DBT_MODEL),
     (re.compile(r"\{\%\s*(config|materialization)", re.M), DBT_MODEL),
+    # Views and stored procedures
+    (re.compile(r"CREATE\s+(OR\s+REPLACE\s+)?VIEW\b", re.I), VIEW_DEF),
+    (re.compile(r"CREATE\s+(OR\s+REPLACE\s+)?(PROCEDURE|FUNCTION)\b", re.I), STORED_PROC),
 ]
 
 _APP_EXTENSIONS = frozenset(
