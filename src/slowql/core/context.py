@@ -60,6 +60,8 @@ _PATH_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"(?:^|/)schema\.sql$", re.I), DDL_SCHEMA),
     (re.compile(r"(?:^|/)schema/", re.I), DDL_SCHEMA),
     (re.compile(r"(?:^|/)ddl/", re.I), DDL_SCHEMA),
+    # Application code (must come last - catches anything under src/)
+    (re.compile(r"(?:^|/)src/", re.I), APPLICATION),
 ]
 
 _CONTENT_MARKERS: list[tuple[re.Pattern[str], str]] = [
@@ -96,8 +98,8 @@ _CONTEXT_ALLOWED_PREFIXES: dict[str, frozenset[str]] = {
 _CONTEXT_DENIED_RULES: dict[str, frozenset[str]] = {
     # Migration data is developer-controlled, not user input
     MIGRATION: frozenset({"SEC-INJ-005"}),
-    # Test cleanup is intentional
-    TEST: frozenset({"REL-FK-002", "REL-DEAD-002"}),
+    # Test cleanup is intentional; test queries don't need tenant scoping
+    TEST: frozenset({"REL-FK-002", "REL-DEAD-002", "SEC-AUTHZ-003"}),
     # Seed data is developer-controlled, not user input
     SEED: frozenset({"SEC-INJ-005"}),
     # dbt ref syntax only makes sense in dbt models
