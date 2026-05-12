@@ -4,10 +4,12 @@ End-to-end precision test: every issue SlowQL flags must be a true positive.
 Creates a temporary repo with files across all contexts, runs full analysis,
 and verifies each issue against an explicit expected set.
 """
-import os
+from pathlib import Path
+
 import pytest
-from slowql.core.engine import SlowQL
+
 from slowql.core.context import classify_source
+from slowql.core.engine import SlowQL
 
 
 @pytest.fixture(scope="module")
@@ -201,7 +203,7 @@ class TestFalsePositiveExclusion:
         forbidden = set(FORBIDDEN_RULES[key])
         violations = rule_ids & forbidden
         assert not violations, (
-            f"{os.path.basename(path)} (ctx={key}): found forbidden rules {violations}"
+            f"{Path(path).name} (ctx={key}): found forbidden rules {violations}"
         )
 
     def test_adhoc_no_dbt_rules(self):
@@ -234,7 +236,7 @@ class TestTruePositivePresence:
         required = set(REQUIRED_RULES[key])
         missing = required - rule_ids
         assert not missing, (
-            f"{os.path.basename(path)} (ctx={key}): missing required rules {missing}"
+            f"{Path(path).name} (ctx={key}): missing required rules {missing}"
         )
 
 
@@ -248,7 +250,7 @@ class TestZeroIssues:
         engine = SlowQL()
         result = engine.analyze_file(path)
         assert len(result.issues) == 0, (
-            f"{os.path.basename(path)} (ctx={key}): "
+            f"{Path(path).name} (ctx={key}): "
             f"expected 0 issues, got {[i.rule_id for i in result.issues]}"
         )
 
@@ -292,13 +294,13 @@ class TestFullPrecisionAudit:
 
         unexpected = set(rule_counts) - set(expected)
         assert not unexpected, (
-            f"{os.path.basename(path)} (ctx={key}): unexpected rules {unexpected}"
+            f"{Path(path).name} (ctx={key}): unexpected rules {unexpected}"
         )
 
         for rule_id, min_count in expected.items():
             actual = rule_counts.get(rule_id, 0)
             assert actual >= min_count, (
-                f"{os.path.basename(path)} (ctx={key}): "
+                f"{Path(path).name} (ctx={key}): "
                 f"expected >={min_count} {rule_id}, got {actual}"
             )
 
@@ -364,7 +366,7 @@ class TestCrossFileContextFiltering:
 
     def test_migration_issues_filtered(self):
         from slowql.core.context import filter_issues_by_context
-        from slowql.core.models import Issue, Severity, Location
+        from slowql.core.models import Issue, Location, Severity
         issues = [
             Issue(rule_id="REL-IDEM-001", severity=Severity.HIGH, message="test",
                   dimension="reliability", location=Location(file="migrations/001.sql", line=1, column=1), snippet="INSERT INTO users"),
@@ -378,7 +380,7 @@ class TestCrossFileContextFiltering:
 
     def test_test_issues_filtered(self):
         from slowql.core.context import filter_issues_by_context
-        from slowql.core.models import Issue, Severity, Location
+        from slowql.core.models import Issue, Location, Severity
         issues = [
             Issue(rule_id="SEC-AUTHZ-003", severity=Severity.HIGH, message="test",
                   dimension="security", location=Location(file="tests/test.sql", line=1, column=1), snippet="SELECT * FROM users"),
