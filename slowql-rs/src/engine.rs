@@ -82,7 +82,43 @@ impl Engine {
     pub fn analyze_file(&self, path: &str) -> Result<AnalysisResult, String> {
         let content = std::fs::read_to_string(path)
             .map_err(|e| format!("Failed to read file {}: {}", path, e))?;
+
+        let ext = path.rsplit('.').next().unwrap_or("").to_lowercase();
+        let app_code_exts = ["py", "ts", "js", "tsx", "jsx", "java", "go", "rb", "kt", "cs"];
+
+        if app_code_exts.contains(&ext.as_str()) {
+            return Ok(self.analyze_app_code(&content, path));
+        }
+
         Ok(self.analyze(&content, None, Some(path)))
+    }
+
+    pub fn analyze_app_code(&self, content: &str, path: &str) -> AnalysisResult {
+        let extracted = crate::extractor::extract_from_source(content, path);
+        let mut combined = AnalysisResult::new();
+        combined.dialect = self.config.analysis.dialect.clone();
+
+        for ext_query in extracted {
+            let mut result = self.analyze(
+                &ext_query.raw,
+                self.config.analysis.dialect.as_deref(),
+                Some(&ext_query.file_path),
+            );
+
+            // Mark dynamic queries
+            for query in &mut result.queries {
+                query.is_dynamic = ext_query.is_dynamic;
+                query.location.line = ext_query.line;
+                query.location.column = ext_query.column;
+            }
+
+            for issue in result.issues {
+                combined.add_issue(issue);
+            }
+            combined.queries.extend(result.queries);
+        }
+
+        combined
     }
 
     pub fn rule_count(&self) -> usize {

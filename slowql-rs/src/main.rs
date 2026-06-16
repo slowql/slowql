@@ -562,13 +562,16 @@ fn cmd_explain(rule_id: &str) -> i32 {
 
 fn walkdir(path: &std::path::Path) -> Vec<PathBuf> {
     let mut files = Vec::new();
+    let supported = ["sql", "py", "ts", "js", "java", "go", "rb", "kt", "cs"];
     if let Ok(entries) = std::fs::read_dir(path) {
         for entry in entries.flatten() {
             let p = entry.path();
             if p.is_dir() {
                 files.extend(walkdir(&p));
-            } else if p.extension().map(|e| e == "sql").unwrap_or(false) {
-                files.push(p);
+            } else if let Some(ext) = p.extension().and_then(|e| e.to_str()) {
+                if supported.contains(&ext) {
+                    files.push(p);
+                }
             }
         }
     }

@@ -8,3 +8,4 @@ pub mod rules;
 pub mod suppressions;
 
 pub mod git;
+pub mod extractor;
