@@ -250,7 +250,19 @@ impl Rule for CascadeDeleteRiskRule {
     fn category(&self) -> Option<Category> { Some(Category::RelForeignKey) }
     fn impact(&self) -> &'static str { "DELETE on parent table with ON DELETE CASCADE can wipe millions of child records." }
     fn check(&self, query: &Query) -> Vec<Issue> {
-        PAT_CASCADE_DEL.find(&query.raw).map(|m| vec![self.build_issue(query, "Potential mass delete on parent table.", m.as_str())]).unwrap_or_default()
+        if let Some(m) = PAT_CASCADE_DEL.find(&query.raw) {
+            let upper = query.raw_upper();
+            // Only flag mass deletes (no WHERE or non-selective WHERE)
+            // Single-row DELETE WHERE id = X is not a cascade risk
+            if upper.contains("WHERE") {
+                let pk_patterns = ["WHERE ID =", "WHERE ID=", "WHERE ID IN"];
+                if pk_patterns.iter().any(|p| upper.contains(p)) {
+                    return Vec::new(); // Targeted delete, not mass cascade risk
+                }
+            }
+            return vec![self.build_issue(query, "Potential mass delete on parent table.", m.as_str())];
+        }
+        Vec::new()
     }
 }
 

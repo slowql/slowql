@@ -20,7 +20,13 @@ fn all() -> Vec<Box<dyn Rule>> { reliability::all_rules() }
 #[test] fn rel_err_001() { let r=all(); let rule=find(&r,"REL-ERR-001"); assert!(!rule.check(&q("WHEN OTHERS THEN NULL","oracle","SELECT")).is_empty()); }
 #[test] fn rel_idem_001() { let r=all(); let rule=find(&r,"REL-IDEM-001"); assert!(!rule.check(&q("INSERT INTO t VALUES (1)","postgresql","INSERT")).is_empty()); assert!(rule.check(&q("INSERT INTO t VALUES (1) ON CONFLICT DO NOTHING","postgresql","INSERT")).is_empty()); }
 #[test] fn rel_race_002() { let r=all(); let rule=find(&r,"REL-RACE-002"); assert!(!rule.check(&q("IF NOT EXISTS (SELECT 1 FROM t WHERE id=1) INSERT INTO t VALUES (1)","tsql","SELECT")).is_empty()); }
-#[test] fn rel_fk_002() { let r=all(); let rule=find(&r,"REL-FK-002"); assert!(!rule.check(&q("DELETE FROM users WHERE id=1","postgresql","DELETE")).is_empty()); }
+#[test] fn rel_fk_002() {
+    let r=all(); let rule=find(&r,"REL-FK-002");
+    // Mass delete on parent table fires
+    assert!(!rule.check(&q("DELETE FROM users","postgresql","DELETE")).is_empty());
+    // Targeted single-row delete does NOT fire (precision fix)
+    assert!(rule.check(&q("DELETE FROM users WHERE id=1","postgresql","DELETE")).is_empty());
+}
 #[test] fn rel_mysql_001() { let r=all(); let rule=find(&r,"REL-MYSQL-001"); assert!(!rule.check(&q("INSERT IGNORE INTO t VALUES (1)","mysql","INSERT")).is_empty()); assert!(rule.check(&q("INSERT IGNORE INTO t VALUES (1)","postgresql","INSERT")).is_empty()); }
 #[test] fn rel_mysql_002() { let r=all(); let rule=find(&r,"REL-MYSQL-002"); assert!(!rule.check(&q("REPLACE INTO t VALUES (1)","mysql","INSERT")).is_empty()); assert!(rule.check(&q("REPLACE INTO t VALUES (1)","postgresql","INSERT")).is_empty()); }
 #[test] fn rel_mysql_005() { let r=all(); let rule=find(&r,"REL-MYSQL-005"); assert!(!rule.check(&q("CREATE TABLE t (id INT) ENGINE=MyISAM","mysql","CREATE")).is_empty()); assert!(rule.check(&q("CREATE TABLE t (id INT) ENGINE=MyISAM","postgresql","CREATE")).is_empty()); }

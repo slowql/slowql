@@ -51,13 +51,40 @@ impl Rule for UnboundedSelectRule {
     fn dimension(&self) -> Dimension { Dimension::Performance }
     fn category(&self) -> Option<Category> { Some(Category::PerfScan) }
     fn impact(&self) -> &'static str { "May return millions of rows, overwhelming application memory." }
+
     fn check(&self, query: &Query) -> Vec<Issue> {
-        if !query.is_select() { return Vec::new(); }
+        if !query.is_select() {
+            return Vec::new();
+        }
+
         let upper = query.raw_upper();
-        if upper.contains("LIMIT") || upper.contains("TOP ") { return Vec::new(); }
-        if upper.contains("GROUP BY") || upper.contains("COUNT(") || upper.contains("SUM(") || upper.contains("AVG(") { return Vec::new(); }
-        let snip = &query.raw[..query.raw.len().min(80)];
-        vec![self.build_issue(query, "SELECT without LIMIT on non-aggregated query.", snip)]
+
+        if upper.contains("LIMIT") || upper.contains("TOP ") {
+            return Vec::new();
+        }
+
+        if upper.contains("GROUP BY") || upper.contains("COUNT(") || upper.contains("SUM(") || upper.contains("AVG(") {
+            return Vec::new();
+        }
+
+        // Precision fix: do not flag likely single-row PK lookups
+        if upper.contains("WHERE") {
+            let pk_patterns = [
+                "WHERE ID =",
+                "WHERE ID=",
+                "WHERE USER_ID =",
+                "WHERE USER_ID=",
+                "WHERE ORDER_ID =",
+                "WHERE ORDER_ID=",
+                "WHERE ACCOUNT_ID =",
+                "WHERE ACCOUNT_ID=",
+            ];
+            if pk_patterns.iter().any(|p| upper.contains(p)) {
+                return Vec::new();
+            }
+        }
+
+        vec![self.build_issue(query, "SELECT without LIMIT on non-aggregated query.", query.snippet(80))]
     }
 }
 

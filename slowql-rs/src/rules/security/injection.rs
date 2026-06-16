@@ -99,23 +99,51 @@ static DANGEROUS_COLUMNS: &[&str] = &[
     "address", "notes", "bio", "about", "query", "search", "filter",
     "filename", "filepath", "url", "callback", "redirect",
 ];
+
 impl Rule for SecondOrderSqlInjectionRule {
     fn id(&self) -> &'static str { "SEC-INJ-005" }
     fn name(&self) -> &'static str { "Second-Order SQL Injection Risk" }
     fn severity(&self) -> Severity { Severity::High }
     fn dimension(&self) -> Dimension { Dimension::Security }
     fn category(&self) -> Option<Category> { Some(Category::SecInjection) }
-    fn impact(&self) -> &'static str { "Data stored today may be concatenated into SQL tomorrow. Second-order injection bypasses input validation performed only at write time." }
+    fn impact(&self) -> &'static str {
+        "Data stored today may be concatenated into SQL tomorrow. Second-order injection bypasses input validation performed only at write time."
+    }
+
     fn check(&self, query: &Query) -> Vec<Issue> {
         let qt = query.query_type.as_deref().unwrap_or("").to_uppercase();
-        if qt != "INSERT" && qt != "UPDATE" { return Vec::new(); }
-        let raw_lower = query.raw_lower().to_string();
-        let dangerous: Vec<&str> = DANGEROUS_COLUMNS.iter().filter(|&&col| raw_lower.contains(col)).copied().collect();
-        if dangerous.is_empty() { return Vec::new(); }
-        let msg = format!("Storing user-controllable data in columns that risk second-order injection: {}", dangerous.join(", "));
-        let snip = &query.raw[..query.raw.len().min(100)];
-        vec![self.build_issue(query, &msg, snip)
-            .with_fix(Fix::guidance("Parameterize all queries that retrieve and use stored data.", self.id()))]
+        if qt != "INSERT" && qt != "UPDATE" {
+            return Vec::new();
+        }
+
+        let raw_lower = query.raw_lower();
+        let dangerous: Vec<&str> = DANGEROUS_COLUMNS
+            .iter()
+            .filter(|&&col| raw_lower.contains(col))
+            .copied()
+            .collect();
+
+        if dangerous.is_empty() {
+            return Vec::new();
+        }
+
+        // Precision fix:
+        // Only flag if the write statement is dynamic or contains obvious concatenation.
+        let raw = &query.raw;
+        let has_concat = raw.contains("||") || raw.contains("CONCAT(") || raw.contains(" + ");
+        if !query.is_dynamic && !has_concat {
+            return Vec::new();
+        }
+
+        let msg = format!(
+            "Storing user-controllable data in columns that risk second-order injection: {}",
+            dangerous.join(", ")
+        );
+        vec![self.build_issue(query, &msg, query.snippet(100))
+            .with_fix(Fix::guidance(
+                "Parameterize all queries that retrieve and use stored data.",
+                self.id(),
+            ))]
     }
 }
 

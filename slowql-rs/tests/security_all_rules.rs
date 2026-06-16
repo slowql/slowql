@@ -84,8 +84,16 @@ fn inj_004_sleep() {
 #[test]
 fn inj_005_second_order() {
     let r = all(); let rule = find(&r, "SEC-INJ-005");
-    assert!(!rule.check(&q("INSERT INTO users (username, email) VALUES ('a','b')", "postgresql", "INSERT")).is_empty());
-    assert!(!rule.check(&q("UPDATE users SET description = 'x'", "postgresql", "UPDATE")).is_empty());
+    // Literal VALUES no longer triggers (precision fix)
+    assert!(rule.check(&q("INSERT INTO users (username, email) VALUES ('a','b')", "postgresql", "INSERT")).is_empty());
+    // But dynamic INSERT does trigger
+    let mut dq = q("INSERT INTO users (username, email) VALUES ('a','b')", "postgresql", "INSERT");
+    dq.is_dynamic = true;
+    assert!(!rule.check(&dq).is_empty());
+    // UPDATE with literal value does not fire (precision: requires dynamic/concatenation)
+    assert!(rule.check(&q("UPDATE users SET description = 'x'", "postgresql", "UPDATE")).is_empty());
+    // UPDATE with concatenation DOES fire
+    assert!(!rule.check(&q("UPDATE users SET description = input || ' suffix'", "postgresql", "UPDATE")).is_empty());
     assert!(rule.check(&q("INSERT INTO settings (key, value) VALUES ('a','b')", "postgresql", "INSERT")).is_empty());
     assert!(rule.check(&q("SELECT * FROM users", "postgresql", "SELECT")).is_empty());
 }

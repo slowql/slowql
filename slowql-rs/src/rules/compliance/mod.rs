@@ -32,7 +32,18 @@ impl Rule for DataExportCompletenessRule { fn id(&self) -> &'static str { "COMP-
 struct ConsentWithdrawalRule;
 static PII_TABLES: &[&str] = &["users","profiles","customers","contacts","leads"];
 static CONSENT_COLS: &[&str] = &["consent","consent_status","opt_in","active"];
-impl Rule for ConsentWithdrawalRule { fn id(&self) -> &'static str { "COMP-GDPR-006" } fn name(&self) -> &'static str { "Consent Withdrawal Not Honored" } fn severity(&self) -> Severity { Severity::High } fn dimension(&self) -> Dimension { Dimension::Compliance } fn category(&self) -> Option<Category> { Some(Category::CompGdpr) } fn impact(&self) -> &'static str { "Failing to honor consent withdrawal violates GDPR Article 7." } fn check(&self, query: &Query) -> Vec<Issue> { if !query.is_select() { return Vec::new(); } let lower = query.raw_lower(); let hits_pii = PII_TABLES.iter().any(|t| lower.contains(t)); if !hits_pii { return Vec::new(); } let has_consent = CONSENT_COLS.iter().any(|c| lower.contains(c)); if has_consent { return Vec::new(); } vec![self.build_issue(query, "PII access without active consent filter.", query.snippet(100))] } }
+impl Rule for ConsentWithdrawalRule { fn id(&self) -> &'static str { "COMP-GDPR-006" } fn name(&self) -> &'static str { "Consent Withdrawal Not Honored" } fn severity(&self) -> Severity { Severity::High } fn dimension(&self) -> Dimension { Dimension::Compliance } fn category(&self) -> Option<Category> { Some(Category::CompGdpr) } fn impact(&self) -> &'static str { "Failing to honor consent withdrawal violates GDPR Article 7." } fn check(&self, query: &Query) -> Vec<Issue> { if !query.is_select() { return Vec::new(); }
+        let lower = query.raw_lower();
+        let hits_pii = PII_TABLES.iter().any(|t| lower.contains(t));
+        if !hits_pii { return Vec::new(); }
+        // Precision: only flag when PII columns are accessed or SELECT *
+        let pii_cols = ["email","phone","ssn","address","date_of_birth","social_security","credit_card","first_name","last_name","passport","national_id","name"];
+        let accesses_pii = pii_cols.iter().any(|c| lower.contains(c));
+        let selects_star = query.raw_upper().contains("SELECT *");
+        if !accesses_pii && !selects_star { return Vec::new(); }
+        let has_consent = CONSENT_COLS.iter().any(|c| lower.contains(c));
+        if has_consent { return Vec::new(); }
+        vec![self.build_issue(query, "PII access without active consent filter.", query.snippet(100))] } }
 
 // COMP-HIPAA-001
 struct PhiAccessWithoutAuditRule;
