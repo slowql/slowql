@@ -46,7 +46,7 @@ impl Rule for ImplicitTypeConversionRule {
     fn impact(&self) -> &'static str { "Implicit type conversion turns index seeks into full scans." }
     fn check(&self, query: &Query) -> Vec<Issue> {
         // Heuristic: numeric column name compared with string literal
-        let raw_lower = query.raw.to_lowercase();
+        let raw_lower = query.raw_lower().to_string();
         let numeric_cols = ["_id ", "amount ", "quantity ", "price ", "count ", "total ", "age "];
         let has_numeric_col_with_string = numeric_cols.iter().any(|col| {
             if let Some(pos) = raw_lower.find(col) {
@@ -160,7 +160,7 @@ impl Rule for CompositeIndexOrderViolationRule {
     fn category(&self) -> Option<Category> { Some(Category::PerfIndex) }
     fn impact(&self) -> &'static str { "Filtering only on the secondary column forces a full index scan." }
     fn check(&self, query: &Query) -> Vec<Issue> {
-        let raw_lower = query.raw.to_lowercase();
+        let raw_lower = query.raw_lower().to_string();
         if !raw_lower.contains("where") { return Vec::new(); }
         for &(lead, secondary) in COMPOSITE_PAIRS {
             if raw_lower.contains(secondary) && !raw_lower.contains(lead) {

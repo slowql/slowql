@@ -16,7 +16,7 @@ fn query(sql: &str, dialect: &str, query_type: &str) -> Query {
         is_ddl: false,
         is_dynamic: false,
         complexity_score: 0,
-        source_context: String::new(),
+        source_context: String::new(), ..Default::default()
     }
 }
 

@@ -36,7 +36,7 @@ impl Rule for SessionTimeoutNotEnforcedRule {
     fn impact(&self) -> &'static str { "Sessions without expiration validation remain valid indefinitely. Stolen tokens provide permanent access." }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if let Some(m) = PAT_SESSION_002.find(&query.raw) {
-            let raw_lower = query.raw.to_lowercase();
+            let raw_lower = query.raw_lower().to_string();
             let has_expiry_check = ["expir", "valid_until", "expires_at", "ttl", "created_at"]
                 .iter()
                 .any(|needle| raw_lower.contains(needle));

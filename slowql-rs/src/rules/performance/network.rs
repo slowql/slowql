@@ -375,7 +375,7 @@ impl Rule for LargeObjectUnboundedRule {
         if !query.is_select() { return Vec::new(); }
         let upper = query.raw_upper();
         if upper.contains("WHERE") || upper.contains("LIMIT") { return Vec::new(); }
-        let raw_lower = query.raw.to_lowercase();
+        let raw_lower = query.raw_lower().to_string();
         for col in BLOB_COLS {
             if raw_lower.contains(col) {
                 let msg = format!("Unbounded SELECT of large object column '{}'.", col);

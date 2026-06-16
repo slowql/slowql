@@ -72,7 +72,7 @@ impl Rule for GroupByHighCardinalityRule {
     fn check(&self, query: &Query) -> Vec<Issue> {
         let upper = query.raw_upper();
         if !upper.contains("GROUP BY") { return Vec::new(); }
-        let raw_lower = query.raw.to_lowercase();
+        let raw_lower = query.raw_lower().to_string();
         for col in HIGH_CARD_COLS {
             if raw_lower.contains(&format!("group by {}", col)) || raw_lower.contains(&format!("group by\n{}", col)) {
                 let msg = format!("GROUP BY on high-cardinality column '{}' - may create excessive groups.", col);

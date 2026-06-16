@@ -226,7 +226,7 @@ impl Rule for OrphanRecordRiskRule {
     fn impact(&self) -> &'static str { "INSERTs without FK verification create orphan records." }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if !query.is_insert() { return Vec::new(); }
-        let raw_lower = query.raw.to_lowercase();
+        let raw_lower = query.raw_lower().to_string();
         let has_fk = FK_COLS.iter().any(|c| raw_lower.contains(c));
         if !has_fk { return Vec::new(); }
         let has_check = ["foreign key","references","exists","join"].iter().any(|k| raw_lower.contains(k));

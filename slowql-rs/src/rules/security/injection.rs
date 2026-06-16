@@ -109,7 +109,7 @@ impl Rule for SecondOrderSqlInjectionRule {
     fn check(&self, query: &Query) -> Vec<Issue> {
         let qt = query.query_type.as_deref().unwrap_or("").to_uppercase();
         if qt != "INSERT" && qt != "UPDATE" { return Vec::new(); }
-        let raw_lower = query.raw.to_lowercase();
+        let raw_lower = query.raw_lower().to_string();
         let dangerous: Vec<&str> = DANGEROUS_COLUMNS.iter().filter(|&&col| raw_lower.contains(col)).copied().collect();
         if dangerous.is_empty() { return Vec::new(); }
         let msg = format!("Storing user-controllable data in columns that risk second-order injection: {}", dangerous.join(", "));

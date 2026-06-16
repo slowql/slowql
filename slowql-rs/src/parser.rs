@@ -339,6 +339,7 @@ pub fn parse(sql: &str, dialect: &str, file_path: Option<&str>) -> Vec<Query> {
             is_dynamic: false,
             complexity_score: 0,
             source_context: String::new(),
+            ..Default::default()
         });
     }
 

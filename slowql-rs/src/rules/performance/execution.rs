@@ -71,7 +71,7 @@ impl Rule for OrderByNonIndexedColumnRule {
     fn check(&self, query: &Query) -> Vec<Issue> {
         let upper = query.raw_upper();
         if !upper.contains("ORDER BY") { return Vec::new(); }
-        let raw_lower = query.raw.to_lowercase();
+        let raw_lower = query.raw_lower().to_string();
         for col in NON_INDEXED_COLS {
             if raw_lower.contains(&format!("order by {}", col)) || raw_lower.contains(&format!("order by {}", col)) {
                 let msg = format!("ORDER BY on likely non-indexed column '{}' - may require expensive sort.", col);

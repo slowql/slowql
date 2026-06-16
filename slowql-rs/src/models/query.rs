@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use crate::models::issue::Location;
+use std::cell::OnceCell;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Query {
@@ -16,6 +17,14 @@ pub struct Query {
     pub is_dynamic: bool,
     pub complexity_score: u32,
     pub source_context: String,
+    /// Cached uppercase version. Computed lazily, not serialized.
+    #[serde(skip)]
+    #[serde(default)]
+    pub raw_upper_cache: OnceCell<String>,
+    /// Cached lowercase version. Computed lazily, not serialized.
+    #[serde(skip)]
+    #[serde(default)]
+    pub raw_lower_cache: OnceCell<String>,
 }
 
 impl Query {
@@ -35,13 +44,44 @@ impl Query {
         self.query_type.as_deref().map(|t| t.eq_ignore_ascii_case("DELETE")).unwrap_or(false)
     }
 
-    pub fn raw_upper(&self) -> String {
-        self.raw.to_uppercase()
+    /// Returns the uppercase version of raw SQL. Cached after first call.
+    pub fn raw_upper(&self) -> &str {
+        self.raw_upper_cache.get_or_init(|| self.raw.to_uppercase())
+    }
+
+    /// Returns the lowercase version of raw SQL. Cached after first call.
+    pub fn raw_lower(&self) -> &str {
+        self.raw_lower_cache.get_or_init(|| self.raw.to_lowercase())
     }
 
     pub fn has_keyword(&self, keyword: &str) -> bool {
-        let upper = self.raw_upper();
-        let kw = keyword.to_uppercase();
-        upper.contains(&kw)
+        self.raw_upper().contains(&keyword.to_uppercase())
+    }
+
+    /// Snip the first N bytes of raw SQL (safe for display).
+    pub fn snippet(&self, max_len: usize) -> &str {
+        &self.raw[..self.raw.len().min(max_len)]
+    }
+}
+
+impl Default for Query {
+    fn default() -> Self {
+        Query {
+            raw: String::new(),
+            normalized: String::new(),
+            dialect: String::new(),
+            location: Location::new(1, 1),
+            start_offset: None,
+            end_offset: None,
+            tables: Vec::new(),
+            columns: Vec::new(),
+            query_type: None,
+            is_ddl: false,
+            is_dynamic: false,
+            complexity_score: 0,
+            source_context: String::new(),
+            raw_upper_cache: OnceCell::new(),
+            raw_lower_cache: OnceCell::new(),
+        }
     }
 }
