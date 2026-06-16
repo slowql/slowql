@@ -101,6 +101,24 @@ enum OutputFormat {
     GithubActions,
 }
 
+
+
+fn apply_baseline(
+    result: slowql_lib::models::result::AnalysisResult,
+    baseline_path: &std::path::Path,
+) -> Result<(slowql_lib::models::result::AnalysisResult, usize), String> {
+    let baseline = slowql_lib::baseline::Baseline::load(baseline_path)?;
+    Ok(slowql_lib::baseline::Baseline::filter_new(result, &baseline))
+}
+
+fn update_baseline_file(
+    result: &slowql_lib::models::result::AnalysisResult,
+    baseline_path: &std::path::Path,
+) -> Result<(), String> {
+    let baseline = slowql_lib::baseline::Baseline::generate(result);
+    baseline.save(baseline_path)
+}
+
 fn main() {
     let cli = Cli::parse();
 
@@ -123,7 +141,7 @@ fn main() {
     }
 
     // Build engine
-    let mut config = Config::default();
+    let mut config = Config::find_and_load();
     if let Some(ref dialect) = cli.dialect {
         config.analysis.dialect = Some(dialect.clone());
     }
@@ -156,16 +174,35 @@ fn main() {
     let mut combined = slowql_lib::models::result::AnalysisResult::new();
     combined.dialect = cli.dialect.clone();
 
+    let changed_files = if cli.git_diff || cli.since.is_some() {
+        Some(slowql_lib::git::get_changed_files(cli.since.as_deref()))
+    } else {
+        None
+    };
+
     for path in &cli.files {
         if path.is_dir() {
-            // Recursively find .sql files
             for entry in walkdir(path) {
+                if let Some(ref changed) = changed_files {
+                    if let Ok(abs) = entry.canonicalize() {
+                        if !changed.contains(&abs) {
+                            continue;
+                        }
+                    }
+                }
                 match engine.analyze_file(entry.to_str().unwrap_or("")) {
                     Ok(result) => merge_results(&mut combined, result),
                     Err(e) => eprintln!("Warning: {}", e),
                 }
             }
         } else if path.exists() {
+            if let Some(ref changed) = changed_files {
+                if let Ok(abs) = path.canonicalize() {
+                    if !changed.contains(&abs) {
+                        continue;
+                    }
+                }
+            }
             match engine.analyze_file(path.to_str().unwrap_or("")) {
                 Ok(result) => merge_results(&mut combined, result),
                 Err(e) => eprintln!("Error: {}", e),
@@ -175,14 +212,36 @@ fn main() {
         }
     }
 
-    output_result(&combined, &cli);
-
-    // Export if requested
-    for fmt in &cli.export {
-        export_result(&combined, fmt, &cli.out);
+    if let Some(ref baseline_out) = cli.update_baseline {
+        if let Err(e) = update_baseline_file(&combined, baseline_out) {
+            eprintln!("Error writing baseline: {}", e);
+            process::exit(1);
+        }
+        eprintln!("Baseline updated: {}", baseline_out.display());
+        process::exit(0);
     }
 
-    process::exit(compute_exit_code(&combined, cli.fail_on.as_deref()));
+    let mut final_result = combined;
+    if let Some(ref baseline_in) = cli.baseline {
+        match apply_baseline(final_result, baseline_in) {
+            Ok((filtered, suppressed)) => {
+                final_result = filtered;
+                final_result.suppressed_count += suppressed;
+            }
+            Err(e) => {
+                eprintln!("Error loading baseline: {}", e);
+                process::exit(1);
+            }
+        }
+    }
+
+    output_result(&final_result, &cli);
+
+    for fmt in &cli.export {
+        export_result(&final_result, fmt, &cli.out);
+    }
+
+    process::exit(compute_exit_code(&final_result, cli.fail_on.as_deref()));
 }
 
 fn merge_results(

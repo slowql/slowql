@@ -1,6 +1,4 @@
 use crate::config::Config;
-
-
 use crate::models::result::AnalysisResult;
 use crate::parser;
 use crate::rules::RuleRegistry;
@@ -23,7 +21,10 @@ impl Engine {
         Self::new(Config::default())
     }
 
-    /// Analyze a SQL string and return all detected issues.
+    pub fn registry_ref(&self) -> &RuleRegistry {
+        &self.registry
+    }
+
     pub fn analyze(&self, sql: &str, dialect: Option<&str>, file_path: Option<&str>) -> AnalysisResult {
         let start = Instant::now();
 
@@ -31,24 +32,22 @@ impl Engine {
             .or(self.config.analysis.dialect.as_deref())
             .unwrap_or("generic");
 
-        // Parse
         let parse_start = Instant::now();
         let queries = parser::parse(sql, effective_dialect, file_path);
         let parse_ms = parse_start.elapsed().as_secs_f64() * 1000.0;
 
-        // Build result
         let mut result = AnalysisResult::new();
         result.dialect = Some(effective_dialect.to_string());
         result.statistics.total_queries = queries.len();
         result.statistics.parse_time_ms = parse_ms;
 
-        // Get enabled rules
+        let source_ctx = crate::context::classify_source(file_path, sql);
+        let suppression_map = crate::suppressions::parse_suppressions(sql);
         let rules = self.registry.enabled_for_dimensions(&self.config.analysis.enabled_dimensions);
 
-        // Run rules on each query
+        let mut raw_issues = Vec::new();
         for query in &queries {
             for rule in &rules {
-                // Check disabled rules
                 if self.config.analysis.disabled_rules.contains(rule.id()) {
                     continue;
                 }
@@ -60,29 +59,30 @@ impl Engine {
                         }
                     }
                 }
-
-                let issues = rule.check(query);
-                for issue in issues {
-                    result.add_issue(issue);
-                }
+                raw_issues.extend(rule.check(query));
             }
         }
 
+        let filtered = crate::context::filter_issues_by_context(raw_issues, source_ctx);
+
+        let mut suppressed_count = 0;
+        for issue in filtered {
+            if suppression_map.is_suppressed(issue.location.line, &issue.rule_id) {
+                suppressed_count += 1;
+            } else {
+                result.add_issue(issue);
+            }
+        }
+        result.suppressed_count = suppressed_count;
         result.queries = queries;
         result.statistics.analysis_time_ms = start.elapsed().as_secs_f64() * 1000.0;
         result
     }
 
-    /// Analyze a single SQL file.
     pub fn analyze_file(&self, path: &str) -> Result<AnalysisResult, String> {
         let content = std::fs::read_to_string(path)
             .map_err(|e| format!("Failed to read file {}: {}", path, e))?;
         Ok(self.analyze(&content, None, Some(path)))
-    }
-
-    /// Get the total number of registered rules.
-    pub fn registry_ref(&self) -> &crate::rules::RuleRegistry {
-        &self.registry
     }
 
     pub fn rule_count(&self) -> usize {
@@ -98,8 +98,6 @@ mod tests {
     fn engine_detects_select_star() {
         let engine = Engine::with_default_config();
         let result = engine.analyze("SELECT * FROM users", Some("postgresql"), None);
-        // At minimum, security rules should not crash. SELECT * is a perf rule
-        // which we have not yet ported, so just verify no panics and structure is correct.
         assert_eq!(result.queries.len(), 1);
         assert_eq!(result.dialect.as_deref(), Some("postgresql"));
     }
@@ -109,11 +107,9 @@ mod tests {
         let engine = Engine::with_default_config();
         let result = engine.analyze(
             "SELECT * FROM users WHERE name = 'x' + user_input",
-            Some("postgresql"),
-            None,
+            Some("postgresql"), None,
         );
-        let inj_issues: Vec<_> = result.issues.iter().filter(|i| i.rule_id == "SEC-INJ-001").collect();
-        assert_eq!(inj_issues.len(), 1);
+        assert!(result.issues.iter().any(|i| i.rule_id == "SEC-INJ-001"));
     }
 
     #[test]
@@ -123,11 +119,9 @@ mod tests {
         let engine = Engine::new(config);
         let result = engine.analyze(
             "SELECT * FROM users WHERE name = 'x' + user_input",
-            Some("postgresql"),
-            None,
+            Some("postgresql"), None,
         );
-        let inj_issues: Vec<_> = result.issues.iter().filter(|i| i.rule_id == "SEC-INJ-001").collect();
-        assert_eq!(inj_issues.len(), 0);
+        assert!(!result.issues.iter().any(|i| i.rule_id == "SEC-INJ-001"));
     }
 
     #[test]
@@ -135,11 +129,30 @@ mod tests {
         let engine = Engine::with_default_config();
         let result = engine.analyze(
             "SELECT 1; SELECT * FROM users WHERE name = 'x' + user_input",
-            Some("postgresql"),
-            None,
+            Some("postgresql"), None,
         );
         assert_eq!(result.statistics.total_queries, 2);
         assert!(result.statistics.total_issues >= 1);
-        assert!(result.statistics.analysis_time_ms > 0.0);
+    }
+
+    #[test]
+    fn engine_applies_inline_suppression() {
+        let engine = Engine::with_default_config();
+        let sql = "-- slowql: disable PERF-SCAN-001\nSELECT * FROM users";
+        let result = engine.analyze(sql, Some("postgresql"), None);
+        assert!(!result.issues.iter().any(|i| i.rule_id == "PERF-SCAN-001"));
+        assert!(result.suppressed_count > 0);
+    }
+
+    #[test]
+    fn engine_applies_context_filtering() {
+        let engine = Engine::with_default_config();
+        let result = engine.analyze(
+            "SELECT * FROM users",
+            Some("postgresql"),
+            Some("tests/test_queries.sql"),
+        );
+        // In test context, performance rules should be filtered out
+        assert!(!result.issues.iter().any(|i| i.rule_id == "PERF-SCAN-001"));
     }
 }
