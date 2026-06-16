@@ -164,7 +164,10 @@ fn main() {
         }
     }).flatten();
 
-    let engine = Engine::new(config);
+    let mut engine = Engine::new(config);
+    if let Some(schema) = _schema {
+        engine = engine.with_schema(schema);
+    }
 
     // Determine input
     if cli.files.is_empty() {

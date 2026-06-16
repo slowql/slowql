@@ -7,6 +7,7 @@ use std::time::Instant;
 pub struct Engine {
     pub config: Config,
     registry: RuleRegistry,
+    schema: Option<crate::schema::Schema>,
 }
 
 impl Engine {
@@ -14,11 +15,17 @@ impl Engine {
         Engine {
             config,
             registry: RuleRegistry::new(),
+            schema: None,
         }
     }
 
     pub fn with_default_config() -> Self {
         Self::new(Config::default())
+    }
+
+    pub fn with_schema(mut self, schema: crate::schema::Schema) -> Self {
+        self.schema = Some(schema);
+        self
     }
 
     pub fn registry_ref(&self) -> &RuleRegistry {
@@ -60,6 +67,44 @@ impl Engine {
                     }
                 }
                 raw_issues.extend(rule.check(query));
+            }
+        }
+
+        // Run schema-aware rules if schema is loaded
+        if let Some(ref schema) = self.schema {
+            for query in &queries {
+                for table_name in &query.tables {
+                    if !schema.has_table(table_name) {
+                        raw_issues.push(crate::models::Issue::new(
+                            "SCHEMA-TBL-001",
+                            format!("Table '{}' does not exist in schema", table_name),
+                            crate::models::Severity::Critical,
+                            crate::models::Dimension::Reliability,
+                            query.location.clone(),
+                            table_name.clone(),
+                        ));
+                    }
+                }
+                if let Some(qt) = &query.query_type {
+                    if qt == "SELECT" || qt == "UPDATE" || qt == "DELETE" {
+                        for table_name in &query.tables {
+                            if let Some(table) = schema.get_table(table_name) {
+                                for col_name in &query.columns {
+                                    if col_name != "*" && !table.has_column(col_name) {
+                                        raw_issues.push(crate::models::Issue::new(
+                                            "SCHEMA-COL-001",
+                                            format!("Column '{}' does not exist in table '{}'", col_name, table_name),
+                                            crate::models::Severity::Critical,
+                                            crate::models::Dimension::Reliability,
+                                            query.location.clone(),
+                                            col_name.clone(),
+                                        ));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -178,6 +223,22 @@ mod tests {
         let result = engine.analyze(sql, Some("postgresql"), None);
         assert!(!result.issues.iter().any(|i| i.rule_id == "PERF-SCAN-001"));
         assert!(result.suppressed_count > 0);
+    }
+
+    #[test]
+    fn engine_schema_aware_table_check() {
+        let schema = crate::schema::parse_ddl("CREATE TABLE users (id INT PRIMARY KEY, name TEXT);", "postgresql");
+        let engine = Engine::with_default_config().with_schema(schema);
+        let result = engine.analyze("SELECT * FROM nonexistent_table", Some("postgresql"), None);
+        assert!(result.issues.iter().any(|i| i.rule_id == "SCHEMA-TBL-001"));
+    }
+
+    #[test]
+    fn engine_schema_aware_no_false_positive() {
+        let schema = crate::schema::parse_ddl("CREATE TABLE users (id INT PRIMARY KEY, name TEXT);", "postgresql");
+        let engine = Engine::with_default_config().with_schema(schema);
+        let result = engine.analyze("SELECT * FROM users", Some("postgresql"), None);
+        assert!(!result.issues.iter().any(|i| i.rule_id == "SCHEMA-TBL-001"));
     }
 
     #[test]
