@@ -21,7 +21,7 @@ fn all() -> Vec<Box<dyn Rule>> { performance::all_rules() }
 
 #[test]
 fn performance_rule_count() {
-    assert_eq!(all().len(), 65, "Expected 65 performance rules");
+    assert_eq!(all().len(), 70, "Expected 70 performance rules");
 }
 
 // --- Scanning ---
@@ -330,4 +330,32 @@ fn performance_rule_count() {
     assert!(!rule.check(&q("SELECT x FROM t GROUP BY x", "mysql", "SELECT")).is_empty());
     assert!(rule.check(&q("SELECT x FROM t GROUP BY x ORDER BY x", "mysql", "SELECT")).is_empty());
     assert!(rule.check(&q("SELECT x FROM t GROUP BY x", "postgresql", "SELECT")).is_empty());
+}
+
+// --- Missing rules added ---
+#[test] fn idx_006_composite_order() {
+    let r = all(); let rule = find(&r, "PERF-IDX-006");
+    assert!(!rule.check(&q("SELECT * FROM t WHERE user_id = 1", "postgresql", "SELECT")).is_empty());
+    assert!(rule.check(&q("SELECT * FROM t WHERE tenant_id = 1 AND user_id = 1", "postgresql", "SELECT")).is_empty());
+}
+#[test] fn idx_007_non_sargable_or() {
+    let r = all(); let rule = find(&r, "PERF-IDX-007");
+    assert!(!rule.check(&q("SELECT * FROM t WHERE email = 'x' OR name = 'y'", "postgresql", "SELECT")).is_empty());
+    assert!(rule.check(&q("SELECT * FROM t WHERE email = 'x'", "postgresql", "SELECT")).is_empty());
+}
+#[test] fn idx_009_negation() {
+    let r = all(); let rule = find(&r, "PERF-IDX-009");
+    assert!(!rule.check(&q("SELECT * FROM t WHERE status != 'active'", "postgresql", "SELECT")).is_empty());
+    assert!(!rule.check(&q("SELECT * FROM t WHERE status <> 'active'", "postgresql", "SELECT")).is_empty());
+    assert!(rule.check(&q("SELECT * FROM t WHERE status = 'active'", "postgresql", "SELECT")).is_empty());
+}
+#[test] fn mem_003_order_subquery_no_limit() {
+    let r = all(); let rule = find(&r, "PERF-MEM-003");
+    assert!(!rule.check(&q("SELECT * FROM (SELECT * FROM t ORDER BY id) x", "postgresql", "SELECT")).is_empty());
+}
+#[test] fn net_002_large_object() {
+    let r = all(); let rule = find(&r, "PERF-NET-002");
+    assert!(!rule.check(&q("SELECT id, content FROM articles", "postgresql", "SELECT")).is_empty());
+    assert!(rule.check(&q("SELECT id, content FROM articles WHERE id = 1", "postgresql", "SELECT")).is_empty());
+    assert!(rule.check(&q("SELECT id FROM articles", "postgresql", "SELECT")).is_empty());
 }

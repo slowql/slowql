@@ -129,5 +129,27 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
         Box::new(GroupByHighCardinalityRule),
         Box::new(SelectIntoTempWithoutIndexRule),
         Box::new(ImplicitConversionInJoinRule),
+        Box::new(OrderByWithoutLimitInSubqueryRule),
     ]
+}
+
+// PERF-MEM-003: ORDER BY Without LIMIT in Subquery
+struct OrderByWithoutLimitInSubqueryRule;
+static PAT_ORDER_SUB_NO_LIMIT: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\(\s*SELECT\b[^)]*\bORDER\s+BY\b").unwrap());
+impl Rule for OrderByWithoutLimitInSubqueryRule {
+    fn id(&self) -> &'static str { "PERF-MEM-003" }
+    fn name(&self) -> &'static str { "ORDER BY Without LIMIT in Subquery" }
+    fn severity(&self) -> Severity { Severity::Low }
+    fn dimension(&self) -> Dimension { Dimension::Performance }
+    fn category(&self) -> Option<Category> { Some(Category::PerfMemory) }
+    fn impact(&self) -> &'static str { "Sorting without LIMIT in subqueries wastes resources." }
+    fn check(&self, query: &Query) -> Vec<Issue> {
+        if let Some(m) = PAT_ORDER_SUB_NO_LIMIT.find(&query.raw) {
+            let matched_upper = m.as_str().to_uppercase();
+            if !matched_upper.contains("LIMIT") && !matched_upper.contains("TOP") {
+                return vec![self.build_issue(query, "ORDER BY in subquery without LIMIT is meaningless and wastes resources.", m.as_str())];
+            }
+        }
+        Vec::new()
+    }
 }

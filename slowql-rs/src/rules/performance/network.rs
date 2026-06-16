@@ -357,6 +357,36 @@ impl Rule for MysqlGroupByImplicitSortRule {
     }
 }
 
+
+// PERF-NET-002: Large Object Column in Non-Filtered Query
+struct LargeObjectUnboundedRule;
+static BLOB_COLS: &[&str] = &[
+    "blob", "clob", "text", "content", "body", "data", "image",
+    "document", "file", "attachment", "payload", "binary",
+];
+impl Rule for LargeObjectUnboundedRule {
+    fn id(&self) -> &'static str { "PERF-NET-002" }
+    fn name(&self) -> &'static str { "Large Object Column in Non-Filtered Query" }
+    fn severity(&self) -> Severity { Severity::Medium }
+    fn dimension(&self) -> Dimension { Dimension::Performance }
+    fn category(&self) -> Option<Category> { Some(Category::PerfNetwork) }
+    fn impact(&self) -> &'static str { "Selecting BLOB columns without filtering can transfer gigabytes of data." }
+    fn check(&self, query: &Query) -> Vec<Issue> {
+        if !query.is_select() { return Vec::new(); }
+        let upper = query.raw_upper();
+        if upper.contains("WHERE") || upper.contains("LIMIT") { return Vec::new(); }
+        let raw_lower = query.raw.to_lowercase();
+        for col in BLOB_COLS {
+            if raw_lower.contains(col) {
+                let msg = format!("Unbounded SELECT of large object column '{}'.", col);
+                let snip = &query.raw[..query.raw.len().min(100)];
+                return vec![self.build_issue(query, &msg, snip)];
+            }
+        }
+        Vec::new()
+    }
+}
+
 pub fn rules() -> Vec<Box<dyn Rule>> {
     vec![
         Box::new(ExcessiveColumnCountRule),
@@ -377,5 +407,6 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
         Box::new(DuckDBCopyWithoutFormatRule),
         Box::new(DuckDBLargeInListRule),
         Box::new(MysqlGroupByImplicitSortRule),
+        Box::new(LargeObjectUnboundedRule),
     ]
 }

@@ -139,5 +139,83 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
         Box::new(DeepOffsetPaginationRule),
         Box::new(CoalesceOnIndexedColumnRule),
         Box::new(IlikeOnIndexedColumnRule),
+        Box::new(CompositeIndexOrderViolationRule),
+        Box::new(NonSargableOrConditionRule),
+        Box::new(NegationOnIndexedColumnRule),
     ]
+}
+
+// PERF-IDX-006: Composite index order violation
+struct CompositeIndexOrderViolationRule;
+static COMPOSITE_PAIRS: &[(&str, &str)] = &[
+    ("tenant_id", "user_id"), ("tenant_id", "created_at"), ("user_id", "created_at"),
+    ("account_id", "transaction_date"), ("store_id", "product_id"),
+    ("category_id", "subcategory_id"), ("parent_id", "child_id"), ("org_id", "department_id"),
+];
+impl Rule for CompositeIndexOrderViolationRule {
+    fn id(&self) -> &'static str { "PERF-IDX-006" }
+    fn name(&self) -> &'static str { "Composite Index Column Order Violation" }
+    fn severity(&self) -> Severity { Severity::Medium }
+    fn dimension(&self) -> Dimension { Dimension::Performance }
+    fn category(&self) -> Option<Category> { Some(Category::PerfIndex) }
+    fn impact(&self) -> &'static str { "Filtering only on the secondary column forces a full index scan." }
+    fn check(&self, query: &Query) -> Vec<Issue> {
+        let raw_lower = query.raw.to_lowercase();
+        if !raw_lower.contains("where") { return Vec::new(); }
+        for &(lead, secondary) in COMPOSITE_PAIRS {
+            if raw_lower.contains(secondary) && !raw_lower.contains(lead) {
+                let msg = format!("Filtering on '{}' without leading column '{}' - composite index cannot be used.", secondary, lead);
+                let snip = &query.raw[..query.raw.len().min(100)];
+                return vec![self.build_issue(query, &msg, snip)];
+            }
+        }
+        Vec::new()
+    }
+}
+
+// PERF-IDX-007: Non-SARGable OR condition across columns
+struct NonSargableOrConditionRule;
+impl Rule for NonSargableOrConditionRule {
+    fn id(&self) -> &'static str { "PERF-IDX-007" }
+    fn name(&self) -> &'static str { "Non-SARGable OR Condition" }
+    fn severity(&self) -> Severity { Severity::Medium }
+    fn dimension(&self) -> Dimension { Dimension::Performance }
+    fn category(&self) -> Option<Category> { Some(Category::PerfIndex) }
+    fn impact(&self) -> &'static str { "OR conditions across columns force the optimizer to scan all rows." }
+    fn check(&self, query: &Query) -> Vec<Issue> {
+        // Heuristic: WHERE ... col1 = ... OR col2 = ...
+        let upper = query.raw_upper();
+        if !upper.contains("WHERE") || !upper.contains(" OR ") { return Vec::new(); }
+        // Check for different column names on each side of OR
+        static PAT_OR_COLS: Lazy<Regex> = Lazy::new(|| {
+            Regex::new(r"(?i)\b(\w+)\s*=\s*\S+\s+OR\s+(\w+)\s*=").unwrap()
+        });
+        if let Some(caps) = PAT_OR_COLS.captures(&query.raw) {
+            let col1 = caps.get(1).unwrap().as_str().to_lowercase();
+            let col2 = caps.get(2).unwrap().as_str().to_lowercase();
+            if col1 != col2 {
+                let msg = format!("OR condition across different columns ({}, {}) prevents index usage.", col1, col2);
+                let snip = caps.get(0).unwrap().as_str();
+                return vec![self.build_issue(query, &msg, snip)];
+            }
+        }
+        Vec::new()
+    }
+}
+
+// PERF-IDX-009: Negation on indexed column
+struct NegationOnIndexedColumnRule;
+static PAT_NEG: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\bWHERE\b.*(<>|!=)").unwrap());
+impl Rule for NegationOnIndexedColumnRule {
+    fn id(&self) -> &'static str { "PERF-IDX-009" }
+    fn name(&self) -> &'static str { "Negation on Indexed Column (NOT, !=, <>)" }
+    fn severity(&self) -> Severity { Severity::Low }
+    fn dimension(&self) -> Dimension { Dimension::Performance }
+    fn category(&self) -> Option<Category> { Some(Category::PerfIndex) }
+    fn impact(&self) -> &'static str { "Negation conditions force scanning all non-matching rows." }
+    fn check(&self, query: &Query) -> Vec<Issue> {
+        PAT_NEG.find(&query.raw).map(|m| {
+            vec![self.build_issue(query, "Not-equal condition (<>, !=) typically cannot use index seek.", m.as_str())]
+        }).unwrap_or_default()
+    }
 }
