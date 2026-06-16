@@ -39,7 +39,6 @@ impl Rule for CommentedCodeRule { fn id(&self) -> &'static str { "QUAL-STYLE-004
 
 // QUAL-STYLE-005
 struct InsertWithoutColumnListRule;
-static PAT_INSERT_COLS: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)INSERT\s+INTO\s+\w+\s*\(").unwrap());
 impl Rule for InsertWithoutColumnListRule {
     fn id(&self) -> &'static str { "QUAL-STYLE-005" }
     fn name(&self) -> &'static str { "INSERT Without Column List" }
@@ -49,9 +48,30 @@ impl Rule for InsertWithoutColumnListRule {
     fn impact(&self) -> &'static str { "A schema change silently shifts all values one position." }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if !query.is_insert() { return Vec::new(); }
-        if !query.raw_upper().contains("VALUES") { return Vec::new(); }
-        if PAT_INSERT_COLS.is_match(&query.raw) { return Vec::new(); }
-        vec![self.build_issue(query, "INSERT without column list - fragile if schema changes.", query.snippet(80))]
+        let upper = query.raw_upper();
+        if !upper.contains("VALUES") { return Vec::new(); }
+
+        let after_into = match upper.find("INSERT INTO") {
+            Some(pos) => &query.raw[pos + "INSERT INTO".len()..],
+            None => return Vec::new(),
+        };
+
+        let values_pos = match after_into.to_uppercase().find("VALUES") {
+            Some(pos) => pos,
+            None => return Vec::new(),
+        };
+
+        let before_values = after_into[..values_pos].trim();
+
+        if before_values.contains('(') && before_values.contains(')') {
+            return Vec::new();
+        }
+
+        vec![self.build_issue(
+            query,
+            "INSERT without column list - fragile if schema changes.",
+            query.snippet(80),
+        )]
     }
 }
 
@@ -236,7 +256,6 @@ impl Rule for UsingFloatForCurrencyRule { fn id(&self) -> &'static str { "QUAL-S
 
 // QUAL-TEST-001..003
 struct NonDeterministicQueryRule;
-static PAT_NONDET: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)(NOW|RAND|RANDOM|CURRENT_TIMESTAMP|GETDATE|CLOCK_TIMESTAMP)\s*\(\s*\)").unwrap());
 impl Rule for NonDeterministicQueryRule {
     fn id(&self) -> &'static str { "QUAL-TEST-001" }
     fn name(&self) -> &'static str { "Non-Deterministic Query" }
@@ -245,10 +264,25 @@ impl Rule for NonDeterministicQueryRule {
     fn category(&self) -> Option<Category> { Some(Category::QualTesting) }
     fn impact(&self) -> &'static str { "Non-deterministic queries are hard to test and reproduce." }
     fn check(&self, query: &Query) -> Vec<Issue> {
-        PAT_NONDET.find(&query.raw).map(|m| {
-            let msg = format!("Non-deterministic function '{}' detected.", m.as_str());
-            vec![self.build_issue(query, &msg, m.as_str())]
-        }).unwrap_or_default()
+        let upper = query.raw_upper();
+        let funcs = [
+            "NOW(",
+            "RAND(",
+            "RANDOM(",
+            "CURRENT_TIMESTAMP",
+            "GETDATE(",
+            "CLOCK_TIMESTAMP(",
+        ];
+
+        if funcs.iter().any(|f| upper.contains(f)) {
+            return vec![self.build_issue(
+                query,
+                "Non-deterministic function detected - makes testing difficult.",
+                query.snippet(80),
+            )];
+        }
+
+        Vec::new()
     }
 }
 

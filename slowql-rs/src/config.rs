@@ -37,7 +37,7 @@ impl Default for Config {
             analysis: AnalysisConfig {
                 dialect: None,
                 enabled_dimensions: [
-                    "security", "performance", "reliability",
+                    "security", "performance", "reliability", "schema", "migration",
                     "compliance", "cost", "quality",
                 ]
                 .iter()
