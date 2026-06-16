@@ -289,12 +289,13 @@ pub fn parse(sql: &str, dialect: &str, file_path: Option<&str>) -> Vec<Query> {
         dialect.to_string()
     };
 
-    let stmt_ranges = split_statements(sql);
+    let stripped_sql = crate::jinja::strip_jinja(sql);
+    let stmt_ranges = split_statements(&stripped_sql);
     let mut queries = Vec::with_capacity(stmt_ranges.len());
 
     for (idx, &(start, end)) in stmt_ranges.iter().enumerate() {
         let raw = &sql[start..end];
-        let trimmed = raw.trim();
+        let trimmed = stripped_sql[start..end].trim();
         if trimmed.is_empty() {
             continue;
         }
