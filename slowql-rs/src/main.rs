@@ -207,7 +207,6 @@ fn output_result(result: &slowql_lib::models::result::AnalysisResult, cli: &Cli)
 }
 
 fn print_console(result: &slowql_lib::models::result::AnalysisResult) {
-    use slowql_lib::models::issue::Severity;
 
     if result.issues.is_empty() {
         println!("\x1b[1;32mNo issues found.\x1b[0m");

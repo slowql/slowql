@@ -106,7 +106,6 @@ impl Rule for HardcodedDateRule { fn id(&self) -> &'static str { "QUAL-MODERN-00
 
 // QUAL-MODERN-003
 struct UnionWithoutAllRule;
-static PAT_UNION: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\bUNION\b").unwrap());
 impl Rule for UnionWithoutAllRule { fn id(&self) -> &'static str { "QUAL-MODERN-003" } fn name(&self) -> &'static str { "UNION Without ALL" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualModern) } fn impact(&self) -> &'static str { "UNION deduplicates using expensive sort or hash." }
     fn check(&self, query: &Query) -> Vec<Issue> {
         // Manually check: find UNION not followed by ALL
