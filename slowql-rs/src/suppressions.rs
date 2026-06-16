@@ -1,41 +1,66 @@
-use regex::Regex;
 use once_cell::sync::Lazy;
+use regex::Regex;
 use std::collections::{HashMap, HashSet};
 
-static SUPPRESS_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"(?i)--\s*slowql:\s*disable(?:\s+(.+))?$").unwrap()
+static DIRECTIVE_RE: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"(?i)--\s*slowql[:-]\s*(disable-file|disable-next-line|disable-line|disable|enable)(?:\s+(.+))?$").unwrap()
 });
 
-/// Map of line numbers to suppressed rule IDs.
-/// If a line maps to an empty set, all rules are suppressed on that line.
+/// Parse a rule list from a directive. Returns None for "all rules".
+fn parse_rule_list(raw: Option<&str>) -> Option<HashSet<String>> {
+    match raw {
+        None | Some("") => None, // all rules
+        Some(s) => {
+            let rules: HashSet<String> = s
+                .split([',', ' '])
+                .map(|r| r.trim().to_uppercase())
+                .filter(|r| !r.is_empty())
+                .collect();
+            if rules.is_empty() { None } else { Some(rules) }
+        }
+    }
+}
+
+/// Check if a rule ID matches a set of suppression patterns (exact or prefix).
+fn matches_rules(rule_id: &str, rules: &Option<HashSet<String>>) -> bool {
+    match rules {
+        None => true, // all rules suppressed
+        Some(set) => {
+            let upper = rule_id.to_uppercase();
+            set.iter().any(|pattern| upper == *pattern || upper.starts_with(&format!("{}-", pattern)))
+        }
+    }
+}
+
 pub struct SuppressionMap {
-    /// Line -> set of suppressed rule IDs (empty = all suppressed)
-    line_suppressions: HashMap<u32, Option<HashSet<String>>>,
-    /// Global file-level suppressions (from line 1 directives without enable)
-    file_suppressions: Option<HashSet<String>>,
+    /// Line-level suppressions: line -> rule set (None = all)
+    line_rules: HashMap<u32, Option<HashSet<String>>>,
+    /// File-level suppressions (None = all, Some = specific rules)
+    file_rules: Option<Option<HashSet<String>>>,
+    /// Active block suppressions: (start_line, rule set)
+    block_ranges: Vec<(u32, u32, Option<HashSet<String>>)>,
 }
 
 impl SuppressionMap {
     pub fn is_suppressed(&self, line: u32, rule_id: &str) -> bool {
-        // Check file-level suppressions
-        if let Some(ref file_rules) = self.file_suppressions {
-            if file_rules.is_empty() || file_rules.contains(rule_id) {
+        // 1. File-level
+        if let Some(ref rules) = self.file_rules {
+            if matches_rules(rule_id, rules) {
                 return true;
             }
         }
 
-        // Check line-level: the suppression comment on line N suppresses issues on line N+1
-        // Also check the same line (inline comment after SQL)
-        for check_line in [line, line.saturating_sub(1)] {
-            if let Some(suppressed) = self.line_suppressions.get(&check_line) {
-                match suppressed {
-                    None => return true, // all rules suppressed
-                    Some(rules) => {
-                        if rules.is_empty() || rules.contains(rule_id) {
-                            return true;
-                        }
-                    }
-                }
+        // 2. Line-level (exact line only)
+        if let Some(rules) = self.line_rules.get(&line) {
+            if matches_rules(rule_id, rules) {
+                return true;
+            }
+        }
+
+        // 3. Block ranges
+        for &(start, end, ref rules) in &self.block_ranges {
+            if line >= start && line <= end && matches_rules(rule_id, rules) {
+                return true;
             }
         }
 
@@ -43,36 +68,67 @@ impl SuppressionMap {
     }
 }
 
-/// Parse suppression directives from SQL source.
+/// Parse all suppression directives from SQL source.
 pub fn parse_suppressions(sql: &str) -> SuppressionMap {
-    let mut line_suppressions: HashMap<u32, Option<HashSet<String>>> = HashMap::new();
+    let mut line_rules: HashMap<u32, Option<HashSet<String>>> = HashMap::new();
+    let mut file_rules: Option<Option<HashSet<String>>> = None;
+    let mut block_ranges: Vec<(u32, u32, Option<HashSet<String>>)> = Vec::new();
 
-    for (line_idx, line) in sql.lines().enumerate() {
-        let line_num = (line_idx + 1) as u32;
+    // Track open blocks: (start_line, rules)
+    let mut open_blocks: Vec<(u32, Option<HashSet<String>>)> = Vec::new();
 
-        if let Some(caps) = SUPPRESS_RE.captures(line) {
-            let rules = caps.get(1).map(|m| {
-                m.as_str()
-                    .split([',', ' '])
-                    .map(|s| s.trim().to_string())
-                    .filter(|s| !s.is_empty())
-                    .collect::<HashSet<String>>()
-            });
+    let lines: Vec<&str> = sql.lines().collect();
+    let total_lines = lines.len() as u32;
 
-            match rules {
-                Some(r) if !r.is_empty() => {
-                    line_suppressions.insert(line_num, Some(r));
+    for (idx, line_text) in lines.iter().enumerate() {
+        let line_num = (idx + 1) as u32;
+
+        if let Some(caps) = DIRECTIVE_RE.captures(line_text) {
+            let directive = caps.get(1).unwrap().as_str().to_lowercase();
+            let rules = parse_rule_list(caps.get(2).map(|m| m.as_str()));
+
+            match directive.as_str() {
+                "disable-file" => {
+                    file_rules = Some(rules);
                 }
-                _ => {
-                    line_suppressions.insert(line_num, None); // suppress all
+                "disable-line" => {
+                    line_rules.insert(line_num, rules);
                 }
+                "disable-next-line" => {
+                    // Find next non-blank, non-comment line
+                    let mut target = line_num + 1;
+                    for k in (idx + 1)..lines.len() {
+                        let trimmed = lines[k].trim();
+                        if !trimmed.is_empty() && !trimmed.starts_with("--") {
+                            target = (k + 1) as u32;
+                            break;
+                        }
+                    }
+                    line_rules.insert(target, rules);
+                }
+                "disable" => {
+                    open_blocks.push((line_num, rules));
+                }
+                "enable" => {
+                    // Close the most recent matching block
+                    if let Some((start, block_rules)) = open_blocks.pop() {
+                        block_ranges.push((start, line_num, block_rules));
+                    }
+                }
+                _ => {}
             }
         }
     }
 
+    // Close any unclosed blocks at EOF
+    for (start, block_rules) in open_blocks {
+        block_ranges.push((start, total_lines + 1, block_rules));
+    }
+
     SuppressionMap {
-        line_suppressions,
-        file_suppressions: None,
+        line_rules,
+        file_rules,
+        block_ranges,
     }
 }
 
@@ -87,24 +143,77 @@ mod tests {
     }
 
     #[test]
-    fn suppress_specific_rule() {
-        let sql = "-- slowql: disable PERF-SCAN-001\nSELECT * FROM users";
+    fn disable_next_line_specific() {
+        let sql = "-- slowql-disable-next-line PERF-SCAN-001\nSELECT * FROM users";
         let map = parse_suppressions(sql);
         assert!(map.is_suppressed(2, "PERF-SCAN-001"));
         assert!(!map.is_suppressed(2, "SEC-INJ-001"));
     }
 
     #[test]
-    fn suppress_all_rules() {
-        let sql = "-- slowql: disable\nSELECT * FROM users";
+    fn disable_next_line_all() {
+        let sql = "-- slowql-disable-next-line\nSELECT * FROM users";
         let map = parse_suppressions(sql);
         assert!(map.is_suppressed(2, "PERF-SCAN-001"));
         assert!(map.is_suppressed(2, "SEC-INJ-001"));
     }
 
     #[test]
-    fn suppress_multiple_rules() {
-        let sql = "-- slowql: disable PERF-SCAN-001, SEC-INJ-001\nSELECT * FROM users";
+    fn disable_line() {
+        let sql = "SELECT * FROM users -- slowql-disable-line PERF-SCAN-001";
+        let map = parse_suppressions(sql);
+        assert!(map.is_suppressed(1, "PERF-SCAN-001"));
+        assert!(!map.is_suppressed(1, "SEC-INJ-001"));
+    }
+
+    #[test]
+    fn disable_file() {
+        let sql = "-- slowql-disable-file PERF-SCAN-001\nSELECT * FROM users;\nSELECT * FROM orders;";
+        let map = parse_suppressions(sql);
+        assert!(map.is_suppressed(2, "PERF-SCAN-001"));
+        assert!(map.is_suppressed(3, "PERF-SCAN-001"));
+        assert!(!map.is_suppressed(2, "SEC-INJ-001"));
+    }
+
+    #[test]
+    fn disable_file_all() {
+        let sql = "-- slowql-disable-file\nSELECT * FROM users;";
+        let map = parse_suppressions(sql);
+        assert!(map.is_suppressed(2, "PERF-SCAN-001"));
+        assert!(map.is_suppressed(2, "SEC-INJ-001"));
+    }
+
+    #[test]
+    fn block_disable_enable() {
+        let sql = "SELECT 1;\n-- slowql-disable PERF-SCAN-001\nSELECT * FROM users;\nSELECT * FROM orders;\n-- slowql-enable\nSELECT * FROM t;";
+        let map = parse_suppressions(sql);
+        assert!(!map.is_suppressed(1, "PERF-SCAN-001"));
+        assert!(map.is_suppressed(3, "PERF-SCAN-001"));
+        assert!(map.is_suppressed(4, "PERF-SCAN-001"));
+        assert!(!map.is_suppressed(6, "PERF-SCAN-001"));
+    }
+
+    #[test]
+    fn block_unclosed_extends_to_eof() {
+        let sql = "-- slowql-disable SEC-INJ\nSELECT 1;\nSELECT 2;";
+        let map = parse_suppressions(sql);
+        assert!(map.is_suppressed(2, "SEC-INJ-001"));
+        assert!(map.is_suppressed(3, "SEC-INJ-001"));
+        assert!(!map.is_suppressed(2, "PERF-SCAN-001"));
+    }
+
+    #[test]
+    fn prefix_matching() {
+        let sql = "-- slowql-disable-next-line PERF\nSELECT * FROM users";
+        let map = parse_suppressions(sql);
+        assert!(map.is_suppressed(2, "PERF-SCAN-001"));
+        assert!(map.is_suppressed(2, "PERF-IDX-002"));
+        assert!(!map.is_suppressed(2, "SEC-INJ-001"));
+    }
+
+    #[test]
+    fn multiple_rules_comma_separated() {
+        let sql = "-- slowql-disable-next-line PERF-SCAN-001, SEC-INJ-001\nSELECT * FROM users";
         let map = parse_suppressions(sql);
         assert!(map.is_suppressed(2, "PERF-SCAN-001"));
         assert!(map.is_suppressed(2, "SEC-INJ-001"));
@@ -113,9 +222,16 @@ mod tests {
 
     #[test]
     fn suppression_does_not_leak() {
-        let sql = "-- slowql: disable PERF-SCAN-001\nSELECT * FROM users;\nSELECT * FROM orders";
+        let sql = "-- slowql-disable-next-line PERF-SCAN-001\nSELECT * FROM users;\nSELECT * FROM orders";
         let map = parse_suppressions(sql);
         assert!(map.is_suppressed(2, "PERF-SCAN-001"));
         assert!(!map.is_suppressed(3, "PERF-SCAN-001"));
+    }
+
+    #[test]
+    fn backward_compat_colon_syntax() {
+        let sql = "-- slowql: disable PERF-SCAN-001\nSELECT * FROM users";
+        let map = parse_suppressions(sql);
+        assert!(map.is_suppressed(2, "PERF-SCAN-001"));
     }
 }

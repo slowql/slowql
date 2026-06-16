@@ -66,7 +66,21 @@ impl Engine {
                         }
                     }
                 }
-                raw_issues.extend(rule.check(query));
+                let mut rule_issues = rule.check(query);
+                // Apply severity overrides from config
+                for issue in &mut rule_issues {
+                    if let Some(override_sev) = self.config.analysis.severity_overrides.get(&issue.rule_id) {
+                        issue.severity = match override_sev.as_str() {
+                            "critical" => crate::models::Severity::Critical,
+                            "high" => crate::models::Severity::High,
+                            "medium" => crate::models::Severity::Medium,
+                            "low" => crate::models::Severity::Low,
+                            "info" => crate::models::Severity::Info,
+                            _ => issue.severity,
+                        };
+                    }
+                }
+                raw_issues.extend(rule_issues);
             }
         }
 

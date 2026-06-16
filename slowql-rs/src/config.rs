@@ -27,6 +27,8 @@ pub struct AnalysisConfig {
     pub parallel: bool,
     #[serde(default)]
     pub max_workers: usize,
+    #[serde(default)]
+    pub severity_overrides: std::collections::HashMap<String, String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -74,6 +76,7 @@ impl Default for AnalysisConfig {
             max_query_length: default_max_query_length(),
             parallel: true,
             max_workers: 0,
+            severity_overrides: std::collections::HashMap::new(),
         }
     }
 }
