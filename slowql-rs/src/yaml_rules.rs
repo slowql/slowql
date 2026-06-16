@@ -1,4 +1,3 @@
-use crate::models::issue::Category;
 use crate::models::{Dimension, Issue, Query, Severity};
 use crate::rules::base::Rule;
 use regex::Regex;
