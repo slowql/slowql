@@ -243,7 +243,7 @@ impl Rule for SparkUdfInWhereRule {
 
 // SQLite
 struct SqliteWalModeRule;
-static PAT_SQLITE_WAL: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\bPRAGMA\s+journal_mode\s*=\s*(?!wal\b)\w+").unwrap());
+static PAT_SQLITE_WAL: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\bPRAGMA\s+journal_mode\s*=\s*\w+").unwrap());
 impl Rule for SqliteWalModeRule {
     fn id(&self) -> &'static str { "PERF-SQLITE-001" }
     fn name(&self) -> &'static str { "Consider WAL Mode for Concurrent Access" }
@@ -254,9 +254,12 @@ impl Rule for SqliteWalModeRule {
     fn impact(&self) -> &'static str { "Without WAL, any write locks the entire database file." }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if !self.dialect_matches(query) { return Vec::new(); }
-        PAT_SQLITE_WAL.find(&query.raw).map(|m| {
-            vec![self.build_issue(query, "Non-WAL journal mode detected - consider WAL for concurrency.", m.as_str())]
-        }).unwrap_or_default()
+        if let Some(m) = PAT_SQLITE_WAL.find(&query.raw) {
+            let matched_upper = m.as_str().to_uppercase();
+            if matched_upper.ends_with("WAL") { return Vec::new(); }
+            return vec![self.build_issue(query, "Non-WAL journal mode detected - consider WAL for concurrency.", m.as_str())];
+        }
+        Vec::new()
     }
 }
 

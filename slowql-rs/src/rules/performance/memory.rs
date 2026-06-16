@@ -33,7 +33,7 @@ impl Rule for LargeInClauseRule {
 }
 
 struct UnboundedTempTableRule;
-static PAT_TEMP: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\bSELECT\b(?!.*\b(WHERE|TOP|LIMIT)\b)[^;]*\bINTO\s+[#@\w]+").unwrap());
+static PAT_TEMP: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\bSELECT\b[^;]*\bINTO\s+[#@]\w+").unwrap());
 impl Rule for UnboundedTempTableRule {
     fn id(&self) -> &'static str { "PERF-MEM-002" }
     fn name(&self) -> &'static str { "Unbounded Temp Table Creation" }
@@ -44,10 +44,15 @@ impl Rule for UnboundedTempTableRule {
     fn impact(&self) -> &'static str { "Unbounded SELECT INTO can fill tempdb, crash the instance, or exhaust memory." }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if !self.dialect_matches(query) { return Vec::new(); }
-        PAT_TEMP.find(&query.raw).map(|m| {
+        if let Some(m) = PAT_TEMP.find(&query.raw) {
+            let upper = query.raw_upper();
+            if upper.contains("WHERE") || upper.contains("TOP ") || upper.contains("LIMIT") {
+                return Vec::new();
+            }
             let msg = format!("Unbounded SELECT INTO temp table: {}", m.as_str());
-            vec![self.build_issue(query, &msg, m.as_str())]
-        }).unwrap_or_default()
+            return vec![self.build_issue(query, &msg, m.as_str())];
+        }
+        Vec::new()
     }
 }
 
