@@ -161,7 +161,7 @@ impl Rule for NonIdempotentInsertRule {
 
 // REL-IDEM-002
 struct NonIdempotentUpdateRule;
-static PAT_REL_UPDATE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\bSET\s+(\w+)\s*=\s*\1\s*[+\-]").unwrap());
+static PAT_REL_UPDATE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\bSET\s+(\w+)\s*=\s*(\w+)\s*[+\-]").unwrap());
 impl Rule for NonIdempotentUpdateRule {
     fn id(&self) -> &'static str { "REL-IDEM-002" }
     fn name(&self) -> &'static str { "Non-Idempotent UPDATE Pattern" }
@@ -171,7 +171,11 @@ impl Rule for NonIdempotentUpdateRule {
     fn impact(&self) -> &'static str { "Relative updates execute multiple times on retry, causing incorrect totals." }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if !query.is_update() { return Vec::new(); }
-        if let Some(m) = PAT_REL_UPDATE.find(&query.raw) {
+        if let Some(caps) = PAT_REL_UPDATE.captures(&query.raw) {
+            let col1 = caps.get(1).map(|m| m.as_str().to_lowercase()).unwrap_or_default();
+            let col2 = caps.get(2).map(|m| m.as_str().to_lowercase()).unwrap_or_default();
+            if col1 != col2 { return Vec::new(); }
+            let m = caps.get(0).unwrap();
             let upper = query.raw_upper();
             let has_version = ["VERSION", "UPDATED_AT", "MODIFIED_AT", "ETAG", "ROW_VERSION", "LOCK_VERSION"].iter().any(|v| upper.contains(v));
             if !has_version {
