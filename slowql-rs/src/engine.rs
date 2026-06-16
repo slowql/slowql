@@ -81,6 +81,10 @@ impl Engine {
     }
 
     /// Get the total number of registered rules.
+    pub fn registry_ref(&self) -> &crate::rules::RuleRegistry {
+        &self.registry
+    }
+
     pub fn rule_count(&self) -> usize {
         self.registry.all().len()
     }
