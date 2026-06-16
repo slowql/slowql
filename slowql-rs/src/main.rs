@@ -150,6 +150,20 @@ fn main() {
     }
     config.output.verbose = cli.verbose;
 
+    let _schema = cli.schema.as_ref().map(|path| {
+        let dialect = cli.dialect.as_deref().unwrap_or("postgresql");
+        match slowql_lib::schema::load_schema_file(path, dialect) {
+            Ok(s) => {
+                eprintln!("Schema loaded: {} tables from {}", s.tables.len(), path.display());
+                Some(s)
+            }
+            Err(e) => {
+                eprintln!("Warning: {}", e);
+                None
+            }
+        }
+    }).flatten();
+
     let engine = Engine::new(config);
 
     // Determine input

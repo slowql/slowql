@@ -9,3 +9,6 @@ pub mod suppressions;
 
 pub mod git;
 pub mod extractor;
+pub mod schema;
+pub mod autofixer;
+pub mod scoring;

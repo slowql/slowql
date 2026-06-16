@@ -1,5 +1,5 @@
 use slowql_lib::models::{Location, Query};
-use slowql_lib::rules::{migration, schema, Rule};
+use slowql_lib::rules::{migration, schema};
 
 fn q(sql: &str, qt: &str) -> Query {
     Query { raw: sql.to_string(), normalized: sql.to_string(), dialect: "postgresql".to_string(), location: Location::new(1, 1), start_offset: None, end_offset: None, tables: vec![], columns: vec![], query_type: Some(qt.to_string()), is_ddl: true, is_dynamic: false, complexity_score: 0, source_context: String::new(), ..Default::default() }
