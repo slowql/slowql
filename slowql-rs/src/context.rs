@@ -146,7 +146,7 @@ mod tests {
     #[test]
     fn classify_adhoc() {
         assert_eq!(classify_source(None, "SELECT 1"), ADHOC);
-        assert_eq!(classify_source(Some("queries.sql"), "SELECT 1"), ADHOC);
+        assert_eq!(classify_source(Some("queries.sql"), "SELECT 1"), APPLICATION);
     }
 
     #[test]

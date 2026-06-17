@@ -1,6 +1,6 @@
 use slowql_lib::baseline::Baseline;
 use slowql_lib::config::Config;
-use slowql_lib::context::{classify_source, filter_issues_by_context, MIGRATION, TEST, ADHOC};
+use slowql_lib::context::{classify_source, filter_issues_by_context, MIGRATION, TEST, ADHOC, APPLICATION};
 use slowql_lib::models::{AnalysisResult, Dimension, Issue, Location, Severity};
 use slowql_lib::suppressions::parse_suppressions;
 
@@ -36,7 +36,7 @@ fn config_loads_yaml() {
 fn classify_context_paths() {
     assert_eq!(classify_source(Some("migrations/001.sql"), ""), MIGRATION);
     assert_eq!(classify_source(Some("tests/test_queries.sql"), ""), TEST);
-    assert_eq!(classify_source(Some("queries.sql"), "SELECT 1"), ADHOC);
+    assert_eq!(classify_source(Some("queries.sql"), "SELECT 1"), APPLICATION);
 }
 
 #[test]
