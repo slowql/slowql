@@ -60,15 +60,24 @@ impl Rule for UnboundedSelectRule {
         if !query.is_select() { return Vec::new(); }
 
         if let Some(ref facts) = query.facts {
-            // AST-aware: use parsed structure
             if facts.has_limit { return Vec::new(); }
             if facts.has_aggregation || facts.has_group_by { return Vec::new(); }
             if facts.is_single_row_lookup() { return Vec::new(); }
+            if facts.has_where { return Vec::new(); }
+            // Skip constant expressions (SELECT 1, SELECT NOW())
+            if facts.from_tables.is_empty() { return Vec::new(); }
+            // Skip system catalog queries
+            if facts.from_tables.iter().any(|t| {
+                let tl = t.to_lowercase();
+                tl.starts_with("pg_") || tl.starts_with("information_schema") || tl.starts_with("sys.")
+            }) { return Vec::new(); }
         } else {
-            // Fallback to string matching
             let upper = query.raw_upper();
             if upper.contains("LIMIT") || upper.contains("TOP ") { return Vec::new(); }
             if upper.contains("GROUP BY") || upper.contains("COUNT(") { return Vec::new(); }
+            if upper.contains("WHERE") { return Vec::new(); }
+            // Skip SELECT 1
+            if !upper.contains("FROM") { return Vec::new(); }
         }
 
         vec![self.build_issue(query, "SELECT without LIMIT on non-aggregated query.", query.snippet(80))]

@@ -15,6 +15,8 @@ impl Rule for SelectWithoutFromRule {
     fn category(&self) -> Option<Category> { Some(Category::QualReadability) }
     fn impact(&self) -> &'static str { "Constant SELECT statements may indicate debug code." }
     fn check(&self, query: &Query) -> Vec<Issue> {
+        if query.source_context == "adhoc" || query.source_context.is_empty() { return Vec::new(); }
+
         if PAT_NO_FROM.is_match(&query.raw) && !query.raw_upper().contains("FROM") {
             return vec![self.build_issue(query, "SELECT without FROM detected - verify intentional.", query.snippet(80))];
         }
@@ -210,7 +212,7 @@ impl Rule for MagicStringWithoutCommentRule { fn id(&self) -> &'static str { "QU
         if let Some(m) = PAT_MAGIC.find(&query.raw) {
             if query.raw.contains("--") { return Vec::new(); }
             let matched_lower = m.as_str().to_lowercase();
-            let common = ["active","inactive","pending","completed","true","false","yes","no","enabled","disabled","open","closed","draft","published","archived","deleted","admin","user","guest"];
+            let common = ["active","inactive","pending","completed","true","false","yes","no","enabled","disabled","open","closed","draft","published","archived","deleted","admin","user","guest","paid","unpaid","cancelled","approved","rejected","shipped","delivered","processing","failed","success","error"];
             let parts: Vec<&str> = matched_lower.split('\'').collect();
             if parts.len() >= 2 { let value = parts[parts.len() - 2]; if common.iter().any(|cv| *cv == value) { return Vec::new(); } }
             return vec![self.build_issue(query, "Magic constant without comment.", m.as_str())];
@@ -273,24 +275,26 @@ impl Rule for NonDeterministicQueryRule {
     fn category(&self) -> Option<Category> { Some(Category::QualTesting) }
     fn impact(&self) -> &'static str { "Non-deterministic queries are hard to test and reproduce." }
     fn check(&self, query: &Query) -> Vec<Issue> {
+        if !query.is_select() { return Vec::new(); }
+        if query.source_context == "adhoc" || query.source_context.is_empty() { return Vec::new(); }
         let upper = query.raw_upper();
-        let funcs = [
-            "NOW(",
-            "RAND(",
-            "RANDOM(",
-            "CURRENT_TIMESTAMP",
-            "GETDATE(",
-            "CLOCK_TIMESTAMP(",
-        ];
-
-        if funcs.iter().any(|f| upper.contains(f)) {
-            return vec![self.build_issue(
-                query,
-                "Non-deterministic function detected - makes testing difficult.",
-                query.snippet(80),
-            )];
+        let funcs = ["NOW(", "RAND(", "RANDOM(", "CURRENT_TIMESTAMP", "GETDATE(", "CLOCK_TIMESTAMP("];
+        // Only flag if non-deterministic function is in SELECT list, not in WHERE
+        if let Some(ref facts) = query.facts {
+            if facts.has_where {
+                // Check if functions appear BEFORE the WHERE keyword (in SELECT list)
+                let where_pos = upper.find("WHERE").unwrap_or(upper.len());
+                let select_part = &upper[..where_pos];
+                if funcs.iter().any(|f| select_part.contains(f)) {
+                    return vec![self.build_issue(query, "Non-deterministic function in SELECT list.", query.snippet(80))];
+                }
+                return Vec::new();
+            }
         }
-
+        // No WHERE: check if function is anywhere (likely in SELECT list)
+        if funcs.iter().any(|f| upper.contains(f)) {
+            return vec![self.build_issue(query, "Non-deterministic function detected.", query.snippet(80))];
+        }
         Vec::new()
     }
 }

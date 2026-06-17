@@ -67,6 +67,10 @@ impl Rule for HorizontalAuthorizationBypassRule {
         if !query.is_select() { return Vec::new(); }
         let upper = query.raw_upper();
         if upper.contains("COUNT(") || upper.contains("SUM(") || upper.contains("AVG(") { return Vec::new(); }
+        // Skip single-row PK lookups (targeted, not bulk access)
+        if let Some(ref facts) = query.facts {
+            if facts.is_single_row_lookup() { return Vec::new(); }
+        }
         let raw_lower = query.raw_lower().to_string();
         let hits_sensitive = SENSITIVE_TABLES.iter().any(|&t| raw_lower.contains(t));
         if !hits_sensitive { return Vec::new(); }

@@ -45,19 +45,10 @@ impl Rule for ImplicitTypeConversionRule {
     fn category(&self) -> Option<Category> { Some(Category::PerfIndex) }
     fn impact(&self) -> &'static str { "Implicit type conversion turns index seeks into full scans." }
     fn check(&self, query: &Query) -> Vec<Issue> {
-        // Heuristic: numeric column name compared with string literal
-        let raw_lower = query.raw_lower().to_string();
-        let numeric_cols = ["_id ", "amount ", "quantity ", "price ", "count ", "total ", "age "];
-        let has_numeric_col_with_string = numeric_cols.iter().any(|col| {
-            if let Some(pos) = raw_lower.find(col) {
-                let after = &raw_lower[pos..];
-                after.contains("= '") || after.contains("='")
-            } else { false }
-        });
-        if has_numeric_col_with_string {
-            let snip = &query.raw[..query.raw.len().min(100)];
-            return vec![self.build_issue(query, "Implicit type conversion: numeric column compared with string literal.", snip)];
-        }
+        // Implicit type conversion detection requires schema knowledge.
+        // Without actual column type information, heuristic detection
+        // produces false positives. Only fire when schema is loaded.
+        // This is a placeholder for schema-aware validation.
         Vec::new()
     }
 }
@@ -163,6 +154,9 @@ impl Rule for CompositeIndexOrderViolationRule {
         // Use AST to check only WHERE columns, not JOIN ON
         if let Some(ref facts) = query.facts {
             if !facts.has_where { return Vec::new(); }
+            // Single-column WHERE is always valid (no composite concern)
+            let unique_cols: std::collections::HashSet<&String> = facts.where_columns.iter().collect();
+            if unique_cols.len() <= 1 { return Vec::new(); }
             for &(lead, secondary) in COMPOSITE_PAIRS {
                 if facts.where_columns.iter().any(|c| c == secondary)
                     && !facts.where_columns.iter().any(|c| c == lead) {

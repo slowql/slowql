@@ -9,6 +9,10 @@ struct FullTableScanRule;
 impl Rule for FullTableScanRule { fn id(&self) -> &'static str { "COST-COMPUTE-001" } fn name(&self) -> &'static str { "Full Table Scan on Large Tables" } fn severity(&self) -> Severity { Severity::High } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostCompute) } fn impact(&self) -> &'static str { "Full table scans linearly increase compute cost with table size." } fn check(&self, query: &Query) -> Vec<Issue> { if !query.is_select() { return Vec::new(); }
         let upper = query.raw_upper();
         if upper.contains("WHERE") || upper.contains("LIMIT") || upper.contains("TOP ") { return Vec::new(); }
+        if !upper.contains("FROM") { return Vec::new(); } // Skip constant expressions
+        // Skip system catalog queries
+        let lower = query.raw_lower();
+        if lower.contains("pg_stat") || lower.contains("pg_catalog") || lower.contains("information_schema") || lower.contains("sys.") { return Vec::new(); }
         vec![self.build_issue(query, "Potential full table scan missing WHERE clause.", query.snippet(80))] } }
 
 // COST-COMPUTE-002
