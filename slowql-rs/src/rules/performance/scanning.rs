@@ -6,7 +6,6 @@ use regex::Regex;
 
 // PERF-SCAN-001: SELECT *
 struct SelectStarRule;
-static PAT_SELECT_STAR: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\bSELECT\s+\*").unwrap());
 impl Rule for SelectStarRule {
     fn id(&self) -> &'static str { "PERF-SCAN-001" }
     fn name(&self) -> &'static str { "SELECT * Usage" }
@@ -16,9 +15,14 @@ impl Rule for SelectStarRule {
     fn impact(&self) -> &'static str { "Increases network traffic, memory usage, and prevents covering index usage." }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if !query.is_select() { return Vec::new(); }
-        PAT_SELECT_STAR.find(&query.raw).map(|m| {
-            vec![self.build_issue(query, "Avoid SELECT *, specify columns explicitly.", m.as_str())]
-        }).unwrap_or_default()
+        // In ad-hoc context (no file), SELECT * is expected for exploration
+        if query.source_context == "adhoc" || query.source_context.is_empty() {
+            return Vec::new();
+        }
+        if query.raw_upper().contains("SELECT *") {
+            return vec![self.build_issue(query, "Avoid SELECT *, specify columns explicitly.", "SELECT *")];
+        }
+        Vec::new()
     }
 }
 

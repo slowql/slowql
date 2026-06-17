@@ -7,7 +7,7 @@ use regex::Regex;
 // COMP-GDPR-001
 struct PiiExposureRule;
 static PAT_PII: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\b(email|ssn|social_security|credit_card|cc_num|passport)\b").unwrap());
-impl Rule for PiiExposureRule { fn id(&self) -> &'static str { "COMP-GDPR-001" } fn name(&self) -> &'static str { "Potential PII Selection" } fn severity(&self) -> Severity { Severity::Medium } fn dimension(&self) -> Dimension { Dimension::Compliance } fn category(&self) -> Option<Category> { Some(Category::CompGdpr) } fn impact(&self) -> &'static str { "Accessing PII requires audit logging and strict access controls under GDPR/CCPA." } fn check(&self, query: &Query) -> Vec<Issue> { PAT_PII.find(&query.raw).map(|m| { let msg = format!("Potential PII column accessed: {}", m.as_str()); vec![self.build_issue(query, &msg, m.as_str())] }).unwrap_or_default() } }
+impl Rule for PiiExposureRule { fn id(&self) -> &'static str { "COMP-GDPR-001" } fn name(&self) -> &'static str { "Potential PII Selection" } fn severity(&self) -> Severity { Severity::Info } fn dimension(&self) -> Dimension { Dimension::Compliance } fn category(&self) -> Option<Category> { Some(Category::CompGdpr) } fn impact(&self) -> &'static str { "Accessing PII requires audit logging and strict access controls under GDPR/CCPA." } fn check(&self, query: &Query) -> Vec<Issue> { PAT_PII.find(&query.raw).map(|m| { let msg = format!("Potential PII column accessed: {}", m.as_str()); vec![self.build_issue(query, &msg, m.as_str())] }).unwrap_or_default() } }
 
 // COMP-GDPR-002
 struct CrossBorderDataTransferRule;

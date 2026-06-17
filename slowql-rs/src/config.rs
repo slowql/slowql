@@ -27,6 +27,9 @@ pub struct AnalysisConfig {
     pub parallel: bool,
     #[serde(default)]
     pub max_workers: usize,
+    /// Compliance frameworks to enforce (gdpr, hipaa, pci-dss, sox). Empty = disabled.
+    #[serde(default)]
+    pub compliance_frameworks: std::collections::HashSet<String>,
     #[serde(default)]
     pub severity_overrides: std::collections::HashMap<String, String>,
 }
@@ -76,6 +79,7 @@ impl Default for AnalysisConfig {
             max_query_length: default_max_query_length(),
             parallel: true,
             max_workers: 0,
+            compliance_frameworks: std::collections::HashSet::new(),
             severity_overrides: std::collections::HashMap::new(),
         }
     }

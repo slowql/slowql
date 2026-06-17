@@ -85,7 +85,12 @@ impl Engine {
                         };
                     }
                 }
-                raw_issues.extend(rule_issues);
+                // Skip compliance rules unless frameworks are explicitly configured
+                if self.config.analysis.compliance_frameworks.is_empty() {
+                    raw_issues.extend(rule_issues.into_iter().filter(|i| i.dimension != crate::models::Dimension::Compliance));
+                } else {
+                    raw_issues.extend(rule_issues);
+                }
             }
         }
 
