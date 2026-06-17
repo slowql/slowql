@@ -44,11 +44,10 @@ impl Rule for ImplicitTypeConversionRule {
     fn dimension(&self) -> Dimension { Dimension::Performance }
     fn category(&self) -> Option<Category> { Some(Category::PerfIndex) }
     fn impact(&self) -> &'static str { "Implicit type conversion turns index seeks into full scans." }
-    fn check(&self, query: &Query) -> Vec<Issue> {
+    fn check(&self, _query: &Query) -> Vec<Issue> {
         // Implicit type conversion detection requires schema knowledge.
         // Without actual column type information, heuristic detection
         // produces false positives. Only fire when schema is loaded.
-        // This is a placeholder for schema-aware validation.
         Vec::new()
     }
 }
