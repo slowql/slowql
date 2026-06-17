@@ -7,7 +7,7 @@ use sqlparser::dialect::*;
 use sqlparser::parser::Parser;
 
 /// Structural facts about a parsed query.
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct QueryFacts {
     /// The top-level statement type
     pub statement_type: String,

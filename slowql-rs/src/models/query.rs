@@ -17,6 +17,9 @@ pub struct Query {
     pub is_dynamic: bool,
     pub complexity_score: u32,
     pub source_context: String,
+    /// Parsed structural facts (lazily populated by engine).
+    #[serde(skip)]
+    pub facts: Option<crate::query_analysis::QueryFacts>,
     /// Cached uppercase version. Computed lazily, not serialized.
     #[serde(skip)]
     #[serde(default)]
@@ -80,6 +83,7 @@ impl Default for Query {
             is_dynamic: false,
             complexity_score: 0,
             source_context: String::new(),
+            facts: None,
             raw_upper_cache: OnceCell::new(),
             raw_lower_cache: OnceCell::new(),
         }

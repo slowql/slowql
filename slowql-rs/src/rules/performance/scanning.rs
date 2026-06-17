@@ -53,35 +53,18 @@ impl Rule for UnboundedSelectRule {
     fn impact(&self) -> &'static str { "May return millions of rows, overwhelming application memory." }
 
     fn check(&self, query: &Query) -> Vec<Issue> {
-        if !query.is_select() {
-            return Vec::new();
-        }
+        if !query.is_select() { return Vec::new(); }
 
-        let upper = query.raw_upper();
-
-        if upper.contains("LIMIT") || upper.contains("TOP ") {
-            return Vec::new();
-        }
-
-        if upper.contains("GROUP BY") || upper.contains("COUNT(") || upper.contains("SUM(") || upper.contains("AVG(") {
-            return Vec::new();
-        }
-
-        // Precision fix: do not flag likely single-row PK lookups
-        if upper.contains("WHERE") {
-            let pk_patterns = [
-                "WHERE ID =",
-                "WHERE ID=",
-                "WHERE USER_ID =",
-                "WHERE USER_ID=",
-                "WHERE ORDER_ID =",
-                "WHERE ORDER_ID=",
-                "WHERE ACCOUNT_ID =",
-                "WHERE ACCOUNT_ID=",
-            ];
-            if pk_patterns.iter().any(|p| upper.contains(p)) {
-                return Vec::new();
-            }
+        if let Some(ref facts) = query.facts {
+            // AST-aware: use parsed structure
+            if facts.has_limit { return Vec::new(); }
+            if facts.has_aggregation || facts.has_group_by { return Vec::new(); }
+            if facts.is_single_row_lookup() { return Vec::new(); }
+        } else {
+            // Fallback to string matching
+            let upper = query.raw_upper();
+            if upper.contains("LIMIT") || upper.contains("TOP ") { return Vec::new(); }
+            if upper.contains("GROUP BY") || upper.contains("COUNT(") { return Vec::new(); }
         }
 
         vec![self.build_issue(query, "SELECT without LIMIT on non-aggregated query.", query.snippet(80))]

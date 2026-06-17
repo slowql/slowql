@@ -36,11 +36,13 @@ impl Rule for ConsentWithdrawalRule { fn id(&self) -> &'static str { "COMP-GDPR-
         let lower = query.raw_lower();
         let hits_pii = PII_TABLES.iter().any(|t| lower.contains(t));
         if !hits_pii { return Vec::new(); }
-        // Precision: only flag when PII columns are accessed or SELECT *
         let pii_cols = ["email","phone","ssn","address","date_of_birth","social_security","credit_card","first_name","last_name","passport","national_id","name"];
-        let accesses_pii = pii_cols.iter().any(|c| lower.contains(c));
-        let selects_star = query.raw_upper().contains("SELECT *");
-        if !accesses_pii && !selects_star { return Vec::new(); }
+        let accesses_pii = if let Some(ref facts) = query.facts {
+            facts.selects_star || pii_cols.iter().any(|c| facts.selects_column(c))
+        } else {
+            query.raw_upper().contains("SELECT *") || pii_cols.iter().any(|c| lower.contains(c))
+        };
+        if !accesses_pii { return Vec::new(); }
         let has_consent = CONSENT_COLS.iter().any(|c| lower.contains(c));
         if has_consent { return Vec::new(); }
         vec![self.build_issue(query, "PII access without active consent filter.", query.snippet(100))] } }

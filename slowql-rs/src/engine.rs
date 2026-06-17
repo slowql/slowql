@@ -40,13 +40,18 @@ impl Engine {
             .unwrap_or("generic");
 
         let parse_start = Instant::now();
-        let queries = parser::parse(sql, effective_dialect, file_path);
+        let mut queries = parser::parse(sql, effective_dialect, file_path);
         let parse_ms = parse_start.elapsed().as_secs_f64() * 1000.0;
 
         let mut result = AnalysisResult::new();
         result.dialect = Some(effective_dialect.to_string());
         result.statistics.total_queries = queries.len();
         result.statistics.parse_time_ms = parse_ms;
+
+        // Compute structural facts for each query
+        for query in &mut queries {
+            query.facts = Some(crate::query_analysis::QueryFacts::from_sql(&query.raw, effective_dialect));
+        }
 
         let source_ctx = crate::context::classify_source(file_path, sql);
         let suppression_map = crate::suppressions::parse_suppressions(sql);
