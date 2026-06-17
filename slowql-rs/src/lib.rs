@@ -15,3 +15,4 @@ pub mod scoring;
 pub mod cache;
 pub mod jinja;
 pub mod yaml_rules;
+pub mod query_analysis;
