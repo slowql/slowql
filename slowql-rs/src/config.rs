@@ -87,10 +87,12 @@ impl Default for AnalysisConfig {
 
 impl Default for SeverityConfig {
     fn default() -> Self { SeverityConfig { fail_on: default_fail_on() } }
+
 }
 
 impl Default for OutputConfig {
     fn default() -> Self { OutputConfig { format: default_format(), verbose: false, show_fixes: true } }
+
 }
 
 impl Config {

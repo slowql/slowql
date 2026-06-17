@@ -17,12 +17,7 @@ impl Rule for DatabaseVersionDisclosureRule {
     fn category(&self) -> Option<Category> { Some(Category::SecDataExposure) }
     fn impact(&self) -> &'static str { "Exposing database version helps attackers identify known vulnerabilities (CVEs) specific to that version." }
 
-    fn check(&self, query: &Query) -> Vec<Issue> {
-        PAT_INFO_001.find(&query.raw).map(|m| {
-            vec![self.build_issue(query, &format!("Database version disclosure: {}", m.as_str()), m.as_str())]
-        }).unwrap_or_default()
-    }
-}
+fn check(&self, query: &Query) -> Vec<Issue> { if query.source_context == "adhoc" || query.source_context.is_empty() { return Vec::new(); } PAT_INFO_001.find(&query.raw).map(|m| { let msg = format!("Database version disclosure: {}", m.as_str()); vec![self.build_issue(query, &msg, m.as_str())] }).unwrap_or_default() } }
 
 struct SchemaInformationDisclosureRule;
 static PAT_INFO_002: Lazy<Regex> = Lazy::new(|| {
@@ -37,12 +32,7 @@ impl Rule for SchemaInformationDisclosureRule {
     fn category(&self) -> Option<Category> { Some(Category::SecDataExposure) }
     fn impact(&self) -> &'static str { "Schema enumeration reveals table names, column names, and relationships. Attackers use this for targeted SQL injection." }
 
-    fn check(&self, query: &Query) -> Vec<Issue> {
-        PAT_INFO_002.find(&query.raw).map(|m| {
-            vec![self.build_issue(query, &format!("Schema information disclosure: {}", m.as_str()), m.as_str())]
-        }).unwrap_or_default()
-    }
-}
+fn check(&self, query: &Query) -> Vec<Issue> { if query.source_context == "adhoc" || query.source_context.is_empty() { return Vec::new(); } PAT_INFO_002.find(&query.raw).map(|m| { let msg = format!("Schema information disclosure: {}", m.as_str()); vec![self.build_issue(query, &msg, m.as_str())] }).unwrap_or_default() } }
 
 struct TimingAttackPatternRule;
 static PAT_INFO_003: Lazy<Regex> = Lazy::new(|| {

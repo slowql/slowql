@@ -1,6 +1,6 @@
 use slowql_lib::baseline::Baseline;
 use slowql_lib::config::Config;
-use slowql_lib::context::{classify_source, filter_issues_by_context, MIGRATION, TEST, ADHOC, APPLICATION};
+use slowql_lib::context::{classify_source, filter_issues_by_context, MIGRATION, TEST, APPLICATION};
 use slowql_lib::models::{AnalysisResult, Dimension, Issue, Location, Severity};
 use slowql_lib::suppressions::parse_suppressions;
 

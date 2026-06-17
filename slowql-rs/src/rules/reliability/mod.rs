@@ -151,6 +151,7 @@ impl Rule for NonIdempotentInsertRule {
     fn category(&self) -> Option<Category> { Some(Category::RelIdempotency) }
     fn impact(&self) -> &'static str { "Non-idempotent INSERTs cause duplicate data on network retries." }
     fn check(&self, query: &Query) -> Vec<Issue> {
+        if query.source_context == "adhoc" || query.source_context.is_empty() { return Vec::new(); }
         if !query.is_insert() { return Vec::new(); }
         let upper = query.raw_upper();
         let idempotent = upper.contains("ON CONFLICT") || upper.contains("ON DUPLICATE KEY") || upper.contains("INSERT IGNORE") || upper.contains("MERGE") || upper.contains("NOT EXISTS");
@@ -234,6 +235,7 @@ impl Rule for OrphanRecordRiskRule {
     fn category(&self) -> Option<Category> { Some(Category::RelForeignKey) }
     fn impact(&self) -> &'static str { "INSERTs without FK verification create orphan records." }
     fn check(&self, query: &Query) -> Vec<Issue> {
+        if query.source_context == "adhoc" || query.source_context.is_empty() { return Vec::new(); }
         if !query.is_insert() { return Vec::new(); }
         let raw_lower = query.raw_lower().to_string();
         let has_fk = FK_COLS.iter().any(|c| raw_lower.contains(c));

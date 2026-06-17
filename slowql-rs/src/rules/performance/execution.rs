@@ -33,6 +33,7 @@ impl Rule for CorrelatedSubqueryRule {
     fn category(&self) -> Option<Category> { Some(Category::PerfExecution) }
     fn impact(&self) -> &'static str { "Correlated subqueries execute for every row in the outer query." }
     fn check(&self, query: &Query) -> Vec<Issue> {
+        if query.raw_upper().contains("EXISTS") { return Vec::new(); }
         // Simplified heuristic: subquery with reference to outer table
         let upper = query.raw_upper();
         if !upper.contains("(") || !upper.contains("SELECT") { return Vec::new(); }

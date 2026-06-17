@@ -150,6 +150,8 @@ impl Rule for CompositeIndexOrderViolationRule {
     fn category(&self) -> Option<Category> { Some(Category::PerfIndex) }
     fn impact(&self) -> &'static str { "Filtering only on the secondary column forces a full index scan." }
     fn check(&self, query: &Query) -> Vec<Issue> {
+        if query.source_context == "adhoc" || query.source_context.is_empty() { return Vec::new(); }
+        if query.source_context == "adhoc" || query.source_context.is_empty() { return Vec::new(); }
         // Use AST to check only WHERE columns, not JOIN ON
         if let Some(ref facts) = query.facts {
             if !facts.has_where { return Vec::new(); }

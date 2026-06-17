@@ -6,11 +6,10 @@ use regex::Regex;
 
 // COST-COMPUTE-001
 struct FullTableScanRule;
-impl Rule for FullTableScanRule { fn id(&self) -> &'static str { "COST-COMPUTE-001" } fn name(&self) -> &'static str { "Full Table Scan on Large Tables" } fn severity(&self) -> Severity { Severity::High } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostCompute) } fn impact(&self) -> &'static str { "Full table scans linearly increase compute cost with table size." } fn check(&self, query: &Query) -> Vec<Issue> { if !query.is_select() { return Vec::new(); }
+impl Rule for FullTableScanRule { fn id(&self) -> &'static str { "COST-COMPUTE-001" } fn name(&self) -> &'static str { "Full Table Scan on Large Tables" } fn severity(&self) -> Severity { Severity::High } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostCompute) } fn impact(&self) -> &'static str { "Full table scans linearly increase compute cost with table size." } fn check(&self, query: &Query) -> Vec<Issue> { if !query.is_select() { return Vec::new(); } if query.source_context == "adhoc" || query.source_context.is_empty() { return Vec::new(); }
         let upper = query.raw_upper();
-        if upper.contains("WHERE") || upper.contains("LIMIT") || upper.contains("TOP ") { return Vec::new(); }
-        if !upper.contains("FROM") { return Vec::new(); } // Skip constant expressions
-        // Skip system catalog queries
+        if upper.contains("WHERE") || upper.contains("LIMIT") || upper.contains("TOP ") || upper.contains("GROUP BY") { return Vec::new(); }
+        if !upper.contains("FROM") { return Vec::new(); }
         let lower = query.raw_lower();
         if lower.contains("pg_stat") || lower.contains("pg_catalog") || lower.contains("information_schema") || lower.contains("sys.") { return Vec::new(); }
         vec![self.build_issue(query, "Potential full table scan missing WHERE clause.", query.snippet(80))] } }
@@ -30,12 +29,12 @@ impl Rule for RedundantOrderByRule { fn id(&self) -> &'static str { "COST-IO-001
 
 // COST-NETWORK-001
 struct CrossRegionDataTransferCostRule;
-static PAT_CROSS_REGION: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\b(OPENQUERY|OPENDATASOURCE|EXTERNAL\s+TABLE|DBLink|@[\w\.]+)\b").unwrap());
+static PAT_CROSS_REGION: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\b(OPENQUERY|OPENDATASOURCE|EXTERNAL\s+TABLE|DBLink)\b").unwrap());
 impl Rule for CrossRegionDataTransferCostRule { fn id(&self) -> &'static str { "COST-NETWORK-001" } fn name(&self) -> &'static str { "Cross-Region Data Transfer" } fn severity(&self) -> Severity { Severity::Info } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostNetwork) } fn impact(&self) -> &'static str { "Cross-region queries incur data egress charges." } fn check(&self, query: &Query) -> Vec<Issue> { PAT_CROSS_REGION.find(&query.raw).map(|m| vec![self.build_issue(query, "Potential cross-region data transfer detected.", m.as_str())]).unwrap_or_default() } }
 
 // COST-PAGE-001
 struct OffsetPaginationWithoutCoveringIndexRule;
-impl Rule for OffsetPaginationWithoutCoveringIndexRule { fn id(&self) -> &'static str { "COST-PAGE-001" } fn name(&self) -> &'static str { "OFFSET Pagination Without Index" } fn severity(&self) -> Severity { Severity::High } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostPagination) } fn impact(&self) -> &'static str { "OFFSET forces the database to scan and discard rows, cost increases with page depth." } fn check(&self, query: &Query) -> Vec<Issue> { if !query.raw_upper().contains("OFFSET") { return Vec::new(); } vec![self.build_issue(query, "OFFSET pagination detected - cost increases linearly with page depth.", query.snippet(100))] } }
+impl Rule for OffsetPaginationWithoutCoveringIndexRule { fn id(&self) -> &'static str { "COST-PAGE-001" } fn name(&self) -> &'static str { "OFFSET Pagination Without Index" } fn severity(&self) -> Severity { Severity::High } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostPagination) } fn impact(&self) -> &'static str { "OFFSET forces the database to scan and discard rows, cost increases with page depth." } fn check(&self, query: &Query) -> Vec<Issue> { if query.source_context == "adhoc" || query.source_context.is_empty() { return Vec::new(); } if !query.raw_upper().contains("OFFSET") { return Vec::new(); } vec![self.build_issue(query, "OFFSET pagination detected - cost increases linearly with page depth.", query.snippet(100))] } }
 
 // COST-PAGE-002
 struct DeepPaginationWithoutCursorRule;
@@ -101,7 +100,7 @@ impl Rule for UnnecessaryConnectionPoolingRule { fn id(&self) -> &'static str { 
 // COST-ARCHIVE-001
 struct OldDataNotArchivedRule;
 static DATE_COLS: &[&str] = &["created_at","updated_at","modified_at","date","timestamp","event_date","order_date","transaction_date","posted_at"];
-impl Rule for OldDataNotArchivedRule { fn id(&self) -> &'static str { "COST-ARCHIVE-001" } fn name(&self) -> &'static str { "Old Data Not Archived" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostArchival) } fn impact(&self) -> &'static str { "Storing years of logs in hot storage costs 10x vs cold storage." } fn check(&self, query: &Query) -> Vec<Issue> { if !query.is_select() { return Vec::new(); } let lower = query.raw_lower(); let has_date = DATE_COLS.iter().any(|c| lower.contains(c)); if has_date && !lower.contains("where") { return vec![self.build_issue(query, "Query on table with timestamp - consider archiving old data.", query.snippet(100))]; } Vec::new() } }
+impl Rule for OldDataNotArchivedRule { fn id(&self) -> &'static str { "COST-ARCHIVE-001" } fn name(&self) -> &'static str { "Old Data Not Archived" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostArchival) } fn impact(&self) -> &'static str { "Storing years of logs in hot storage costs 10x vs cold storage." } fn check(&self, query: &Query) -> Vec<Issue> { if !query.is_select() { return Vec::new(); } if query.source_context == "adhoc" || query.source_context.is_empty() { return Vec::new(); } if !query.raw_upper().contains("FROM") { return Vec::new(); } let lower = query.raw_lower(); let has_date = DATE_COLS.iter().any(|c| lower.contains(c)); if has_date && !lower.contains("where") { return vec![self.build_issue(query, "Query on table with timestamp - consider archiving old data.", query.snippet(100))]; } Vec::new() } }
 
 // COST-COMPRESS-001
 struct LargeTextColumnWithoutCompressionRule;
