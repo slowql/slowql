@@ -160,13 +160,29 @@ impl Rule for CompositeIndexOrderViolationRule {
     fn category(&self) -> Option<Category> { Some(Category::PerfIndex) }
     fn impact(&self) -> &'static str { "Filtering only on the secondary column forces a full index scan." }
     fn check(&self, query: &Query) -> Vec<Issue> {
-        let raw_lower = query.raw_lower().to_string();
-        if !raw_lower.contains("where") { return Vec::new(); }
+        // Use AST to check only WHERE columns, not JOIN ON
+        if let Some(ref facts) = query.facts {
+            if !facts.has_where { return Vec::new(); }
+            for &(lead, secondary) in COMPOSITE_PAIRS {
+                if facts.where_columns.iter().any(|c| c == secondary)
+                    && !facts.where_columns.iter().any(|c| c == lead) {
+                    let msg = format!("Filtering on '{}' without leading column '{}' - composite index cannot be used.", secondary, lead);
+                    return vec![self.build_issue(query, &msg, query.snippet(100))];
+                }
+            }
+            return Vec::new();
+        }
+        // Fallback: only search the WHERE portion of raw SQL
+        let upper = query.raw_upper();
+        let where_start = match upper.find("WHERE") {
+            Some(pos) => pos,
+            None => return Vec::new(),
+        };
+        let where_text = query.raw_lower()[where_start..].to_string();
         for &(lead, secondary) in COMPOSITE_PAIRS {
-            if raw_lower.contains(secondary) && !raw_lower.contains(lead) {
+            if where_text.contains(secondary) && !where_text.contains(lead) {
                 let msg = format!("Filtering on '{}' without leading column '{}' - composite index cannot be used.", secondary, lead);
-                let snip = &query.raw[..query.raw.len().min(100)];
-                return vec![self.build_issue(query, &msg, snip)];
+                return vec![self.build_issue(query, &msg, query.snippet(100))];
             }
         }
         Vec::new()
