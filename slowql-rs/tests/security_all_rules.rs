@@ -16,7 +16,7 @@ fn q(sql: &str, dialect: &str, qt: &str) -> Query {
         is_ddl: false,
         is_dynamic: false,
         complexity_score: 0,
-        source_context: String::new(), ..Default::default()
+        source_context: "application".to_string(), ..Default::default()
     }
 }
 

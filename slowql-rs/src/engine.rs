@@ -48,12 +48,13 @@ impl Engine {
         result.statistics.total_queries = queries.len();
         result.statistics.parse_time_ms = parse_ms;
 
-        // Compute structural facts for each query
+        let source_ctx = crate::context::classify_source(file_path, sql);
+
+        // Compute structural facts and set source context for each query
         for query in &mut queries {
             query.facts = Some(crate::query_analysis::QueryFacts::from_sql(&query.raw, effective_dialect));
+            query.source_context = source_ctx.to_string();
         }
-
-        let source_ctx = crate::context::classify_source(file_path, sql);
         let suppression_map = crate::suppressions::parse_suppressions(sql);
         let rules = self.registry.enabled_for_dimensions(&self.config.analysis.enabled_dimensions);
 
@@ -243,9 +244,9 @@ mod tests {
     #[test]
     fn engine_applies_inline_suppression() {
         let engine = Engine::with_default_config();
-        let sql = "-- slowql: disable PERF-SCAN-001\nSELECT * FROM users";
+        let sql = "-- slowql: disable REL-DATA-001\nDELETE FROM users";
         let result = engine.analyze(sql, Some("postgresql"), None);
-        assert!(!result.issues.iter().any(|i| i.rule_id == "PERF-SCAN-001"));
+        assert!(!result.issues.iter().any(|i| i.rule_id == "REL-DATA-001"));
         assert!(result.suppressed_count > 0);
     }
 

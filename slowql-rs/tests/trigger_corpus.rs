@@ -4,8 +4,17 @@
 use slowql_lib::engine::Engine;
 
 fn check(sql: &str, dialect: Option<&str>, expected_rule: &str) -> bool {
-    let engine = Engine::with_default_config();
-    let result = engine.analyze(sql, dialect, None);
+    let mut config = slowql_lib::config::Config::default();
+    // Enable compliance frameworks for compliance rules
+    if expected_rule.starts_with("COMP-") {
+        config.analysis.compliance_frameworks.insert("gdpr".to_string());
+        config.analysis.compliance_frameworks.insert("hipaa".to_string());
+        config.analysis.compliance_frameworks.insert("pci-dss".to_string());
+        config.analysis.compliance_frameworks.insert("sox".to_string());
+    }
+    let engine = Engine::new(config);
+    // Use a file path to set context to "application" (not "adhoc")
+    let result = engine.analyze(sql, dialect, Some("src/queries.sql"));
     result.issues.iter().any(|i| i.rule_id == expected_rule)
 }
 

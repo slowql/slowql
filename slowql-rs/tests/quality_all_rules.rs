@@ -1,7 +1,7 @@
 use slowql_lib::models::{Location, Query};
 use slowql_lib::rules::quality;
 use slowql_lib::rules::Rule;
-fn q(sql: &str, dialect: &str, qt: &str) -> Query { Query { raw: sql.to_string(), normalized: sql.to_string(), dialect: dialect.to_string(), location: Location::new(1, 1), start_offset: None, end_offset: None, tables: vec![], columns: vec![], query_type: Some(qt.to_string()), is_ddl: false, is_dynamic: false, complexity_score: 0, source_context: String::new(), ..Default::default() } }
+fn q(sql: &str, dialect: &str, qt: &str) -> Query { Query { raw: sql.to_string(), normalized: sql.to_string(), dialect: dialect.to_string(), location: Location::new(1, 1), start_offset: None, end_offset: None, tables: vec![], columns: vec![], query_type: Some(qt.to_string()), is_ddl: false, is_dynamic: false, complexity_score: 0, source_context: "application".to_string(), ..Default::default() } }
 fn find<'a>(rules: &'a [Box<dyn Rule>], id: &str) -> &'a dyn Rule { rules.iter().find(|r| r.id() == id).map(|r| r.as_ref()).unwrap_or_else(|| panic!("rule {} not found", id)) }
 fn all() -> Vec<Box<dyn Rule>> { quality::all_rules() }
 

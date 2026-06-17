@@ -83,6 +83,13 @@ pub fn classify_source(file_path: Option<&str>, content: &str) -> &'static str {
         }
     }
 
+    // .sql files provided as input default to application context
+    if let Some(path) = file_path {
+        if path.ends_with(".sql") {
+            return APPLICATION;
+        }
+    }
+
     ADHOC
 }
 

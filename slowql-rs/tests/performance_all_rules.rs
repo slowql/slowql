@@ -8,7 +8,7 @@ fn q(sql: &str, dialect: &str, qt: &str) -> Query {
         dialect: dialect.to_string(), location: Location::new(1, 1),
         start_offset: None, end_offset: None, tables: vec![], columns: vec![],
         query_type: Some(qt.to_string()), is_ddl: false, is_dynamic: false,
-        complexity_score: 0, source_context: String::new(), ..Default::default()
+        complexity_score: 0, source_context: "application".to_string(), ..Default::default()
     }
 }
 
