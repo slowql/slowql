@@ -206,7 +206,17 @@ impl Rule for MissingColumnCommentsRule {
 
 struct MagicStringWithoutCommentRule;
 static PAT_MAGIC: Lazy<Regex> = Lazy::new(|| Regex::new(r#"(?i)WHERE\s+.*\s*=\s*'[^']+'"#).unwrap());
-impl Rule for MagicStringWithoutCommentRule { fn id(&self) -> &'static str { "QUAL-DOC-002" } fn name(&self) -> &'static str { "Magic Constant Without Comment" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualDocumentation) } fn impact(&self) -> &'static str { "Magic constants represent opaque business logic." } fn check(&self, query: &Query) -> Vec<Issue> { if let Some(m) = PAT_MAGIC.find(&query.raw) { if !query.raw.contains("--") { return vec![self.build_issue(query, "Magic constant without comment.", m.as_str())]; } } Vec::new() } }
+impl Rule for MagicStringWithoutCommentRule { fn id(&self) -> &'static str { "QUAL-DOC-002" } fn name(&self) -> &'static str { "Magic Constant Without Comment" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualDocumentation) } fn impact(&self) -> &'static str { "Magic constants represent opaque business logic." } fn check(&self, query: &Query) -> Vec<Issue> {
+        if let Some(m) = PAT_MAGIC.find(&query.raw) {
+            if query.raw.contains("--") { return Vec::new(); }
+            let matched_lower = m.as_str().to_lowercase();
+            let common = ["active","inactive","pending","completed","true","false","yes","no","enabled","disabled","open","closed","draft","published","archived","deleted","admin","user","guest"];
+            let parts: Vec<&str> = matched_lower.split('\'').collect();
+            if parts.len() >= 2 { let value = parts[parts.len() - 2]; if common.iter().any(|cv| *cv == value) { return Vec::new(); } }
+            return vec![self.build_issue(query, "Magic constant without comment.", m.as_str())];
+        }
+        Vec::new()
+    } }
 
 struct ComplexLogicWithoutExplanationRule;
 impl Rule for ComplexLogicWithoutExplanationRule { fn id(&self) -> &'static str { "QUAL-DOC-003" } fn name(&self) -> &'static str { "Complex Logic Without Explanation" } fn severity(&self) -> Severity { Severity::Info } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualDocumentation) } fn impact(&self) -> &'static str { "Complex queries without comments are prohibitively expensive to modify." } fn check(&self, query: &Query) -> Vec<Issue> { let upper = query.raw_upper(); let score = upper.matches("AND").count() + upper.matches("OR").count() + upper.matches("CASE").count(); if score >= 5 && !query.raw.contains("--") && !query.raw.contains("/*") { let msg = format!("Complex logic (score: {}) without explanation.", score); return vec![self.build_issue(query, &msg, query.snippet(50))]; } Vec::new() } }
