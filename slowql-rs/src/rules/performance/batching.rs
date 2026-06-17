@@ -17,6 +17,8 @@ impl Rule for LargeUnbatchedOperationRule {
         if qt != "UPDATE" && qt != "DELETE" { return Vec::new(); }
         let upper = query.raw_upper();
         if upper.contains("TOP") || upper.contains("LIMIT") { return Vec::new(); }
+        // Do not flag when WHERE clause exists (targeted operation, not mass)
+        if upper.contains("WHERE") { return Vec::new(); }
         let msg = format!("Unbatched {} without row limit - affects entire table.", qt);
         let snip = &query.raw[..query.raw.len().min(100)];
         vec![self.build_issue(query, &msg, snip)]

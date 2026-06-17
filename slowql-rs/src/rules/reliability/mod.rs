@@ -155,7 +155,12 @@ impl Rule for NonIdempotentInsertRule {
         let upper = query.raw_upper();
         let idempotent = upper.contains("ON CONFLICT") || upper.contains("ON DUPLICATE KEY") || upper.contains("INSERT IGNORE") || upper.contains("MERGE") || upper.contains("NOT EXISTS");
         if idempotent { return Vec::new(); }
-        vec![self.build_issue(query, "INSERT without idempotency guard - will fail or create duplicates on retry.", &query.raw[..query.raw.len().min(100)])]
+        // Skip append-only tables (logs, events, audit) where idempotency is not expected
+        let lower = query.raw_lower();
+        let append_only = ["logs", "log", "events", "event", "audit", "audit_log", "metrics",
+                          "analytics", "history", "activity", "notifications", "queue"];
+        if append_only.iter().any(|t| lower.contains(t)) { return Vec::new(); }
+        vec![self.build_issue(query, "INSERT without idempotency guard - will fail or create duplicates on retry.", query.snippet(100))]
     }
 }
 

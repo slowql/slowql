@@ -288,15 +288,8 @@ impl Rule for NonDeterministicQueryRule {
 struct OrderByMissingForPaginationRule;
 impl Rule for OrderByMissingForPaginationRule { fn id(&self) -> &'static str { "QUAL-TEST-002" } fn name(&self) -> &'static str { "Pagination Without ORDER BY" } fn severity(&self) -> Severity { Severity::Medium } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualTesting) } fn impact(&self) -> &'static str { "Without ORDER BY, pagination can return same row on multiple pages." } fn check(&self, query: &Query) -> Vec<Issue> {
         let upper = query.raw_upper();
-        if !upper.contains("ORDER BY") {
-            if upper.contains("OFFSET") {
-                return vec![self.build_issue(query, "OFFSET pagination without ORDER BY - non-deterministic results.", query.snippet(100))];
-            }
-            // LIMIT without ORDER BY is only a problem for unbounded queries
-            // WHERE + LIMIT is usually intentional (top-N from filtered set)
-            if upper.contains("LIMIT") && !upper.contains("WHERE") {
-                return vec![self.build_issue(query, "LIMIT without ORDER BY or WHERE - non-deterministic.", query.snippet(100))];
-            }
+        if !upper.contains("ORDER BY") && upper.contains("OFFSET") {
+            return vec![self.build_issue(query, "OFFSET pagination without ORDER BY - non-deterministic results.", query.snippet(100))];
         }
         Vec::new()
     } }

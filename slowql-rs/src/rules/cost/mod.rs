@@ -6,7 +6,10 @@ use regex::Regex;
 
 // COST-COMPUTE-001
 struct FullTableScanRule;
-impl Rule for FullTableScanRule { fn id(&self) -> &'static str { "COST-COMPUTE-001" } fn name(&self) -> &'static str { "Full Table Scan on Large Tables" } fn severity(&self) -> Severity { Severity::High } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostCompute) } fn impact(&self) -> &'static str { "Full table scans linearly increase compute cost with table size." } fn check(&self, query: &Query) -> Vec<Issue> { if !query.is_select() { return Vec::new(); } if query.raw_upper().contains("WHERE") { return Vec::new(); } vec![self.build_issue(query, "Potential full table scan missing WHERE clause.", query.snippet(80))] } }
+impl Rule for FullTableScanRule { fn id(&self) -> &'static str { "COST-COMPUTE-001" } fn name(&self) -> &'static str { "Full Table Scan on Large Tables" } fn severity(&self) -> Severity { Severity::High } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostCompute) } fn impact(&self) -> &'static str { "Full table scans linearly increase compute cost with table size." } fn check(&self, query: &Query) -> Vec<Issue> { if !query.is_select() { return Vec::new(); }
+        let upper = query.raw_upper();
+        if upper.contains("WHERE") || upper.contains("LIMIT") || upper.contains("TOP ") { return Vec::new(); }
+        vec![self.build_issue(query, "Potential full table scan missing WHERE clause.", query.snippet(80))] } }
 
 // COST-COMPUTE-002
 struct ExpensiveWindowFunctionRule;
@@ -61,7 +64,15 @@ impl Rule for RedundantIndexColumnOrderRule { fn id(&self) -> &'static str { "CO
 
 // COST-CROSS-001
 struct CrossDatabaseJoinRule;
-impl Rule for CrossDatabaseJoinRule { fn id(&self) -> &'static str { "COST-CROSS-001" } fn name(&self) -> &'static str { "Cross-Database JOIN" } fn severity(&self) -> Severity { Severity::High } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostCrossDatabase) } fn impact(&self) -> &'static str { "Cross-database JOINs cannot use indexes across boundaries." } fn check(&self, query: &Query) -> Vec<Issue> { let raw = &query.raw; let dot_count = raw.matches('.').count(); if dot_count >= 4 && query.raw_upper().contains("JOIN") { return vec![self.build_issue(query, "Cross-database JOIN detected - forces data transfer.", query.snippet(100))]; } Vec::new() } }
+impl Rule for CrossDatabaseJoinRule { fn id(&self) -> &'static str { "COST-CROSS-001" } fn name(&self) -> &'static str { "Cross-Database JOIN" } fn severity(&self) -> Severity { Severity::High } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostCrossDatabase) } fn impact(&self) -> &'static str { "Cross-database JOINs cannot use indexes across boundaries." } fn check(&self, query: &Query) -> Vec<Issue> { // Only flag when table references use 3-part names (db.schema.table)
+        // Do not flag alias.column (a.id) which is normal
+        if let Some(ref facts) = query.facts {
+            let has_cross_db = facts.from_tables.iter().any(|t| t.matches('.').count() >= 2);
+            if has_cross_db {
+                return vec![self.build_issue(query, "Cross-database JOIN detected - forces data transfer.", query.snippet(100))];
+            }
+        }
+        Vec::new() } }
 
 // COST-CROSS-002
 struct MultiRegionQueryLatencyRule;
