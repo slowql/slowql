@@ -65,6 +65,8 @@ impl Rule for HorizontalAuthorizationBypassRule {
 
     fn check(&self, query: &Query) -> Vec<Issue> {
         if !query.is_select() { return Vec::new(); }
+        let upper = query.raw_upper();
+        if upper.contains("COUNT(") || upper.contains("SUM(") || upper.contains("AVG(") { return Vec::new(); }
         let raw_lower = query.raw_lower().to_string();
         let hits_sensitive = SENSITIVE_TABLES.iter().any(|&t| raw_lower.contains(t));
         if !hits_sensitive { return Vec::new(); }
