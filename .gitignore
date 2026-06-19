@@ -1,45 +1,37 @@
-# Python
-.venv
-__pycache__/
-*.pyc
-*.pyo
-*.egg-info/
-.coverage
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
+# Rust
+/target/
+**/*.rs.bk
+Cargo.lock
 
-# Generated files
-htmlcov/
-dist/
-build/
-site/
-reports/
+# Build artifacts
+*.o
+*.so
+*.dylib
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
 
 # Generated report/output files
-coverage.xml
-junit.xml
 slowql_session_*.json
 slowql_results_*.json
 slowql_report_*.json
 slowql_report_*.csv
 slowql_report_*.html
 slowql_report_*.sarif
+reports/
 
-# IDE
-.idea/
+# Local cache
+.slowql_cache/
 
 # VS Code extension build artifacts
 editors/vscode/node_modules/
 editors/vscode/out/
 editors/vscode/.vscode-test/
 *.vsix
-npm-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-
-# OS/editor noise
-.DS_Store
-
-# Local cache
-.slowql_cache/
