@@ -266,7 +266,9 @@ output:
             process::exit(1);
         }
         let result = engine.analyze(&sql, cli.dialect.as_deref(), None);
-        output_result(&result, &cli);
+        let stdin_mode = cli.min_confidence.as_deref()
+            .filter(|m| *m == "proven" || *m == "advisory");
+        output_result_with_mode(&result, &cli, stdin_mode);
         process::exit(compute_exit_code(&result, cli.fail_on.as_deref()));
     }
 
@@ -511,7 +513,11 @@ output:
         }
     }
 
-    output_result(&final_result, &cli);
+    let mode_hint = cli.min_confidence.as_deref()
+        .or(Some(engine.config.analysis.min_confidence.as_str()))
+        .filter(|m| *m == "proven" || *m == "advisory")
+        .map(|m| m.to_string());
+    output_result_with_mode(&final_result, &cli, mode_hint.as_deref());
 
     for fmt in &cli.export {
         export_result(&final_result, fmt, &cli.out);
@@ -533,8 +539,21 @@ fn merge_results(
 }
 
 fn output_result(result: &slowql_lib::models::result::AnalysisResult, cli: &Cli) {
+    output_result_with_mode(result, cli, None);
+}
+
+fn output_result_with_mode(result: &slowql_lib::models::result::AnalysisResult, cli: &Cli, mode: Option<&str>) {
     match cli.format {
-        OutputFormat::Console => print_console(result),
+        OutputFormat::Console => {
+            if let Some(m) = mode {
+                match m {
+                    "proven" => println!("\x1b[1;32m[proven mode]\x1b[0m Only structurally verified findings shown."),
+                    "advisory" => println!("\x1b[1;36m[advisory mode]\x1b[0m All findings including hints shown."),
+                    _ => {}
+                }
+            }
+            print_console(result);
+        }
         OutputFormat::Json => print_json(result),
         OutputFormat::Sarif => print_sarif(result),
         OutputFormat::GithubActions => print_github_actions(result),
@@ -588,7 +607,7 @@ fn print_console(result: &slowql_lib::models::result::AnalysisResult) {
             .then(b.severity.cmp(&a.severity))
             .then(a.location.line.cmp(&b.location.line))
     });
-    let mut current_file: Option<&str> = None;
+    let mut current_file: Option<&str> = Some("__sentinel_no_file__");
 
     for issue in &sorted {
         let file = issue.location.file.as_deref();
@@ -596,8 +615,9 @@ fn print_console(result: &slowql_lib::models::result::AnalysisResult) {
         // Print file header when file changes
         if file != current_file {
             if current_file.is_some() { println!(); }
-            if let Some(f) = file {
-                println!("  \x1b[1;4m{}\x1b[0m", f);
+            match file {
+                Some(f) => println!("  \x1b[1;4m{}\x1b[0m", f),
+                None => println!("  \x1b[1;4m<stdin>\x1b[0m"),
             }
             current_file = file;
         }
@@ -609,8 +629,8 @@ fn print_console(result: &slowql_lib::models::result::AnalysisResult) {
 
         let conf_badge = match issue.confidence.as_str() {
             "proven" => "",
-            "contextual" => " \x1b[33m[ctx]\x1b[0m",
-            "advisory" => " \x1b[36m[adv]\x1b[0m",
+            "contextual" => " \x1b[33m[needs-review]\x1b[0m",
+            "advisory" => " \x1b[36m[hint]\x1b[0m",
             _ => "",
         };
 
@@ -641,6 +661,24 @@ fn print_console(result: &slowql_lib::models::result::AnalysisResult) {
             if !fix.description.is_empty() {
                 println!("             \x1b[32mFix: {}\x1b[0m", fix.description);
             }
+        }
+
+        // Show documentation URL
+        if let Some(ref url) = issue.documentation_url {
+            println!("             \x1b[2m{}\x1b[0m", url);
+        }
+    }
+
+    // Footer: explain badges if any non-proven issues exist
+    let has_contextual = result.issues.iter().any(|i| i.confidence.as_str() == "contextual");
+    let has_advisory = result.issues.iter().any(|i| i.confidence.as_str() == "advisory");
+    if has_contextual || has_advisory {
+        println!();
+        if has_contextual {
+            println!("  \x1b[33m[needs-review]\x1b[0m = finding depends on runtime context, verify before acting");
+        }
+        if has_advisory {
+            println!("  \x1b[36m[hint]\x1b[0m = best-practice suggestion, not a proven issue");
         }
     }
     if result.suppressed_count > 0 {
@@ -935,7 +973,16 @@ fn cmd_explain(rule_id: &str) -> i32 {
             }
         }
         if let Some(cat) = rule.category() {
-            println!("Category:   {:?}", cat);
+            let cat_str = format!("{:?}", cat);
+            // Convert PascalCase to human readable
+            let mut human = String::new();
+            for (i, c) in cat_str.chars().enumerate() {
+                if c.is_uppercase() && i > 0 {
+                    human.push(' ');
+                }
+                human.push(c);
+            }
+            println!("Category:   {}", human);
         }
         if !rule.impact().is_empty() {
             println!("Impact:     {}", rule.impact());
