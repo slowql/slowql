@@ -1,6 +1,7 @@
 use clap::{Parser, ValueEnum};
 use std::path::PathBuf;
 use std::process;
+use std::time::Instant;
 
 use slowql_lib::config::Config;
 use slowql_lib::engine::Engine;
@@ -283,6 +284,9 @@ output:
     };
 
     let mut skipped_non_utf8: usize = 0;
+    let mut files_scanned: usize = 0;
+    let scan_start = Instant::now();
+
     for path in &cli.files {
         if path.is_dir() {
             for entry in walkdir(path) {
@@ -292,6 +296,10 @@ output:
                             continue;
                         }
                     }
+                }
+                files_scanned += 1;
+                if files_scanned % 100 == 0 || files_scanned <= 5 {
+                    eprint!("\r\x1b[2m  Scanning... {} files, {} queries found\x1b[0m", files_scanned, combined.statistics.total_queries);
                 }
                 match engine.analyze_file(entry.to_str().unwrap_or("")) {
                     Ok(result) => merge_results(&mut combined, result),
@@ -313,6 +321,7 @@ output:
                     }
                 }
             }
+            files_scanned += 1;
             match engine.analyze_file(path.to_str().unwrap_or("")) {
                 Ok(result) => merge_results(&mut combined, result),
                 Err(e) => {
@@ -328,6 +337,13 @@ output:
             eprintln!("File not found: {}", path.display());
         }
     }
+
+    // Clear live progress line
+    if files_scanned > 5 {
+        eprint!("\r\x1b[K");
+    }
+
+    let scan_duration = scan_start.elapsed();
 
     // Report skipped files
     if skipped_non_utf8 > 0 {
@@ -346,6 +362,7 @@ output:
     }
 
     let mut final_result = combined;
+    final_result.statistics.analysis_time_ms = scan_duration.as_secs_f64() * 1000.0;
     // For directory scans, suppress non-production issues by default.
     // Uses source_context on each issue for accurate context-based filtering.
     if !cli.include_nonprod && !cli.files.is_empty() && cli.files.iter().any(|f| f.is_dir()) {
@@ -538,10 +555,6 @@ fn merge_results(
     combined.statistics.parse_time_ms += result.statistics.parse_time_ms;
 }
 
-fn output_result(result: &slowql_lib::models::result::AnalysisResult, cli: &Cli) {
-    output_result_with_mode(result, cli, None);
-}
-
 fn output_result_with_mode(result: &slowql_lib::models::result::AnalysisResult, cli: &Cli, mode: Option<&str>) {
     match cli.format {
         OutputFormat::Console => {
@@ -565,6 +578,9 @@ fn print_console(result: &slowql_lib::models::result::AnalysisResult) {
     if result.issues.is_empty() {
         println!("\x1b[1;32mNo issues found.\x1b[0m");
         println!("  Scanned {} queries", result.statistics.total_queries);
+        if result.statistics.analysis_time_ms > 0.0 {
+            println!("  \x1b[2mAnalysis: {:.0}ms\x1b[0m", result.statistics.analysis_time_ms);
+        }
         if result.suppressed_count > 0 {
             // Only show non-production message for directory scans
             if result.issues.is_empty() {
@@ -692,6 +708,29 @@ fn print_console(result: &slowql_lib::models::result::AnalysisResult) {
         let critical_count = scores.iter().filter(|&&s| s > 70).count();
         if critical_count > 0 || max_score > 40 {
             println!("  \x1b[2mComplexity: max={} critical_queries={}\x1b[0m", max_score, critical_count);
+        }
+    }
+
+    // Benchmark footer
+    let analysis_ms = result.statistics.analysis_time_ms;
+    if analysis_ms > 0.0 {
+        // Count unique files from queries
+        let file_count: std::collections::HashSet<&str> = result.queries.iter()
+            .filter_map(|q| q.location.file.as_deref())
+            .collect();
+        let files = file_count.len();
+        if files > 0 {
+            println!("  \x1b[2m{} files | {} queries | {:.0}ms | {:.0} queries/sec\x1b[0m",
+                files,
+                result.statistics.total_queries,
+                analysis_ms,
+                if analysis_ms > 0.0 { result.statistics.total_queries as f64 / (analysis_ms / 1000.0) } else { 0.0 }
+            );
+        } else {
+            println!("  \x1b[2m{} queries | {:.0}ms\x1b[0m",
+                result.statistics.total_queries,
+                analysis_ms
+            );
         }
     }
     println!();
