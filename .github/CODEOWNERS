@@ -1,12 +1,11 @@
 # Global owner
 * @makroumi
 
-# Detectors require specialized review
-/slowql/detectors/ @makroumi 
+# Rules require specialized review
+/src/rules/ @makroumi
 
 # CI/CD changes
-/.github/workflows/ @makroumi 
+/.github/workflows/ @makroumi
 
 # Documentation
-/docs/ @makroumi 
-
+/docs/ @makroumi

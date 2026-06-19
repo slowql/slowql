@@ -6,7 +6,8 @@ use slowql_lib::config::Config;
 use slowql_lib::engine::Engine;
 
 #[derive(Parser)]
-#[command(name = "slowql", version, about = "Next-generation SQL static analyzer")]
+#[command(name = "slowql", version, about = "Next-generation SQL static analyzer
+Copyright (C) 2025-2026 El Mehdi Makroumi. Licensed under AGPL-3.0.")]
 struct Cli {
     /// Input SQL files or directories
     #[arg()]

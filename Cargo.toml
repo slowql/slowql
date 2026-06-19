@@ -2,10 +2,16 @@
 name = "slowql"
 version = "1.6.7"
 edition = "2021"
-authors = ["makroumi <contact@makroumi.dev>"]
-description = "Next-generation SQL analyzer: Security, Performance, Compliance, Cost optimization"
-license = "Apache-2.0"
+authors = ["El Mehdi Makroumi <elmehdi.makroumi@gmail.com>"]
+description = "Next-generation SQL static analyzer: Security, Performance, Reliability, Compliance, Cost, Quality"
+license = "AGPL-3.0-only"
 repository = "https://github.com/slowql/slowql"
+homepage = "https://slowql.dev"
+documentation = "https://slowql.dev/docs"
+readme = "README.md"
+keywords = ["sql", "static-analysis", "security", "performance", "linter"]
+categories = ["command-line-utilities", "development-tools"]
+exclude = ["docs/", "editors/", "assets/", ".github/"]
 
 [[bin]]
 name = "slowql"
