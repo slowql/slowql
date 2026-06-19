@@ -1,6 +1,6 @@
 use crate::models::issue::Category;
 use crate::models::{Dimension, Issue, Query, Severity};
-use crate::rules::base::{DialectSet, Rule};
+use crate::rules::base::{DialectSet, RuleConfidence, Rule};
 use once_cell::sync::Lazy;
 use regex::Regex;
 
@@ -69,6 +69,8 @@ impl Rule for GroupByHighCardinalityRule {
     fn dimension(&self) -> Dimension { Dimension::Performance }
     fn category(&self) -> Option<Category> { Some(Category::PerfMemory) }
     fn impact(&self) -> &'static str { "Grouping by high-cardinality columns creates millions of groups, consuming massive memory." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
     fn check(&self, query: &Query) -> Vec<Issue> {
         let upper = query.raw_upper();
         if !upper.contains("GROUP BY") { return Vec::new(); }
@@ -93,6 +95,8 @@ impl Rule for SelectIntoTempWithoutIndexRule {
     fn category(&self) -> Option<Category> { Some(Category::PerfMemory) }
     fn dialects(&self) -> DialectSet { DialectSet::new(&["tsql"]) }
     fn impact(&self) -> &'static str { "Temp tables without indexes cause table scans on every join or filter." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Contextual }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if !self.dialect_matches(query) { return Vec::new(); }
         let upper = query.raw_upper();

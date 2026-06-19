@@ -359,3 +359,131 @@ fn performance_rule_count() {
     assert!(rule.check(&q("SELECT id, content FROM articles WHERE id = 1", "postgresql", "SELECT")).is_empty());
     assert!(rule.check(&q("SELECT id FROM articles", "postgresql", "SELECT")).is_empty());
 }
+
+// --- PERF-SCAN-003 adhoc context guard ---
+
+#[test]
+fn scan_003_adhoc_no_fire() {
+    let r = all();
+    let rule = find(&r, "PERF-SCAN-003");
+    let mut query = q("SELECT id FROM users", "postgresql", "SELECT");
+    query.source_context = "adhoc".to_string();
+    assert!(rule.check(&query).is_empty(), "PERF-SCAN-003 should not fire in adhoc context");
+}
+
+#[test]
+fn scan_003_empty_context_no_fire() {
+    let r = all();
+    let rule = find(&r, "PERF-SCAN-003");
+    let mut query = q("SELECT id FROM users", "postgresql", "SELECT");
+    query.source_context = String::new();
+    assert!(rule.check(&query).is_empty(), "PERF-SCAN-003 should not fire with empty context");
+}
+
+// --- PERF-IDX-004 same-column OR guard ---
+
+#[test]
+fn idx_004_same_column_or_no_fire() {
+    let r = all();
+    let rule = find(&r, "PERF-IDX-004");
+    assert!(
+        rule.check(&q("SELECT id FROM users WHERE status = 'active' OR status = 'pending'", "postgresql", "SELECT")).is_empty(),
+        "same-column OR should not fire PERF-IDX-004"
+    );
+}
+
+#[test]
+fn idx_004_different_column_or_fires() {
+    let r = all();
+    let rule = find(&r, "PERF-IDX-004");
+    assert!(
+        !rule.check(&q("SELECT id FROM users WHERE status = 'active' OR role = 'admin'", "postgresql", "SELECT")).is_empty(),
+        "cross-column OR should fire PERF-IDX-004"
+    );
+}
+
+// --- PERF-IDX-007 numeric literal guard ---
+
+#[test]
+fn idx_007_tautology_no_fire() {
+    let r = all();
+    let rule = find(&r, "PERF-IDX-007");
+    assert!(
+        rule.check(&q("SELECT * FROM users WHERE id = 1 OR 1 = 1", "postgresql", "SELECT")).is_empty(),
+        "tautology OR 1=1 should not fire PERF-IDX-007"
+    );
+}
+
+// --- PERF-AGG-001 GROUP BY guard ---
+
+#[test]
+fn agg_001_group_by_no_fire() {
+    let r = all();
+    let rule = find(&r, "PERF-AGG-001");
+    assert!(
+        rule.check(&q("SELECT department_id, COUNT(*) FROM employees GROUP BY department_id", "postgresql", "SELECT")).is_empty(),
+        "GROUP BY without WHERE should not fire PERF-AGG-001"
+    );
+}
+
+#[test]
+fn agg_001_no_where_no_group_fires() {
+    let r = all();
+    let rule = find(&r, "PERF-AGG-001");
+    assert!(
+        !rule.check(&q("SELECT COUNT(*) FROM users", "postgresql", "SELECT")).is_empty(),
+        "COUNT without WHERE or GROUP BY should fire PERF-AGG-001"
+    );
+}
+
+#[test]
+fn join_003_only_fires_on_left_join_alias_is_not_null() {
+    let r = all();
+    let rule = find(&r, "PERF-JOIN-003");
+
+    // True positive: IS NOT NULL on the right-side LEFT JOIN alias
+    assert!(
+        !rule.check(&q(
+            "SELECT u.id FROM users u LEFT JOIN orders o ON u.id = o.user_id WHERE o.id IS NOT NULL",
+            "postgresql",
+            "SELECT"
+        )).is_empty()
+    );
+
+    // False positive before fix: IS NOT NULL on base table alias must NOT fire
+    assert!(
+        rule.check(&q(
+            "SELECT u.id FROM users u LEFT JOIN orders o ON u.id = o.user_id WHERE u.deleted_at IS NOT NULL",
+            "postgresql",
+            "SELECT"
+        )).is_empty()
+    );
+
+    // Cal.com regression: no IS NOT NULL on LEFT JOIN alias, so must NOT fire
+    assert!(
+        rule.check(&q(
+            r#"SELECT
+  TO_TIMESTAMP(sc."googleChannelExpiration"::bigint / 1000 - 86400)::date as "humanReadableExpireDate",
+  sc.*
+FROM
+  "SelectedCalendar" sc
+  LEFT JOIN "users" AS u ON u.id = sc."userId"
+  LEFT JOIN "Membership" AS m ON m."userId" = u.id
+  LEFT JOIN "Team" AS t ON t.id = m."teamId"
+  LEFT JOIN "TeamFeatures" AS tf ON tf."teamId" = t.id
+WHERE
+  tf."featureId" = 'calendar-cache'
+  AND tf.enabled = true
+  AND sc."integration" = 'google_calendar'
+  AND (
+      sc."googleChannelExpiration" IS NULL
+    OR (
+          sc."googleChannelExpiration" IS NOT NULL
+          AND TO_TIMESTAMP(sc."googleChannelExpiration"::bigint / 1000 - 86400)::date < CURRENT_TIMESTAMP
+      )
+    )"#,
+            "postgresql",
+            "SELECT"
+        )).is_empty()
+    );
+}

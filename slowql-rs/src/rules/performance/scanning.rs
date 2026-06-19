@@ -1,6 +1,6 @@
 use crate::models::issue::Category;
 use crate::models::{Dimension, Issue, Query, Severity};
-use crate::rules::base::{DialectSet, Rule};
+use crate::rules::base::{DialectSet, RuleConfidence, Rule};
 use once_cell::sync::Lazy;
 use regex::Regex;
 
@@ -40,6 +40,22 @@ impl Rule for MissingWhereRule {
         if qt != "UPDATE" && qt != "DELETE" { return Vec::new(); }
         let upper = query.raw_upper();
         if upper.contains("WHERE") { return Vec::new(); }
+        // Suppress intentional bulk operations (flush, clear, reset)
+        if let Some(ref file) = query.location.file {
+            let fl = file.to_lowercase();
+            let filename = fl.rsplit('/').next().unwrap_or(&fl);
+            if fl.contains("cache") || fl.contains("clear")
+                || fl.contains("reset") || fl.contains("cleanup")
+                || fl.contains("purge") || fl.contains("flush")
+                || fl.contains("init.sql") || fl.contains("setup.sql")
+                || fl.contains("teardown") || fl.contains("truncate")
+                || filename.contains("flush") || filename.contains("clear")
+                || filename.contains("reset") || filename.contains("purge")
+                || filename.contains("testinfra")
+                || filename.contains("sync") {
+                return Vec::new();
+            }
+        }
         let msg = format!("Unbounded {} detected (missing WHERE).", qt);
         let snip = &query.raw[..query.raw.len().min(50)];
         vec![self.build_issue(query, &msg, snip)]
@@ -58,6 +74,10 @@ impl Rule for UnboundedSelectRule {
 
     fn check(&self, query: &Query) -> Vec<Issue> {
         if !query.is_select() { return Vec::new(); }
+        // In ad-hoc context, unbounded SELECT is normal exploration behavior.
+        if query.source_context == "adhoc" || query.source_context.is_empty() {
+            return Vec::new();
+        }
 
         if let Some(ref facts) = query.facts {
             if facts.has_limit { return Vec::new(); }
@@ -111,6 +131,8 @@ impl Rule for DistinctOnLargeSetRule {
     fn dimension(&self) -> Dimension { Dimension::Performance }
     fn category(&self) -> Option<Category> { Some(Category::PerfScan) }
     fn impact(&self) -> &'static str { "Requires sorting or hashing entire result set." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if !query.is_select() { return Vec::new(); }
         PAT_DISTINCT.find(&query.raw).map(|m| {
@@ -228,6 +250,8 @@ impl Rule for ForceIndexHintMysqlRule {
     fn category(&self) -> Option<Category> { Some(Category::PerfHints) }
     fn dialects(&self) -> DialectSet { DialectSet::new(&["mysql"]) }
     fn impact(&self) -> &'static str { "Forced indexes bypass the optimizer and may force worse plans over time." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if !self.dialect_matches(query) { return Vec::new(); }
         PAT_FORCE_IDX.find(&query.raw).map(|m| {
@@ -266,6 +290,8 @@ impl Rule for BigQueryRegexOnLargeTableRule {
     fn category(&self) -> Option<Category> { Some(Category::PerfScan) }
     fn dialects(&self) -> DialectSet { DialectSet::new(&["bigquery"]) }
     fn impact(&self) -> &'static str { "REGEXP on every row consumes slot time and increases cost." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if !self.dialect_matches(query) { return Vec::new(); }
         PAT_BQ_REGEX.find(&query.raw).map(|m| {

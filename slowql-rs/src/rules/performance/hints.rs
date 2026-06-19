@@ -1,6 +1,6 @@
 use crate::models::issue::Category;
 use crate::models::{Dimension, Issue, Query, Severity};
-use crate::rules::base::{DialectSet, Rule};
+use crate::rules::base::{DialectSet, RuleConfidence, Rule};
 use once_cell::sync::Lazy;
 use regex::Regex;
 
@@ -14,6 +14,8 @@ impl Rule for QueryOptimizerHintRule {
     fn category(&self) -> Option<Category> { Some(Category::PerfHints) }
     fn dialects(&self) -> DialectSet { DialectSet::new(&["tsql"]) }
     fn impact(&self) -> &'static str { "Query hints freeze execution plans. As data grows, hinted plans become suboptimal." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if !self.dialect_matches(query) { return Vec::new(); }
         PAT_HINT_001.find(&query.raw).map(|m| {
@@ -33,6 +35,8 @@ impl Rule for IndexHintRule {
     fn category(&self) -> Option<Category> { Some(Category::PerfHints) }
     fn dialects(&self) -> DialectSet { DialectSet::new(&["mysql", "tsql"]) }
     fn impact(&self) -> &'static str { "Index hints force specific index usage regardless of statistics." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if !self.dialect_matches(query) { return Vec::new(); }
         PAT_HINT_002.find(&query.raw).map(|m| {
@@ -52,6 +56,8 @@ impl Rule for ParallelQueryHintRule {
     fn category(&self) -> Option<Category> { Some(Category::PerfHints) }
     fn dialects(&self) -> DialectSet { DialectSet::new(&["tsql"]) }
     fn impact(&self) -> &'static str { "MAXDOP hints override server-level parallelism." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if !self.dialect_matches(query) { return Vec::new(); }
         PAT_HINT_003.find(&query.raw).map(|m| {

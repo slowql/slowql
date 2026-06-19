@@ -19,3 +19,80 @@ fn all() -> Vec<Box<dyn Rule>> { quality::all_rules() }
 #[test] fn tsql_001() { let r=all(); let rule=find(&r,"QUAL-TSQL-001"); assert!(!rule.check(&q("SET ANSI_NULLS OFF","tsql","SELECT")).is_empty()); assert!(rule.check(&q("SET ANSI_NULLS OFF","postgresql","SELECT")).is_empty()); }
 #[test] fn ora_001() { let r=all(); let rule=find(&r,"QUAL-ORA-001"); assert!(!rule.check(&q("SELECT * FROM t WHERE ROWNUM <= 10","oracle","SELECT")).is_empty()); assert!(rule.check(&q("SELECT * FROM t WHERE ROWNUM <= 10 ORDER BY id","oracle","SELECT")).is_empty()); assert!(rule.check(&q("SELECT * FROM t WHERE ROWNUM <= 10","mysql","SELECT")).is_empty()); }
 #[test] fn pg_001() { let r=all(); let rule=find(&r,"QUAL-PG-001"); assert!(!rule.check(&q("DO $$ BEGIN RAISE NOTICE 'hi'; END $$;","postgresql","SELECT")).is_empty()); assert!(rule.check(&q("DO $$ BEGIN END $$ LANGUAGE plpgsql;","postgresql","SELECT")).is_empty()); assert!(rule.check(&q("DO $$ BEGIN END $$;","mysql","SELECT")).is_empty()); }
+
+// --- QUAL-DOC-002 precision tests ---
+
+#[test]
+fn doc_002_email_literal_no_fire() {
+    let r = all();
+    let rule = find(&r, "QUAL-DOC-002");
+    // Email address in WHERE is not a magic constant
+    assert!(rule.check(&q(
+        "SELECT id FROM users WHERE email = 'john@example.com'",
+        "postgresql", "SELECT"
+    )).is_empty());
+}
+
+#[test]
+fn doc_002_common_status_no_fire() {
+    let r = all();
+    let rule = find(&r, "QUAL-DOC-002");
+    // Common self-documenting enum values should not fire
+    assert!(rule.check(&q(
+        "SELECT id FROM users WHERE status = 'active'",
+        "postgresql", "SELECT"
+    )).is_empty());
+    assert!(rule.check(&q(
+        "SELECT id FROM orders WHERE status = 'pending'",
+        "postgresql", "SELECT"
+    )).is_empty());
+}
+
+#[test]
+fn doc_002_non_classification_column_no_fire() {
+    let r = all();
+    let rule = find(&r, "QUAL-DOC-002");
+    // Columns that are not business classification fields should not fire
+    assert!(rule.check(&q(
+        "SELECT id FROM users WHERE name = 'john'",
+        "postgresql", "SELECT"
+    )).is_empty());
+    assert!(rule.check(&q(
+        "SELECT id FROM users WHERE email = 'test@test.com'",
+        "postgresql", "SELECT"
+    )).is_empty());
+}
+
+#[test]
+fn doc_002_adhoc_no_fire() {
+    let r = all();
+    let rule = find(&r, "QUAL-DOC-002");
+    let mut query = q(
+        "SELECT id FROM users WHERE status = 'obscure_value_xyz'",
+        "postgresql", "SELECT"
+    );
+    query.source_context = "adhoc".to_string();
+    assert!(rule.check(&query).is_empty());
+}
+
+#[test]
+fn doc_002_commented_query_no_fire() {
+    let r = all();
+    let rule = find(&r, "QUAL-DOC-002");
+    // Query with comment should not fire
+    assert!(rule.check(&q(
+        "SELECT id FROM users WHERE status = 'obscure_value' -- business rule",
+        "postgresql", "SELECT"
+    )).is_empty());
+}
+
+#[test]
+fn doc_002_dynamic_sql_no_fire() {
+    let r = all();
+    let rule = find(&r, "QUAL-DOC-002");
+    // Dynamic SQL should not fire (injection is the real problem)
+    assert!(rule.check(&q(
+        "SELECT id FROM users WHERE status = 'x' || input_var",
+        "postgresql", "SELECT"
+    )).is_empty());
+}

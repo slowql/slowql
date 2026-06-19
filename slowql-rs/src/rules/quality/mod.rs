@@ -1,6 +1,6 @@
-use crate::models::issue::Category;
+use crate::models::issue::{Category, Fix};
 use crate::models::{Dimension, Issue, Query, Severity};
-use crate::rules::base::{DialectSet, Rule};
+use crate::rules::base::{DialectSet, RuleConfidence, Rule};
 use once_cell::sync::Lazy;
 use regex::Regex;
 
@@ -14,6 +14,8 @@ impl Rule for SelectWithoutFromRule {
     fn dimension(&self) -> Dimension { Dimension::Quality }
     fn category(&self) -> Option<Category> { Some(Category::QualReadability) }
     fn impact(&self) -> &'static str { "Constant SELECT statements may indicate debug code." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if query.source_context == "adhoc" || query.source_context.is_empty() { return Vec::new(); }
 
@@ -27,7 +29,9 @@ impl Rule for SelectWithoutFromRule {
 // QUAL-STYLE-002
 struct WildcardInColumnListRule;
 static PAT_EXISTS_STAR: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\bEXISTS\s*\(\s*SELECT\s+\*").unwrap());
-impl Rule for WildcardInColumnListRule { fn id(&self) -> &'static str { "QUAL-STYLE-002" } fn name(&self) -> &'static str { "Wildcard in EXISTS Subquery" } fn severity(&self) -> Severity { Severity::Info } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualReadability) } fn impact(&self) -> &'static str { "SELECT * in EXISTS may prevent optimizer shortcuts." } fn check(&self, query: &Query) -> Vec<Issue> { PAT_EXISTS_STAR.find(&query.raw).map(|m| vec![self.build_issue(query, "SELECT * inside EXISTS subquery - use SELECT 1 instead.", m.as_str())]).unwrap_or_default() } }
+impl Rule for WildcardInColumnListRule { fn id(&self) -> &'static str { "QUAL-STYLE-002" } fn name(&self) -> &'static str { "Wildcard in EXISTS Subquery" } fn severity(&self) -> Severity { Severity::Info } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualReadability) } fn impact(&self) -> &'static str { "SELECT * in EXISTS may prevent optimizer shortcuts." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, query: &Query) -> Vec<Issue> { PAT_EXISTS_STAR.find(&query.raw).map(|m| vec![self.build_issue(query, "SELECT * inside EXISTS subquery - use SELECT 1 instead.", m.as_str())]).unwrap_or_default() } }
 
 // QUAL-STYLE-003
 struct MissingAliasRule;
@@ -37,7 +41,9 @@ impl Rule for MissingAliasRule { fn id(&self) -> &'static str { "QUAL-STYLE-003"
 // QUAL-STYLE-004
 struct CommentedCodeRule;
 static PAT_COMMENTED: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)--\s*(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|TRUNCATE)\b").unwrap());
-impl Rule for CommentedCodeRule { fn id(&self) -> &'static str { "QUAL-STYLE-004" } fn name(&self) -> &'static str { "Commented-Out SQL Code" } fn severity(&self) -> Severity { Severity::Info } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualReadability) } fn impact(&self) -> &'static str { "Commented-out code creates confusion and bloats query logs." } fn check(&self, query: &Query) -> Vec<Issue> { PAT_COMMENTED.find(&query.raw).map(|m| vec![self.build_issue(query, "Commented-out SQL code detected.", m.as_str())]).unwrap_or_default() } }
+impl Rule for CommentedCodeRule { fn id(&self) -> &'static str { "QUAL-STYLE-004" } fn name(&self) -> &'static str { "Commented-Out SQL Code" } fn severity(&self) -> Severity { Severity::Info } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualReadability) } fn impact(&self) -> &'static str { "Commented-out code creates confusion and bloats query logs." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, query: &Query) -> Vec<Issue> { PAT_COMMENTED.find(&query.raw).map(|m| vec![self.build_issue(query, "Commented-out SQL code detected.", m.as_str())]).unwrap_or_default() } }
 
 // QUAL-STYLE-005
 struct InsertWithoutColumnListRule;
@@ -80,7 +86,48 @@ impl Rule for InsertWithoutColumnListRule {
 // QUAL-NULL-001
 struct NullComparisonRule;
 static PAT_NULL_CMP: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)(?:[^!<>])=\s*NULL\b|!=\s*NULL\b|<>\s*NULL\b").unwrap());
-impl Rule for NullComparisonRule { fn id(&self) -> &'static str { "QUAL-NULL-001" } fn name(&self) -> &'static str { "Incorrect NULL Comparison" } fn severity(&self) -> Severity { Severity::High } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualReadability) } fn impact(&self) -> &'static str { "Using = NULL silently returns zero rows." } fn check(&self, query: &Query) -> Vec<Issue> { PAT_NULL_CMP.find(&query.raw).map(|m| vec![self.build_issue(query, "Incorrect NULL comparison - use IS NULL or IS NOT NULL.", m.as_str())]).unwrap_or_default() } }
+impl Rule for NullComparisonRule {
+    fn id(&self) -> &'static str { "QUAL-NULL-001" }
+    fn name(&self) -> &'static str { "Incorrect NULL Comparison" }
+    fn severity(&self) -> Severity { Severity::High }
+    fn dimension(&self) -> Dimension { Dimension::Quality }
+    fn category(&self) -> Option<Category> { Some(Category::QualReadability) }
+    fn impact(&self) -> &'static str { "Using = NULL silently returns zero rows." }
+    fn check(&self, query: &Query) -> Vec<Issue> {
+        PAT_NULL_CMP.find(&query.raw).map(|m| {
+            let matched = m.as_str();
+            let matched_pos = m.start();
+            let raw = &query.raw;
+            // Only flag = NULL in WHERE/HAVING/ON context.
+            // SET col = NULL is valid SQL to explicitly null a column.
+            // Check if this match is inside a SET clause by looking backwards.
+            let before = raw[..matched_pos].to_uppercase();
+            let set_pos = before.rfind("SET ");
+            let where_pos = before.rfind("WHERE ");
+            let having_pos = before.rfind("HAVING ");
+            let on_pos = before.rfind(" ON ");
+            // If the nearest prior context keyword is SET, this is a SET clause
+            let nearest_context = [set_pos, where_pos, having_pos, on_pos]
+                .iter()
+                .filter_map(|&p| p)
+                .max();
+            if nearest_context == set_pos && set_pos.is_some() {
+                return vec![];
+            }
+            let (orig, repl) = if matched.contains("!=") || matched.contains("<>") {
+                (matched.to_string(), matched.replace("!=", "IS NOT").replace("<>", "IS NOT").replace("NULL", "NULL"))
+            } else {
+                (matched.to_string(), matched.replace("=", "IS").replace("  ", " "))
+            };
+            vec![self.build_issue_with_fix(
+                query,
+                "Incorrect NULL comparison - use IS NULL or IS NOT NULL.",
+                matched,
+                Fix::safe("Replace with IS NULL / IS NOT NULL", orig, repl, self.id()),
+            )]
+        }).unwrap_or_default()
+    }
+}
 
 // QUAL-MODERN-001
 struct ImplicitJoinRule;
@@ -92,6 +139,8 @@ impl Rule for ImplicitJoinRule {
     fn dimension(&self) -> Dimension { Dimension::Quality }
     fn category(&self) -> Option<Category> { Some(Category::QualModern) }
     fn impact(&self) -> &'static str { "Implicit joins are harder to read and prone to accidental cross-joins." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if !query.is_select() { return Vec::new(); }
         if PAT_IMPLICIT_JOIN.is_match(&query.raw) && !query.raw_upper().contains("JOIN") {
@@ -104,11 +153,15 @@ impl Rule for ImplicitJoinRule {
 // QUAL-MODERN-002
 struct HardcodedDateRule;
 static PAT_DATE: Lazy<Regex> = Lazy::new(|| Regex::new(r#"(?i)\bWHERE\b.+['"](\d{4}-\d{2}-\d{2})['"]"#).unwrap());
-impl Rule for HardcodedDateRule { fn id(&self) -> &'static str { "QUAL-MODERN-002" } fn name(&self) -> &'static str { "Hardcoded Date Literal in Filter" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualModern) } fn impact(&self) -> &'static str { "Hardcoded dates become stale and cause queries to return unexpected results." } fn check(&self, query: &Query) -> Vec<Issue> { if query.source_context == "adhoc" || query.source_context.is_empty() { return Vec::new(); } PAT_DATE.find(&query.raw).map(|m| vec![self.build_issue(query, "Hardcoded date literal in WHERE clause.", m.as_str())]).unwrap_or_default() } }
+impl Rule for HardcodedDateRule { fn id(&self) -> &'static str { "QUAL-MODERN-002" } fn name(&self) -> &'static str { "Hardcoded Date Literal in Filter" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualModern) } fn impact(&self) -> &'static str { "Hardcoded dates become stale and cause queries to return unexpected results." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, query: &Query) -> Vec<Issue> { if query.source_context == "adhoc" || query.source_context.is_empty() { return Vec::new(); } PAT_DATE.find(&query.raw).map(|m| vec![self.build_issue(query, "Hardcoded date literal in WHERE clause.", m.as_str())]).unwrap_or_default() } }
 
 // QUAL-MODERN-003
 struct UnionWithoutAllRule;
 impl Rule for UnionWithoutAllRule { fn id(&self) -> &'static str { "QUAL-MODERN-003" } fn name(&self) -> &'static str { "UNION Without ALL" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualModern) } fn impact(&self) -> &'static str { "UNION deduplicates using expensive sort or hash." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
     fn check(&self, query: &Query) -> Vec<Issue> {
         // Manually check: find UNION not followed by ALL
         let upper = query.raw_upper();
@@ -147,24 +200,67 @@ impl Rule for DuplicateConditionRule { fn id(&self) -> &'static str { "QUAL-DRY-
 
 // QUAL-COMPLEX-001..005
 struct ExcessiveCaseNestingRule;
-impl Rule for ExcessiveCaseNestingRule { fn id(&self) -> &'static str { "QUAL-COMPLEX-001" } fn name(&self) -> &'static str { "Excessive CASE Nesting" } fn severity(&self) -> Severity { Severity::Medium } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualComplexity) } fn impact(&self) -> &'static str { "Deeply nested CASE statements are difficult to understand and test." } fn check(&self, query: &Query) -> Vec<Issue> { let upper = query.raw_upper(); let case_count = upper.matches("CASE").count(); if case_count > 3 { let msg = format!("CASE expression nested {} levels deep.", case_count); return vec![self.build_issue(query, &msg, query.snippet(100))]; } Vec::new() } }
+impl Rule for ExcessiveCaseNestingRule { fn id(&self) -> &'static str { "QUAL-COMPLEX-001" } fn name(&self) -> &'static str { "Excessive CASE Nesting" } fn severity(&self) -> Severity { Severity::Medium } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualComplexity) } fn impact(&self) -> &'static str { "Deeply nested CASE statements are difficult to understand and test." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, query: &Query) -> Vec<Issue> { let upper = query.raw_upper(); let case_count = upper.matches("CASE").count(); if case_count > 3 { let msg = format!("CASE expression nested {} levels deep.", case_count); return vec![self.build_issue(query, &msg, query.snippet(100))]; } Vec::new() } }
 
 struct ExcessiveSubqueryNestingRule;
-impl Rule for ExcessiveSubqueryNestingRule { fn id(&self) -> &'static str { "QUAL-COMPLEX-002" } fn name(&self) -> &'static str { "Excessive Subquery Nesting" } fn severity(&self) -> Severity { Severity::Medium } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualComplexity) } fn impact(&self) -> &'static str { "Deeply nested subqueries are unreadable and hard to optimize." } fn check(&self, query: &Query) -> Vec<Issue> { let count = query.raw_upper().matches("(SELECT").count(); if count >= 3 { let msg = format!("Subquery nested {} levels deep.", count); return vec![self.build_issue(query, &msg, query.snippet(100))]; } Vec::new() } }
+impl Rule for ExcessiveSubqueryNestingRule { fn id(&self) -> &'static str { "QUAL-COMPLEX-002" } fn name(&self) -> &'static str { "Excessive Subquery Nesting" } fn severity(&self) -> Severity { Severity::Medium } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualComplexity) } fn impact(&self) -> &'static str { "Deeply nested subqueries are unreadable and hard to optimize." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, query: &Query) -> Vec<Issue> { let count = query.raw_upper().matches("(SELECT").count(); if count >= 3 { let msg = format!("Subquery nested {} levels deep.", count); return vec![self.build_issue(query, &msg, query.snippet(100))]; } Vec::new() } }
 
 struct GodQueryRule;
-impl Rule for GodQueryRule { fn id(&self) -> &'static str { "QUAL-COMPLEX-003" } fn name(&self) -> &'static str { "God Query" } fn severity(&self) -> Severity { Severity::Medium } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualComplexity) } fn impact(&self) -> &'static str { "God queries are slow, hard to optimize, impossible to test." } fn check(&self, query: &Query) -> Vec<Issue> { let upper = query.raw_upper(); let score = upper.matches("JOIN").count() * 2 + upper.matches(" AND ").count() + upper.matches(" OR ").count() + upper.matches("(SELECT").count() * 3; if score > 25 { let msg = format!("God query detected (complexity score: {}).", score); return vec![self.build_issue(query, &msg, query.snippet(100))]; } Vec::new() } }
+impl Rule for GodQueryRule { fn id(&self) -> &'static str { "QUAL-COMPLEX-003" } fn name(&self) -> &'static str { "God Query" } fn severity(&self) -> Severity { Severity::Medium } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualComplexity) } fn impact(&self) -> &'static str { "God queries are slow, hard to optimize, impossible to test." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, query: &Query) -> Vec<Issue> { let upper = query.raw_upper(); let score = upper.matches("JOIN").count() * 2 + upper.matches(" AND ").count() + upper.matches(" OR ").count() + upper.matches("(SELECT").count() * 3; if score > 25 { let msg = format!("God query detected (complexity score: {}).", score); return vec![self.build_issue(query, &msg, query.snippet(100))]; } Vec::new() } }
 
 struct CyclomaticComplexityRule;
 static PAT_CYCLO: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?is)\b(CREATE\s+(?:OR\s+REPLACE\s+)?PROCEDURE|CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION)\b").unwrap());
-impl Rule for CyclomaticComplexityRule { fn id(&self) -> &'static str { "QUAL-COMPLEX-004" } fn name(&self) -> &'static str { "Cyclomatic Complexity in Stored Procedure" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualComplexity) } fn impact(&self) -> &'static str { "High cyclomatic complexity means many code paths, making testing exponentially harder." } fn check(&self, query: &Query) -> Vec<Issue> { if !PAT_CYCLO.is_match(&query.raw) { return Vec::new(); } let upper = query.raw_upper(); let branches = upper.matches("IF ").count() + upper.matches("WHILE ").count() + upper.matches("CASE ").count(); if branches >= 5 { return vec![self.build_issue(query, "Stored procedure with high cyclomatic complexity.", query.snippet(100))]; } Vec::new() } }
+impl Rule for CyclomaticComplexityRule { fn id(&self) -> &'static str { "QUAL-COMPLEX-004" } fn name(&self) -> &'static str { "Cyclomatic Complexity in Stored Procedure" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualComplexity) } fn impact(&self) -> &'static str { "High cyclomatic complexity means many code paths, making testing exponentially harder." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, query: &Query) -> Vec<Issue> { if !PAT_CYCLO.is_match(&query.raw) { return Vec::new(); } let upper = query.raw_upper(); let branches = upper.matches("IF ").count() + upper.matches("WHILE ").count() + upper.matches("CASE ").count(); if branches >= 5 { return vec![self.build_issue(query, "Stored procedure with high cyclomatic complexity.", query.snippet(100))]; } Vec::new() } }
 
 struct LongQueryRule;
-impl Rule for LongQueryRule { fn id(&self) -> &'static str { "QUAL-COMPLEX-005" } fn name(&self) -> &'static str { "Long Query (Line Count)" } fn severity(&self) -> Severity { Severity::Info } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualComplexity) } fn impact(&self) -> &'static str { "Queries over 50 lines are hard to understand, review, and debug." } fn check(&self, query: &Query) -> Vec<Issue> { let lines = query.raw.chars().filter(|&c| c == '\n').count() + 1; if lines > 50 { let msg = format!("Query is {} lines long - consider breaking into smaller queries.", lines); return vec![self.build_issue(query, &msg, query.snippet(100))]; } Vec::new() } }
+impl Rule for LongQueryRule { fn id(&self) -> &'static str { "QUAL-COMPLEX-005" } fn name(&self) -> &'static str { "Long Query (Line Count)" } fn severity(&self) -> Severity { Severity::Info } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualComplexity) } fn impact(&self) -> &'static str { "Queries over 50 lines are hard to understand, review, and debug." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, query: &Query) -> Vec<Issue> { let lines = query.raw.chars().filter(|&c| c == '\n').count() + 1; if lines > 50 { let msg = format!("Query is {} lines long - consider breaking into smaller queries.", lines); return vec![self.build_issue(query, &msg, query.snippet(100))]; } Vec::new() } }
 
 // QUAL-NAME-001..004
 struct InconsistentTableNamingRule;
-impl Rule for InconsistentTableNamingRule { fn id(&self) -> &'static str { "QUAL-NAME-001" } fn name(&self) -> &'static str { "Inconsistent Table Naming" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualNaming) } fn impact(&self) -> &'static str { "Inconsistent naming makes the schema harder to learn and navigate." } fn check(&self, query: &Query) -> Vec<Issue> { if query.tables.len() < 2 { return Vec::new(); } let singular = query.tables.iter().filter(|t| !t.ends_with('s') || t.ends_with("ss")).count(); let plural = query.tables.iter().filter(|t| t.ends_with('s') && !t.ends_with("ss")).count(); if singular > 0 && plural > 0 { return vec![self.build_issue(query, "Inconsistent table naming: mixed singular and plural names.", query.snippet(80))]; } Vec::new() } }
+// Words that end in s/ss/es but are not plural forms
+static SINGULAR_EXCEPTIONS: &[&str] = &[
+    "address", "access", "process", "progress", "business", "class", "status",
+    "canvas", "axis", "basis", "crisis", "analysis", "diagnosis", "hypothesis",
+    "bus", "virus", "lens", "atlas", "bonus", "campus", "census", "focus",
+    "nexus", "radius", "stimulus", "surplus", "alias", "pass", "chess",
+    "congress", "express", "stress", "success", "witness",
+];
+impl Rule for InconsistentTableNamingRule { fn id(&self) -> &'static str { "QUAL-NAME-001" } fn name(&self) -> &'static str { "Inconsistent Table Naming" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualNaming) } fn impact(&self) -> &'static str { "Inconsistent naming makes the schema harder to learn and navigate." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, query: &Query) -> Vec<Issue> {
+        if query.tables.len() < 2 { return Vec::new(); }
+        // Classify each table as singular or plural, accounting for exceptions
+        let mut singular_count = 0;
+        let mut plural_count = 0;
+        for t in &query.tables {
+            let lower = t.to_lowercase();
+            // Strip schema prefix if present (e.g., public.users -> users)
+            let name = lower.rsplit('.').next().unwrap_or(&lower);
+            // Words that are ambiguous (end in s/ss/es naturally) are excluded
+            // from the count entirely. They should not be evidence of either convention.
+            if SINGULAR_EXCEPTIONS.iter().any(|ex| name == *ex || name.ends_with(&format!("_{}", ex))) {
+                continue; // ambiguous, skip
+            } else if name.ends_with("ies") || (name.ends_with('s') && !name.ends_with("ss") && !name.ends_with("us")) {
+                plural_count += 1;
+            } else {
+                singular_count += 1;
+            }
+        }
+        if singular_count > 0 && plural_count > 0 {
+            return vec![self.build_issue(query, "Inconsistent table naming: mixed singular and plural names.", query.snippet(80))];
+        }
+        Vec::new()
+    } }
 
 struct AmbiguousAliasRule;
 static PAT_ALIAS: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)(?:AS|FROM|JOIN)\s+([a-z])").unwrap());
@@ -175,6 +271,8 @@ impl Rule for AmbiguousAliasRule {
     fn dimension(&self) -> Dimension { Dimension::Quality }
     fn category(&self) -> Option<Category> { Some(Category::QualNaming) }
     fn impact(&self) -> &'static str { "Single-letter aliases make complex queries impossible to read." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
     fn check(&self, query: &Query) -> Vec<Issue> {
         PAT_ALIAS.find(&query.raw).map(|m| vec![self.build_issue(query, "Ambiguous single-letter alias detected.", m.as_str())]).unwrap_or_default()
     }
@@ -182,11 +280,15 @@ impl Rule for AmbiguousAliasRule {
 
 struct HungarianNotationRule;
 static PAT_HUNGARIAN: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\b(str_|int_|i_|tbl_|v_)[a-z0-9_]+\b").unwrap());
-impl Rule for HungarianNotationRule { fn id(&self) -> &'static str { "QUAL-NAME-003" } fn name(&self) -> &'static str { "Hungarian Notation in Names" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualNaming) } fn impact(&self) -> &'static str { "Hungarian notation is redundant in SQL as types are defined in schema." } fn check(&self, query: &Query) -> Vec<Issue> { PAT_HUNGARIAN.find(&query.raw).map(|m| vec![self.build_issue(query, "Hungarian notation detected.", m.as_str())]).unwrap_or_default() } }
+impl Rule for HungarianNotationRule { fn id(&self) -> &'static str { "QUAL-NAME-003" } fn name(&self) -> &'static str { "Hungarian Notation in Names" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualNaming) } fn impact(&self) -> &'static str { "Hungarian notation is redundant in SQL as types are defined in schema." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, query: &Query) -> Vec<Issue> { PAT_HUNGARIAN.find(&query.raw).map(|m| vec![self.build_issue(query, "Hungarian notation detected.", m.as_str())]).unwrap_or_default() } }
 
 struct ReservedWordAsColumnRule;
 static RESERVED: &[&str] = &["ORDER","GROUP","TABLE","INDEX","USER","DATE","KEY","COLUMN","LIMIT","OFFSET"];
-impl Rule for ReservedWordAsColumnRule { fn id(&self) -> &'static str { "QUAL-NAME-004" } fn name(&self) -> &'static str { "Reserved Word as Identifier" } fn severity(&self) -> Severity { Severity::Medium } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualNaming) } fn impact(&self) -> &'static str { "Using reserved words forces double quotes and can lead to syntax errors." } fn check(&self, query: &Query) -> Vec<Issue> { for col in &query.columns { if RESERVED.iter().any(|r| r.eq_ignore_ascii_case(col)) { let msg = format!("Reserved word '{}' used as identifier.", col.to_uppercase()); return vec![self.build_issue(query, &msg, col)]; } } Vec::new() } }
+impl Rule for ReservedWordAsColumnRule { fn id(&self) -> &'static str { "QUAL-NAME-004" } fn name(&self) -> &'static str { "Reserved Word as Identifier" } fn severity(&self) -> Severity { Severity::Medium } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualNaming) } fn impact(&self) -> &'static str { "Using reserved words forces double quotes and can lead to syntax errors." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Contextual }
+    fn check(&self, query: &Query) -> Vec<Issue> { for col in &query.columns { if RESERVED.iter().any(|r| r.eq_ignore_ascii_case(col)) { let msg = format!("Reserved word '{}' used as identifier.", col.to_uppercase()); return vec![self.build_issue(query, &msg, col)]; } } Vec::new() } }
 
 // QUAL-DOC-001..003
 struct MissingColumnCommentsRule;
@@ -198,6 +300,8 @@ impl Rule for MissingColumnCommentsRule {
     fn dimension(&self) -> Dimension { Dimension::Quality }
     fn category(&self) -> Option<Category> { Some(Category::QualDocumentation) }
     fn impact(&self) -> &'static str { "Missing comments mean business meaning must be reverse-engineered." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if query.source_context == "adhoc" || query.source_context.is_empty() { return Vec::new(); }
         if query.raw_upper().contains(" AS SELECT") { return Vec::new(); }
@@ -211,11 +315,98 @@ impl Rule for MissingColumnCommentsRule {
 }
 
 struct MagicStringWithoutCommentRule;
-static PAT_MAGIC: Lazy<Regex> = Lazy::new(|| Regex::new(r#"(?i)WHERE\s+.*\s*=\s*'[^']+'"#).unwrap());
-impl Rule for MagicStringWithoutCommentRule { fn id(&self) -> &'static str { "QUAL-DOC-002" } fn name(&self) -> &'static str { "Magic Constant Without Comment" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualDocumentation) } fn impact(&self) -> &'static str { "Magic constants represent opaque business logic." } fn check(&self, query: &Query) -> Vec<Issue> { if query.source_context == "adhoc" || query.source_context.is_empty() { return Vec::new(); } if let Some(m) = PAT_MAGIC.find(&query.raw) { if query.raw.contains("--") { return Vec::new(); } let matched_lower = m.as_str().to_lowercase(); let common = ["active","inactive","pending","completed","true","false","yes","no","enabled","disabled","open","closed","draft","published","archived","deleted","admin","user","guest","paid","unpaid","cancelled","approved","rejected","shipped","delivered","processing","failed","success","error","public","private","default","system","test","dev","prod","staging"]; if let Some(start) = matched_lower.rfind("= '") { let after = &matched_lower[start+3..]; if let Some(end) = after.find("'") { let value = &after[..end]; if common.iter().any(|cv| *cv == value) { return Vec::new(); } } } return vec![self.build_issue(query, "Magic constant without comment.", m.as_str())]; } Vec::new() } }
+static PAT_MAGIC: Lazy<Regex> = Lazy::new(|| {
+    // Match WHERE ... column = 'value' capturing column name and value
+    Regex::new(r#"(?i)\bWHERE\b.*?\b([a-zA-Z_][\w]*)\b\s*=\s*'([^']+)'"#).unwrap()
+});
+static PAT_MAGIC_UUID: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$").unwrap()
+});
+static PAT_MAGIC_DATE: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"^\d{4}-\d{2}-\d{2}$").unwrap()
+});
+// Columns that typically hold business classification enums.
+// Only flag magic constants on these columns.
+static MAGIC_DOC_COLUMNS: &[&str] = &[
+    "status", "state", "type", "role", "category", "kind", "code", "flag",
+    "mode", "level", "tier", "plan", "channel", "source", "reason",
+    "provider", "environment", "priority", "severity",
+];
+// Common enum values that are self-documenting and do not need a comment.
+static MAGIC_COMMON_VALUES: &[&str] = &[
+    "active","inactive","pending","completed","true","false","yes","no",
+    "enabled","disabled","open","closed","draft","published","archived",
+    "deleted","admin","user","guest","paid","unpaid","cancelled",
+    "approved","rejected","shipped","delivered","processing","failed",
+    "success","error","public","private","default","system","test",
+    "dev","prod","staging","new","old","unknown","other","none",
+    "confirmed","unconfirmed","blocked","suspended","expired","verified",
+];
+
+impl Rule for MagicStringWithoutCommentRule {
+    fn id(&self) -> &'static str { "QUAL-DOC-002" }
+    fn name(&self) -> &'static str { "Magic Constant Without Comment" }
+    fn severity(&self) -> Severity { Severity::Low }
+    fn dimension(&self) -> Dimension { Dimension::Quality }
+    fn category(&self) -> Option<Category> { Some(Category::QualDocumentation) }
+    fn impact(&self) -> &'static str { "Magic constants represent opaque business logic." }
+
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, query: &Query) -> Vec<Issue> {
+        if query.source_context == "adhoc" || query.source_context.is_empty() {
+            return Vec::new();
+        }
+        // Already commented queries do not need this rule
+        if query.raw.contains("--") || query.raw.contains("/*") {
+            return Vec::new();
+        }
+        // Skip dynamic SQL where concatenation is the real problem
+        if query.is_dynamic || query.raw.contains("||") || query.raw.contains("CONCAT(") || query.raw.contains(" + ") {
+            return Vec::new();
+        }
+
+        let caps = match PAT_MAGIC.captures(&query.raw) {
+            Some(c) => c,
+            None => return Vec::new(),
+        };
+
+        let column = caps.get(1).map(|m| m.as_str().to_lowercase()).unwrap_or_default();
+        let value = caps.get(2).map(|m| m.as_str().to_lowercase()).unwrap_or_default();
+
+        // Only flag when column is a known business classification field
+        let is_doc_column = MAGIC_DOC_COLUMNS.iter().any(|c| {
+            column == *c || column.ends_with(&format!("_{}", c))
+        });
+        if !is_doc_column {
+            return Vec::new();
+        }
+
+        // Skip trivially short values (likely placeholders)
+        if value.len() <= 1 {
+            return Vec::new();
+        }
+        // Skip values that are obviously not business constants
+        if value.contains('@') || value.contains("://") || value.contains('/') || value.contains('\\') {
+            return Vec::new();
+        }
+        if PAT_MAGIC_UUID.is_match(&value) || PAT_MAGIC_DATE.is_match(&value) {
+            return Vec::new();
+        }
+        // Skip common self-documenting enum values
+        if MAGIC_COMMON_VALUES.iter().any(|cv| *cv == value) {
+            return Vec::new();
+        }
+
+        let snippet = caps.get(0).map(|m| m.as_str()).unwrap_or(query.snippet(80));
+        vec![self.build_issue(query, "Magic constant without comment.", snippet)]
+    }
+}
 
 struct ComplexLogicWithoutExplanationRule;
-impl Rule for ComplexLogicWithoutExplanationRule { fn id(&self) -> &'static str { "QUAL-DOC-003" } fn name(&self) -> &'static str { "Complex Logic Without Explanation" } fn severity(&self) -> Severity { Severity::Info } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualDocumentation) } fn impact(&self) -> &'static str { "Complex queries without comments are prohibitively expensive to modify." } fn check(&self, query: &Query) -> Vec<Issue> { let upper = query.raw_upper(); let score = upper.matches("AND").count() + upper.matches("OR").count() + upper.matches("CASE").count(); if score >= 5 && !query.raw.contains("--") && !query.raw.contains("/*") { let msg = format!("Complex logic (score: {}) without explanation.", score); return vec![self.build_issue(query, &msg, query.snippet(50))]; } Vec::new() } }
+impl Rule for ComplexLogicWithoutExplanationRule { fn id(&self) -> &'static str { "QUAL-DOC-003" } fn name(&self) -> &'static str { "Complex Logic Without Explanation" } fn severity(&self) -> Severity { Severity::Info } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualDocumentation) } fn impact(&self) -> &'static str { "Complex queries without comments are prohibitively expensive to modify." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, query: &Query) -> Vec<Issue> { let upper = query.raw_upper(); let score = upper.matches("AND").count() + upper.matches("OR").count() + upper.matches("CASE").count(); if score >= 5 && !query.raw.contains("--") && !query.raw.contains("/*") { let msg = format!("Complex logic (score: {}) without explanation.", score); return vec![self.build_issue(query, &msg, query.snippet(50))]; } Vec::new() } }
 
 // QUAL-SCHEMA-001..004
 struct MissingPrimaryKeyRule;
@@ -230,10 +421,15 @@ impl Rule for MissingPrimaryKeyRule {
     fn check(&self, query: &Query) -> Vec<Issue> {
         if query.raw_upper().contains(" AS SELECT") { return Vec::new(); }
         if query.source_context == "adhoc" || query.source_context.is_empty() { return Vec::new(); }
-        if PAT_CREATE_NO_PK.is_match(&query.raw) && !query.raw_upper().contains("PRIMARY KEY") {
-            return vec![self.build_issue(query, "CREATE TABLE without PRIMARY KEY.", query.snippet(80))];
-        }
-        Vec::new()
+        if !PAT_CREATE_NO_PK.is_match(&query.raw) { return Vec::new(); }
+        let upper = query.raw_upper();
+        if upper.contains("PRIMARY KEY") { return Vec::new(); }
+        // ClickHouse uses ORDER BY as the primary index, not PRIMARY KEY.
+        // ENGINE = ... ORDER BY (...) is the ClickHouse equivalent.
+        if upper.contains("ORDER BY") && upper.contains("ENGINE") { return Vec::new(); }
+        // Skip when table contains placeholders (infrastructure template)
+        if query.is_templated() { return Vec::new(); }
+        vec![self.build_issue(query, "CREATE TABLE without PRIMARY KEY.", query.snippet(80))]
     }
 }
 
@@ -245,10 +441,14 @@ impl Rule for MissingForeignKeyRule {
     fn dimension(&self) -> Dimension { Dimension::Quality }
     fn category(&self) -> Option<Category> { Some(Category::QualSchemaDesign) }
     fn impact(&self) -> &'static str { "Missing foreign keys lead to orphaned records and data corruption." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Contextual }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if query.raw_upper().contains(" AS SELECT") { return Vec::new(); }
         if query.source_context == "adhoc" || query.source_context.is_empty() { return Vec::new(); }
         if query.query_type.as_deref() != Some("CREATE") { return Vec::new(); }
+        // Only fire on CREATE TABLE, not CREATE INDEX, CREATE SEQUENCE, etc.
+        if !query.raw_upper().contains("CREATE TABLE") { return Vec::new(); }
         let lower = query.raw_lower();
         if !lower.contains("_id") { return Vec::new(); }
         if lower.contains("foreign key") || lower.contains("references") { return Vec::new(); }
@@ -257,7 +457,9 @@ impl Rule for MissingForeignKeyRule {
 }
 
 struct LackOfIndexingOnForeignKeyRule;
-impl Rule for LackOfIndexingOnForeignKeyRule { fn id(&self) -> &'static str { "QUAL-SCHEMA-003" } fn name(&self) -> &'static str { "Missing Index on Foreign Key" } fn severity(&self) -> Severity { Severity::Medium } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualSchemaDesign) } fn impact(&self) -> &'static str { "JOINs on unindexed foreign keys are extremely slow." } fn check(&self, query: &Query) -> Vec<Issue> { let lower = query.raw_lower(); if lower.contains("foreign key") && !lower.contains("index") { return vec![self.build_issue(query, "Foreign key without corresponding INDEX.", query.snippet(100))]; } Vec::new() } }
+impl Rule for LackOfIndexingOnForeignKeyRule { fn id(&self) -> &'static str { "QUAL-SCHEMA-003" } fn name(&self) -> &'static str { "Missing Index on Foreign Key" } fn severity(&self) -> Severity { Severity::Medium } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualSchemaDesign) } fn impact(&self) -> &'static str { "JOINs on unindexed foreign keys are extremely slow." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Contextual }
+    fn check(&self, query: &Query) -> Vec<Issue> { let lower = query.raw_lower(); if lower.contains("foreign key") && !lower.contains("index") { return vec![self.build_issue(query, "Foreign key without corresponding INDEX.", query.snippet(100))]; } Vec::new() } }
 
 struct UsingFloatForCurrencyRule;
 static PAT_FLOAT_MONEY: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\b(price|amount|balance|cost|total|sum)\b.*?\b(FLOAT|REAL|DOUBLE)\b").unwrap());
@@ -276,11 +478,13 @@ impl Rule for NonDeterministicQueryRule {
         if !query.is_select() { return Vec::new(); }
         if query.source_context == "adhoc" || query.source_context.is_empty() { return Vec::new(); }
         let upper = query.raw_upper();
+        // LIMIT 0 is an intentional empty-result pattern for metadata queries.
+        // Non-deterministic functions in that context are irrelevant.
+        if upper.contains("LIMIT 0") { return Vec::new(); }
         let funcs = ["NOW(", "RAND(", "RANDOM(", "CURRENT_TIMESTAMP", "GETDATE(", "CLOCK_TIMESTAMP("];
         // Only flag if non-deterministic function is in SELECT list, not in WHERE
         if let Some(ref facts) = query.facts {
             if facts.has_where {
-                // Check if functions appear BEFORE the WHERE keyword (in SELECT list)
                 let where_pos = upper.find("WHERE").unwrap_or(upper.len());
                 let select_part = &upper[..where_pos];
                 if funcs.iter().any(|f| select_part.contains(f)) {
@@ -289,7 +493,6 @@ impl Rule for NonDeterministicQueryRule {
                 return Vec::new();
             }
         }
-        // No WHERE: check if function is anywhere (likely in SELECT list)
         if funcs.iter().any(|f| upper.contains(f)) {
             return vec![self.build_issue(query, "Non-deterministic function detected.", query.snippet(80))];
         }
@@ -308,20 +511,28 @@ impl Rule for OrderByMissingForPaginationRule { fn id(&self) -> &'static str { "
 
 struct HardcodedTestDataRule;
 static PAT_TEST_DATA: Lazy<Regex> = Lazy::new(|| Regex::new(r#"(?i)'[^']*(?:test|dummy|fake|temp|asdf|qwerty)[^']*'"#).unwrap());
-impl Rule for HardcodedTestDataRule { fn id(&self) -> &'static str { "QUAL-TEST-003" } fn name(&self) -> &'static str { "Hardcoded Test Data" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualTesting) } fn impact(&self) -> &'static str { "Leftover test data markers indicate poor release hygiene." } fn check(&self, query: &Query) -> Vec<Issue> { PAT_TEST_DATA.find(&query.raw).map(|m| vec![self.build_issue(query, "Hardcoded test data detected.", m.as_str())]).unwrap_or_default() } }
+impl Rule for HardcodedTestDataRule { fn id(&self) -> &'static str { "QUAL-TEST-003" } fn name(&self) -> &'static str { "Hardcoded Test Data" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualTesting) } fn impact(&self) -> &'static str { "Leftover test data markers indicate poor release hygiene." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, query: &Query) -> Vec<Issue> { PAT_TEST_DATA.find(&query.raw).map(|m| vec![self.build_issue(query, "Hardcoded test data detected.", m.as_str())]).unwrap_or_default() } }
 
 // QUAL-DEBT-001..002
 struct TodoFixmeCommentRule;
 static PAT_TODO: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\b(TODO|FIXME|XXX|HACK)\b").unwrap());
-impl Rule for TodoFixmeCommentRule { fn id(&self) -> &'static str { "QUAL-DEBT-001" } fn name(&self) -> &'static str { "Technical Debt Marker" } fn severity(&self) -> Severity { Severity::Info } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualTechDebt) } fn impact(&self) -> &'static str { "TODO/FIXME markers represent known bugs not tracked in issue tracker." } fn check(&self, query: &Query) -> Vec<Issue> { PAT_TODO.find(&query.raw).map(|m| vec![self.build_issue(query, "Technical debt marker detected.", m.as_str())]).unwrap_or_default() } }
+impl Rule for TodoFixmeCommentRule { fn id(&self) -> &'static str { "QUAL-DEBT-001" } fn name(&self) -> &'static str { "Technical Debt Marker" } fn severity(&self) -> Severity { Severity::Info } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualTechDebt) } fn impact(&self) -> &'static str { "TODO/FIXME markers represent known bugs not tracked in issue tracker." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, query: &Query) -> Vec<Issue> { PAT_TODO.find(&query.raw).map(|m| vec![self.build_issue(query, "Technical debt marker detected.", m.as_str())]).unwrap_or_default() } }
 
 struct TempTableNotCleanedUpRule;
 static PAT_TEMP_NO_DROP: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)CREATE\s+(?:TEMPORARY|TEMP)\s+TABLE\s+(\w+)").unwrap());
-impl Rule for TempTableNotCleanedUpRule { fn id(&self) -> &'static str { "QUAL-DEBT-002" } fn name(&self) -> &'static str { "Permanent Temporary Table" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualTechDebt) } fn impact(&self) -> &'static str { "Temporary tables not dropped consume memory and disk space." } fn check(&self, query: &Query) -> Vec<Issue> { if let Some(caps) = PAT_TEMP_NO_DROP.captures(&query.raw) { let name = caps.get(1).unwrap().as_str(); if !query.raw_upper().contains(&format!("DROP TABLE {}", name.to_uppercase())) { return vec![self.build_issue(query, "CREATE TEMP TABLE without corresponding DROP TABLE.", caps.get(0).unwrap().as_str())]; } } Vec::new() } }
+impl Rule for TempTableNotCleanedUpRule { fn id(&self) -> &'static str { "QUAL-DEBT-002" } fn name(&self) -> &'static str { "Permanent Temporary Table" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualTechDebt) } fn impact(&self) -> &'static str { "Temporary tables not dropped consume memory and disk space." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, query: &Query) -> Vec<Issue> { if let Some(caps) = PAT_TEMP_NO_DROP.captures(&query.raw) { let name = caps.get(1).unwrap().as_str(); if !query.raw_upper().contains(&format!("DROP TABLE {}", name.to_uppercase())) { return vec![self.build_issue(query, "CREATE TEMP TABLE without corresponding DROP TABLE.", caps.get(0).unwrap().as_str())]; } } Vec::new() } }
 
 // QUAL-DEAD-001..003 (project-level rules - basic pattern matching here)
 struct UnusedObjectRule;
-impl Rule for UnusedObjectRule { fn id(&self) -> &'static str { "QUAL-DEAD-001" } fn name(&self) -> &'static str { "Unused Database Object" } fn severity(&self) -> Severity { Severity::Medium } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualTechDebt) } fn impact(&self) -> &'static str { "Unused objects clutter the schema." } fn check(&self, _query: &Query) -> Vec<Issue> { Vec::new() /* Requires project-level analysis */ } }
+impl Rule for UnusedObjectRule { fn id(&self) -> &'static str { "QUAL-DEAD-001" } fn name(&self) -> &'static str { "Unused Database Object" } fn severity(&self) -> Severity { Severity::Medium } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualTechDebt) } fn impact(&self) -> &'static str { "Unused objects clutter the schema." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, _query: &Query) -> Vec<Issue> { Vec::new() /* Requires project-level analysis */ } }
 struct UnreachableCodeRule;
 impl Rule for UnreachableCodeRule {
     fn id(&self) -> &'static str { "QUAL-DEAD-002" }
@@ -330,6 +541,8 @@ impl Rule for UnreachableCodeRule {
     fn dimension(&self) -> Dimension { Dimension::Quality }
     fn category(&self) -> Option<Category> { Some(Category::QualTechDebt) }
     fn impact(&self) -> &'static str { "Unreachable code after RETURN is dead code." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Contextual }
     fn check(&self, query: &Query) -> Vec<Issue> {
         let upper = query.raw_upper();
         if !upper.contains("RETURN") { return Vec::new(); }
@@ -345,18 +558,26 @@ impl Rule for UnreachableCodeRule {
     }
 }
 struct DuplicateQueryRule;
-impl Rule for DuplicateQueryRule { fn id(&self) -> &'static str { "QUAL-DEAD-003" } fn name(&self) -> &'static str { "Duplicate Query" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualTechDebt) } fn impact(&self) -> &'static str { "Duplicate queries waste resources." } fn check(&self, _query: &Query) -> Vec<Issue> { Vec::new() /* Requires project-level analysis */ } }
+impl Rule for DuplicateQueryRule { fn id(&self) -> &'static str { "QUAL-DEAD-003" } fn name(&self) -> &'static str { "Duplicate Query" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualTechDebt) } fn impact(&self) -> &'static str { "Duplicate queries waste resources." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, _query: &Query) -> Vec<Issue> { Vec::new() /* Requires project-level analysis */ } }
 
 // QUAL-DBT-001..002
 struct DbtMissingRefRule;
-impl Rule for DbtMissingRefRule { fn id(&self) -> &'static str { "QUAL-DBT-001" } fn name(&self) -> &'static str { "Missing dbt Ref" } fn severity(&self) -> Severity { Severity::Medium } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualModern) } fn impact(&self) -> &'static str { "Hardcoded table names break dbt lineage." } fn check(&self, _query: &Query) -> Vec<Issue> { Vec::new() /* Requires dbt context */ } }
+impl Rule for DbtMissingRefRule { fn id(&self) -> &'static str { "QUAL-DBT-001" } fn name(&self) -> &'static str { "Missing dbt Ref" } fn severity(&self) -> Severity { Severity::Medium } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualModern) } fn impact(&self) -> &'static str { "Hardcoded table names break dbt lineage." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, _query: &Query) -> Vec<Issue> { Vec::new() /* Requires dbt context */ } }
 struct DbtHardcodedSchemaRule;
-impl Rule for DbtHardcodedSchemaRule { fn id(&self) -> &'static str { "QUAL-DBT-002" } fn name(&self) -> &'static str { "Hardcoded Schema" } fn severity(&self) -> Severity { Severity::Medium } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualModern) } fn impact(&self) -> &'static str { "Hardcoded schema names break portability." } fn check(&self, _query: &Query) -> Vec<Issue> { Vec::new() /* Requires dbt context */ } }
+impl Rule for DbtHardcodedSchemaRule { fn id(&self) -> &'static str { "QUAL-DBT-002" } fn name(&self) -> &'static str { "Hardcoded Schema" } fn severity(&self) -> Severity { Severity::Medium } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualModern) } fn impact(&self) -> &'static str { "Hardcoded schema names break portability." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, _query: &Query) -> Vec<Issue> { Vec::new() /* Requires dbt context */ } }
 
 // QUAL-PG-002 (JSONB Operator Spacing)
 struct JsonbOperatorSpacingRule;
 static PAT_JSONB: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\b(\w+)\s{2,}(->>?|#>>?)").unwrap());
-impl Rule for JsonbOperatorSpacingRule { fn id(&self) -> &'static str { "QUAL-PG-002" } fn name(&self) -> &'static str { "JSONB Operator Spacing" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Quality } fn dialects(&self) -> DialectSet { DialectSet::new(&["postgresql"]) } fn impact(&self) -> &'static str { "Inconsistent spacing reduces readability." } fn check(&self, query: &Query) -> Vec<Issue> { if !self.dialect_matches(query) { return Vec::new(); } PAT_JSONB.find(&query.raw).map(|m| vec![self.build_issue(query, "Inconsistent spacing around JSONB operator.", m.as_str())]).unwrap_or_default() } }
+impl Rule for JsonbOperatorSpacingRule { fn id(&self) -> &'static str { "QUAL-PG-002" } fn name(&self) -> &'static str { "JSONB Operator Spacing" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Quality } fn dialects(&self) -> DialectSet { DialectSet::new(&["postgresql"]) } fn impact(&self) -> &'static str { "Inconsistent spacing reduces readability." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, query: &Query) -> Vec<Issue> { if !self.dialect_matches(query) { return Vec::new(); } PAT_JSONB.find(&query.raw).map(|m| vec![self.build_issue(query, "Inconsistent spacing around JSONB operator.", m.as_str())]).unwrap_or_default() } }
 
 // Dialect-specific quality rules
 struct RownumWithoutOrderByRule;
@@ -365,7 +586,9 @@ impl Rule for RownumWithoutOrderByRule { fn id(&self) -> &'static str { "QUAL-OR
 
 struct SelectFromDualRule;
 static PAT_DUAL: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\bFROM\s+DUAL\b").unwrap());
-impl Rule for SelectFromDualRule { fn id(&self) -> &'static str { "QUAL-ORA-002" } fn name(&self) -> &'static str { "SELECT FROM DUAL in Application SQL" } fn severity(&self) -> Severity { Severity::Info } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualReadability) } fn dialects(&self) -> DialectSet { DialectSet::new(&["oracle"]) } fn impact(&self) -> &'static str { "FROM DUAL is Oracle-specific legacy syntax." } fn check(&self, query: &Query) -> Vec<Issue> { if !self.dialect_matches(query) { return Vec::new(); } PAT_DUAL.find(&query.raw).map(|m| vec![self.build_issue(query, "SELECT FROM DUAL detected - consider modern syntax.", m.as_str())]).unwrap_or_default() } }
+impl Rule for SelectFromDualRule { fn id(&self) -> &'static str { "QUAL-ORA-002" } fn name(&self) -> &'static str { "SELECT FROM DUAL in Application SQL" } fn severity(&self) -> Severity { Severity::Info } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualReadability) } fn dialects(&self) -> DialectSet { DialectSet::new(&["oracle"]) } fn impact(&self) -> &'static str { "FROM DUAL is Oracle-specific legacy syntax." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, query: &Query) -> Vec<Issue> { if !self.dialect_matches(query) { return Vec::new(); } PAT_DUAL.find(&query.raw).map(|m| vec![self.build_issue(query, "SELECT FROM DUAL detected - consider modern syntax.", m.as_str())]).unwrap_or_default() } }
 
 struct OracleNvlInWhereRule;
 static PAT_NVL: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\bWHERE\b.*\bNVL\s*\(").unwrap());
@@ -377,7 +600,9 @@ impl Rule for SqlCalcFoundRowsRule { fn id(&self) -> &'static str { "QUAL-MYSQL-
 
 struct StraightJoinHintRule;
 static PAT_STRAIGHT: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\bSTRAIGHT_JOIN\b").unwrap());
-impl Rule for StraightJoinHintRule { fn id(&self) -> &'static str { "QUAL-MYSQL-002" } fn name(&self) -> &'static str { "STRAIGHT_JOIN Hint" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualModern) } fn dialects(&self) -> DialectSet { DialectSet::new(&["mysql"]) } fn impact(&self) -> &'static str { "Forced join order may become suboptimal." } fn check(&self, query: &Query) -> Vec<Issue> { if !self.dialect_matches(query) { return Vec::new(); } PAT_STRAIGHT.find(&query.raw).map(|m| vec![self.build_issue(query, "STRAIGHT_JOIN hint detected.", m.as_str())]).unwrap_or_default() } }
+impl Rule for StraightJoinHintRule { fn id(&self) -> &'static str { "QUAL-MYSQL-002" } fn name(&self) -> &'static str { "STRAIGHT_JOIN Hint" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualModern) } fn dialects(&self) -> DialectSet { DialectSet::new(&["mysql"]) } fn impact(&self) -> &'static str { "Forced join order may become suboptimal." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, query: &Query) -> Vec<Issue> { if !self.dialect_matches(query) { return Vec::new(); } PAT_STRAIGHT.find(&query.raw).map(|m| vec![self.build_issue(query, "STRAIGHT_JOIN hint detected.", m.as_str())]).unwrap_or_default() } }
 
 struct MysqlLockInShareModeRule;
 static PAT_LOCK_SHARE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\bLOCK\s+IN\s+SHARE\s+MODE\b").unwrap());
@@ -404,11 +629,15 @@ impl Rule for ClickHouseOrderByWithoutLimitRule { fn id(&self) -> &'static str {
 
 struct SnowflakeFlattenWithoutPathRule;
 static PAT_FLAT: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\bFLATTEN\s*\(").unwrap());
-impl Rule for SnowflakeFlattenWithoutPathRule { fn id(&self) -> &'static str { "QUAL-SF-001" } fn name(&self) -> &'static str { "FLATTEN Without Explicit Path" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualReadability) } fn dialects(&self) -> DialectSet { DialectSet::new(&["snowflake"]) } fn impact(&self) -> &'static str { "Without explicit path, FLATTEN depends on column position." } fn check(&self, query: &Query) -> Vec<Issue> { if !self.dialect_matches(query) { return Vec::new(); } if let Some(m) = PAT_FLAT.find(&query.raw) { let lower = query.raw_lower(); if !lower.contains("input") && !lower.contains("path") { return vec![self.build_issue(query, "FLATTEN without explicit input/path - fragile implicit resolution.", m.as_str())]; } } Vec::new() } }
+impl Rule for SnowflakeFlattenWithoutPathRule { fn id(&self) -> &'static str { "QUAL-SF-001" } fn name(&self) -> &'static str { "FLATTEN Without Explicit Path" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualReadability) } fn dialects(&self) -> DialectSet { DialectSet::new(&["snowflake"]) } fn impact(&self) -> &'static str { "Without explicit path, FLATTEN depends on column position." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, query: &Query) -> Vec<Issue> { if !self.dialect_matches(query) { return Vec::new(); } if let Some(m) = PAT_FLAT.find(&query.raw) { let lower = query.raw_lower(); if !lower.contains("input") && !lower.contains("path") { return vec![self.build_issue(query, "FLATTEN without explicit input/path - fragile implicit resolution.", m.as_str())]; } } Vec::new() } }
 
 struct DuckDBOldStyleCastRule;
 static PAT_DUCK_CAST: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\b(?:INTEGER|VARCHAR|FLOAT|DOUBLE|BOOLEAN|DATE|TIMESTAMP)\s*\(\s*\w+\s*\)").unwrap());
-impl Rule for DuckDBOldStyleCastRule { fn id(&self) -> &'static str { "QUAL-DUCK-001" } fn name(&self) -> &'static str { "Deprecated Old-Style Type Cast" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualModern) } fn dialects(&self) -> DialectSet { DialectSet::new(&["duckdb"]) } fn impact(&self) -> &'static str { "Old-style casts are visually ambiguous with function calls." } fn check(&self, query: &Query) -> Vec<Issue> { if !self.dialect_matches(query) { return Vec::new(); } PAT_DUCK_CAST.find(&query.raw).map(|m| vec![self.build_issue(query, "Old-style type cast detected - use CAST or :: syntax.", m.as_str())]).unwrap_or_default() } }
+impl Rule for DuckDBOldStyleCastRule { fn id(&self) -> &'static str { "QUAL-DUCK-001" } fn name(&self) -> &'static str { "Deprecated Old-Style Type Cast" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Quality } fn category(&self) -> Option<Category> { Some(Category::QualModern) } fn dialects(&self) -> DialectSet { DialectSet::new(&["duckdb"]) } fn impact(&self) -> &'static str { "Old-style casts are visually ambiguous with function calls." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, query: &Query) -> Vec<Issue> { if !self.dialect_matches(query) { return Vec::new(); } PAT_DUCK_CAST.find(&query.raw).map(|m| vec![self.build_issue(query, "Old-style type cast detected - use CAST or :: syntax.", m.as_str())]).unwrap_or_default() } }
 
 pub fn all_rules() -> Vec<Box<dyn Rule>> {
     vec![

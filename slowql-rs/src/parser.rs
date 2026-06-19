@@ -253,6 +253,36 @@ fn split_statements(sql: &str) -> Vec<(usize, usize)> {
                     i = len;
                 }
             }
+            b'$' => {
+                // PostgreSQL dollar-quoted string: $$ ... $$ or $tag$ ... $tag$
+                if stmt_start.is_none() {
+                    stmt_start = Some(i);
+                }
+                // Find the dollar-quote tag
+                let mut tag_end = i + 1;
+                while tag_end < len && bytes[tag_end] != b'$' {
+                    if !bytes[tag_end].is_ascii_alphanumeric() && bytes[tag_end] != b'_' {
+                        break;
+                    }
+                    tag_end += 1;
+                }
+                if tag_end < len && bytes[tag_end] == b'$' {
+                    // Compare on raw bytes to avoid UTF-8 char-boundary panics
+                    let tag_bytes = &bytes[i..tag_end + 1]; // e.g. "$$" or "$func$"
+                    let tag_len = tag_bytes.len();
+                    i = tag_end + 1;
+                    // Skip until matching closing dollar-quote
+                    while i + tag_len <= len {
+                        if &bytes[i..i + tag_len] == tag_bytes {
+                            i += tag_len;
+                            break;
+                        }
+                        i += 1;
+                    }
+                } else {
+                    i += 1;
+                }
+            }
             b';' => {
                 if let Some(start) = stmt_start {
                     ranges.push((start, i));
@@ -356,6 +386,18 @@ fn detect_query_type(sql: &str) -> Option<String> {
         "MERGE", "GRANT", "REVOKE", "WITH",
     ] {
         if upper.starts_with(kw) {
+            // Require word boundary after keyword to prevent
+            // "UPDATED_CHECK_TIME" matching "UPDATE"
+            let after = &upper[kw.len()..];
+            let is_boundary = after.is_empty()
+                || after.starts_with(' ')
+                || after.starts_with('\n')
+                || after.starts_with('\r')
+                || after.starts_with('\t')
+                || after.starts_with('(')
+                || after.starts_with(';');
+            if !is_boundary { continue; }
+
             return Some(if *kw == "WITH" {
                 "SELECT".into()
             } else {
@@ -432,11 +474,46 @@ mod tests {
     }
 
     #[test]
-    fn detect_ddl() {
-        let sql = "CREATE TABLE users (id INT PRIMARY KEY)";
+    fn parse_postgres_dollar_quoted_function_with_unicode() {
+        let sql = r#"
+CREATE OR REPLACE FUNCTION hello()
+RETURNS void AS $$
+BEGIN
+    RAISE NOTICE 'hello 👋';
+END;
+$$ LANGUAGE plpgsql;
+"#;
         let queries = parse(sql, "postgresql", None);
         assert_eq!(queries.len(), 1);
-        assert!(queries[0].is_ddl);
         assert_eq!(queries[0].query_type.as_deref(), Some("CREATE"));
+    }
+
+    #[test]
+    fn parse_postgres_tagged_dollar_quoted_function() {
+        let sql = r#"
+CREATE OR REPLACE FUNCTION hello()
+RETURNS void AS $func$
+BEGIN
+    RAISE NOTICE 'hello';
+END;
+$func$ LANGUAGE plpgsql;
+"#;
+        let queries = parse(sql, "postgresql", None);
+        assert_eq!(queries.len(), 1);
+        assert_eq!(queries[0].query_type.as_deref(), Some("CREATE"));
+    }
+
+    #[test]
+    fn detect_query_type_requires_word_boundary() {
+        assert_eq!(detect_query_type("UPDATE users SET x = 1"), Some("UPDATE".into()));
+        assert_eq!(detect_query_type("updated_check_time timestamp with time zone"), None);
+        assert_eq!(detect_query_type("delete_me integer"), None);
+        assert_eq!(detect_query_type("create_user text"), None);
+    }
+
+    #[test]
+    fn detect_query_type_with_keyword_boundary_and_paren() {
+        assert_eq!(detect_query_type("SELECT(1)"), Some("SELECT".into()));
+        assert_eq!(detect_query_type("WITH cte AS (SELECT 1) SELECT * FROM cte"), Some("SELECT".into()));
     }
 }

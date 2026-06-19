@@ -19,6 +19,10 @@ impl RuleRegistry {
         RuleRegistry { rules }
     }
 
+    pub fn add_rules(&mut self, rules: Vec<Box<dyn Rule>>) {
+        self.rules.extend(rules);
+    }
+
     pub fn all(&self) -> &[Box<dyn Rule>] { &self.rules }
 
     pub fn for_dimension(&self, dimension: &str) -> Vec<&dyn Rule> {

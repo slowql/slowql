@@ -65,6 +65,53 @@ impl Query {
     pub fn snippet(&self, max_len: usize) -> &str {
         &self.raw[..self.raw.len().min(max_len)]
     }
+
+    /// Returns true if this query contains format placeholders or
+    /// string interpolation markers that indicate it is a template,
+    /// not concrete executable SQL.
+    pub fn is_templated(&self) -> bool {
+        let raw = &self.raw;
+        // Python-style: %(name)s, %s, %d, %f
+        if raw.contains("%(") || raw.contains("%s") || raw.contains("%d") {
+            return true;
+        }
+        // Django double-percent escaping: %%s
+        if raw.contains("%%s") || raw.contains("%%d") {
+            return true;
+        }
+        // Ruby/Rails interpolation: #{expr}
+        if raw.contains("#{") {
+            return true;
+        }
+        // Go template syntax: {{ .Ident }}
+        if raw.contains("{{") && raw.contains("}}") {
+            return true;
+        }
+        // JavaScript/TypeScript template literals: ${expr}
+        if raw.contains("${") {
+            return true;
+        }
+        // Python str.format / f-string style: {name}, {}, {TABLE_NAME}, etc.
+        if raw.contains('{') && raw.contains('}')
+            && !raw.contains("${") && !raw.contains("#{") {
+            let upper = self.raw_upper();
+            // Skip actual SQL blocks that use {} (PL/pgSQL, DO $$)
+            if !upper.contains("BEGIN") && !upper.contains("$$")
+                && !upper.contains("JSONB") {
+                let bytes = raw.as_bytes();
+                for i in 0..bytes.len().saturating_sub(1) {
+                    if bytes[i] == b'{' {
+                        let next = bytes[i + 1];
+                        // {} or {identifier}
+                        if next == b'}' || next.is_ascii_alphabetic() || next == b'_' {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        false
+    }
 }
 
 impl Default for Query {

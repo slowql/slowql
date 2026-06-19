@@ -1,6 +1,6 @@
 use crate::models::issue::Category;
 use crate::models::{Dimension, Issue, Query, Severity};
-use crate::rules::base::Rule;
+use crate::rules::base::{RuleConfidence, Rule};
 use once_cell::sync::Lazy;
 use regex::Regex;
 
@@ -17,7 +17,9 @@ impl Rule for DatabaseVersionDisclosureRule {
     fn category(&self) -> Option<Category> { Some(Category::SecDataExposure) }
     fn impact(&self) -> &'static str { "Exposing database version helps attackers identify known vulnerabilities (CVEs) specific to that version." }
 
-fn check(&self, query: &Query) -> Vec<Issue> { if query.source_context == "adhoc" || query.source_context.is_empty() { return Vec::new(); } PAT_INFO_001.find(&query.raw).map(|m| { let msg = format!("Database version disclosure: {}", m.as_str()); vec![self.build_issue(query, &msg, m.as_str())] }).unwrap_or_default() } }
+
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, query: &Query) -> Vec<Issue> { if query.source_context == "adhoc" || query.source_context.is_empty() { return Vec::new(); } PAT_INFO_001.find(&query.raw).map(|m| { let msg = format!("Database version disclosure: {}", m.as_str()); vec![self.build_issue(query, &msg, m.as_str())] }).unwrap_or_default() } }
 
 struct SchemaInformationDisclosureRule;
 static PAT_INFO_002: Lazy<Regex> = Lazy::new(|| {
@@ -32,7 +34,37 @@ impl Rule for SchemaInformationDisclosureRule {
     fn category(&self) -> Option<Category> { Some(Category::SecDataExposure) }
     fn impact(&self) -> &'static str { "Schema enumeration reveals table names, column names, and relationships. Attackers use this for targeted SQL injection." }
 
-fn check(&self, query: &Query) -> Vec<Issue> { if query.source_context == "adhoc" || query.source_context.is_empty() { return Vec::new(); } PAT_INFO_002.find(&query.raw).map(|m| { let msg = format!("Schema information disclosure: {}", m.as_str()); vec![self.build_issue(query, &msg, m.as_str())] }).unwrap_or_default() } }
+
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Contextual }
+    fn check(&self, query: &Query) -> Vec<Issue> {
+        if query.source_context == "adhoc" || query.source_context.is_empty() { return Vec::new(); }
+        if !PAT_INFO_002.is_match(&query.raw) { return Vec::new(); }
+        // ORM introspection modules legitimately query schema metadata.
+        // Skip when the file path indicates this is an adapter/introspection layer.
+        if let Some(ref file) = query.location.file {
+            let fl = file.to_lowercase();
+            if fl.contains("introspection") || fl.contains("adapter")
+                || fl.contains("backend") || fl.contains("connection_adapter")
+                || fl.contains("schema_statements") {
+                return Vec::new();
+            }
+        }
+        // Legitimate uses: ORM introspection, migration tools, admin dashboards.
+        // Only flag when there is evidence of dynamic enumeration or injection context:
+        // concatenation, dynamic SQL, or UNION-based extraction pattern.
+        let has_dynamic_signal = query.raw.contains("||")
+            || query.raw.contains("CONCAT(")
+            || query.raw.contains(" + ")
+            || query.is_dynamic
+            || query.raw_upper().contains("UNION")
+            || query.raw_upper().contains("EXEC(")
+            || query.raw_upper().contains("EXECUTE(");
+        if !has_dynamic_signal { return Vec::new(); }
+        PAT_INFO_002.find(&query.raw).map(|m| {
+            let msg = format!("Schema information disclosure: {}", m.as_str());
+            vec![self.build_issue(query, &msg, m.as_str())]
+        }).unwrap_or_default()
+    } }
 
 struct TimingAttackPatternRule;
 static PAT_INFO_003: Lazy<Regex> = Lazy::new(|| {

@@ -1,6 +1,6 @@
 use crate::models::issue::Category;
 use crate::models::{Dimension, Issue, Query, Severity};
-use crate::rules::base::{DialectSet, Rule};
+use crate::rules::base::{DialectSet, RuleConfidence, Rule};
 use once_cell::sync::Lazy;
 use regex::Regex;
 
@@ -21,6 +21,21 @@ impl Rule for UnboundedRecursiveCteRule {
         if !PAT_DOS_001.is_match(&query.raw) { return Vec::new(); }
         let raw_upper = query.raw_upper();
         if raw_upper.contains("MAXRECURSION") { return Vec::new(); }
+        // Only fire on WITH RECURSIVE, not on regular WITH ... AS CTEs.
+        // Non-recursive CTEs cannot cause unbounded recursion.
+        if !raw_upper.contains("WITH RECURSIVE") {
+            // Check for self-referencing UNION ALL pattern
+            // which indicates recursion even without the RECURSIVE keyword
+            // (some dialects allow implicit recursion)
+            if !raw_upper.contains("UNION ALL") {
+                return Vec::new();
+            }
+            // Has UNION ALL but is it actually recursive?
+            // A recursive CTE references itself. Without WITH RECURSIVE,
+            // we need the CTE name to appear in its own body.
+            // This is too complex for regex. Be conservative and skip.
+            return Vec::new();
+        }
         vec![self.build_issue(
             query,
             "Recursive CTE without MAXRECURSION limit - unbounded recursion risk",
@@ -42,6 +57,8 @@ impl Rule for RegexDenialOfServiceRule {
     fn category(&self) -> Option<Category> { Some(Category::SecDos) }
     fn impact(&self) -> &'static str { "ReDoS patterns like (a+)+ can take exponential time on crafted input, hanging database threads for hours." }
 
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Contextual }
     fn check(&self, query: &Query) -> Vec<Issue> {
         PAT_DOS_002.find(&query.raw).map(|m| {
             vec![self.build_issue(query, &format!("Potential ReDoS pattern detected: {}", m.as_str()), m.as_str())]

@@ -12,7 +12,24 @@ impl Rule for UnfilteredAggregationRule {
     fn dimension(&self) -> Dimension { Dimension::Performance }
     fn category(&self) -> Option<Category> { Some(Category::PerfAggregation) }
     fn impact(&self) -> &'static str { "Aggregates entire table, expensive on large datasets." }
-fn check(&self, query: &Query) -> Vec<Issue> { if !query.is_select() { return Vec::new(); } if query.source_context == "adhoc" || query.source_context.is_empty() { return Vec::new(); } let upper = query.raw_upper(); let has_agg = upper.contains("COUNT(") || upper.contains("SUM(") || upper.contains("AVG("); if has_agg && !upper.contains("WHERE") { let snip = &query.raw[..query.raw.len().min(80)]; return vec![self.build_issue(query, "Aggregation without WHERE clause scans entire table.", snip)]; } Vec::new() } }
+fn check(&self, query: &Query) -> Vec<Issue> {
+        if !query.is_select() { return Vec::new(); }
+        if query.source_context == "adhoc" || query.source_context.is_empty() { return Vec::new(); }
+        let upper = query.raw_upper();
+        let has_agg = upper.contains("COUNT(") || upper.contains("SUM(") || upper.contains("AVG(");
+        if !has_agg { return Vec::new(); }
+        if upper.contains("WHERE") { return Vec::new(); }
+        // GROUP BY without WHERE is a legitimate reporting pattern.
+        // The aggregation is intentionally over the full table grouped by dimension.
+        // Only flag when there is neither WHERE nor GROUP BY.
+        if upper.contains("GROUP BY") { return Vec::new(); }
+        // Use AST facts when available for higher confidence
+        if let Some(ref facts) = query.facts {
+            if facts.has_group_by || facts.has_where { return Vec::new(); }
+        }
+        let snip = &query.raw[..query.raw.len().min(80)];
+        vec![self.build_issue(query, "Aggregation without WHERE or GROUP BY scans entire table.", snip)]
+    } }
 
 struct OrderByInSubqueryRule;
 static PAT_ORDER_SUB: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\(\s*SELECT\b[^)]+\bORDER\s+BY\b").unwrap());

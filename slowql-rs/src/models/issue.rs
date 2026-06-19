@@ -210,6 +210,46 @@ impl fmt::Display for FixConfidence {
     }
 }
 
+/// How certain we are that the issue is a true positive.
+/// Proven: deterministic, structural, zero FP by design.
+/// Contextual: accurate when context is available, may need schema/config.
+/// Advisory: style/best-practice hint, not provable from SQL alone.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RuleConfidence {
+    Advisory = 1,
+    Contextual = 2,
+    Proven = 3,
+}
+
+impl RuleConfidence {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            RuleConfidence::Proven => "proven",
+            RuleConfidence::Contextual => "contextual",
+            RuleConfidence::Advisory => "advisory",
+        }
+    }
+}
+
+impl fmt::Display for RuleConfidence {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+impl std::str::FromStr for RuleConfidence {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "proven" => Ok(RuleConfidence::Proven),
+            "contextual" => Ok(RuleConfidence::Contextual),
+            "advisory" => Ok(RuleConfidence::Advisory),
+            other => Err(format!("unknown confidence: {other}")),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RemediationMode {
@@ -318,6 +358,8 @@ pub struct Issue {
     pub fix: Option<Fix>,
     pub impact: Option<String>,
     pub documentation_url: Option<String>,
+    pub confidence: RuleConfidence,
+    pub source_context: String,
     pub tags: Vec<String>,
     pub metadata: HashMap<String, serde_json::Value>,
 }
@@ -347,6 +389,8 @@ impl Issue {
             fix: None,
             impact: None,
             documentation_url: Some(doc_url),
+            confidence: RuleConfidence::Proven,
+            source_context: String::new(),
             tags: Vec::new(),
             metadata: HashMap::new(),
         }

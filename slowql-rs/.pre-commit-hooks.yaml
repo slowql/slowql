@@ -1,0 +1,15 @@
+- id: slowql
+  name: SlowQL SQL Analyzer
+  description: Analyze SQL files and embedded SQL in source code for issues.
+  language: docker_image
+  types_or: [sql, python, javascript, typescript, java, go, ruby]
+  entry: makroumi/slowql:latest
+  args: [--fail-on, high, --format, github-actions]
+
+- id: slowql-strict
+  name: SlowQL SQL Analyzer (strict)
+  description: Zero-tolerance SQL analysis in proven mode.
+  language: docker_image
+  types_or: [sql, python, javascript, typescript, java, go, ruby]
+  entry: makroumi/slowql:latest
+  args: [--fail-on, medium, --min-confidence, proven, --format, github-actions]

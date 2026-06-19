@@ -44,6 +44,10 @@ struct Cli {
     #[arg(long)]
     fix: bool,
 
+    /// Write JSON report of applied fixes
+    #[arg(long)]
+    fix_report: Option<PathBuf>,
+
     /// Path to baseline file
     #[arg(long)]
     baseline: Option<PathBuf>,
@@ -80,6 +84,14 @@ struct Cli {
     #[arg(long)]
     no_cache: bool,
 
+    /// Directory to store cache files
+    #[arg(long, default_value = ".slowql_cache")]
+    cache_dir: String,
+
+    /// Clear cache directory before analysis
+    #[arg(long)]
+    clear_cache: bool,
+
     /// Filter --list-rules by dimension
     #[arg(long)]
     filter_dimension: Option<String>,
@@ -87,6 +99,18 @@ struct Cli {
     /// Filter --list-rules by dialect
     #[arg(long)]
     filter_dialect: Option<String>,
+
+    /// Minimum confidence level to report (proven, contextual, advisory)
+    #[arg(long)]
+    min_confidence: Option<String>,
+
+    /// Include non-production contexts (test, example, seed) in output
+    #[arg(long)]
+    include_nonprod: bool,
+
+    /// Enable query comparison mode (detect similar queries)
+    #[arg(long)]
+    compare: bool,
 
     /// Create a slowql.yaml config file
     #[arg(long)]
@@ -136,8 +160,63 @@ fn main() {
 
     // Handle --init
     if cli.init {
-        eprintln!("slowql init: not yet implemented in Rust port");
-        process::exit(1);
+        let config_path = std::path::Path::new("slowql.yaml");
+        if config_path.exists() {
+            eprintln!("slowql.yaml already exists in current directory.");
+            process::exit(1);
+        }
+        let dialect = cli.dialect.as_deref().unwrap_or("postgresql");
+        let fail_on = cli.fail_on.as_deref().unwrap_or("high");
+        let content = format!(r#"# SlowQL Configuration
+# Documentation: https://slowql.dev/docs/configuration
+
+analysis:
+  dialect: {dialect}
+  enabled_dimensions:
+    - security
+    - performance
+    - reliability
+    - cost
+    - quality
+    - compliance
+  disabled_rules: []
+  # min_confidence: contextual  # proven | contextual | advisory
+  # table_metadata:
+  #   large_tables: []
+  #   partitioned_tables: {{}}
+
+severity:
+  fail_on: {fail_on}
+
+output:
+  format: console
+  verbose: false
+  show_fixes: true
+
+# compliance:
+#   frameworks:
+#     - gdpr
+#     - pci-dss
+
+# schema:
+#   path: db/schema.sql
+"#);
+        std::fs::write(config_path, content).unwrap_or_else(|e| {
+            eprintln!("Error writing slowql.yaml: {}", e);
+            process::exit(1);
+        });
+        eprintln!("Created slowql.yaml with dialect: {}", dialect);
+        process::exit(0);
+    }
+
+    // Handle --clear-cache
+    if cli.clear_cache {
+        let cache = slowql_lib::cache::CacheManager::new(&cli.cache_dir);
+        cache.clear();
+        eprintln!("Cache cleared: {}", cli.cache_dir);
+        if cli.files.is_empty() {
+            process::exit(0);
+        }
     }
 
     // Build engine
@@ -149,6 +228,9 @@ fn main() {
         config.severity.fail_on = fail_on.clone();
     }
     config.output.verbose = cli.verbose;
+    if let Some(ref mc) = cli.min_confidence {
+        config.analysis.min_confidence = mc.clone();
+    }
 
     let _schema = cli.schema.as_ref().map(|path| {
         let dialect = cli.dialect.as_deref().unwrap_or("postgresql");
@@ -197,6 +279,7 @@ fn main() {
         None
     };
 
+    let mut skipped_non_utf8: usize = 0;
     for path in &cli.files {
         if path.is_dir() {
             for entry in walkdir(path) {
@@ -209,7 +292,14 @@ fn main() {
                 }
                 match engine.analyze_file(entry.to_str().unwrap_or("")) {
                     Ok(result) => merge_results(&mut combined, result),
-                    Err(e) => eprintln!("Warning: {}", e),
+                    Err(e) => {
+                        let msg = e.to_string();
+                        if msg.contains("valid UTF-8") || msg.contains("UTF8") || msg.contains("utf-8") {
+                            skipped_non_utf8 += 1;
+                        } else if cli.verbose {
+                            eprintln!("Warning: {}", e);
+                        }
+                    }
                 }
             }
         } else if path.exists() {
@@ -222,10 +312,24 @@ fn main() {
             }
             match engine.analyze_file(path.to_str().unwrap_or("")) {
                 Ok(result) => merge_results(&mut combined, result),
-                Err(e) => eprintln!("Error: {}", e),
+                Err(e) => {
+                    let msg = e.to_string();
+                    if msg.contains("valid UTF-8") || msg.contains("UTF8") || msg.contains("utf-8") {
+                        skipped_non_utf8 += 1;
+                    } else {
+                        eprintln!("Error: {}", e);
+                    }
+                }
             }
         } else {
             eprintln!("File not found: {}", path.display());
+        }
+    }
+
+    // Report skipped files
+    if skipped_non_utf8 > 0 {
+        if cli.verbose {
+            eprintln!("Skipped {} file(s) with non-UTF-8 encoding.", skipped_non_utf8);
         }
     }
 
@@ -239,6 +343,43 @@ fn main() {
     }
 
     let mut final_result = combined;
+    // For directory scans, suppress non-production issues by default.
+    // Uses source_context on each issue for accurate context-based filtering.
+    if !cli.include_nonprod && !cli.files.is_empty() && cli.files.iter().any(|f| f.is_dir()) {
+        let nonprod_contexts = ["test", "example", "seed", "framework_internal", "ddl_schema", "migration"];
+        let before = final_result.issues.len();
+        final_result.issues.retain(|issue| {
+            // Primary: use source_context if set
+            if !issue.source_context.is_empty() {
+                return !nonprod_contexts.contains(&issue.source_context.as_str());
+            }
+            // Fallback: path-based detection for issues without source_context
+            let file = issue.location.file.as_deref().unwrap_or("");
+            let is_nonprod = file.contains("/test/") || file.contains("/tests/")
+                || file.contains("/spec/") || file.contains("/__tests__/")
+                || file.contains("/e2e/") || file.contains("/fixtures/")
+                || file.contains("/examples/") || file.contains("/example/")
+                || file.contains("/seeds/") || file.contains("/seed/")
+                || file.contains("/scripts/") || file.contains("/script/")
+                || file.contains(".spec.") || file.contains(".test.")
+                || file.contains("/test_resources/") || file.contains("/test-resources/")
+                || file.contains("/db/backends/") || file.contains("/connection_adapters/");
+            !is_nonprod
+        });
+        let suppressed = before - final_result.issues.len();
+        if suppressed > 0 {
+            final_result.suppressed_count += suppressed;
+            // Recompute statistics
+            final_result.statistics.total_issues = final_result.issues.len();
+            final_result.statistics.by_severity.values_mut().for_each(|v| *v = 0);
+            final_result.statistics.by_dimension.values_mut().for_each(|v| *v = 0);
+            for issue in &final_result.issues {
+                *final_result.statistics.by_severity.entry(issue.severity.as_str().to_string()).or_insert(0) += 1;
+                *final_result.statistics.by_dimension.entry(issue.dimension.as_str().to_string()).or_insert(0) += 1;
+            }
+        }
+    }
+
     if let Some(ref baseline_in) = cli.baseline {
         match apply_baseline(final_result, baseline_in) {
             Ok((filtered, suppressed)) => {
@@ -249,6 +390,123 @@ fn main() {
                 eprintln!("Error loading baseline: {}", e);
                 process::exit(1);
             }
+        }
+    }
+
+    // Run project-level analysis (cross-file, dead SQL, duplicates)
+    if !final_result.queries.is_empty() {
+        let project_issues = slowql_lib::project::analyze_project(&final_result);
+        for issue in project_issues {
+            final_result.add_issue(issue);
+        }
+    }
+
+    // Run query comparison if requested
+    if cli.compare && !final_result.queries.is_empty() {
+        let compare_issues = slowql_lib::compare::find_similar_queries(&final_result.queries);
+        for issue in compare_issues {
+            final_result.add_issue(issue);
+        }
+    }
+
+    // Apply autofixes if requested
+    if cli.fix || cli.diff {
+        use slowql_lib::autofixer::AutoFixer;
+        for path in &cli.files {
+            if !path.exists() || path.is_dir() { continue; }
+            let path_str = path.to_str().unwrap_or("");
+            let fixes: Vec<slowql_lib::models::Fix> = final_result.issues.iter()
+                .filter(|i| i.location.file.as_deref() == Some(path_str))
+                .filter_map(|i| i.fix.as_ref())
+                .filter(|f| f.is_safe)
+                .cloned()
+                .collect();
+
+            if fixes.is_empty() { continue; }
+
+            if let Ok(content) = std::fs::read_to_string(path) {
+                if cli.diff {
+                    let diff = AutoFixer::preview_diff(&content, &fixes);
+                    if !diff.is_empty() {
+                        println!("{}", diff);
+                    }
+                } else if cli.fix {
+                    let fixed = AutoFixer::apply_all_fixes(&content, &fixes);
+                    if fixed != content {
+                        let backup = format!("{}.bak", path_str);
+                        std::fs::copy(path, &backup).ok();
+                        std::fs::write(path, &fixed).ok();
+                        eprintln!("Fixed: {} (backup: {})", path_str, backup);
+
+                        if let Some(ref report_path) = cli.fix_report {
+                            let report = serde_json::json!({
+                                "file": path_str,
+                                "fixes_applied": fixes.len(),
+                                "backup": backup,
+                            });
+                            let existing = std::fs::read_to_string(report_path).unwrap_or("[]".to_string());
+                            let mut arr: Vec<serde_json::Value> = serde_json::from_str(&existing).unwrap_or_default();
+                            arr.push(report);
+                            std::fs::write(report_path, serde_json::to_string_pretty(&arr).unwrap_or_default()).ok();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Final non-production suppression pass.
+    // Runs AFTER project-level analysis so all issues have source_context.
+    if !cli.include_nonprod && !cli.files.is_empty() && cli.files.iter().any(|f| f.is_dir()) {
+        let nonprod_contexts = ["test", "example", "seed", "framework_internal", "ddl_schema", "migration"];
+        let before = final_result.issues.len();
+        final_result.issues.retain(|issue| {
+            if !issue.source_context.is_empty() {
+                return !nonprod_contexts.contains(&issue.source_context.as_str());
+            }
+            let file = issue.location.file.as_deref().unwrap_or("");
+            let is_nonprod = file.contains("/test/") || file.contains("/tests/")
+                || file.contains("/spec/") || file.contains("/__tests__/")
+                || file.contains("/e2e/") || file.contains("/fixtures/")
+                || file.contains("/examples/") || file.contains("/example/")
+                || file.contains("/seeds/") || file.contains("/seed/")
+                || file.contains("/scripts/") || file.contains("/script/")
+                || file.contains(".spec.") || file.contains(".test.")
+                || file.contains("/test_resources/") || file.contains("/test-resources/")
+                || file.contains("/db/backends/") || file.contains("/connection_adapters/");
+            !is_nonprod
+        });
+        let suppressed = before - final_result.issues.len();
+        if suppressed > 0 {
+            final_result.suppressed_count += suppressed;
+            final_result.statistics.total_issues = final_result.issues.len();
+            final_result.statistics.by_severity.values_mut().for_each(|v| *v = 0);
+            final_result.statistics.by_dimension.values_mut().for_each(|v| *v = 0);
+            for issue in &final_result.issues {
+                *final_result.statistics.by_severity.entry(issue.severity.as_str().to_string()).or_insert(0) += 1;
+                *final_result.statistics.by_dimension.entry(issue.dimension.as_str().to_string()).or_insert(0) += 1;
+            }
+        }
+    }
+
+    // Final confidence filter - applies to ALL issues including project-level
+    let min_conf: slowql_lib::models::RuleConfidence = cli.min_confidence
+        .as_deref()
+        .or(Some(&engine.config.analysis.min_confidence))
+        .unwrap_or("contextual")
+        .parse()
+        .unwrap_or(slowql_lib::models::RuleConfidence::Contextual);
+    let before_conf = final_result.issues.len();
+    final_result.issues.retain(|i| i.confidence >= min_conf);
+    let conf_suppressed = before_conf - final_result.issues.len();
+    if conf_suppressed > 0 {
+        final_result.suppressed_count += conf_suppressed;
+        final_result.statistics.total_issues = final_result.issues.len();
+        final_result.statistics.by_severity.values_mut().for_each(|v| *v = 0);
+        final_result.statistics.by_dimension.values_mut().for_each(|v| *v = 0);
+        for issue in &final_result.issues {
+            *final_result.statistics.by_severity.entry(issue.severity.as_str().to_string()).or_insert(0) += 1;
+            *final_result.statistics.by_dimension.entry(issue.dimension.as_str().to_string()).or_insert(0) += 1;
         }
     }
 
@@ -287,6 +545,12 @@ fn print_console(result: &slowql_lib::models::result::AnalysisResult) {
     if result.issues.is_empty() {
         println!("\x1b[1;32mNo issues found.\x1b[0m");
         println!("  Scanned {} queries", result.statistics.total_queries);
+        if result.suppressed_count > 0 {
+            // Only show non-production message for directory scans
+            if result.issues.is_empty() {
+                println!("  \x1b[2m({} issues hidden, use --include-nonprod or --baseline to inspect)\x1b[0m", result.suppressed_count);
+            }
+        }
         return;
     }
 
@@ -314,36 +578,81 @@ fn print_console(result: &slowql_lib::models::result::AnalysisResult) {
     }
     println!();
 
-    // Issues sorted by severity
-    let sorted = result.sorted_by_severity();
-    for issue in sorted {
+    // Group issues by file, then sort by severity within each file
+    let mut sorted = result.sorted_by_severity();
+    sorted.sort_by(|a, b| {
+        let fa = a.location.file.as_deref().unwrap_or("");
+        let fb = b.location.file.as_deref().unwrap_or("");
+        fa.cmp(fb)
+            .then(b.severity.cmp(&a.severity))
+            .then(a.location.line.cmp(&b.location.line))
+    });
+    let mut current_file: Option<&str> = None;
+
+    for issue in &sorted {
+        let file = issue.location.file.as_deref();
+
+        // Print file header when file changes
+        if file != current_file {
+            if current_file.is_some() { println!(); }
+            if let Some(f) = file {
+                println!("  \x1b[1;4m{}\x1b[0m", f);
+            }
+            current_file = file;
+        }
+
         let color = issue.severity.color_code();
         let reset = "\x1b[0m";
 
-        let loc = if let Some(ref file) = issue.location.file {
-            format!("{}:{}:{}", file, issue.location.line, issue.location.column)
-        } else {
-            format!("{}:{}", issue.location.line, issue.location.column)
+        let line_col = format!("{}:{}", issue.location.line, issue.location.column);
+
+        let conf_badge = match issue.confidence.as_str() {
+            "proven" => "",
+            "contextual" => " \x1b[33m[ctx]\x1b[0m",
+            "advisory" => " \x1b[36m[adv]\x1b[0m",
+            _ => "",
         };
 
         println!(
-            "  {}{:>8}{} {} {} {}",
+            "    {}{:>8}{} {:<16} {:>6}  {}{}",
             color,
             issue.severity.as_str().to_uppercase(),
             reset,
             issue.rule_id,
-            loc,
-            issue.message
+            line_col,
+            issue.message,
+            conf_badge,
         );
 
+        // Show the SQL snippet so users see the offending code
+        if !issue.snippet.is_empty() {
+            let snip = issue.snippet.trim();
+            if !snip.is_empty() && snip.len() < 120 {
+                println!("             \x1b[2m> {}\x1b[0m", snip);
+            }
+        }
+
         if let Some(ref impact) = issue.impact {
-            println!("           \x1b[2m{}\x1b[0m", impact);
+            println!("             \x1b[2m{}\x1b[0m", impact);
         }
 
         if let Some(ref fix) = issue.fix {
             if !fix.description.is_empty() {
-                println!("           \x1b[32mFix: {}\x1b[0m", fix.description);
+                println!("             \x1b[32mFix: {}\x1b[0m", fix.description);
             }
+        }
+    }
+    if result.suppressed_count > 0 {
+        println!("  \x1b[2m({} issues suppressed)\x1b[0m", result.suppressed_count);
+    }
+
+    // Complexity summary - only for multi-query scans, not single stdin
+    if result.queries.len() > 1 {
+        let scores: Vec<u32> = result.queries.iter().map(|q| q.complexity_score).collect();
+        let max_score = scores.iter().copied().max().unwrap_or(0);
+        let critical_count = scores.iter().filter(|&&s| s > 70).count();
+        if critical_count > 0 || max_score > 40 {
+            println!("  \x1b[2mComplexity: max={} critical_queries={}\x1b[0m", max_score, critical_count);
         }
     }
     println!();
@@ -531,13 +840,12 @@ fn compute_exit_code(
     if max_weight >= threshold { 2 } else { 0 }
 }
 
-fn cmd_list_rules(dimension: Option<&str>, _dialect: Option<&str>) {
+fn cmd_list_rules(dimension: Option<&str>, dialect: Option<&str>) {
     let engine = Engine::with_default_config();
     let rules = engine.registry_ref().all();
 
-    println!("SlowQL Rules ({})", rules.len());
-    println!("{:<18} {:<8} {:<14} {}", "Rule ID", "Severity", "Dimension", "Name");
-    println!("{}", "-".repeat(70));
+    let mut count = 0;
+    let mut output_lines: Vec<String> = Vec::new();
 
     for rule in rules {
         if let Some(dim) = dimension {
@@ -545,13 +853,55 @@ fn cmd_list_rules(dimension: Option<&str>, _dialect: Option<&str>) {
                 continue;
             }
         }
-        println!(
-            "{:<18} {:<8} {:<14} {}",
+        if let Some(dia) = dialect {
+            let dialects = rule.dialects();
+            let dia_normalized = slowql_lib::rules::base::normalize_dialect(dia);
+            if !dialects.matches(&dia_normalized) {
+                continue;
+            }
+        }
+        count += 1;
+
+        // Determine dialect display
+        let dialect_display = {
+            let d = rule.dialects();
+            if d.matches("unknown_test_dialect_xyz") {
+                // Universal rule (matches nothing specific means it matches all)
+                "all".to_string()
+            } else {
+                let all_d = ["postgresql", "mysql", "tsql", "oracle", "sqlite",
+                    "snowflake", "bigquery", "redshift", "clickhouse", "duckdb",
+                    "presto", "spark"];
+                let matching: Vec<&str> = all_d.iter()
+                    .filter(|dd| d.matches(dd))
+                    .copied()
+                    .collect();
+                if matching.len() == all_d.len() || matching.is_empty() {
+                    "all".to_string()
+                } else if matching.len() <= 3 {
+                    matching.join(",")
+                } else {
+                    format!("{}+{}", matching[0], matching.len() - 1)
+                }
+            }
+        };
+
+        output_lines.push(format!(
+            "{:<18} {:<8} {:<14} {:<12} {:<14} {}",
             rule.id(),
             rule.severity().as_str(),
             rule.dimension().as_str(),
+            rule.confidence().as_str(),
+            dialect_display,
             rule.name()
-        );
+        ));
+    }
+
+    println!("SlowQL Rules ({})", count);
+    println!("{:<18} {:<8} {:<14} {:<12} {:<14} {}", "Rule ID", "Severity", "Dimension", "Confidence", "Dialect", "Name");
+    println!("{}", "-".repeat(100));
+    for line in output_lines {
+        println!("{}", line);
     }
 }
 
@@ -560,16 +910,39 @@ fn cmd_explain(rule_id: &str) -> i32 {
     let rules = engine.registry_ref().all();
 
     if let Some(rule) = rules.iter().find(|r| r.id().eq_ignore_ascii_case(rule_id)) {
-        println!("Rule:      {}", rule.id());
-        println!("Name:      {}", rule.name());
-        println!("Severity:  {}", rule.severity().as_str());
-        println!("Dimension: {}", rule.dimension().as_str());
+        println!("Rule:       {}", rule.id());
+        println!("Name:       {}", rule.name());
+        println!("Severity:   {}", rule.severity().as_str());
+        println!("Dimension:  {}", rule.dimension().as_str());
+        println!("Confidence: {}", rule.confidence().as_str());
+        // Show dialect info
+        let dialects = rule.dialects();
+        if dialects.matches("postgresql") && !dialects.matches("unknown") {
+            // Universal rule
+            println!("Dialects:   all");
+        } else {
+            // Collect matching dialects
+            let all_dialects = ["postgresql", "mysql", "tsql", "oracle", "sqlite",
+                "snowflake", "bigquery", "redshift", "clickhouse", "duckdb",
+                "presto", "spark"];
+            let matching: Vec<&str> = all_dialects.iter()
+                .filter(|d| dialects.matches(d))
+                .copied()
+                .collect();
+            if !matching.is_empty() {
+                println!("Dialects:   {}", matching.join(", "));
+            }
+        }
+        if let Some(cat) = rule.category() {
+            println!("Category:   {:?}", cat);
+        }
         if !rule.impact().is_empty() {
-            println!("Impact:    {}", rule.impact());
+            println!("Impact:     {}", rule.impact());
         }
         if !rule.fix_guidance().is_empty() {
-            println!("Fix:       {}", rule.fix_guidance());
+            println!("Fix:        {}", rule.fix_guidance());
         }
+        println!("Docs:       https://slowql.dev/rules/{}", rule.id().to_lowercase());
         0
     } else {
         eprintln!("Rule not found: {}", rule_id);
@@ -579,7 +952,7 @@ fn cmd_explain(rule_id: &str) -> i32 {
 
 fn walkdir(path: &std::path::Path) -> Vec<PathBuf> {
     let mut files = Vec::new();
-    let supported = ["sql", "py", "ts", "js", "java", "go", "rb", "kt", "cs"];
+    let supported = ["sql", "py", "ts", "js", "java", "go", "rb", "kt", "cs", "xml"];
     if let Ok(entries) = std::fs::read_dir(path) {
         for entry in entries.flatten() {
             let p = entry.path();

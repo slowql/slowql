@@ -1,6 +1,6 @@
 use crate::models::issue::Category;
 use crate::models::{Dimension, Issue, Query, Severity};
-use crate::rules::base::{DialectSet, Rule};
+use crate::rules::base::{DialectSet, RuleConfidence, Rule};
 use once_cell::sync::Lazy;
 use regex::Regex;
 
@@ -12,6 +12,8 @@ impl Rule for ExcessiveColumnCountRule {
     fn dimension(&self) -> Dimension { Dimension::Performance }
     fn category(&self) -> Option<Category> { Some(Category::PerfNetwork) }
     fn impact(&self) -> &'static str { "Wide result sets waste network bandwidth and consume more memory." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if !query.is_select() { return Vec::new(); }
         if query.raw_upper().contains("SELECT *") { return Vec::new(); }
@@ -117,6 +119,8 @@ impl Rule for ClickHouseSelectWithoutPrewhereRule {
     fn category(&self) -> Option<Category> { Some(Category::PerfScan) }
     fn dialects(&self) -> DialectSet { DialectSet::new(&["clickhouse"]) }
     fn impact(&self) -> &'static str { "Without PREWHERE, ClickHouse reads all columns from disk before filtering." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if !self.dialect_matches(query) { return Vec::new(); }
         if !PAT_CH_PRE.is_match(&query.raw) { return Vec::new(); }
@@ -135,6 +139,8 @@ impl Rule for ClickHouseJoinWithoutGlobalRule {
     fn category(&self) -> Option<Category> { Some(Category::PerfJoin) }
     fn dialects(&self) -> DialectSet { DialectSet::new(&["clickhouse"]) }
     fn impact(&self) -> &'static str { "Without GLOBAL, each shard executes the right-side subquery independently." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Contextual }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if !self.dialect_matches(query) { return Vec::new(); }
         let upper = query.raw_upper();
@@ -273,6 +279,8 @@ impl Rule for LikeWithoutCollateNocaseRule {
     fn category(&self) -> Option<Category> { Some(Category::PerfIndex) }
     fn dialects(&self) -> DialectSet { DialectSet::new(&["sqlite"]) }
     fn impact(&self) -> &'static str { "Without COLLATE NOCASE on the column, LIKE cannot use indexes." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if !self.dialect_matches(query) { return Vec::new(); }
         PAT_SQLITE_LIKE.find(&query.raw).map(|m| {
@@ -291,6 +299,8 @@ impl Rule for SqliteAutoIncrementRule {
     fn category(&self) -> Option<Category> { Some(Category::QualSchemaDesign) }
     fn dialects(&self) -> DialectSet { DialectSet::new(&["sqlite"]) }
     fn impact(&self) -> &'static str { "AUTOINCREMENT adds CPU overhead by maintaining the sqlite_sequence table." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if !self.dialect_matches(query) { return Vec::new(); }
         PAT_SQLITE_AUTO.find(&query.raw).map(|m| {
@@ -329,6 +339,8 @@ impl Rule for DuckDBLargeInListRule {
     fn category(&self) -> Option<Category> { Some(Category::PerfMemory) }
     fn dialects(&self) -> DialectSet { DialectSet::new(&["duckdb"]) }
     fn impact(&self) -> &'static str { "Large IN lists are slower than VALUES table with semi-join." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if !self.dialect_matches(query) { return Vec::new(); }
         PAT_DUCK_IN.find(&query.raw).map(|m| {
@@ -371,6 +383,8 @@ impl Rule for LargeObjectUnboundedRule {
     fn dimension(&self) -> Dimension { Dimension::Performance }
     fn category(&self) -> Option<Category> { Some(Category::PerfNetwork) }
     fn impact(&self) -> &'static str { "Selecting BLOB columns without filtering can transfer gigabytes of data." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if !query.is_select() { return Vec::new(); }
         let upper = query.raw_upper();

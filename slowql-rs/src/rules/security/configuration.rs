@@ -37,6 +37,17 @@ impl Rule for OverprivilegedExecutionContextRule {
     fn category(&self) -> Option<Category> { Some(Category::SecAuthentication) }
     fn impact(&self) -> &'static str { "Stored procedures running as high-privilege accounts can be exploited for privilege escalation." }
     fn check(&self, query: &Query) -> Vec<Issue> {
+        if !PAT_PRIV_001.is_match(&query.raw) { return Vec::new(); }
+        // Suppress SECURITY DEFINER in Docker/init/bootstrap setup files.
+        // These are intentional privilege escalation for system functions.
+        if let Some(ref file) = query.location.file {
+            let fl = file.to_lowercase();
+            if fl.contains("docker") || fl.contains("init")
+                || fl.contains("setup") || fl.contains("bootstrap")
+                || fl.contains("provision") || fl.contains("webhooks") {
+                return Vec::new();
+            }
+        }
         PAT_PRIV_001.find(&query.raw).map(|m| {
             let msg = format!("Overprivileged execution context detected: {}", m.as_str());
             vec![self.build_issue(query, &msg, m.as_str())]

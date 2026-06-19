@@ -1,6 +1,6 @@
 use crate::models::issue::Category;
 use crate::models::{Dimension, Issue, Query, Severity};
-use crate::rules::base::Rule;
+use crate::rules::base::{RuleConfidence, Rule};
 use once_cell::sync::Lazy;
 use regex::Regex;
 
@@ -37,6 +37,8 @@ impl Rule for PlaintextPasswordInQueryRule {
     fn category(&self) -> Option<Category> { Some(Category::SecCrypto) }
     fn impact(&self) -> &'static str { "Plaintext passwords in databases are catastrophic during breaches." }
 
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Contextual }
     fn check(&self, query: &Query) -> Vec<Issue> {
         PAT_CRYPTO_002.find(&query.raw).map(|m| {
             vec![self.build_issue(query, &format!("Potential plaintext password in query: {}", m.as_str()), m.as_str())]

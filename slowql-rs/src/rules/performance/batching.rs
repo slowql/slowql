@@ -17,8 +17,23 @@ impl Rule for LargeUnbatchedOperationRule {
         if qt != "UPDATE" && qt != "DELETE" { return Vec::new(); }
         let upper = query.raw_upper();
         if upper.contains("TOP") || upper.contains("LIMIT") { return Vec::new(); }
-        // Do not flag when WHERE clause exists (targeted operation, not mass)
         if upper.contains("WHERE") { return Vec::new(); }
+        // Suppress intentional bulk operations (flush, clear, reset)
+        if let Some(ref file) = query.location.file {
+            let fl = file.to_lowercase();
+            let filename = fl.rsplit('/').next().unwrap_or(&fl);
+            if fl.contains("cache") || fl.contains("clear")
+                || fl.contains("reset") || fl.contains("cleanup")
+                || fl.contains("purge") || fl.contains("flush")
+                || fl.contains("init.sql") || fl.contains("setup.sql")
+                || fl.contains("teardown") || fl.contains("truncate")
+                || filename.contains("flush") || filename.contains("clear")
+                || filename.contains("reset") || filename.contains("purge")
+                || filename.contains("testinfra")
+                || filename.contains("sync") {
+                return Vec::new();
+            }
+        }
         let msg = format!("Unbatched {} without row limit - affects entire table.", qt);
         let snip = &query.raw[..query.raw.len().min(100)];
         vec![self.build_issue(query, &msg, snip)]

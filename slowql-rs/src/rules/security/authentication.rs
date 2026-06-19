@@ -59,10 +59,22 @@ impl Rule for UserCreationWithoutPasswordRule {
     fn impact(&self) -> &'static str { "Passwordless database accounts can be accessed by anyone who knows the username." }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if let Some(m) = PAT_AUTH_003.find(&query.raw) {
-            if !PAT_HAS_PASSWORD.is_match(&query.raw) {
-                let msg = format!("User/login created without password: {}", m.as_str());
-                return vec![self.build_issue(query, &msg, m.as_str())];
+            if PAT_HAS_PASSWORD.is_match(&query.raw) { return Vec::new(); }
+            let upper = query.raw_upper();
+            // Suppress when CREATE USER has security restrictions applied.
+            // PostgreSQL: NOINHERIT, NOREPLICATION, LOGIN NOREPLICATION etc.
+            // These indicate a deliberately restricted service account, not a
+            // passwordless user accessible to anyone.
+            if upper.contains("NOINHERIT") || upper.contains("NOREPLICATION")
+                || upper.contains("NOSUPERUSER") || upper.contains("NOCREATEDB") {
+                return Vec::new();
             }
+            // Suppress when guarded by IF NOT EXISTS check
+            if upper.contains("IF NOT EXISTS") {
+                return Vec::new();
+            }
+            let msg = format!("User/login created without password: {}", m.as_str());
+            return vec![self.build_issue(query, &msg, m.as_str())];
         }
         Vec::new()
     }
@@ -99,6 +111,31 @@ impl Rule for GrantAllRule {
     fn category(&self) -> Option<Category> { Some(Category::SecAuthentication) }
     fn impact(&self) -> &'static str { "Users receive administrative control, increasing blast radius of compromise." }
     fn check(&self, query: &Query) -> Vec<Issue> {
+        if !PAT_AUTH_005.is_match(&query.raw) { return Vec::new(); }
+        let upper = query.raw_upper();
+        // Suppress scoped GRANT ALL: when privileges are limited to a specific
+        // schema, table, or function, this is a deliberate admin setup pattern.
+        // Only flag unscoped GRANT ALL that gives broad access.
+        // ALTER DEFAULT PRIVILEGES ... GRANT ALL is always scoped by definition.
+        if upper.contains("ALTER DEFAULT PRIVILEGES") {
+            return Vec::new();
+        }
+        if upper.contains("ON SCHEMA ") || upper.contains("ON TABLE ")
+            || upper.contains("ON FUNCTION ") || upper.contains("ON SEQUENCE ")
+            || upper.contains("ON ALL TABLES IN SCHEMA ")
+            || upper.contains("ON ALL FUNCTIONS IN SCHEMA ")
+            || upper.contains("ON ALL SEQUENCES IN SCHEMA ") {
+            // Scoped to specific object or schema - check if it is a dedicated admin user
+            // by looking at the file context
+            if let Some(ref file) = query.location.file {
+                let fl = file.to_lowercase();
+                if fl.contains("init") || fl.contains("setup")
+                    || fl.contains("docker") || fl.contains("bootstrap")
+                    || fl.contains("provision") {
+                    return Vec::new();
+                }
+            }
+        }
         PAT_AUTH_005.find(&query.raw).map(|m| {
             vec![self.build_issue(query, "GRANT ALL detected. Follow principle of least privilege.", m.as_str())]
         }).unwrap_or_default()

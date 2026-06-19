@@ -2,6 +2,31 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::Path;
 
+/// Per-table metadata for rules that require knowledge about table characteristics.
+/// Users declare this in slowql.yaml to enable metadata-dependent rules.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct TableMetadata {
+    /// Tables known to be large (millions of rows).
+    #[serde(default)]
+    pub large_tables: Vec<String>,
+    /// Tables that are partitioned, with their partition columns.
+    #[serde(default)]
+    pub partitioned_tables: std::collections::HashMap<String, Vec<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ComplexityConfig {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default = "default_threshold_optimal")]
+    pub threshold_optimal: u32,
+    #[serde(default = "default_threshold_complex")]
+    pub threshold_complex: u32,
+}
+
+fn default_threshold_optimal() -> u32 { 40 }
+fn default_threshold_complex() -> u32 { 70 }
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     #[serde(default)]
@@ -10,6 +35,8 @@ pub struct Config {
     pub severity: SeverityConfig,
     #[serde(default)]
     pub output: OutputConfig,
+    #[serde(default)]
+    pub complexity: ComplexityConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,6 +59,16 @@ pub struct AnalysisConfig {
     pub compliance_frameworks: std::collections::HashSet<String>,
     #[serde(default)]
     pub severity_overrides: std::collections::HashMap<String, String>,
+    /// Table metadata for rules that need schema knowledge to avoid false positives.
+    #[serde(default)]
+    pub table_metadata: TableMetadata,
+    /// Path to custom YAML rules file.
+    #[serde(default)]
+    pub custom_rules: Option<String>,
+    /// Minimum rule confidence to report. Default: "contextual".
+    /// Set to "proven" for zero-FP strict mode, "advisory" to include all hints.
+    #[serde(default = "default_min_confidence")]
+    pub min_confidence: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -54,6 +91,7 @@ fn default_dimensions() -> HashSet<String> {
     ["security", "performance", "reliability", "compliance", "cost", "quality", "schema", "migration"]
         .iter().map(|s| s.to_string()).collect()
 }
+fn default_min_confidence() -> String { "contextual".to_string() }
 fn default_max_query_length() -> usize { 100_000 }
 fn default_true() -> bool { true }
 fn default_fail_on() -> String { "high".to_string() }
@@ -65,6 +103,7 @@ impl Default for Config {
             analysis: AnalysisConfig::default(),
             severity: SeverityConfig::default(),
             output: OutputConfig::default(),
+            complexity: ComplexityConfig::default(),
         }
     }
 }
@@ -81,6 +120,9 @@ impl Default for AnalysisConfig {
             max_workers: 0,
             compliance_frameworks: std::collections::HashSet::new(),
             severity_overrides: std::collections::HashMap::new(),
+            custom_rules: None,
+            table_metadata: TableMetadata::default(),
+            min_confidence: default_min_confidence(),
         }
     }
 }

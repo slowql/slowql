@@ -1,6 +1,6 @@
 use crate::models::issue::Category;
 use crate::models::{Dimension, Issue, Query, Severity};
-use crate::rules::base::{DialectSet, Rule};
+use crate::rules::base::{DialectSet, RuleConfidence, Rule};
 use once_cell::sync::Lazy;
 use regex::Regex;
 
@@ -32,6 +32,8 @@ impl Rule for CorrelatedSubqueryRule {
     fn dimension(&self) -> Dimension { Dimension::Performance }
     fn category(&self) -> Option<Category> { Some(Category::PerfExecution) }
     fn impact(&self) -> &'static str { "Correlated subqueries execute for every row in the outer query." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Contextual }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if query.raw_upper().contains("EXISTS") { return Vec::new(); }
         // Simplified heuristic: subquery with reference to outer table
@@ -69,6 +71,8 @@ impl Rule for OrderByNonIndexedColumnRule {
     fn dimension(&self) -> Dimension { Dimension::Performance }
     fn category(&self) -> Option<Category> { Some(Category::PerfSort) }
     fn impact(&self) -> &'static str { "Sorting without index requires loading all rows into memory." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
     fn check(&self, query: &Query) -> Vec<Issue> {
         let upper = query.raw_upper();
         if !upper.contains("ORDER BY") { return Vec::new(); }

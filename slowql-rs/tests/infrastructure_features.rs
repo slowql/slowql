@@ -91,3 +91,63 @@ fn baseline_roundtrip_and_filter() {
     assert_eq!(filtered.issues.len(), 1);
     assert_eq!(filtered.issues[0].rule_id, "TEST-003");
 }
+
+#[test]
+fn config_loads_table_metadata_yaml() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("slowql.yaml");
+    std::fs::write(&path, r#"
+analysis:
+  dialect: postgresql
+  table_metadata:
+    large_tables:
+      - transactions
+      - events
+    partitioned_tables:
+      transactions:
+        - created_at
+      events:
+        - event_date
+"#).unwrap();
+
+    let config = Config::from_yaml(&path).unwrap();
+    assert_eq!(config.analysis.table_metadata.large_tables.len(), 2);
+    assert!(config.analysis.table_metadata.large_tables.contains(&"transactions".to_string()));
+    assert!(config.analysis.table_metadata.large_tables.contains(&"events".to_string()));
+    assert_eq!(config.analysis.table_metadata.partitioned_tables.len(), 2);
+    let tx_cols = config.analysis.table_metadata.partitioned_tables.get("transactions").unwrap();
+    assert_eq!(tx_cols, &vec!["created_at".to_string()]);
+    let ev_cols = config.analysis.table_metadata.partitioned_tables.get("events").unwrap();
+    assert_eq!(ev_cols, &vec!["event_date".to_string()]);
+}
+
+#[test]
+fn config_default_table_metadata_is_empty() {
+    let config = Config::default();
+    assert!(config.analysis.table_metadata.large_tables.is_empty());
+    assert!(config.analysis.table_metadata.partitioned_tables.is_empty());
+}
+
+#[test]
+fn adhoc_unbounded_select_no_perf_scan_003() {
+    use slowql_lib::engine::Engine;
+    let engine = Engine::with_default_config();
+    // stdin = no file path = adhoc context
+    let result = engine.analyze("SELECT * FROM users", Some("postgresql"), None);
+    assert!(
+        !result.issues.iter().any(|i| i.rule_id == "PERF-SCAN-003"),
+        "PERF-SCAN-003 should not fire in adhoc context"
+    );
+}
+
+#[test]
+fn application_unbounded_select_fires_perf_scan_003() {
+    use slowql_lib::engine::Engine;
+    let engine = Engine::with_default_config();
+    // .sql file = application context
+    let result = engine.analyze("SELECT id FROM users", Some("postgresql"), Some("app/queries.sql"));
+    assert!(
+        result.issues.iter().any(|i| i.rule_id == "PERF-SCAN-003"),
+        "PERF-SCAN-003 should fire in application context"
+    );
+}

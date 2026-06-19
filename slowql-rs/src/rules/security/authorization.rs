@@ -1,6 +1,6 @@
 use crate::models::issue::Category;
 use crate::models::{Dimension, Issue, Query, Severity};
-use crate::rules::base::Rule;
+use crate::rules::base::{RuleConfidence, Rule};
 use once_cell::sync::Lazy;
 use regex::Regex;
 
@@ -63,22 +63,56 @@ impl Rule for HorizontalAuthorizationBypassRule {
     fn category(&self) -> Option<Category> { Some(Category::SecAuthorization) }
     fn impact(&self) -> &'static str { "Missing tenant isolation allows users to access other users data." }
 
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Contextual }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if !query.is_select() { return Vec::new(); }
         let upper = query.raw_upper();
         if upper.contains("COUNT(") || upper.contains("SUM(") || upper.contains("AVG(") { return Vec::new(); }
+        // UNION queries are data consolidation, not user-facing data access
+        if upper.contains("UNION") { return Vec::new(); }
+        // A query with no WHERE at all is a full table scan, not an authorization
+        // bypass. That problem is already caught by COST-COMPUTE-001 and PERF-SCAN-003.
+        // Authorization bypass is specifically: filtered access without tenant scoping.
+        if !upper.contains("WHERE") { return Vec::new(); }
+        // Queries with explicit LIMIT are bounded access patterns (reporting, pagination).
+        // Authorization bypass concerns unbounded user-facing data leaks, not bounded reads.
+        if upper.contains("LIMIT") || upper.contains("TOP ") { return Vec::new(); }
         // Skip single-row PK lookups (targeted, not bulk access)
         if let Some(ref facts) = query.facts {
             if facts.is_single_row_lookup() { return Vec::new(); }
         }
-        let raw_lower = query.raw_lower().to_string();
-        let hits_sensitive = SENSITIVE_TABLES.iter().any(|&t| raw_lower.contains(t));
+        // Use AST table names when available for precision, fall back to raw string
+        // when AST data is not populated (unit tests, unparseable SQL).
+        let raw_lower_str = query.raw_lower().to_string();
+        let hits_sensitive = if let Some(ref facts) = query.facts {
+            facts.from_tables.iter().any(|t| {
+                let name = t.to_lowercase();
+                let base = name.rsplit('.').next().unwrap_or(&name);
+                SENSITIVE_TABLES.iter().any(|&s| base == s)
+            })
+        } else if !query.tables.is_empty() {
+            query.tables.iter().any(|t| {
+                let name = t.to_lowercase();
+                let base = name.rsplit('.').next().unwrap_or(&name);
+                SENSITIVE_TABLES.iter().any(|&s| base == s)
+            })
+        } else {
+            // Last resort: raw string match (lower precision but avoids FNs when no AST)
+            SENSITIVE_TABLES.iter().any(|&t| raw_lower_str.contains(t))
+        };
         if !hits_sensitive { return Vec::new(); }
-        let has_scoping = SCOPING_COLUMNS.iter().any(|&c| raw_lower.contains(c));
+        let has_scoping = SCOPING_COLUMNS.iter().any(|&c| {
+            if let Some(ref facts) = query.facts {
+                facts.where_columns.iter().any(|wc| wc == c)
+            } else {
+                raw_lower_str.contains(c)
+            }
+        });
         if has_scoping { return Vec::new(); }
         vec![self.build_issue(
             query,
-            "Query on sensitive table without user/tenant scoping column in WHERE clause",
+            "Query on sensitive table without user/tenant scoping column in WHERE clause.",
             &query.raw[..query.raw.len().min(100)],
         )]
     }

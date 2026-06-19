@@ -14,6 +14,12 @@ pub struct Table {
     pub columns: Vec<Column>,
     pub indexes: Vec<Index>,
     pub primary_key: Vec<String>,
+    /// Partition columns, if any. Empty means not partitioned.
+    #[serde(default)]
+    pub partition_columns: Vec<String>,
+    /// Estimated row count. None means unknown.
+    #[serde(default)]
+    pub estimated_rows: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -139,6 +145,8 @@ pub fn parse_ddl(sql: &str, dialect: &str) -> Schema {
                     columns,
                     indexes: Vec::new(),
                     primary_key: pk_cols,
+                    partition_columns: Vec::new(),
+                    estimated_rows: None,
                 });
             }
             Statement::CreateIndex(create_idx) => {

@@ -1,6 +1,6 @@
 use crate::models::issue::Category;
 use crate::models::{Dimension, Issue, Query, Severity};
-use crate::rules::base::{DialectSet, Rule};
+use crate::rules::base::{DialectSet, RuleConfidence, Rule};
 use once_cell::sync::Lazy;
 use regex::Regex;
 
@@ -66,6 +66,8 @@ impl Rule for MissingTransactionIsolationRule {
     fn dimension(&self) -> Dimension { Dimension::Performance }
     fn category(&self) -> Option<Category> { Some(Category::PerfLock) }
     fn impact(&self) -> &'static str { "Default isolation levels vary by database and configuration." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
     fn check(&self, query: &Query) -> Vec<Issue> {
         let upper = query.raw_upper();
         let has_begin = upper.contains("BEGIN TRAN") || upper.contains("BEGIN TRANSACTION");

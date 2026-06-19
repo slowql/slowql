@@ -7,11 +7,16 @@ pub const TEST: &str = "test";
 pub const SEED: &str = "seed";
 pub const DDL_SCHEMA: &str = "ddl_schema";
 pub const DBT_MODEL: &str = "dbt_model";
+pub const EXAMPLE: &str = "example";
+pub const FRAMEWORK_INTERNAL: &str = "framework_internal";
 pub const ADHOC: &str = "adhoc";
 
 static PATH_PATTERNS: Lazy<Vec<(Regex, &'static str)>> = Lazy::new(|| vec![
     (Regex::new(r"(?i)(?:^|/)alembic/").unwrap(), MIGRATION),
     (Regex::new(r"(?i)(?:^|/)migrations?/").unwrap(), MIGRATION),
+    (Regex::new(r"(?i)[_-]migrations?/").unwrap(), MIGRATION),
+    (Regex::new(r"(?i)(?:^|/)migrator/").unwrap(), MIGRATION),
+    (Regex::new(r"(?i)(?:^|/)snapshot/").unwrap(), MIGRATION),
     (Regex::new(r"(?i)(?:^|/)db/migrate/").unwrap(), MIGRATION),
     (Regex::new(r"(?i)(?:^|/)flyway/").unwrap(), MIGRATION),
     (Regex::new(r"(?i)(?:^|/)liquibase/").unwrap(), MIGRATION),
@@ -19,14 +24,54 @@ static PATH_PATTERNS: Lazy<Vec<(Regex, &'static str)>> = Lazy::new(|| vec![
     (Regex::new(r"(?i)(?:^|/)tests?/").unwrap(), TEST),
     (Regex::new(r"(?i)(?:^|/)spec/").unwrap(), TEST),
     (Regex::new(r"(?i)(?:^|/)__tests__/").unwrap(), TEST),
+    (Regex::new(r"(?i)(?:^|/)e2e/").unwrap(), TEST),
+    (Regex::new(r"(?i)(?:^|/)\.circleci/").unwrap(), TEST),
+    (Regex::new(r"(?i)(?:^|/)\.github/").unwrap(), TEST),
+    (Regex::new(r"(?i)(?:^|/)\.gitlab-ci/").unwrap(), TEST),
+    (Regex::new(r"(?i)(?:^|/)test[_-]resources?/").unwrap(), TEST),
+    (Regex::new(r"(?i)(?:^|/)testdata/").unwrap(), TEST),
+    (Regex::new(r"(?i)(?:^|/)python-sources/").unwrap(), TEST),
+    (Regex::new(r"(?i)(?:^|/)python-sources/").unwrap(), TEST),
+    (Regex::new(r"(?i)(?:^|/)scripts?/").unwrap(), EXAMPLE),
     (Regex::new(r"(?i)(?:^|/)models?/.*\.sql$").unwrap(), DBT_MODEL),
     (Regex::new(r"(?i)(?:^|/)seeds?/").unwrap(), SEED),
     (Regex::new(r"(?i)(?:^|/)fixtures?/").unwrap(), SEED),
+    (Regex::new(r"(?i)(?:^|/)seeders?/").unwrap(), SEED),
+    (Regex::new(r"(?i)indexer_seeders?/").unwrap(), SEED),
+    (Regex::new(r"(?i)(?:^|/)seed\.sql$").unwrap(), SEED),
+    (Regex::new(r"(?i)/data\.sql$").unwrap(), SEED),
     (Regex::new(r"(?i)(?:^|/)schema\.sql$").unwrap(), DDL_SCHEMA),
+    (Regex::new(r"(?i)(?:^|/)structure\.sql$").unwrap(), DDL_SCHEMA),
     (Regex::new(r"(?i)(?:^|/)schema/").unwrap(), DDL_SCHEMA),
     (Regex::new(r"(?i)(?:^|/)ddl/").unwrap(), DDL_SCHEMA),
+    (Regex::new(r"(?i)(?:^|/)examples?/").unwrap(), EXAMPLE),
+    (Regex::new(r"(?i)(?:^|/)docs?/").unwrap(), EXAMPLE),
+    (Regex::new(r"(?i)(?:^|/)benchmarks?/").unwrap(), EXAMPLE),
+    (Regex::new(r"(?i)(?:^|/)demo/").unwrap(), EXAMPLE),
+    (Regex::new(r"(?i)(?:^|/)samples?/").unwrap(), EXAMPLE),
+    (Regex::new(r"(?i)(?:^|/)\.semgrep/").unwrap(), EXAMPLE),
+    (Regex::new(r"(?i)(?:^|/)bin/").unwrap(), EXAMPLE),
+    (Regex::new(r"(?i)(?:^|/)devenv/").unwrap(), EXAMPLE),
+    (Regex::new(r"(?i)(?:^|/)docker/").unwrap(), EXAMPLE),
+    (Regex::new(r"(?i)/infer_schema").unwrap(), FRAMEWORK_INTERNAL),
     (Regex::new(r"(?i)(?:^|/)src/").unwrap(), APPLICATION),
-]);
+    // ORM and framework internal SQL adapter code
+    // These files contain intentionally generic SQL templates
+    (Regex::new(r"(?i)(?:^|/)connection_adapters?/").unwrap(), FRAMEWORK_INTERNAL),
+    (Regex::new(r"(?i)(?:^|/)db/backends?/").unwrap(), FRAMEWORK_INTERNAL),
+    (Regex::new(r"(?i)(?:^|/)db/models?/sql/").unwrap(), FRAMEWORK_INTERNAL),
+    (Regex::new(r"(?i)(?:^|/)lib/arel/").unwrap(), FRAMEWORK_INTERNAL),
+    (Regex::new(r"(?i)(?:^|/)activerecord/lib/").unwrap(), FRAMEWORK_INTERNAL),
+    (Regex::new(r"(?i)/models/[^/]+/sql\.py$").unwrap(), FRAMEWORK_INTERNAL),
+    (Regex::new(r"(?i)/[^/]+/sql\.py$").unwrap(), FRAMEWORK_INTERNAL),
+    (Regex::new(r"(?i)/backend/sql\.py$").unwrap(), FRAMEWORK_INTERNAL),
+    (Regex::new(r"(?i)/clickhouse/[^/]+\.py$").unwrap(), FRAMEWORK_INTERNAL),
+    (Regex::new(r"(?i)/sql/[^/]+_sql\.py$").unwrap(), FRAMEWORK_INTERNAL),
+    (Regex::new(r"(?i)_sql\.py$").unwrap(), FRAMEWORK_INTERNAL),
+    (Regex::new(r"(?i)/dags/").unwrap(), FRAMEWORK_INTERNAL),
+    (Regex::new(r"(?i)/management/").unwrap(), FRAMEWORK_INTERNAL),
+    (Regex::new(r"(?i)/store/").unwrap(), FRAMEWORK_INTERNAL),
+    ]);
 
 static CONTENT_PATTERNS: Lazy<Vec<(Regex, &'static str)>> = Lazy::new(|| vec![
     (Regex::new(r"(?im)revision\s*[:=].*\ndown_revision").unwrap(), MIGRATION),
@@ -41,7 +86,7 @@ static CONTENT_PATTERNS: Lazy<Vec<(Regex, &'static str)>> = Lazy::new(|| vec![
 /// Production contexts (APPLICATION, ADHOC, DBT_MODEL) get full analysis.
 fn allowed_prefixes(context: &str) -> Option<&'static [&'static str]> {
     match context {
-        MIGRATION | TEST | SEED => Some(&["SEC-", "REL-"]),
+        MIGRATION | TEST | SEED | EXAMPLE | FRAMEWORK_INTERNAL => Some(&["SEC-", "REL-"]),
         DDL_SCHEMA => Some(&["SEC-", "REL-", "COMP-"]),
         _ => None, // no filtering
     }
@@ -50,7 +95,7 @@ fn allowed_prefixes(context: &str) -> Option<&'static [&'static str]> {
 /// Rules denied even if prefix is allowed.
 fn denied_rules(context: &str) -> &'static [&'static str] {
     match context {
-        MIGRATION => &["SEC-INJ-005"],
+        MIGRATION => &["SEC-INJ-005", "REL-DATA-004", "MIG-BRK-001"],
         TEST => &["REL-FK-002", "REL-DEAD-002", "SEC-AUTHZ-003"],
         SEED => &["SEC-INJ-005"],
         APPLICATION | ADHOC => &["QUAL-DBT-001", "QUAL-DBT-002"],
@@ -63,6 +108,18 @@ fn denied_rules(context: &str) -> &'static [&'static str] {
 pub fn classify_source(file_path: Option<&str>, content: &str) -> &'static str {
     if let Some(path) = file_path {
         let normalized = path.replace('\\', "/");
+        // Check for test file naming FIRST, before any path pattern.
+        // These are always test files regardless of directory path.
+        let filename = normalized.rsplit('/').next().unwrap_or(&normalized);
+        if filename.contains(".spec.") || filename.contains(".test.")
+            || filename.contains("_spec.") || filename.contains("_test.")
+            || filename.starts_with("test_")
+            || filename.contains("testinfra")
+            || filename.contains("test_infra")
+            || filename == "conftest.py"
+            || filename == "tests.py" {
+            return TEST;
+        }
         for (pattern, ctx) in PATH_PATTERNS.iter() {
             if pattern.is_match(&normalized) {
                 return ctx;

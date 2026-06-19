@@ -211,10 +211,18 @@ fn authz_002_ownership_change() {
 #[test]
 fn authz_003_horizontal_bypass() {
     let r = all(); let rule = find(&r, "SEC-AUTHZ-003");
-    assert!(!rule.check(&q("SELECT * FROM orders", "postgresql", "SELECT")).is_empty());
+    // Sensitive table with WHERE but no scoping column should fire
+    assert!(!rule.check(&q("SELECT * FROM orders WHERE status = 'pending'", "postgresql", "SELECT")).is_empty());
+    // No WHERE at all is a full table scan, not an auth bypass (other rules handle it)
+    assert!(rule.check(&q("SELECT * FROM orders", "postgresql", "SELECT")).is_empty());
+    // Scoped by user_id should not fire
     assert!(rule.check(&q("SELECT * FROM orders WHERE user_id = 1", "postgresql", "SELECT")).is_empty());
+    // Non-sensitive table should not fire
     assert!(rule.check(&q("SELECT * FROM settings", "postgresql", "SELECT")).is_empty());
+    // Non-SELECT should not fire
     assert!(rule.check(&q("INSERT INTO orders VALUES (1)", "postgresql", "INSERT")).is_empty());
+    // UNION is data consolidation, not user-facing access bypass - should not fire
+    assert!(rule.check(&q("SELECT email FROM users UNION SELECT email FROM admins", "postgresql", "SELECT")).is_empty());
 }
 
 // ---------------------------------------------------------------------------
@@ -477,9 +485,17 @@ fn info_001_version() {
 #[test]
 fn info_002_schema_disclosure() {
     let r = all(); let rule = find(&r, "SEC-INFO-002");
-    assert!(!rule.check(&q("SELECT * FROM INFORMATION_SCHEMA.TABLES", "tsql", "SELECT")).is_empty());
-    assert!(!rule.check(&q("SELECT * FROM sys.tables", "tsql", "SELECT")).is_empty());
+    // Plain schema inspection without dynamic signal is legitimate - should not fire
+    assert!(rule.check(&q("SELECT * FROM INFORMATION_SCHEMA.TABLES", "tsql", "SELECT")).is_empty());
+    assert!(rule.check(&q("SELECT * FROM sys.tables", "tsql", "SELECT")).is_empty());
+    // Dynamic signal with schema access is injection-adjacent - should fire
+    assert!(!rule.check(&q("SELECT table_name FROM INFORMATION_SCHEMA.TABLES UNION SELECT password FROM users", "tsql", "SELECT")).is_empty());
+    // Constant query should not fire
     assert!(rule.check(&q("SELECT 1", "postgresql", "SELECT")).is_empty());
+    // Adhoc context should not fire regardless
+    let mut adhoc = q("SELECT * FROM INFORMATION_SCHEMA.TABLES", "tsql", "SELECT");
+    adhoc.source_context = "adhoc".to_string();
+    assert!(rule.check(&adhoc).is_empty());
 }
 
 #[test]

@@ -1,6 +1,6 @@
 use crate::models::issue::Category;
 use crate::models::{Dimension, Issue, Query, Severity};
-use crate::rules::base::{DialectSet, Rule};
+use crate::rules::base::{DialectSet, RuleConfidence, Rule};
 use once_cell::sync::Lazy;
 use regex::Regex;
 
@@ -17,6 +17,27 @@ impl Rule for UnsafeWriteRule {
         let qt = query.query_type.as_deref().unwrap_or("");
         if qt != "DELETE" && qt != "UPDATE" { return Vec::new(); }
         if query.raw_upper().contains("WHERE") { return Vec::new(); }
+        // Detect intentional "clear all" patterns.
+        // If the file path or filename suggests this is a deliberate bulk
+        // operation (cache clear, test reset, flush, etc.), suppress.
+        if let Some(ref file) = query.location.file {
+            let fl = file.to_lowercase();
+            let filename = fl.rsplit('/').next().unwrap_or(&fl);
+            // Files whose purpose is bulk operations
+            if fl.contains("cache") || fl.contains("clear")
+                || fl.contains("reset") || fl.contains("cleanup")
+                || fl.contains("purge") || fl.contains("flush")
+                || fl.contains("init.sql") || fl.contains("setup.sql")
+                || fl.contains("teardown") || fl.contains("truncate")
+                || filename.contains("flush")
+                || filename.contains("clear")
+                || filename.contains("reset")
+                || filename.contains("purge")
+                || filename.contains("testinfra")
+                || filename.contains("sync") {
+                return Vec::new();
+            }
+        }
         let msg = format!("CRITICAL: {} statement has no WHERE clause.", qt);
         vec![self.build_issue(query, &msg, &query.raw[..query.raw.len().min(80)])]
     }
@@ -62,7 +83,25 @@ impl Rule for DropTableRule {
     fn category(&self) -> Option<Category> { Some(Category::RelDataIntegrity) }
     fn impact(&self) -> &'static str { "Irreversible schema and data destruction." }
     fn check(&self, query: &Query) -> Vec<Issue> {
-        if query.query_type.as_deref() == Some("DROP") { vec![self.build_issue(query, "DROP statement detected.", &query.raw[..query.raw.len().min(80)])] } else { Vec::new() }
+        if query.query_type.as_deref() != Some("DROP") { return Vec::new(); }
+        let upper = query.raw_upper();
+        if !upper.contains("DROP TABLE") && !upper.contains("DROP VIEW")
+            && !upper.contains("DROP DATABASE") && !upper.contains("DROP SCHEMA") {
+            return Vec::new();
+        }
+        // Suppress setup/teardown pattern: DROP IF EXISTS in init/setup files
+        // These are intentional resets before recreation.
+        if upper.contains("IF EXISTS") {
+            if let Some(ref file) = query.location.file {
+                let fl = file.to_lowercase();
+                if fl.contains("init") || fl.contains("setup")
+                    || fl.contains("reset") || fl.contains("teardown")
+                    || fl.contains("fixture") {
+                    return Vec::new();
+                }
+            }
+        }
+        vec![self.build_issue(query, "DROP statement detected.", &query.raw[..query.raw.len().min(80)])]
     }
 }
 
@@ -76,6 +115,8 @@ impl Rule for MissingRollbackRule {
     fn dimension(&self) -> Dimension { Dimension::Reliability }
     fn category(&self) -> Option<Category> { Some(Category::RelTransaction) }
     fn impact(&self) -> &'static str { "Without ROLLBACK, a failed transaction may partially commit changes." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
     fn check(&self, query: &Query) -> Vec<Issue> {
         PAT_BEGIN.find(&query.raw).map(|m| vec![self.build_issue(query, "Transaction opened - verify ROLLBACK handler exists.", m.as_str())]).unwrap_or_default()
     }
@@ -91,6 +132,8 @@ impl Rule for AutocommitDisabledRule {
     fn dimension(&self) -> Dimension { Dimension::Reliability }
     fn category(&self) -> Option<Category> { Some(Category::RelTransaction) }
     fn impact(&self) -> &'static str { "Disabling autocommit causes uncommitted changes to be silently rolled back on connection drop." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
     fn check(&self, query: &Query) -> Vec<Issue> {
         PAT_AUTOCOMMIT.find(&query.raw).map(|m| vec![self.build_issue(query, "Autocommit disabled - risk of silent rollback on connection drop.", m.as_str())]).unwrap_or_default()
     }
@@ -136,6 +179,8 @@ impl Rule for LongTransactionWithoutSavepointRule {
     fn dimension(&self) -> Dimension { Dimension::Reliability }
     fn category(&self) -> Option<Category> { Some(Category::RelRecovery) }
     fn impact(&self) -> &'static str { "A failure forces rollback of all previous steps." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
     fn check(&self, query: &Query) -> Vec<Issue> {
         PAT_SAVEPOINT.find(&query.raw).map(|m| vec![self.build_issue(query, "Long transaction detected - consider using SAVEPOINTs for partial recovery.", m.as_str())]).unwrap_or_default()
     }
@@ -150,17 +195,39 @@ impl Rule for NonIdempotentInsertRule {
     fn dimension(&self) -> Dimension { Dimension::Reliability }
     fn category(&self) -> Option<Category> { Some(Category::RelIdempotency) }
     fn impact(&self) -> &'static str { "Non-idempotent INSERTs cause duplicate data on network retries." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Contextual }
     fn check(&self, query: &Query) -> Vec<Issue> {
-        if query.source_context == "adhoc" || query.source_context.is_empty() { return Vec::new(); }
+        // Idempotency guards are irrelevant in migration, test, and seed contexts.
+        // Migration runners enforce run-once semantics. Tests use clean state.
+        // Seeds load into empty databases by design.
+        match query.source_context.as_str() {
+            "adhoc" | "" | "migration" | "test" | "seed" => return Vec::new(),
+            _ => {}
+        }
         if !query.is_insert() { return Vec::new(); }
         let upper = query.raw_upper();
         let idempotent = upper.contains("ON CONFLICT") || upper.contains("ON DUPLICATE KEY") || upper.contains("INSERT IGNORE") || upper.contains("MERGE") || upper.contains("NOT EXISTS");
         if idempotent { return Vec::new(); }
-        // Skip append-only tables (logs, events, audit) where idempotency is not expected
-        let lower = query.raw_lower();
+        // Skip append-only tables (logs, events, audit) where idempotency is not expected.
+        // Use exact table name match from parsed tables to avoid substring false negatives.
         let append_only = ["logs", "log", "events", "event", "audit", "audit_log", "metrics",
-                          "analytics", "history", "activity", "notifications", "queue"];
-        if append_only.iter().any(|t| lower.contains(t)) { return Vec::new(); }
+                          "analytics", "history", "activity", "notifications", "queue",
+                          "audit_trail", "event_log", "access_log", "change_log"];
+        let is_append_only = if let Some(ref facts) = query.facts {
+            facts.insert_table.as_ref().map_or(false, |t| {
+                let tl = t.to_lowercase();
+                let name = tl.rsplit('.').next().unwrap_or(&tl);
+                append_only.iter().any(|a| name == *a)
+            })
+        } else {
+            query.tables.iter().any(|t| {
+                let tl = t.to_lowercase();
+                let name = tl.rsplit('.').next().unwrap_or(&tl);
+                append_only.iter().any(|a| name == *a)
+            })
+        };
+        if is_append_only { return Vec::new(); }
         vec![self.build_issue(query, "INSERT without idempotency guard - will fail or create duplicates on retry.", query.snippet(100))]
     }
 }
@@ -175,6 +242,8 @@ impl Rule for NonIdempotentUpdateRule {
     fn dimension(&self) -> Dimension { Dimension::Reliability }
     fn category(&self) -> Option<Category> { Some(Category::RelIdempotency) }
     fn impact(&self) -> &'static str { "Relative updates execute multiple times on retry, causing incorrect totals." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Contextual }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if !query.is_update() { return Vec::new(); }
         if let Some(caps) = PAT_REL_UPDATE.captures(&query.raw) {
@@ -201,8 +270,27 @@ impl Rule for ReadModifyWriteLockingRule {
     fn dimension(&self) -> Dimension { Dimension::Reliability }
     fn category(&self) -> Option<Category> { Some(Category::RelRaceCondition) }
     fn impact(&self) -> &'static str { "Read-modify-write without locks causes lost updates." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Contextual }
     fn check(&self, query: &Query) -> Vec<Issue> {
         let upper = query.raw_upper();
+        // DDL definitions (CREATE VIEW, CREATE FUNCTION) naturally contain
+        // SELECT and UPDATE keywords without being read-modify-write patterns.
+        if upper.contains("CREATE ") || upper.contains("ALTER ") {
+            return Vec::new();
+        }
+        // A single UPDATE with a subquery (UPDATE x SET col = (SELECT ...))
+        // is atomic in SQL and not a race condition. Only flag when the
+        // query type itself is SELECT and UPDATE appears separately, or when
+        // in a multi-statement procedural block.
+        if let Some(qt) = query.query_type.as_deref() {
+            // Single UPDATE with embedded SELECT is atomic
+            if qt == "UPDATE" { return Vec::new(); }
+            // Single SELECT is not a race by itself
+            if qt == "SELECT" && !upper.contains("UPDATE") { return Vec::new(); }
+            // CTE (WITH ... AS) followed by UPDATE is a single atomic statement
+            if qt == "SELECT" && upper.starts_with("WITH ") { return Vec::new(); }
+        }
         if upper.contains("SELECT") && upper.contains("UPDATE") && !upper.contains("FOR UPDATE") && !upper.contains("SERIALIZABLE") {
             vec![self.build_issue(query, "Read-modify-write pattern without FOR UPDATE or SERIALIZABLE - race condition risk.", &query.raw[..query.raw.len().min(100)])]
         } else { Vec::new() }
@@ -234,6 +322,8 @@ impl Rule for OrphanRecordRiskRule {
     fn dimension(&self) -> Dimension { Dimension::Reliability }
     fn category(&self) -> Option<Category> { Some(Category::RelForeignKey) }
     fn impact(&self) -> &'static str { "INSERTs without FK verification create orphan records." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Contextual }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if query.source_context == "adhoc" || query.source_context.is_empty() { return Vec::new(); }
         if !query.is_insert() { return Vec::new(); }
@@ -256,6 +346,8 @@ impl Rule for CascadeDeleteRiskRule {
     fn dimension(&self) -> Dimension { Dimension::Reliability }
     fn category(&self) -> Option<Category> { Some(Category::RelForeignKey) }
     fn impact(&self) -> &'static str { "DELETE on parent table with ON DELETE CASCADE can wipe millions of child records." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Contextual }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if let Some(m) = PAT_CASCADE_DEL.find(&query.raw) {
             // Use structural analysis if available
@@ -314,8 +406,24 @@ impl Rule for LockEscalationRiskRule {
         let qt = query.query_type.as_deref().unwrap_or("");
         if qt != "UPDATE" && qt != "DELETE" { return Vec::new(); }
         let upper = query.raw_upper();
-        if !upper.contains("WHERE") { return vec![self.build_issue(query, &format!("{} without WHERE clause - will lock entire table.", qt), &query.raw[..query.raw.len().min(100)])]; }
-        Vec::new()
+        if upper.contains("WHERE") { return Vec::new(); }
+        // Suppress intentional bulk operations
+        if let Some(ref file) = query.location.file {
+            let fl = file.to_lowercase();
+            let filename = fl.rsplit('/').next().unwrap_or(&fl);
+            if fl.contains("cache") || fl.contains("clear")
+                || fl.contains("reset") || fl.contains("cleanup")
+                || fl.contains("purge") || fl.contains("flush")
+                || fl.contains("init.sql") || fl.contains("setup.sql")
+                || fl.contains("teardown") || fl.contains("truncate")
+                || filename.contains("flush") || filename.contains("clear")
+                || filename.contains("reset") || filename.contains("purge")
+                || filename.contains("testinfra")
+                || filename.contains("sync") {
+                return Vec::new();
+            }
+        }
+        vec![self.build_issue(query, &format!("{} without WHERE clause - will lock entire table.", qt), &query.raw[..query.raw.len().min(100)])]
     }
 }
 
@@ -328,12 +436,21 @@ impl Rule for LongRunningQueryRiskRule {
     fn dimension(&self) -> Dimension { Dimension::Reliability }
     fn category(&self) -> Option<Category> { Some(Category::RelTimeout) }
     fn impact(&self) -> &'static str { "Complex queries without bounds can run for hours." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Contextual }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if !query.is_select() { return Vec::new(); }
         let upper = query.raw_upper();
         let join_count = upper.matches("JOIN").count();
         let sub_count = upper.matches("(SELECT").count();
         if join_count + sub_count >= 3 && !upper.contains("LIMIT") && !upper.contains("TOP ") {
+            // A single-row PK lookup returns fast regardless of join count.
+            // Only flag when we cannot prove the result set is bounded.
+            if let Some(ref facts) = query.facts {
+                if facts.is_single_row_lookup() {
+                    return Vec::new();
+                }
+            }
             let msg = format!("Complex query ({} JOINs, {} subqueries) without row limit or timeout.", join_count, sub_count);
             return vec![self.build_issue(query, &msg, &query.raw[..query.raw.len().min(100)])];
         }
@@ -351,6 +468,8 @@ impl Rule for StaleReadRiskRule {
     fn dimension(&self) -> Dimension { Dimension::Reliability }
     fn category(&self) -> Option<Category> { Some(Category::RelConsistency) }
     fn impact(&self) -> &'static str { "In replicated databases, writes go to primary, reads may hit replicas." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Contextual }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if query.raw_upper().contains("BEGIN") { return Vec::new(); }
         PAT_STALE.find(&query.raw).map(|_| vec![self.build_issue(query, "Potential stale read: SELECT immediately follows UPDATE/INSERT without transaction.", &query.raw[..query.raw.len().min(80)])]).unwrap_or_default()
@@ -367,6 +486,8 @@ impl Rule for MissingRetryLogicRule {
     fn dimension(&self) -> Dimension { Dimension::Reliability }
     fn category(&self) -> Option<Category> { Some(Category::RelRetry) }
     fn impact(&self) -> &'static str { "Without retry logic, operations fail permanently on transient errors." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if let Some(_) = PAT_RETRY.find(&query.raw) {
             let upper = query.raw_upper();
@@ -426,7 +547,9 @@ impl Rule for TruncateInTryWithoutCatchRule { fn id(&self) -> &'static str { "RE
 
 // REL-PG-001
 struct AlterTableAddColumnVolatileDefaultRule;
-impl Rule for AlterTableAddColumnVolatileDefaultRule { fn id(&self) -> &'static str { "REL-PG-001" } fn name(&self) -> &'static str { "ALTER TABLE ADD COLUMN With Volatile DEFAULT" } fn severity(&self) -> Severity { Severity::High } fn dimension(&self) -> Dimension { Dimension::Reliability } fn category(&self) -> Option<Category> { Some(Category::RelDataIntegrity) } fn dialects(&self) -> DialectSet { DialectSet::new(&["postgresql"]) } fn impact(&self) -> &'static str { "A table rewrite on a large table locks it exclusively." } fn check(&self, query: &Query) -> Vec<Issue> { if !self.dialect_matches(query) { return Vec::new(); } let upper = query.raw_upper(); if !upper.contains("ALTER TABLE") || !upper.contains("ADD") || !upper.contains("DEFAULT") { return Vec::new(); } for func in &["NOW()","CURRENT_TIMESTAMP","RANDOM()","GEN_RANDOM_UUID()","CLOCK_TIMESTAMP()"] { if upper.contains(func) { return vec![self.build_issue(query, "ALTER TABLE ADD COLUMN with volatile DEFAULT - may rewrite entire table.", &query.raw[..query.raw.len().min(100)])]; } } Vec::new() } }
+impl Rule for AlterTableAddColumnVolatileDefaultRule { fn id(&self) -> &'static str { "REL-PG-001" } fn name(&self) -> &'static str { "ALTER TABLE ADD COLUMN With Volatile DEFAULT" } fn severity(&self) -> Severity { Severity::High } fn dimension(&self) -> Dimension { Dimension::Reliability } fn category(&self) -> Option<Category> { Some(Category::RelDataIntegrity) } fn dialects(&self) -> DialectSet { DialectSet::new(&["postgresql"]) } fn impact(&self) -> &'static str { "A table rewrite on a large table locks it exclusively." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Contextual }
+    fn check(&self, query: &Query) -> Vec<Issue> { if !self.dialect_matches(query) { return Vec::new(); } let upper = query.raw_upper(); if !upper.contains("ALTER TABLE") || !upper.contains("ADD") || !upper.contains("DEFAULT") { return Vec::new(); } for func in &["NOW()","CURRENT_TIMESTAMP","RANDOM()","GEN_RANDOM_UUID()","CLOCK_TIMESTAMP()"] { if upper.contains(func) { return vec![self.build_issue(query, "ALTER TABLE ADD COLUMN with volatile DEFAULT - may rewrite entire table.", &query.raw[..query.raw.len().min(100)])]; } } Vec::new() } }
 
 // REL-PG-002
 struct CreateIndexWithoutConcurrentlyRule;
@@ -456,7 +579,9 @@ impl Rule for BigQueryDmlWithoutWhereOnPartitionedRule { fn id(&self) -> &'stati
 
 // REL-CH-001
 struct ClickHouseSelectWithoutFinalRule;
-impl Rule for ClickHouseSelectWithoutFinalRule { fn id(&self) -> &'static str { "REL-CH-001" } fn name(&self) -> &'static str { "SELECT Without FINAL on ReplacingMergeTree" } fn severity(&self) -> Severity { Severity::High } fn dimension(&self) -> Dimension { Dimension::Reliability } fn category(&self) -> Option<Category> { Some(Category::RelDataIntegrity) } fn dialects(&self) -> DialectSet { DialectSet::new(&["clickhouse"]) } fn impact(&self) -> &'static str { "Queries return duplicate rows that should have been deduplicated." } fn check(&self, query: &Query) -> Vec<Issue> { if !self.dialect_matches(query) { return Vec::new(); } if !query.is_select() { return Vec::new(); } let upper = query.raw_upper(); if upper.contains("FINAL") { return Vec::new(); } if upper.contains("REPLACING") || upper.contains("COLLAPSING") { return vec![self.build_issue(query, "SELECT without FINAL on ReplacingMergeTree - may return unmerged duplicates.", &query.raw[..query.raw.len().min(80)])]; } Vec::new() } }
+impl Rule for ClickHouseSelectWithoutFinalRule { fn id(&self) -> &'static str { "REL-CH-001" } fn name(&self) -> &'static str { "SELECT Without FINAL on ReplacingMergeTree" } fn severity(&self) -> Severity { Severity::High } fn dimension(&self) -> Dimension { Dimension::Reliability } fn category(&self) -> Option<Category> { Some(Category::RelDataIntegrity) } fn dialects(&self) -> DialectSet { DialectSet::new(&["clickhouse"]) } fn impact(&self) -> &'static str { "Queries return duplicate rows that should have been deduplicated." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Contextual }
+    fn check(&self, query: &Query) -> Vec<Issue> { if !self.dialect_matches(query) { return Vec::new(); } if !query.is_select() { return Vec::new(); } let upper = query.raw_upper(); if upper.contains("FINAL") { return Vec::new(); } if upper.contains("REPLACING") || upper.contains("COLLAPSING") { return vec![self.build_issue(query, "SELECT without FINAL on ReplacingMergeTree - may return unmerged duplicates.", &query.raw[..query.raw.len().min(80)])]; } Vec::new() } }
 
 // REL-PRESTO-001
 struct PrestoInsertOverwriteWithoutPartitionRule;

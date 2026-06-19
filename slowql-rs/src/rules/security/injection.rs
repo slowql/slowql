@@ -1,6 +1,6 @@
 use crate::models::issue::{Category, Fix};
 use crate::models::{Dimension, Issue, Query, Severity};
-use crate::rules::base::{DialectSet, Rule};
+use crate::rules::base::{DialectSet, RuleConfidence, Rule};
 use once_cell::sync::Lazy;
 use regex::Regex;
 
@@ -44,10 +44,17 @@ impl Rule for DynamicSqlExecutionRule {
     fn category(&self) -> Option<Category> { Some(Category::SecInjection) }
     fn impact(&self) -> &'static str { "Attackers can inject arbitrary SQL through unsanitized inputs passed into dynamically constructed queries." }
     fn check(&self, query: &Query) -> Vec<Issue> {
-        PAT_INJ_002.find(&query.raw).map(|m| {
+        if let Some(m) = PAT_INJ_002.find(&query.raw) {
+            // MySQL PREPARE stmt FROM @variable is native prepared statement
+            // syntax, not dynamic SQL injection. Skip it.
+            let upper = query.raw_upper();
+            if upper.contains("PREPARE") && upper.contains("FROM @") {
+                return Vec::new();
+            }
             let msg = format!("Dynamic SQL execution detected: {}", m.as_str());
-            vec![self.build_issue(query, &msg, m.as_str())]
-        }).unwrap_or_default()
+            return vec![self.build_issue(query, &msg, m.as_str())];
+        }
+        Vec::new()
     }
 }
 
@@ -110,6 +117,8 @@ impl Rule for SecondOrderSqlInjectionRule {
         "Data stored today may be concatenated into SQL tomorrow. Second-order injection bypasses input validation performed only at write time."
     }
 
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Contextual }
     fn check(&self, query: &Query) -> Vec<Issue> {
         let qt = query.query_type.as_deref().unwrap_or("").to_uppercase();
         if qt != "INSERT" && qt != "UPDATE" {

@@ -1,6 +1,6 @@
 use crate::models::issue::Category;
 use crate::models::{Dimension, Issue, Query, Severity};
-use crate::rules::base::{DialectSet, Rule};
+use crate::rules::base::{DialectSet, RuleConfidence, Rule};
 use once_cell::sync::Lazy;
 use regex::Regex;
 
@@ -50,6 +50,8 @@ impl Rule for NestedLoopJoinHintRule {
     fn category(&self) -> Option<Category> { Some(Category::PerfCursor) }
     fn dialects(&self) -> DialectSet { DialectSet::new(&["tsql"]) }
     fn impact(&self) -> &'static str { "Forced nested loop joins perform O(n*m) comparisons." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if !self.dialect_matches(query) { return Vec::new(); }
         PAT_LOOP_JOIN.find(&query.raw).map(|m| {

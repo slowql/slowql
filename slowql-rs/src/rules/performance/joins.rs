@@ -48,12 +48,51 @@ impl Rule for LeftJoinWithIsNotNullRule {
     fn dimension(&self) -> Dimension { Dimension::Performance }
     fn category(&self) -> Option<Category> { Some(Category::PerfJoin) }
     fn impact(&self) -> &'static str { "The LEFT JOIN preserves unmatched rows, then WHERE immediately removes them." }
+
     fn check(&self, query: &Query) -> Vec<Issue> {
         let upper = query.raw_upper();
-        if upper.contains("LEFT JOIN") && upper.contains("IS NOT NULL") {
-            let snip = &query.raw[..query.raw.len().min(80)];
-            return vec![self.build_issue(query, "LEFT JOIN with IS NOT NULL filter - use INNER JOIN instead.", snip)];
+        if !upper.contains("LEFT JOIN") || !upper.contains("IS NOT NULL") {
+            return Vec::new();
         }
+
+        // Only fire when the WHERE clause checks IS NOT NULL on the alias/table
+        // introduced by the LEFT JOIN. Any other IS NOT NULL predicate is not enough.
+        let where_pos = match upper.find("WHERE") {
+            Some(pos) => pos,
+            None => return Vec::new(),
+        };
+        let where_text = &query.raw[where_pos..];
+
+        // Capture aliases/tables from LEFT JOINs:
+        // LEFT JOIN orders o ...
+        // LEFT JOIN orders AS o ...
+        // LEFT JOIN "orders" o ...
+        static PAT_LEFT_ALIAS: once_cell::sync::Lazy<regex::Regex> = once_cell::sync::Lazy::new(|| {
+            regex::Regex::new(
+                r#"(?i)\bLEFT\s+JOIN\s+([A-Za-z_][\w$]*|"[^"]+"|`[^`]+`|\[[^\]]+\])(?:\s+(?:AS\s+)?)?([A-Za-z_][\w$]*)?"#
+            ).unwrap()
+        });
+
+        for caps in PAT_LEFT_ALIAS.captures_iter(&query.raw) {
+            let table = caps.get(1).map(|m| m.as_str()).unwrap_or("").trim_matches(|c| c == '"' || c == '`' || c == '[' || c == ']');
+            let alias = caps.get(2).map(|m| m.as_str()).unwrap_or(table);
+
+            // Match alias.col IS NOT NULL or table.col IS NOT NULL in WHERE
+            let alias_pat = format!(r#"(?i)\b{}\s*\.\s*("?[\w$]+"?)\s+IS\s+NOT\s+NULL\b"#, regex::escape(alias));
+            let table_pat = format!(r#"(?i)\b{}\s*\.\s*("?[\w$]+"?)\s+IS\s+NOT\s+NULL\b"#, regex::escape(table));
+
+            let alias_re = regex::Regex::new(&alias_pat).unwrap();
+            let table_re = regex::Regex::new(&table_pat).unwrap();
+
+            if alias_re.is_match(where_text) || table_re.is_match(where_text) {
+                return vec![self.build_issue(
+                    query,
+                    "LEFT JOIN with IS NOT NULL filter - use INNER JOIN instead.",
+                    query.snippet(100),
+                )];
+            }
+        }
+
         Vec::new()
     }
 }

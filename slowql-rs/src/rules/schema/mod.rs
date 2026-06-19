@@ -1,6 +1,6 @@
 use crate::models::issue::Category;
 use crate::models::{Dimension, Issue, Query, Severity};
-use crate::rules::base::Rule;
+use crate::rules::base::{RuleConfidence, Rule};
 
 // SCH-BRK-001: Cross-file breaking change (project-level, check_project in Python)
 pub struct CrossFileBreakingChangeRule;
@@ -11,6 +11,8 @@ impl Rule for CrossFileBreakingChangeRule {
     fn dimension(&self) -> Dimension { Dimension::Schema }
     fn category(&self) -> Option<Category> { Some(Category::RelDataIntegrity) }
     fn impact(&self) -> &'static str { "Destructive changes in one file can break queries in other files." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Contextual }
     fn check(&self, _query: &Query) -> Vec<Issue> { Vec::new() }
 }
 
@@ -47,6 +49,8 @@ impl Rule for MissingIndexRule {
     fn dimension(&self) -> Dimension { Dimension::Performance }
     fn category(&self) -> Option<Category> { Some(Category::PerfIndex) }
     fn impact(&self) -> &'static str { "Query filters on a column without an index, causing full table scans." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Contextual }
     fn check(&self, _query: &Query) -> Vec<Issue> { Vec::new() /* Requires schema context */ }
 }
 

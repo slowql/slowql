@@ -1,6 +1,6 @@
 use crate::models::issue::Category;
 use crate::models::{Dimension, Issue, Query, Severity};
-use crate::rules::base::{DialectSet, Rule};
+use crate::rules::base::{DialectSet, RuleConfidence, Rule};
 use once_cell::sync::Lazy;
 use regex::Regex;
 
@@ -44,6 +44,8 @@ impl Rule for ImplicitTypeConversionRule {
     fn dimension(&self) -> Dimension { Dimension::Performance }
     fn category(&self) -> Option<Category> { Some(Category::PerfIndex) }
     fn impact(&self) -> &'static str { "Implicit type conversion turns index seeks into full scans." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Contextual }
     fn check(&self, _query: &Query) -> Vec<Issue> {
         // Implicit type conversion detection requires schema knowledge.
         // Without actual column type information, heuristic detection
@@ -54,6 +56,10 @@ impl Rule for ImplicitTypeConversionRule {
 
 struct OrOnIndexedColumnsRule;
 static PAT_OR_WHERE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\bWHERE\b.+\bOR\b").unwrap());
+// Capture column = value pairs on each side of OR to detect same-column OR
+static PAT_OR_SAME_COL: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"(?i)\b([a-zA-Z_][\w]*)\s*=\s*[^\s]+\s+OR\s+([a-zA-Z_][\w]*)\s*=").unwrap()
+});
 impl Rule for OrOnIndexedColumnsRule {
     fn id(&self) -> &'static str { "PERF-IDX-004" }
     fn name(&self) -> &'static str { "OR in WHERE Clause" }
@@ -61,7 +67,19 @@ impl Rule for OrOnIndexedColumnsRule {
     fn dimension(&self) -> Dimension { Dimension::Performance }
     fn category(&self) -> Option<Category> { Some(Category::PerfIndex) }
     fn impact(&self) -> &'static str { "OR conditions can prevent index usage depending on the query planner." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
     fn check(&self, query: &Query) -> Vec<Issue> {
+        if !PAT_OR_WHERE.is_match(&query.raw) { return Vec::new(); }
+        // If OR is on the same column (status = 'a' OR status = 'b'), it is
+        // index-friendly and equivalent to IN. Do not fire.
+        if let Some(caps) = PAT_OR_SAME_COL.captures(&query.raw) {
+            let col1 = caps.get(1).map(|m| m.as_str().to_lowercase()).unwrap_or_default();
+            let col2 = caps.get(2).map(|m| m.as_str().to_lowercase()).unwrap_or_default();
+            if !col1.is_empty() && col1 == col2 {
+                return Vec::new();
+            }
+        }
         PAT_OR_WHERE.find(&query.raw).map(|m| {
             vec![self.build_issue(query, "OR condition in WHERE clause detected.", m.as_str())]
         }).unwrap_or_default()
@@ -94,6 +112,8 @@ impl Rule for CoalesceOnIndexedColumnRule {
     fn dimension(&self) -> Dimension { Dimension::Performance }
     fn category(&self) -> Option<Category> { Some(Category::PerfIndex) }
     fn impact(&self) -> &'static str { "Wrapping a column in COALESCE/ISNULL forces evaluation of every row." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Contextual }
     fn check(&self, query: &Query) -> Vec<Issue> {
         PAT_COALESCE.find(&query.raw).map(|m| {
             let msg = format!("Function wrapping column in WHERE prevents index seek: {}", m.as_str());
@@ -149,6 +169,8 @@ impl Rule for CompositeIndexOrderViolationRule {
     fn dimension(&self) -> Dimension { Dimension::Performance }
     fn category(&self) -> Option<Category> { Some(Category::PerfIndex) }
     fn impact(&self) -> &'static str { "Filtering only on the secondary column forces a full index scan." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Contextual }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if query.source_context == "adhoc" || query.source_context.is_empty() { return Vec::new(); }
         if query.source_context == "adhoc" || query.source_context.is_empty() { return Vec::new(); }
@@ -199,11 +221,18 @@ impl Rule for NonSargableOrConditionRule {
         if !upper.contains("WHERE") || !upper.contains(" OR ") { return Vec::new(); }
         // Check for different column names on each side of OR
         static PAT_OR_COLS: Lazy<Regex> = Lazy::new(|| {
-            Regex::new(r"(?i)\b(\w+)\s*=\s*\S+\s+OR\s+(\w+)\s*=").unwrap()
+            // Require column names to start with a letter to exclude numeric literals
+            // This prevents false positives on tautologies like OR 1=1
+            Regex::new(r"(?i)\b([a-zA-Z_][\w]*)\s*=\s*\S+\s+OR\s+([a-zA-Z_][\w]*)\s*=").unwrap()
         });
         if let Some(caps) = PAT_OR_COLS.captures(&query.raw) {
             let col1 = caps.get(1).unwrap().as_str().to_lowercase();
             let col2 = caps.get(2).unwrap().as_str().to_lowercase();
+            // Skip SQL keywords that are not column names
+            let sql_keywords = ["and", "or", "not", "null", "true", "false", "is", "in", "like", "between", "exists"];
+            if sql_keywords.contains(&col1.as_str()) || sql_keywords.contains(&col2.as_str()) {
+                return Vec::new();
+            }
             if col1 != col2 {
                 let msg = format!("OR condition across different columns ({}, {}) prevents index usage.", col1, col2);
                 let snip = caps.get(0).unwrap().as_str();
@@ -224,6 +253,8 @@ impl Rule for NegationOnIndexedColumnRule {
     fn dimension(&self) -> Dimension { Dimension::Performance }
     fn category(&self) -> Option<Category> { Some(Category::PerfIndex) }
     fn impact(&self) -> &'static str { "Negation conditions force scanning all non-matching rows." }
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
     fn check(&self, query: &Query) -> Vec<Issue> {
         PAT_NEG.find(&query.raw).map(|m| {
             vec![self.build_issue(query, "Not-equal condition (<>, !=) typically cannot use index seek.", m.as_str())]

@@ -1,6 +1,6 @@
 use crate::models::issue::Category;
 use crate::models::{Dimension, Issue, Query, Severity};
-use crate::rules::base::{DialectSet, Rule};
+use crate::rules::base::{DialectSet, RuleConfidence, RuleContext, Rule};
 use once_cell::sync::Lazy;
 use regex::Regex;
 
@@ -17,7 +17,22 @@ impl Rule for FullTableScanRule { fn id(&self) -> &'static str { "COST-COMPUTE-0
 // COST-COMPUTE-002
 struct ExpensiveWindowFunctionRule;
 static PAT_WINDOW: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\bOVER\s*\(").unwrap());
-impl Rule for ExpensiveWindowFunctionRule { fn id(&self) -> &'static str { "COST-COMPUTE-002" } fn name(&self) -> &'static str { "Expensive Window Functions Without Partitioning" } fn severity(&self) -> Severity { Severity::Medium } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostCompute) } fn impact(&self) -> &'static str { "Window functions without partitioning process the entire result set in a single partition." } fn check(&self, query: &Query) -> Vec<Issue> { if let Some(m) = PAT_WINDOW.find(&query.raw) { if !query.raw_upper().contains("PARTITION BY") { return vec![self.build_issue(query, "Window function without PARTITION BY detected.", m.as_str())]; } } Vec::new() } }
+impl Rule for ExpensiveWindowFunctionRule { fn id(&self) -> &'static str { "COST-COMPUTE-002" } fn name(&self) -> &'static str { "Expensive Window Functions Without Partitioning" } fn severity(&self) -> Severity { Severity::Medium } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostCompute) } fn impact(&self) -> &'static str { "Window functions without partitioning process the entire result set in a single partition." } fn check(&self, query: &Query) -> Vec<Issue> {
+        if let Some(m) = PAT_WINDOW.find(&query.raw) {
+            if query.raw_upper().contains("PARTITION BY") { return Vec::new(); }
+            // Global window functions (OVER ()) are intentional when the developer wants
+            // a table-wide aggregate alongside each row. Only flag when:
+            // - No WHERE clause bounds the result set, AND
+            // - No LIMIT bounds the output
+            // A bounded global window is cheap. An unbounded one on a full table is expensive.
+            let upper = query.raw_upper();
+            if upper.contains("WHERE") || upper.contains("LIMIT") || upper.contains("TOP ") {
+                return Vec::new();
+            }
+            return vec![self.build_issue(query, "Window function without PARTITION BY on unbounded query.", m.as_str())];
+        }
+        Vec::new()
+    } }
 
 // COST-STORAGE-001
 struct SelectStarInEtlRule;
@@ -30,11 +45,31 @@ impl Rule for RedundantOrderByRule { fn id(&self) -> &'static str { "COST-IO-001
 // COST-NETWORK-001
 struct CrossRegionDataTransferCostRule;
 static PAT_CROSS_REGION: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\b(OPENQUERY|OPENDATASOURCE|EXTERNAL\s+TABLE|DBLink)\b").unwrap());
-impl Rule for CrossRegionDataTransferCostRule { fn id(&self) -> &'static str { "COST-NETWORK-001" } fn name(&self) -> &'static str { "Cross-Region Data Transfer" } fn severity(&self) -> Severity { Severity::Info } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostNetwork) } fn impact(&self) -> &'static str { "Cross-region queries incur data egress charges." } fn check(&self, query: &Query) -> Vec<Issue> { PAT_CROSS_REGION.find(&query.raw).map(|m| vec![self.build_issue(query, "Potential cross-region data transfer detected.", m.as_str())]).unwrap_or_default() } }
+impl Rule for CrossRegionDataTransferCostRule { fn id(&self) -> &'static str { "COST-NETWORK-001" } fn name(&self) -> &'static str { "Cross-Region Data Transfer" } fn severity(&self) -> Severity { Severity::Info } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostNetwork) } fn impact(&self) -> &'static str { "Cross-region queries incur data egress charges." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, query: &Query) -> Vec<Issue> { PAT_CROSS_REGION.find(&query.raw).map(|m| vec![self.build_issue(query, "Potential cross-region data transfer detected.", m.as_str())]).unwrap_or_default() } }
 
 // COST-PAGE-001
 struct OffsetPaginationWithoutCoveringIndexRule;
-impl Rule for OffsetPaginationWithoutCoveringIndexRule { fn id(&self) -> &'static str { "COST-PAGE-001" } fn name(&self) -> &'static str { "OFFSET Pagination Without Index" } fn severity(&self) -> Severity { Severity::High } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostPagination) } fn impact(&self) -> &'static str { "OFFSET forces the database to scan and discard rows, cost increases with page depth." } fn check(&self, query: &Query) -> Vec<Issue> { if query.source_context == "adhoc" || query.source_context.is_empty() { return Vec::new(); } if !query.raw_upper().contains("OFFSET") { return Vec::new(); } vec![self.build_issue(query, "OFFSET pagination detected - cost increases linearly with page depth.", query.snippet(100))] } }
+static PAT_PAGE001_OFFSET: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"(?i)\bOFFSET\s+(\d+)").unwrap()
+});
+impl Rule for OffsetPaginationWithoutCoveringIndexRule { fn id(&self) -> &'static str { "COST-PAGE-001" } fn name(&self) -> &'static str { "OFFSET Pagination Without Index" } fn severity(&self) -> Severity { Severity::High } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostPagination) } fn impact(&self) -> &'static str { "OFFSET forces the database to scan and discard rows, cost increases with page depth." } fn check(&self, query: &Query) -> Vec<Issue> {
+        if query.source_context == "adhoc" || query.source_context.is_empty() { return Vec::new(); }
+        // Only fire when OFFSET is large enough to cause meaningful cost.
+        // Small offsets (< 500) are acceptable. COST-PAGE-002 handles deep pagination (> 1000).
+        // This rule targets the middle range where cost starts to be non-trivial.
+        if let Some(caps) = PAT_PAGE001_OFFSET.captures(&query.raw) {
+            if let Some(val) = caps.get(1) {
+                if let Ok(n) = val.as_str().parse::<u64>() {
+                    if n < 500 { return Vec::new(); }
+                    let msg = format!("OFFSET {} pagination detected - cost increases linearly with page depth.", n);
+                    return vec![self.build_issue(query, &msg, query.snippet(100))];
+                }
+            }
+        }
+        Vec::new()
+    } }
 
 // COST-PAGE-002
 struct DeepPaginationWithoutCursorRule;
@@ -49,21 +84,29 @@ impl Rule for CountStarForPaginationRule { fn id(&self) -> &'static str { "COST-
 // COST-IDX-001
 struct DuplicateIndexSignalRule;
 static PAT_CREATE_INDEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\bCREATE\s+INDEX\s+\w+\s+ON\s+(\w+)\s*\(([^)]+)\)").unwrap());
-impl Rule for DuplicateIndexSignalRule { fn id(&self) -> &'static str { "COST-IDX-001" } fn name(&self) -> &'static str { "Duplicate Index Signal" } fn severity(&self) -> Severity { Severity::Medium } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostIndexWaste) } fn impact(&self) -> &'static str { "Duplicate indexes waste storage and slow down writes." } fn check(&self, query: &Query) -> Vec<Issue> { PAT_CREATE_INDEX.find(&query.raw).map(|m| vec![self.build_issue(query, "Duplicate index signal detected. Verify if index already exists.", m.as_str())]).unwrap_or_default() } }
+impl Rule for DuplicateIndexSignalRule { fn id(&self) -> &'static str { "COST-IDX-001" } fn name(&self) -> &'static str { "Duplicate Index Signal" } fn severity(&self) -> Severity { Severity::Medium } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostIndexWaste) } fn impact(&self) -> &'static str { "Duplicate indexes waste storage and slow down writes." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, query: &Query) -> Vec<Issue> { PAT_CREATE_INDEX.find(&query.raw).map(|m| vec![self.build_issue(query, "Duplicate index signal detected. Verify if index already exists.", m.as_str())]).unwrap_or_default() } }
 
 // COST-IDX-002
 struct OverIndexedTableSignalRule;
 static PAT_MULTI_INDEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?is)(CREATE\s+INDEX\s+\w+\s+ON\s+(\w+)[\s\S]*?){3,}").unwrap());
-impl Rule for OverIndexedTableSignalRule { fn id(&self) -> &'static str { "COST-IDX-002" } fn name(&self) -> &'static str { "Over-Indexed Table Signal" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostIndexWaste) } fn impact(&self) -> &'static str { "Tables with 10+ indexes pay massive write penalties." } fn check(&self, query: &Query) -> Vec<Issue> { PAT_MULTI_INDEX.find(&query.raw).map(|_| vec![self.build_issue(query, "Over-indexed table signal: multiple CREATE INDEX statements found.", query.snippet(100))]).unwrap_or_default() } }
+impl Rule for OverIndexedTableSignalRule { fn id(&self) -> &'static str { "COST-IDX-002" } fn name(&self) -> &'static str { "Over-Indexed Table Signal" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostIndexWaste) } fn impact(&self) -> &'static str { "Tables with 10+ indexes pay massive write penalties." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, query: &Query) -> Vec<Issue> { PAT_MULTI_INDEX.find(&query.raw).map(|_| vec![self.build_issue(query, "Over-indexed table signal: multiple CREATE INDEX statements found.", query.snippet(100))]).unwrap_or_default() } }
 
 // COST-IDX-003
 struct MissingCoveringIndexOpportunityRule;
-impl Rule for MissingCoveringIndexOpportunityRule { fn id(&self) -> &'static str { "COST-IDX-003" } fn name(&self) -> &'static str { "Missing Covering Index Opportunity" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostIndexOptimization) } fn impact(&self) -> &'static str { "Non-covering indexes require key lookup, doubling I/O." } fn check(&self, _query: &Query) -> Vec<Issue> { Vec::new() /* Requires schema context - skip for pattern-based analysis */ } }
+impl Rule for MissingCoveringIndexOpportunityRule { fn id(&self) -> &'static str { "COST-IDX-003" } fn name(&self) -> &'static str { "Missing Covering Index Opportunity" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostIndexOptimization) } fn impact(&self) -> &'static str { "Non-covering indexes require key lookup, doubling I/O." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, _query: &Query) -> Vec<Issue> { Vec::new() /* Requires schema context - skip for pattern-based analysis */ } }
 
 // COST-IDX-004
 struct RedundantIndexColumnOrderRule;
 static PAT_COMP_IDX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\bCREATE\s+INDEX\s+\w+\s+ON\s+\w+\s*\((\w+)\s*,\s*(\w+)").unwrap());
-impl Rule for RedundantIndexColumnOrderRule { fn id(&self) -> &'static str { "COST-IDX-004" } fn name(&self) -> &'static str { "Redundant Index Column Order" } fn severity(&self) -> Severity { Severity::Info } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostIndexOptimization) } fn impact(&self) -> &'static str { "Wrong column order = wasted index and slower queries." } fn check(&self, query: &Query) -> Vec<Issue> { PAT_COMP_IDX.find(&query.raw).map(|m| vec![self.build_issue(query, "Composite index column order signal: check if order matches query patterns.", m.as_str())]).unwrap_or_default() } }
+impl Rule for RedundantIndexColumnOrderRule { fn id(&self) -> &'static str { "COST-IDX-004" } fn name(&self) -> &'static str { "Redundant Index Column Order" } fn severity(&self) -> Severity { Severity::Info } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostIndexOptimization) } fn impact(&self) -> &'static str { "Wrong column order = wasted index and slower queries." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, query: &Query) -> Vec<Issue> { PAT_COMP_IDX.find(&query.raw).map(|m| vec![self.build_issue(query, "Composite index column order signal: check if order matches query patterns.", m.as_str())]).unwrap_or_default() } }
 
 // COST-CROSS-001
 struct CrossDatabaseJoinRule;
@@ -80,7 +123,9 @@ impl Rule for CrossDatabaseJoinRule { fn id(&self) -> &'static str { "COST-CROSS
 // COST-CROSS-002
 struct MultiRegionQueryLatencyRule;
 static PAT_MULTI_REGION: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\b(SELECT|INSERT|UPDATE|DELETE)\b[^;]*\b(us-east|us-west|eu-west|ap-south|@[^.]*\..*\.rds\.amazonaws\.com|@[^.]*\.database\.windows\.net)\b").unwrap());
-impl Rule for MultiRegionQueryLatencyRule { fn id(&self) -> &'static str { "COST-CROSS-002" } fn name(&self) -> &'static str { "Multi-Region Query Latency" } fn severity(&self) -> Severity { Severity::Medium } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostCrossRegion) } fn impact(&self) -> &'static str { "Cross-region queries add 50-200ms latency plus egress charges." } fn check(&self, query: &Query) -> Vec<Issue> { PAT_MULTI_REGION.find(&query.raw).map(|m| vec![self.build_issue(query, "Multi-region query detected: potential latency and egress costs.", m.as_str())]).unwrap_or_default() } }
+impl Rule for MultiRegionQueryLatencyRule { fn id(&self) -> &'static str { "COST-CROSS-002" } fn name(&self) -> &'static str { "Multi-Region Query Latency" } fn severity(&self) -> Severity { Severity::Medium } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostCrossRegion) } fn impact(&self) -> &'static str { "Cross-region queries add 50-200ms latency plus egress charges." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Contextual }
+    fn check(&self, query: &Query) -> Vec<Issue> { PAT_MULTI_REGION.find(&query.raw).map(|m| vec![self.build_issue(query, "Multi-region query detected: potential latency and egress costs.", m.as_str())]).unwrap_or_default() } }
 
 // COST-CROSS-003
 struct DistributedTransactionOverheadRule;
@@ -90,27 +135,94 @@ impl Rule for DistributedTransactionOverheadRule { fn id(&self) -> &'static str 
 // COST-SERVERLESS-001
 struct ColdStartQueryPatternRule;
 static PAT_COLD: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\bSELECT\b.*\b(JOIN|UNION|INTERSECT|EXCEPT)\b.*\b(GROUP\s+BY|ORDER\s+BY|DISTINCT)\b").unwrap());
-impl Rule for ColdStartQueryPatternRule { fn id(&self) -> &'static str { "COST-SERVERLESS-001" } fn name(&self) -> &'static str { "Cold Start Query Pattern" } fn severity(&self) -> Severity { Severity::Medium } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostServerless) } fn impact(&self) -> &'static str { "Complex queries trigger ACU scaling in serverless databases." } fn check(&self, query: &Query) -> Vec<Issue> { PAT_COLD.find(&query.raw).map(|m| vec![self.build_issue(query, "Complex query in serverless environment: potential cold start and scaling cost.", m.as_str())]).unwrap_or_default() } }
+impl Rule for ColdStartQueryPatternRule { fn id(&self) -> &'static str { "COST-SERVERLESS-001" } fn name(&self) -> &'static str { "Cold Start Query Pattern" } fn severity(&self) -> Severity { Severity::Medium } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostServerless) } fn impact(&self) -> &'static str { "Complex queries trigger ACU scaling in serverless databases." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, query: &Query) -> Vec<Issue> { PAT_COLD.find(&query.raw).map(|m| vec![self.build_issue(query, "Complex query in serverless environment: potential cold start and scaling cost.", m.as_str())]).unwrap_or_default() } }
 
 // COST-SERVERLESS-002
 struct UnnecessaryConnectionPoolingRule;
 static PAT_POOL: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\b(SET\s+SESSION|CONNECTION\s+TIMEOUT\s*=\s*\d{4,}|KEEP\s+ALIVE|POOLING\s*=\s*TRUE)\b").unwrap());
-impl Rule for UnnecessaryConnectionPoolingRule { fn id(&self) -> &'static str { "COST-SERVERLESS-002" } fn name(&self) -> &'static str { "Unnecessary Connection Pooling" } fn severity(&self) -> Severity { Severity::Info } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostServerless) } fn impact(&self) -> &'static str { "Serverless databases charge per second of connection time." } fn check(&self, query: &Query) -> Vec<Issue> { PAT_POOL.find(&query.raw).map(|m| vec![self.build_issue(query, "Wasteful connection management found.", m.as_str())]).unwrap_or_default() } }
+impl Rule for UnnecessaryConnectionPoolingRule { fn id(&self) -> &'static str { "COST-SERVERLESS-002" } fn name(&self) -> &'static str { "Unnecessary Connection Pooling" } fn severity(&self) -> Severity { Severity::Info } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostServerless) } fn impact(&self) -> &'static str { "Serverless databases charge per second of connection time." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, query: &Query) -> Vec<Issue> { PAT_POOL.find(&query.raw).map(|m| vec![self.build_issue(query, "Wasteful connection management found.", m.as_str())]).unwrap_or_default() } }
 
 // COST-ARCHIVE-001
 struct OldDataNotArchivedRule;
 static DATE_COLS: &[&str] = &["created_at","updated_at","modified_at","date","timestamp","event_date","order_date","transaction_date","posted_at"];
-impl Rule for OldDataNotArchivedRule { fn id(&self) -> &'static str { "COST-ARCHIVE-001" } fn name(&self) -> &'static str { "Old Data Not Archived" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostArchival) } fn impact(&self) -> &'static str { "Storing years of logs in hot storage costs 10x vs cold storage." } fn check(&self, query: &Query) -> Vec<Issue> { if !query.is_select() { return Vec::new(); } if query.source_context == "adhoc" || query.source_context.is_empty() { return Vec::new(); } if !query.raw_upper().contains("FROM") { return Vec::new(); } let lower = query.raw_lower(); let has_date = DATE_COLS.iter().any(|c| lower.contains(c)); if has_date && !lower.contains("where") { return vec![self.build_issue(query, "Query on table with timestamp - consider archiving old data.", query.snippet(100))]; } Vec::new() } }
+impl Rule for OldDataNotArchivedRule { fn id(&self) -> &'static str { "COST-ARCHIVE-001" } fn name(&self) -> &'static str { "Old Data Not Archived" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostArchival) } fn impact(&self) -> &'static str { "Storing years of logs in hot storage costs 10x vs cold storage." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, query: &Query) -> Vec<Issue> { if !query.is_select() { return Vec::new(); } if query.source_context == "adhoc" || query.source_context.is_empty() { return Vec::new(); } if !query.raw_upper().contains("FROM") { return Vec::new(); } let lower = query.raw_lower(); let has_date = DATE_COLS.iter().any(|c| lower.contains(c)); if has_date && !lower.contains("where") { return vec![self.build_issue(query, "Query on table with timestamp - consider archiving old data.", query.snippet(100))]; } Vec::new() } }
 
 // COST-COMPRESS-001
 struct LargeTextColumnWithoutCompressionRule;
 static PAT_LARGE_TEXT: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\bCREATE\s+TABLE\b[^;]*\b(VARCHAR\s*\(\s*\d{4,}\)|TEXT|CLOB|NVARCHAR\s*\(MAX\)|LONGTEXT)\b").unwrap());
-impl Rule for LargeTextColumnWithoutCompressionRule { fn id(&self) -> &'static str { "COST-COMPRESS-001" } fn name(&self) -> &'static str { "Large Text Column Without Compression" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostStorage) } fn impact(&self) -> &'static str { "Uncompressed TEXT columns waste 3-10x storage space." } fn check(&self, query: &Query) -> Vec<Issue> { PAT_LARGE_TEXT.find(&query.raw).map(|m| vec![self.build_issue(query, "Large text column without compression detected.", m.as_str())]).unwrap_or_default() } }
+impl Rule for LargeTextColumnWithoutCompressionRule { fn id(&self) -> &'static str { "COST-COMPRESS-001" } fn name(&self) -> &'static str { "Large Text Column Without Compression" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostStorage) } fn impact(&self) -> &'static str { "Uncompressed TEXT columns waste 3-10x storage space." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, query: &Query) -> Vec<Issue> { PAT_LARGE_TEXT.find(&query.raw).map(|m| vec![self.build_issue(query, "Large text column without compression detected.", m.as_str())]).unwrap_or_default() } }
 
 // COST-PARTITION-001
 struct LargeTableWithoutPartitioningRule;
-static LARGE_TABLE_PATTERNS: &[&str] = &["events","logs","transactions","clickstream","analytics","audit","history","archive","sessions","metrics"];
-impl Rule for LargeTableWithoutPartitioningRule { fn id(&self) -> &'static str { "COST-PARTITION-001" } fn name(&self) -> &'static str { "Large Table Without Partitioning" } fn severity(&self) -> Severity { Severity::Medium } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostPartitioning) } fn impact(&self) -> &'static str { "Scanning unpartitioned tables costs 100x more than scanning one partition." } fn check(&self, query: &Query) -> Vec<Issue> { if !query.is_select() { return Vec::new(); } let lower = query.raw_lower(); let is_large = LARGE_TABLE_PATTERNS.iter().any(|p| lower.contains(p)); if is_large && !query.raw_upper().contains("PARTITION") { return vec![self.build_issue(query, "Query on large table without partition pruning.", query.snippet(100))]; } Vec::new() } }
+impl Rule for LargeTableWithoutPartitioningRule {
+    fn id(&self) -> &'static str { "COST-PARTITION-001" }
+    fn name(&self) -> &'static str { "Large Table Without Partitioning" }
+    fn severity(&self) -> Severity { Severity::Medium }
+    fn dimension(&self) -> Dimension { Dimension::Cost }
+    fn category(&self) -> Option<Category> { Some(Category::CostPartitioning) }
+    fn impact(&self) -> &'static str { "Scanning unpartitioned tables costs 100x more than scanning one partition." }
+
+    
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Contextual }
+    fn check(&self, _query: &Query) -> Vec<Issue> {
+        // Requires RuleContext. Use check_with_context instead.
+        Vec::new()
+    }
+
+    fn check_with_context(&self, query: &Query, ctx: &RuleContext) -> Vec<Issue> {
+        if !query.is_select() { return Vec::new(); }
+        if query.raw_upper().contains("PARTITION") { return Vec::new(); }
+
+        // Get table names from AST facts or parsed tables
+        let table_names: Vec<&str> = if let Some(ref facts) = query.facts {
+            facts.from_tables.iter().map(|s| s.as_str()).collect()
+        } else {
+            query.tables.iter().map(|s| s.as_str()).collect()
+        };
+
+        for table in &table_names {
+            // Only fire when we have proof: table is declared partitioned
+            if !ctx.is_partitioned(table) {
+                continue;
+            }
+
+            // Table is partitioned. Check if query uses a partition column in WHERE.
+            let partition_cols = ctx.partition_columns(table);
+            if partition_cols.is_empty() {
+                continue;
+            }
+
+            let has_partition_filter = if let Some(ref facts) = query.facts {
+                partition_cols.iter().any(|pc| {
+                    let pc_lower = pc.to_lowercase();
+                    facts.where_columns.iter().any(|wc| wc.to_lowercase() == pc_lower)
+                })
+            } else {
+                let lower = query.raw_lower();
+                partition_cols.iter().any(|pc| lower.contains(&pc.to_lowercase()))
+            };
+
+            if !has_partition_filter {
+                let msg = format!(
+                    "Query on partitioned table '{}' without partition column ({}) in WHERE - full partition scan.",
+                    table,
+                    partition_cols.join(", ")
+                );
+                return vec![self.build_issue(query, &msg, query.snippet(100))];
+            }
+        }
+
+        Vec::new()
+    }
+}
 
 // Dialect-specific cost rules
 // COST-BQ-001
@@ -136,7 +248,9 @@ impl Rule for SnowflakeCopyIntoWithoutFileFormatRule { fn id(&self) -> &'static 
 // COST-SF-003
 struct SnowflakeWarehouseSizeHintRule;
 static PAT_FLATTEN: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\bLATERAL\s+FLATTEN\b").unwrap());
-impl Rule for SnowflakeWarehouseSizeHintRule { fn id(&self) -> &'static str { "COST-SF-003" } fn name(&self) -> &'static str { "LATERAL FLATTEN Without Warehouse Consideration" } fn severity(&self) -> Severity { Severity::Info } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostCompute) } fn dialects(&self) -> DialectSet { DialectSet::new(&["snowflake"]) } fn impact(&self) -> &'static str { "Undersized warehouse causes disk spilling, multiplying credit consumption." } fn check(&self, query: &Query) -> Vec<Issue> { if !self.dialect_matches(query) { return Vec::new(); } PAT_FLATTEN.find(&query.raw).map(|m| vec![self.build_issue(query, "LATERAL FLATTEN detected - verify warehouse size is appropriate.", m.as_str())]).unwrap_or_default() } }
+impl Rule for SnowflakeWarehouseSizeHintRule { fn id(&self) -> &'static str { "COST-SF-003" } fn name(&self) -> &'static str { "LATERAL FLATTEN Without Warehouse Consideration" } fn severity(&self) -> Severity { Severity::Info } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostCompute) } fn dialects(&self) -> DialectSet { DialectSet::new(&["snowflake"]) } fn impact(&self) -> &'static str { "Undersized warehouse causes disk spilling, multiplying credit consumption." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, query: &Query) -> Vec<Issue> { if !self.dialect_matches(query) { return Vec::new(); } PAT_FLATTEN.find(&query.raw).map(|m| vec![self.build_issue(query, "LATERAL FLATTEN detected - verify warehouse size is appropriate.", m.as_str())]).unwrap_or_default() } }
 
 // PERF-SF-001
 struct SnowflakeVariantInWhereRule;
@@ -146,7 +260,9 @@ impl Rule for SnowflakeVariantInWhereRule { fn id(&self) -> &'static str { "PERF
 // PERF-SF-002
 struct SnowflakeOrderByVariantRule;
 static PAT_ORDER_VARIANT: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\bORDER\s+BY\b.*:[\w.]+").unwrap());
-impl Rule for SnowflakeOrderByVariantRule { fn id(&self) -> &'static str { "PERF-SF-002" } fn name(&self) -> &'static str { "ORDER BY on VARIANT Column" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Performance } fn category(&self) -> Option<Category> { Some(Category::PerfSort) } fn dialects(&self) -> DialectSet { DialectSet::new(&["snowflake"]) } fn impact(&self) -> &'static str { "VARIANT sorting inspects type per row, adding significant overhead." } fn check(&self, query: &Query) -> Vec<Issue> { if !self.dialect_matches(query) { return Vec::new(); } PAT_ORDER_VARIANT.find(&query.raw).map(|m| vec![self.build_issue(query, "ORDER BY on VARIANT column - slow runtime type resolution.", m.as_str())]).unwrap_or_default() } }
+impl Rule for SnowflakeOrderByVariantRule { fn id(&self) -> &'static str { "PERF-SF-002" } fn name(&self) -> &'static str { "ORDER BY on VARIANT Column" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Performance } fn category(&self) -> Option<Category> { Some(Category::PerfSort) } fn dialects(&self) -> DialectSet { DialectSet::new(&["snowflake"]) } fn impact(&self) -> &'static str { "VARIANT sorting inspects type per row, adding significant overhead." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, query: &Query) -> Vec<Issue> { if !self.dialect_matches(query) { return Vec::new(); } PAT_ORDER_VARIANT.find(&query.raw).map(|m| vec![self.build_issue(query, "ORDER BY on VARIANT column - slow runtime type resolution.", m.as_str())]).unwrap_or_default() } }
 
 // REL-SF-001
 struct SnowflakeCopyWithoutOnErrorRule;
@@ -155,7 +271,9 @@ impl Rule for SnowflakeCopyWithoutOnErrorRule { fn id(&self) -> &'static str { "
 // COST-MYSQL-001
 struct MysqlQueryCachePollutionRule;
 static PAT_MYSQL_CACHE: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\bSELECT\b.*\b(?:GROUP\s+BY|ORDER\s+BY|HAVING)\b").unwrap());
-impl Rule for MysqlQueryCachePollutionRule { fn id(&self) -> &'static str { "COST-MYSQL-001" } fn name(&self) -> &'static str { "Query Cache Pollution" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostCompute) } fn dialects(&self) -> DialectSet { DialectSet::new(&["mysql"]) } fn impact(&self) -> &'static str { "Large result sets evict frequently-used entries from query cache." } fn check(&self, query: &Query) -> Vec<Issue> { if !self.dialect_matches(query) { return Vec::new(); } if let Some(m) = PAT_MYSQL_CACHE.find(&query.raw) {
+impl Rule for MysqlQueryCachePollutionRule { fn id(&self) -> &'static str { "COST-MYSQL-001" } fn name(&self) -> &'static str { "Query Cache Pollution" } fn severity(&self) -> Severity { Severity::Low } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostCompute) } fn dialects(&self) -> DialectSet { DialectSet::new(&["mysql"]) } fn impact(&self) -> &'static str { "Large result sets evict frequently-used entries from query cache." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, query: &Query) -> Vec<Issue> { if !self.dialect_matches(query) { return Vec::new(); } if let Some(m) = PAT_MYSQL_CACHE.find(&query.raw) {
             if !query.raw_upper().contains("SQL_NO_CACHE") {
                 return vec![self.build_issue(query, "Analytical query without SQL_NO_CACHE - may pollute query cache.", m.as_str())];
             }
@@ -182,7 +300,9 @@ impl Rule for PrestoSelectStarPartitionedRule { fn id(&self) -> &'static str { "
 
 // COST-RS-001
 struct UnloadWithoutParallelRule;
-impl Rule for UnloadWithoutParallelRule { fn id(&self) -> &'static str { "COST-RS-001" } fn name(&self) -> &'static str { "UNLOAD Without PARALLEL Consideration" } fn severity(&self) -> Severity { Severity::Medium } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostStorage) } fn dialects(&self) -> DialectSet { DialectSet::new(&["redshift"]) } fn impact(&self) -> &'static str { "Default PARALLEL ON creates many small S3 files." } fn check(&self, query: &Query) -> Vec<Issue> { if !self.dialect_matches(query) { return Vec::new(); } let upper = query.raw_upper(); if !upper.contains("UNLOAD") { return Vec::new(); } if upper.contains("PARALLEL") { return Vec::new(); } vec![self.build_issue(query, "UNLOAD without explicit PARALLEL setting.", query.snippet(80))] } }
+impl Rule for UnloadWithoutParallelRule { fn id(&self) -> &'static str { "COST-RS-001" } fn name(&self) -> &'static str { "UNLOAD Without PARALLEL Consideration" } fn severity(&self) -> Severity { Severity::Medium } fn dimension(&self) -> Dimension { Dimension::Cost } fn category(&self) -> Option<Category> { Some(Category::CostStorage) } fn dialects(&self) -> DialectSet { DialectSet::new(&["redshift"]) } fn impact(&self) -> &'static str { "Default PARALLEL ON creates many small S3 files." } 
+    fn confidence(&self) -> RuleConfidence { RuleConfidence::Advisory }
+    fn check(&self, query: &Query) -> Vec<Issue> { if !self.dialect_matches(query) { return Vec::new(); } let upper = query.raw_upper(); if !upper.contains("UNLOAD") { return Vec::new(); } if upper.contains("PARALLEL") { return Vec::new(); } vec![self.build_issue(query, "UNLOAD without explicit PARALLEL setting.", query.snippet(80))] } }
 
 // COST-SPARK-001
 struct SparkFullScanWithoutPartitionFilterRule;

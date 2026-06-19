@@ -3,11 +3,35 @@ use crate::models::query::Query;
 
 pub struct ComplexityScorer {
     base_score: u32,
+    pub threshold_optimal: u32,
+    pub threshold_complex: u32,
 }
 
 impl ComplexityScorer {
     pub fn new() -> Self {
-        ComplexityScorer { base_score: 10 }
+        ComplexityScorer {
+            base_score: 10,
+            threshold_optimal: 40,
+            threshold_complex: 70,
+        }
+    }
+
+    pub fn from_config(config: &crate::config::ComplexityConfig) -> Self {
+        ComplexityScorer {
+            base_score: 10,
+            threshold_optimal: config.threshold_optimal,
+            threshold_complex: config.threshold_complex,
+        }
+    }
+
+    pub fn classify(&self, score: u32) -> &'static str {
+        if score <= self.threshold_optimal {
+            "optimal"
+        } else if score <= self.threshold_complex {
+            "complex"
+        } else {
+            "critical"
+        }
     }
 
     pub fn calculate(&self, query: &Query, issues: &[Issue]) -> u32 {
@@ -39,6 +63,13 @@ impl ComplexityScorer {
 impl Default for ComplexityScorer {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl std::fmt::Display for ComplexityScorer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "optimal<={}, complex<={}, critical>{}", 
+            self.threshold_optimal, self.threshold_complex, self.threshold_complex)
     }
 }
 

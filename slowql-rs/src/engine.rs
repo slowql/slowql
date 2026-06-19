@@ -12,9 +12,26 @@ pub struct Engine {
 
 impl Engine {
     pub fn new(config: Config) -> Self {
+        let mut registry = RuleRegistry::new();
+
+        // Load custom YAML rules if configured
+        if let Some(ref rules_path) = config.analysis.custom_rules {
+            let path = std::path::Path::new(rules_path);
+            if path.exists() {
+                match crate::yaml_rules::load_yaml_rules(path) {
+                    Ok(custom) => {
+                        let count = custom.len();
+                        registry.add_rules(custom);
+                        eprintln!("Loaded {} custom rules from {}", count, rules_path);
+                    }
+                    Err(e) => eprintln!("Warning: failed to load custom rules: {}", e),
+                }
+            }
+        }
+
         Engine {
             config,
-            registry: RuleRegistry::new(),
+            registry,
             schema: None,
         }
     }
@@ -58,6 +75,13 @@ impl Engine {
         let suppression_map = crate::suppressions::parse_suppressions(sql);
         let rules = self.registry.enabled_for_dimensions(&self.config.analysis.enabled_dimensions);
 
+        // Construct rule context with schema and table metadata
+        let rule_ctx = crate::rules::base::RuleContext {
+            schema: self.schema.as_ref(),
+            table_metadata: &self.config.analysis.table_metadata,
+            source_context: source_ctx,
+        };
+
         let mut raw_issues = Vec::new();
         for query in &queries {
             for rule in &rules {
@@ -72,7 +96,7 @@ impl Engine {
                         }
                     }
                 }
-                let mut rule_issues = rule.check(query);
+                let mut rule_issues = rule.check_with_context(query, &rule_ctx);
                 // Apply severity overrides from config
                 for issue in &mut rule_issues {
                     if let Some(override_sev) = self.config.analysis.severity_overrides.get(&issue.rule_id) {
@@ -86,6 +110,20 @@ impl Engine {
                         };
                     }
                 }
+                // Demote confidence for findings on templated queries.
+                // Templates contain placeholders that may change the semantic
+                // meaning at runtime (e.g., WHERE clause may be added dynamically).
+                let rule_issues = if query.is_templated() {
+                    rule_issues.into_iter().map(|mut i| {
+                        if i.confidence == crate::models::RuleConfidence::Proven {
+                            i.confidence = crate::models::RuleConfidence::Contextual;
+                        }
+                        i
+                    }).collect::<Vec<_>>()
+                } else {
+                    rule_issues
+                };
+
                 // Skip compliance rules unless frameworks are explicitly configured
                 if self.config.analysis.compliance_frameworks.is_empty() {
                     raw_issues.extend(rule_issues.into_iter().filter(|i| i.dimension != crate::models::Dimension::Compliance));
@@ -100,14 +138,16 @@ impl Engine {
             for query in &queries {
                 for table_name in &query.tables {
                     if !schema.has_table(table_name) {
-                        raw_issues.push(crate::models::Issue::new(
+                        let mut issue = crate::models::Issue::new(
                             "SCHEMA-TBL-001",
                             format!("Table '{}' does not exist in schema", table_name),
                             crate::models::Severity::Critical,
                             crate::models::Dimension::Reliability,
                             query.location.clone(),
                             table_name.clone(),
-                        ));
+                        );
+                        issue.source_context = source_ctx.to_string();
+                        raw_issues.push(issue);
                     }
                 }
                 if let Some(qt) = &query.query_type {
@@ -116,14 +156,16 @@ impl Engine {
                             if let Some(table) = schema.get_table(table_name) {
                                 for col_name in &query.columns {
                                     if col_name != "*" && !table.has_column(col_name) {
-                                        raw_issues.push(crate::models::Issue::new(
+                                        let mut issue = crate::models::Issue::new(
                                             "SCHEMA-COL-001",
                                             format!("Column '{}' does not exist in table '{}'", col_name, table_name),
                                             crate::models::Severity::Critical,
                                             crate::models::Dimension::Reliability,
                                             query.location.clone(),
                                             col_name.clone(),
-                                        ));
+                                        );
+                                        issue.source_context = source_ctx.to_string();
+                                        raw_issues.push(issue);
                                     }
                                 }
                             }
@@ -133,7 +175,30 @@ impl Engine {
             }
         }
 
+        // Compute complexity scores for each query
+        {
+            let scorer = crate::scoring::ComplexityScorer::from_config(&self.config.complexity);
+            let query_issues: Vec<&crate::models::Issue> = raw_issues.iter().collect();
+            for query in &mut queries {
+                let q_issues: Vec<&crate::models::Issue> = query_issues.iter()
+                    .filter(|i| i.location.file == query.location.file
+                        && i.location.line == query.location.line)
+                    .copied()
+                    .collect();
+                let owned: Vec<crate::models::Issue> = q_issues.into_iter().cloned().collect();
+                query.complexity_score = scorer.calculate(query, &owned);
+            }
+        }
+
         let filtered = crate::context::filter_issues_by_context(raw_issues, source_ctx);
+
+        // Filter by minimum confidence level
+        let min_conf: crate::models::RuleConfidence = self.config.analysis.min_confidence
+            .parse()
+            .unwrap_or(crate::models::RuleConfidence::Contextual);
+        let filtered: Vec<_> = filtered.into_iter()
+            .filter(|i| i.confidence >= min_conf)
+            .collect();
 
         let mut suppressed_count = 0;
         for issue in filtered {
@@ -160,7 +225,50 @@ impl Engine {
             return Ok(self.analyze_app_code(&content, path));
         }
 
+        if ext == "xml" {
+            return Ok(self.analyze_mybatis(&content, path));
+        }
+
         Ok(self.analyze(&content, None, Some(path)))
+    }
+
+    pub fn analyze_mybatis(&self, content: &str, path: &str) -> AnalysisResult {
+        // Only parse if it looks like a MyBatis mapper
+        if !content.contains("<mapper") && !content.contains("<sqlMap") {
+            return AnalysisResult::new();
+        }
+
+        let extracted = crate::mybatis::parse_mybatis_xml(content, path);
+        let mut combined = AnalysisResult::new();
+        combined.dialect = self.config.analysis.dialect.clone();
+
+        for ext_query in extracted {
+            let mut result = self.analyze(
+                &ext_query.raw,
+                self.config.analysis.dialect.as_deref(),
+                Some(&ext_query.file_path),
+            );
+
+            for query in &mut result.queries {
+                query.is_dynamic = ext_query.is_dynamic;
+                query.location.line = ext_query.line;
+                query.location.column = ext_query.column;
+            }
+
+            // Propagate correct line/column to all issues from this query
+            for issue in &mut result.issues {
+                issue.location.line = ext_query.line;
+                issue.location.column = ext_query.column;
+            }
+
+            for issue in result.issues {
+                combined.add_issue(issue);
+            }
+            combined.statistics.total_queries += result.statistics.total_queries;
+            combined.queries.extend(result.queries);
+        }
+
+        combined
     }
 
     pub fn analyze_app_code(&self, content: &str, path: &str) -> AnalysisResult {
@@ -185,6 +293,7 @@ impl Engine {
             for issue in result.issues {
                 combined.add_issue(issue);
             }
+            combined.statistics.total_queries += result.statistics.total_queries;
             combined.queries.extend(result.queries);
         }
 
