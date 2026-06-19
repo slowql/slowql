@@ -91,7 +91,7 @@ fn default_dimensions() -> HashSet<String> {
     ["security", "performance", "reliability", "compliance", "cost", "quality", "schema", "migration"]
         .iter().map(|s| s.to_string()).collect()
 }
-fn default_min_confidence() -> String { "contextual".to_string() }
+fn default_min_confidence() -> String { "proven".to_string() }
 fn default_max_query_length() -> usize { 100_000 }
 fn default_true() -> bool { true }
 fn default_fail_on() -> String { "high".to_string() }

@@ -584,7 +584,7 @@ fn print_console(result: &slowql_lib::models::result::AnalysisResult) {
         if result.suppressed_count > 0 {
             // Only show non-production message for directory scans
             if result.issues.is_empty() {
-                println!("  \x1b[2m({} issues hidden, use --include-nonprod or --baseline to inspect)\x1b[0m", result.suppressed_count);
+                println!("  \x1b[2m({} issues available with --min-confidence contextual or --include-nonprod)\x1b[0m", result.suppressed_count);
             }
         }
         return;
@@ -698,7 +698,7 @@ fn print_console(result: &slowql_lib::models::result::AnalysisResult) {
         }
     }
     if result.suppressed_count > 0 {
-        println!("  \x1b[2m({} issues suppressed)\x1b[0m", result.suppressed_count);
+        println!("  \x1b[2m({} additional findings with --min-confidence contextual)\x1b[0m", result.suppressed_count);
     }
 
     // Complexity summary - only for multi-query scans, not single stdin
