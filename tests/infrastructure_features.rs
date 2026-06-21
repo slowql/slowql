@@ -239,3 +239,53 @@ fn application_unbounded_select_fires_perf_scan_003() {
         "PERF-SCAN-003 should fire in application context"
     );
 }
+
+#[test]
+fn registry_has_all_rules() {
+    use slowql_lib::engine::Engine;
+    let engine = Engine::with_default_config();
+    assert!(engine.rule_count() >= 280);
+}
+
+#[test]
+fn registry_filter_by_dimension() {
+    use slowql_lib::engine::Engine;
+    let engine = Engine::with_default_config();
+    let sec_rules = engine.registry_ref().for_dimension("security");
+    assert!(sec_rules.len() >= 50);
+    for rule in sec_rules {
+        assert_eq!(rule.dimension().as_str(), "security");
+    }
+}
+
+#[test]
+fn scoring_from_config() {
+    use slowql_lib::scoring::ComplexityScorer;
+    use slowql_lib::config::ComplexityConfig;
+    let config = ComplexityConfig { enabled: true, threshold_optimal: 30, threshold_complex: 60 };
+    let scorer = ComplexityScorer::from_config(&config);
+    assert_eq!(scorer.classify(20), "optimal");
+    assert_eq!(scorer.classify(50), "complex");
+    assert_eq!(scorer.classify(80), "critical");
+}
+
+#[test]
+fn config_default_proven_mode() {
+    let config = Config::default();
+    assert_eq!(config.analysis.min_confidence, "proven");
+}
+
+#[test]
+fn config_custom_rules_none_by_default() {
+    let config = Config::default();
+    assert!(config.analysis.custom_rules.is_none());
+}
+
+#[test]
+fn config_complexity_defaults() {
+    let config = Config::default();
+    // Default derives give 0, serde defaults give 40/70
+    assert_eq!(config.complexity.enabled, false);
+    assert_eq!(config.complexity.threshold_optimal, 0);
+    assert_eq!(config.complexity.threshold_complex, 0);
+}
