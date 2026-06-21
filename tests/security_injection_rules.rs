@@ -16,19 +16,28 @@ fn query(sql: &str, dialect: &str, query_type: &str) -> Query {
         is_ddl: false,
         is_dynamic: false,
         complexity_score: 0,
-        source_context: "application".to_string(), ..Default::default()
+        source_context: "application".to_string(),
+        ..Default::default()
     }
 }
 
 fn find_rule<'a>(rules: &'a [Box<dyn Rule>], id: &str) -> &'a dyn Rule {
-    rules.iter().find(|r| r.id() == id).map(|r| r.as_ref()).unwrap()
+    rules
+        .iter()
+        .find(|r| r.id() == id)
+        .map(|r| r.as_ref())
+        .unwrap()
 }
 
 #[test]
 fn sec_inj_001_detects_string_concatenation() {
     let rules = injection_rules();
     let rule = find_rule(&rules, "SEC-INJ-001");
-    let q = query("SELECT * FROM users WHERE name = 'x' + user_input", "postgresql", "SELECT");
+    let q = query(
+        "SELECT * FROM users WHERE name = 'x' + user_input",
+        "postgresql",
+        "SELECT",
+    );
     let issues = rule.check(&q);
     assert_eq!(issues.len(), 1);
     assert_eq!(issues[0].rule_id, "SEC-INJ-001");
@@ -48,7 +57,11 @@ fn sec_inj_002_detects_dynamic_sql_execution() {
 fn sec_inj_003_detects_or_1_equals_1() {
     let rules = injection_rules();
     let rule = find_rule(&rules, "SEC-INJ-003");
-    let q = query("SELECT * FROM users WHERE id = 1 OR 1=1", "postgresql", "SELECT");
+    let q = query(
+        "SELECT * FROM users WHERE id = 1 OR 1=1",
+        "postgresql",
+        "SELECT",
+    );
     let issues = rule.check(&q);
     assert_eq!(issues.len(), 1);
     assert_eq!(issues[0].rule_id, "SEC-INJ-003");

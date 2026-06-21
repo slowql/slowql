@@ -1,14 +1,14 @@
-pub mod scanning;
+pub mod aggregation;
+pub mod batching;
+pub mod cursors;
+pub mod execution;
+pub mod hints;
 pub mod indexing;
 pub mod joins;
-pub mod aggregation;
 pub mod locking;
-pub mod execution;
-pub mod cursors;
-pub mod hints;
 pub mod memory;
-pub mod batching;
 pub mod network;
+pub mod scanning;
 
 use crate::rules::base::Rule;
 

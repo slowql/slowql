@@ -24,10 +24,14 @@ pub struct ComplexityConfig {
     pub threshold_complex: u32,
 }
 
-fn default_threshold_optimal() -> u32 { 40 }
-fn default_threshold_complex() -> u32 { 70 }
+fn default_threshold_optimal() -> u32 {
+    40
+}
+fn default_threshold_complex() -> u32 {
+    70
+}
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
     #[serde(default)]
     pub analysis: AnalysisConfig,
@@ -88,24 +92,34 @@ pub struct OutputConfig {
 }
 
 fn default_dimensions() -> HashSet<String> {
-    ["security", "performance", "reliability", "compliance", "cost", "quality", "schema", "migration"]
-        .iter().map(|s| s.to_string()).collect()
+    [
+        "security",
+        "performance",
+        "reliability",
+        "compliance",
+        "cost",
+        "quality",
+        "schema",
+        "migration",
+    ]
+    .iter()
+    .map(|s| s.to_string())
+    .collect()
 }
-fn default_min_confidence() -> String { "proven".to_string() }
-fn default_max_query_length() -> usize { 100_000 }
-fn default_true() -> bool { true }
-fn default_fail_on() -> String { "high".to_string() }
-fn default_format() -> String { "console".to_string() }
-
-impl Default for Config {
-    fn default() -> Self {
-        Config {
-            analysis: AnalysisConfig::default(),
-            severity: SeverityConfig::default(),
-            output: OutputConfig::default(),
-            complexity: ComplexityConfig::default(),
-        }
-    }
+fn default_min_confidence() -> String {
+    "proven".to_string()
+}
+fn default_max_query_length() -> usize {
+    100_000
+}
+fn default_true() -> bool {
+    true
+}
+fn default_fail_on() -> String {
+    "high".to_string()
+}
+fn default_format() -> String {
+    "console".to_string()
 }
 
 impl Default for AnalysisConfig {
@@ -128,40 +142,58 @@ impl Default for AnalysisConfig {
 }
 
 impl Default for SeverityConfig {
-    fn default() -> Self { SeverityConfig { fail_on: default_fail_on() } }
-
+    fn default() -> Self {
+        SeverityConfig {
+            fail_on: default_fail_on(),
+        }
+    }
 }
 
 impl Default for OutputConfig {
-    fn default() -> Self { OutputConfig { format: default_format(), verbose: false, show_fixes: true } }
-
+    fn default() -> Self {
+        OutputConfig {
+            format: default_format(),
+            verbose: false,
+            show_fixes: true,
+        }
+    }
 }
 
 impl Config {
     /// Load config from a TOML file.
     pub fn from_toml(path: &Path) -> Result<Self, String> {
-        let content = std::fs::read_to_string(path).map_err(|e| format!("Cannot read {}: {}", path.display(), e))?;
+        let content = std::fs::read_to_string(path)
+            .map_err(|e| format!("Cannot read {}: {}", path.display(), e))?;
         toml::from_str(&content).map_err(|e| format!("Invalid TOML in {}: {}", path.display(), e))
     }
 
     /// Load config from a YAML file.
     pub fn from_yaml(path: &Path) -> Result<Self, String> {
-        let content = std::fs::read_to_string(path).map_err(|e| format!("Cannot read {}: {}", path.display(), e))?;
-        serde_yaml::from_str(&content).map_err(|e| format!("Invalid YAML in {}: {}", path.display(), e))
+        let content = std::fs::read_to_string(path)
+            .map_err(|e| format!("Cannot read {}: {}", path.display(), e))?;
+        serde_yaml::from_str(&content)
+            .map_err(|e| format!("Invalid YAML in {}: {}", path.display(), e))
     }
 
     /// Load config from a JSON file.
     pub fn from_json(path: &Path) -> Result<Self, String> {
-        let content = std::fs::read_to_string(path).map_err(|e| format!("Cannot read {}: {}", path.display(), e))?;
-        serde_json::from_str(&content).map_err(|e| format!("Invalid JSON in {}: {}", path.display(), e))
+        let content = std::fs::read_to_string(path)
+            .map_err(|e| format!("Cannot read {}: {}", path.display(), e))?;
+        serde_json::from_str(&content)
+            .map_err(|e| format!("Invalid JSON in {}: {}", path.display(), e))
     }
 
     /// Auto-discover and load config from current or parent directories.
     pub fn find_and_load() -> Self {
         let config_names = [
-            "slowql.toml", ".slowql.toml",
-            "slowql.yaml", "slowql.yml", ".slowql.yaml", ".slowql.yml",
-            "slowql.json", ".slowql.json",
+            "slowql.toml",
+            ".slowql.toml",
+            "slowql.yaml",
+            "slowql.yml",
+            ".slowql.yaml",
+            ".slowql.yml",
+            "slowql.json",
+            ".slowql.json",
         ];
 
         let mut current = std::env::current_dir().unwrap_or_default();
@@ -201,7 +233,9 @@ impl Config {
                 }
             }
 
-            if !current.pop() { break; }
+            if !current.pop() {
+                break;
+            }
         }
 
         Config::default()
@@ -224,13 +258,17 @@ mod tests {
     fn load_toml() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("slowql.toml");
-        std::fs::write(&path, r#"
+        std::fs::write(
+            &path,
+            r#"
 [analysis]
 dialect = "postgresql"
 
 [severity]
 fail_on = "critical"
-"#).unwrap();
+"#,
+        )
+        .unwrap();
         let config = Config::from_toml(&path).unwrap();
         assert_eq!(config.analysis.dialect.as_deref(), Some("postgresql"));
         assert_eq!(config.severity.fail_on, "critical");
@@ -240,7 +278,11 @@ fail_on = "critical"
     fn load_yaml() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("slowql.yaml");
-        std::fs::write(&path, "analysis:\n  dialect: mysql\nseverity:\n  fail_on: high\n").unwrap();
+        std::fs::write(
+            &path,
+            "analysis:\n  dialect: mysql\nseverity:\n  fail_on: high\n",
+        )
+        .unwrap();
         let config = Config::from_yaml(&path).unwrap();
         assert_eq!(config.analysis.dialect.as_deref(), Some("mysql"));
     }

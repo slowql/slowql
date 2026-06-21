@@ -1,7 +1,7 @@
+use crate::config::TableMetadata;
 pub use crate::models::issue::RuleConfidence;
 use crate::models::issue::{Category, Fix};
 use crate::models::{Dimension, Issue, Query, Severity};
-use crate::config::TableMetadata;
 use crate::schema::Schema;
 
 /// Context passed to rules that need metadata beyond the query itself.
@@ -22,7 +22,12 @@ impl<'a> RuleContext<'a> {
     pub fn is_large_table(&self, table_name: &str) -> bool {
         let lower = table_name.to_lowercase();
         // Check user-declared large tables
-        if self.table_metadata.large_tables.iter().any(|t| t.to_lowercase() == lower) {
+        if self
+            .table_metadata
+            .large_tables
+            .iter()
+            .any(|t| t.to_lowercase() == lower)
+        {
             return true;
         }
         // Check schema estimated rows
@@ -40,7 +45,12 @@ impl<'a> RuleContext<'a> {
     pub fn is_partitioned(&self, table_name: &str) -> bool {
         let lower = table_name.to_lowercase();
         // Check user-declared partitioned tables
-        if self.table_metadata.partitioned_tables.keys().any(|t| t.to_lowercase() == lower) {
+        if self
+            .table_metadata
+            .partitioned_tables
+            .keys()
+            .any(|t| t.to_lowercase() == lower)
+        {
             return true;
         }
         // Check schema partition columns
@@ -56,7 +66,10 @@ impl<'a> RuleContext<'a> {
     pub fn partition_columns(&self, table_name: &str) -> Vec<String> {
         let lower = table_name.to_lowercase();
         // Check user-declared first
-        if let Some(cols) = self.table_metadata.partitioned_tables.iter()
+        if let Some(cols) = self
+            .table_metadata
+            .partitioned_tables
+            .iter()
             .find(|(k, _)| k.to_lowercase() == lower)
             .map(|(_, v)| v.clone())
         {
@@ -86,13 +99,21 @@ pub fn normalize_dialect(dialect: &str) -> String {
 pub struct DialectSet(Vec<&'static str>);
 
 impl DialectSet {
-    pub fn universal() -> Self { DialectSet(Vec::new()) }
+    pub fn universal() -> Self {
+        DialectSet(Vec::new())
+    }
 
-    pub fn new(dialects: &[&'static str]) -> Self { DialectSet(dialects.to_vec()) }
+    pub fn new(dialects: &[&'static str]) -> Self {
+        DialectSet(dialects.to_vec())
+    }
 
     pub fn matches(&self, query_dialect: &str) -> bool {
-        if self.0.is_empty() { return true; }
-        if query_dialect == "unknown" || query_dialect.is_empty() { return false; }
+        if self.0.is_empty() {
+            return true;
+        }
+        if query_dialect == "unknown" || query_dialect.is_empty() {
+            return false;
+        }
         let qd = normalize_dialect(query_dialect);
         self.0.iter().any(|&d| normalize_dialect(d) == qd)
     }
@@ -104,13 +125,23 @@ pub trait Rule: Send + Sync {
     fn name(&self) -> &'static str;
     fn severity(&self) -> Severity;
     fn dimension(&self) -> Dimension;
-    fn category(&self) -> Option<Category> { None }
-    fn dialects(&self) -> DialectSet { DialectSet::universal() }
-    fn impact(&self) -> &'static str { "" }
-    fn fix_guidance(&self) -> &'static str { "" }
+    fn category(&self) -> Option<Category> {
+        None
+    }
+    fn dialects(&self) -> DialectSet {
+        DialectSet::universal()
+    }
+    fn impact(&self) -> &'static str {
+        ""
+    }
+    fn fix_guidance(&self) -> &'static str {
+        ""
+    }
     /// How certain this rule is about its findings.
     /// Default: Proven. Override to Contextual or Advisory for heuristic rules.
-    fn confidence(&self) -> RuleConfidence { RuleConfidence::Proven }
+    fn confidence(&self) -> RuleConfidence {
+        RuleConfidence::Proven
+    }
 
     fn dialect_matches(&self, query: &Query) -> bool {
         self.dialects().matches(&query.dialect)
@@ -135,9 +166,16 @@ pub trait Rule: Send + Sync {
             query.location.clone(),
             snippet.to_string(),
         );
-        issue.documentation_url = Some(format!("https://slowql.dev/rules/{}", self.id().to_lowercase()));
-        if let Some(cat) = self.category() { issue.category = Some(cat); }
-        if !self.impact().is_empty() { issue.impact = Some(self.impact().to_string()); }
+        issue.documentation_url = Some(format!(
+            "https://slowql.dev/rules/{}",
+            self.id().to_lowercase()
+        ));
+        if let Some(cat) = self.category() {
+            issue.category = Some(cat);
+        }
+        if !self.impact().is_empty() {
+            issue.impact = Some(self.impact().to_string());
+        }
         issue.confidence = self.confidence();
         issue.source_context = query.source_context.clone();
         issue

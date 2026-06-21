@@ -84,9 +84,7 @@ pub fn parse_mybatis_xml(content: &str, file_path: &str) -> Vec<ExtractedQuery> 
             let has_unsafe_interp = trimmed.contains("${");
 
             // Safe #{} is parameterized, replace with placeholder for analysis
-            let sql_for_analysis = trimmed
-                .replace("#{", ":")
-                .replace("}", "");
+            let sql_for_analysis = trimmed.replace("#{", ":").replace("}", "");
 
             // Calculate line number
             let line = content[..abs_open].matches('\n').count() as u32 + 1;
@@ -207,7 +205,7 @@ mod tests {
         let xml = r#"<mapper><select id="search">SELECT * FROM users WHERE name LIKE ${term}</select></mapper>"#;
         let queries = parse_mybatis_xml(xml, "UserMapper.xml");
         // One cleaned + one raw with ${}
-        assert!(queries.len() >= 1);
+        assert!(!queries.is_empty());
         assert!(queries.iter().any(|q| q.is_dynamic));
     }
 
@@ -258,14 +256,20 @@ mod tests {
     fn parse_sql_fragment() {
         let xml = r#"<mapper><sql id="cols">id, name, email</sql></mapper>"#;
         let queries = parse_mybatis_xml(xml, "UserMapper.xml");
-        assert_eq!(queries.len(), 0, "sql fragments without SQL structure should not extract");
+        assert_eq!(
+            queries.len(),
+            0,
+            "sql fragments without SQL structure should not extract"
+        );
     }
 
     #[test]
     fn parse_unsafe_table_name() {
         let xml = r#"<mapper><select id="bad">SELECT * FROM ${tableName} WHERE id = #{id}</select></mapper>"#;
         let queries = parse_mybatis_xml(xml, "UserMapper.xml");
-        assert!(queries.iter().any(|q| q.is_dynamic && q.raw.contains("${tableName}")));
+        assert!(queries
+            .iter()
+            .any(|q| q.is_dynamic && q.raw.contains("${tableName}")));
     }
 
     #[test]

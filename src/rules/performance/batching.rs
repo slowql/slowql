@@ -6,31 +6,57 @@ use regex::Regex;
 
 struct LargeUnbatchedOperationRule;
 impl Rule for LargeUnbatchedOperationRule {
-    fn id(&self) -> &'static str { "PERF-BATCH-001" }
-    fn name(&self) -> &'static str { "Large Unbatched Operation" }
-    fn severity(&self) -> Severity { Severity::High }
-    fn dimension(&self) -> Dimension { Dimension::Performance }
-    fn category(&self) -> Option<Category> { Some(Category::PerfBatch) }
-    fn impact(&self) -> &'static str { "Unbatched mass operations generate massive transaction logs and hold locks." }
+    fn id(&self) -> &'static str {
+        "PERF-BATCH-001"
+    }
+    fn name(&self) -> &'static str {
+        "Large Unbatched Operation"
+    }
+    fn severity(&self) -> Severity {
+        Severity::High
+    }
+    fn dimension(&self) -> Dimension {
+        Dimension::Performance
+    }
+    fn category(&self) -> Option<Category> {
+        Some(Category::PerfBatch)
+    }
+    fn impact(&self) -> &'static str {
+        "Unbatched mass operations generate massive transaction logs and hold locks."
+    }
     fn check(&self, query: &Query) -> Vec<Issue> {
         let qt = query.query_type.as_deref().unwrap_or("");
-        if qt != "UPDATE" && qt != "DELETE" { return Vec::new(); }
+        if qt != "UPDATE" && qt != "DELETE" {
+            return Vec::new();
+        }
         let upper = query.raw_upper();
-        if upper.contains("TOP") || upper.contains("LIMIT") { return Vec::new(); }
-        if upper.contains("WHERE") { return Vec::new(); }
+        if upper.contains("TOP") || upper.contains("LIMIT") {
+            return Vec::new();
+        }
+        if upper.contains("WHERE") {
+            return Vec::new();
+        }
         // Suppress intentional bulk operations (flush, clear, reset)
         if let Some(ref file) = query.location.file {
             let fl = file.to_lowercase();
             let filename = fl.rsplit('/').next().unwrap_or(&fl);
-            if fl.contains("cache") || fl.contains("clear")
-                || fl.contains("reset") || fl.contains("cleanup")
-                || fl.contains("purge") || fl.contains("flush")
-                || fl.contains("init.sql") || fl.contains("setup.sql")
-                || fl.contains("teardown") || fl.contains("truncate")
-                || filename.contains("flush") || filename.contains("clear")
-                || filename.contains("reset") || filename.contains("purge")
+            if fl.contains("cache")
+                || fl.contains("clear")
+                || fl.contains("reset")
+                || fl.contains("cleanup")
+                || fl.contains("purge")
+                || fl.contains("flush")
+                || fl.contains("init.sql")
+                || fl.contains("setup.sql")
+                || fl.contains("teardown")
+                || fl.contains("truncate")
+                || filename.contains("flush")
+                || filename.contains("clear")
+                || filename.contains("reset")
+                || filename.contains("purge")
                 || filename.contains("testinfra")
-                || filename.contains("sync") {
+                || filename.contains("sync")
+            {
                 return Vec::new();
             }
         }
@@ -42,21 +68,36 @@ impl Rule for LargeUnbatchedOperationRule {
 
 // Rewritten without look-ahead: match WHILE...END block, then check absence of TOP/LIMIT
 struct MissingBatchSizeInLoopRule;
-static PAT_WHILE_DML: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"(?is)\bWHILE\b[\s\S]*?\b(UPDATE|DELETE)\b[\s\S]*?\bEND\b").unwrap()
-});
+static PAT_WHILE_DML: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"(?is)\bWHILE\b[\s\S]*?\b(UPDATE|DELETE)\b[\s\S]*?\bEND\b").unwrap());
 impl Rule for MissingBatchSizeInLoopRule {
-    fn id(&self) -> &'static str { "PERF-BATCH-002" }
-    fn name(&self) -> &'static str { "Missing Batch Size in Loop" }
-    fn severity(&self) -> Severity { Severity::Medium }
-    fn dimension(&self) -> Dimension { Dimension::Performance }
-    fn category(&self) -> Option<Category> { Some(Category::PerfBatch) }
-    fn impact(&self) -> &'static str { "WHILE loops without batch limits may process unlimited rows per iteration." }
+    fn id(&self) -> &'static str {
+        "PERF-BATCH-002"
+    }
+    fn name(&self) -> &'static str {
+        "Missing Batch Size in Loop"
+    }
+    fn severity(&self) -> Severity {
+        Severity::Medium
+    }
+    fn dimension(&self) -> Dimension {
+        Dimension::Performance
+    }
+    fn category(&self) -> Option<Category> {
+        Some(Category::PerfBatch)
+    }
+    fn impact(&self) -> &'static str {
+        "WHILE loops without batch limits may process unlimited rows per iteration."
+    }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if let Some(m) = PAT_WHILE_DML.find(&query.raw) {
             let matched = m.as_str().to_uppercase();
             if !matched.contains("TOP") && !matched.contains("LIMIT") {
-                return vec![self.build_issue(query, "WHILE loop with unbatched DML detected.", &query.raw[..query.raw.len().min(80)])];
+                return vec![self.build_issue(
+                    query,
+                    "WHILE loop with unbatched DML detected.",
+                    &query.raw[..query.raw.len().min(80)],
+                )];
             }
         }
         Vec::new()

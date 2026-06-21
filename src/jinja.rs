@@ -1,5 +1,5 @@
-use regex::Regex;
 use once_cell::sync::Lazy;
+use regex::Regex;
 
 static JINJA_BLOCK_COMMENT: Lazy<Regex> = Lazy::new(|| Regex::new(r"\{#.*?#\}").unwrap());
 static JINJA_CONTROL: Lazy<Regex> = Lazy::new(|| Regex::new(r"\{%.*?%\}").unwrap());
@@ -11,25 +11,27 @@ pub fn strip_jinja(sql: &str) -> String {
     let mut result = sql.to_string();
 
     // Block comments {# ... #} -> spaces
-    result = JINJA_BLOCK_COMMENT.replace_all(&result, |caps: &regex::Captures| {
-        " ".repeat(caps[0].len())
-    }).to_string();
+    result = JINJA_BLOCK_COMMENT
+        .replace_all(&result, |caps: &regex::Captures| " ".repeat(caps[0].len()))
+        .to_string();
 
     // Control blocks {% ... %} -> spaces
-    result = JINJA_CONTROL.replace_all(&result, |caps: &regex::Captures| {
-        " ".repeat(caps[0].len())
-    }).to_string();
+    result = JINJA_CONTROL
+        .replace_all(&result, |caps: &regex::Captures| " ".repeat(caps[0].len()))
+        .to_string();
 
     // Expressions {{ ... }} -> __jinja padded with underscores
-    result = JINJA_EXPR.replace_all(&result, |caps: &regex::Captures| {
-        let len = caps[0].len();
-        let prefix = "__jinja";
-        if len <= prefix.len() {
-            "x".repeat(len)
-        } else {
-            format!("{}{}", prefix, "_".repeat(len - prefix.len()))
-        }
-    }).to_string();
+    result = JINJA_EXPR
+        .replace_all(&result, |caps: &regex::Captures| {
+            let len = caps[0].len();
+            let prefix = "__jinja";
+            if len <= prefix.len() {
+                "x".repeat(len)
+            } else {
+                format!("{}{}", prefix, "_".repeat(len - prefix.len()))
+            }
+        })
+        .to_string();
 
     result
 }

@@ -49,7 +49,12 @@ impl Engine {
         &self.registry
     }
 
-    pub fn analyze(&self, sql: &str, dialect: Option<&str>, file_path: Option<&str>) -> AnalysisResult {
+    pub fn analyze(
+        &self,
+        sql: &str,
+        dialect: Option<&str>,
+        file_path: Option<&str>,
+    ) -> AnalysisResult {
         let start = Instant::now();
 
         let effective_dialect = dialect
@@ -69,11 +74,16 @@ impl Engine {
 
         // Compute structural facts and set source context for each query
         for query in &mut queries {
-            query.facts = Some(crate::query_analysis::QueryFacts::from_sql(&query.raw, effective_dialect));
+            query.facts = Some(crate::query_analysis::QueryFacts::from_sql(
+                &query.raw,
+                effective_dialect,
+            ));
             query.source_context = source_ctx.to_string();
         }
         let suppression_map = crate::suppressions::parse_suppressions(sql);
-        let rules = self.registry.enabled_for_dimensions(&self.config.analysis.enabled_dimensions);
+        let rules = self
+            .registry
+            .enabled_for_dimensions(&self.config.analysis.enabled_dimensions);
 
         // Construct rule context with schema and table metadata
         let rule_ctx = crate::rules::base::RuleContext {
@@ -90,7 +100,8 @@ impl Engine {
                 }
                 if let Some(ref enabled) = self.config.analysis.enabled_rules {
                     if !enabled.contains(rule.id()) {
-                        let prefix: String = rule.id().split('-').take(2).collect::<Vec<_>>().join("-");
+                        let prefix: String =
+                            rule.id().split('-').take(2).collect::<Vec<_>>().join("-");
                         if !enabled.contains(prefix.as_str()) {
                             continue;
                         }
@@ -99,7 +110,9 @@ impl Engine {
                 let mut rule_issues = rule.check_with_context(query, &rule_ctx);
                 // Apply severity overrides from config
                 for issue in &mut rule_issues {
-                    if let Some(override_sev) = self.config.analysis.severity_overrides.get(&issue.rule_id) {
+                    if let Some(override_sev) =
+                        self.config.analysis.severity_overrides.get(&issue.rule_id)
+                    {
                         issue.severity = match override_sev.as_str() {
                             "critical" => crate::models::Severity::Critical,
                             "high" => crate::models::Severity::High,
@@ -114,19 +127,26 @@ impl Engine {
                 // Templates contain placeholders that may change the semantic
                 // meaning at runtime (e.g., WHERE clause may be added dynamically).
                 let rule_issues = if query.is_templated() {
-                    rule_issues.into_iter().map(|mut i| {
-                        if i.confidence == crate::models::RuleConfidence::Proven {
-                            i.confidence = crate::models::RuleConfidence::Contextual;
-                        }
-                        i
-                    }).collect::<Vec<_>>()
+                    rule_issues
+                        .into_iter()
+                        .map(|mut i| {
+                            if i.confidence == crate::models::RuleConfidence::Proven {
+                                i.confidence = crate::models::RuleConfidence::Contextual;
+                            }
+                            i
+                        })
+                        .collect::<Vec<_>>()
                 } else {
                     rule_issues
                 };
 
                 // Skip compliance rules unless frameworks are explicitly configured
                 if self.config.analysis.compliance_frameworks.is_empty() {
-                    raw_issues.extend(rule_issues.into_iter().filter(|i| i.dimension != crate::models::Dimension::Compliance));
+                    raw_issues.extend(
+                        rule_issues
+                            .into_iter()
+                            .filter(|i| i.dimension != crate::models::Dimension::Compliance),
+                    );
                 } else {
                     raw_issues.extend(rule_issues);
                 }
@@ -158,7 +178,10 @@ impl Engine {
                                     if col_name != "*" && !table.has_column(col_name) {
                                         let mut issue = crate::models::Issue::new(
                                             "SCHEMA-COL-001",
-                                            format!("Column '{}' does not exist in table '{}'", col_name, table_name),
+                                            format!(
+                                                "Column '{}' does not exist in table '{}'",
+                                                col_name, table_name
+                                            ),
                                             crate::models::Severity::Critical,
                                             crate::models::Dimension::Reliability,
                                             query.location.clone(),
@@ -180,9 +203,12 @@ impl Engine {
             let scorer = crate::scoring::ComplexityScorer::from_config(&self.config.complexity);
             let query_issues: Vec<&crate::models::Issue> = raw_issues.iter().collect();
             for query in &mut queries {
-                let q_issues: Vec<&crate::models::Issue> = query_issues.iter()
-                    .filter(|i| i.location.file == query.location.file
-                        && i.location.line == query.location.line)
+                let q_issues: Vec<&crate::models::Issue> = query_issues
+                    .iter()
+                    .filter(|i| {
+                        i.location.file == query.location.file
+                            && i.location.line == query.location.line
+                    })
                     .copied()
                     .collect();
                 let owned: Vec<crate::models::Issue> = q_issues.into_iter().cloned().collect();
@@ -193,10 +219,14 @@ impl Engine {
         let filtered = crate::context::filter_issues_by_context(raw_issues, source_ctx);
 
         // Filter by minimum confidence level
-        let min_conf: crate::models::RuleConfidence = self.config.analysis.min_confidence
+        let min_conf: crate::models::RuleConfidence = self
+            .config
+            .analysis
+            .min_confidence
             .parse()
             .unwrap_or(crate::models::RuleConfidence::Contextual);
-        let filtered: Vec<_> = filtered.into_iter()
+        let filtered: Vec<_> = filtered
+            .into_iter()
             .filter(|i| i.confidence >= min_conf)
             .collect();
 
@@ -219,7 +249,9 @@ impl Engine {
             .map_err(|e| format!("Failed to read file {}: {}", path, e))?;
 
         let ext = path.rsplit('.').next().unwrap_or("").to_lowercase();
-        let app_code_exts = ["py", "ts", "js", "tsx", "jsx", "java", "go", "rb", "kt", "cs"];
+        let app_code_exts = [
+            "py", "ts", "js", "tsx", "jsx", "java", "go", "rb", "kt", "cs",
+        ];
 
         if app_code_exts.contains(&ext.as_str()) {
             return Ok(self.analyze_app_code(&content, path));
@@ -322,7 +354,8 @@ mod tests {
         let engine = Engine::with_default_config();
         let result = engine.analyze(
             "SELECT * FROM users WHERE name = 'x' + user_input",
-            Some("postgresql"), None,
+            Some("postgresql"),
+            None,
         );
         assert!(result.issues.iter().any(|i| i.rule_id == "SEC-INJ-001"));
     }
@@ -330,11 +363,15 @@ mod tests {
     #[test]
     fn engine_respects_disabled_rules() {
         let mut config = Config::default();
-        config.analysis.disabled_rules.insert("SEC-INJ-001".to_string());
+        config
+            .analysis
+            .disabled_rules
+            .insert("SEC-INJ-001".to_string());
         let engine = Engine::new(config);
         let result = engine.analyze(
             "SELECT * FROM users WHERE name = 'x' + user_input",
-            Some("postgresql"), None,
+            Some("postgresql"),
+            None,
         );
         assert!(!result.issues.iter().any(|i| i.rule_id == "SEC-INJ-001"));
     }
@@ -344,7 +381,8 @@ mod tests {
         let engine = Engine::with_default_config();
         let result = engine.analyze(
             "SELECT 1; SELECT * FROM users WHERE name = 'x' + user_input",
-            Some("postgresql"), None,
+            Some("postgresql"),
+            None,
         );
         assert_eq!(result.statistics.total_queries, 2);
         assert!(result.statistics.total_issues >= 1);
@@ -361,7 +399,10 @@ mod tests {
 
     #[test]
     fn engine_schema_aware_table_check() {
-        let schema = crate::schema::parse_ddl("CREATE TABLE users (id INT PRIMARY KEY, name TEXT);", "postgresql");
+        let schema = crate::schema::parse_ddl(
+            "CREATE TABLE users (id INT PRIMARY KEY, name TEXT);",
+            "postgresql",
+        );
         let engine = Engine::with_default_config().with_schema(schema);
         let result = engine.analyze("SELECT * FROM nonexistent_table", Some("postgresql"), None);
         assert!(result.issues.iter().any(|i| i.rule_id == "SCHEMA-TBL-001"));
@@ -369,7 +410,10 @@ mod tests {
 
     #[test]
     fn engine_schema_aware_no_false_positive() {
-        let schema = crate::schema::parse_ddl("CREATE TABLE users (id INT PRIMARY KEY, name TEXT);", "postgresql");
+        let schema = crate::schema::parse_ddl(
+            "CREATE TABLE users (id INT PRIMARY KEY, name TEXT);",
+            "postgresql",
+        );
         let engine = Engine::with_default_config().with_schema(schema);
         let result = engine.analyze("SELECT * FROM users", Some("postgresql"), None);
         assert!(!result.issues.iter().any(|i| i.rule_id == "SCHEMA-TBL-001"));

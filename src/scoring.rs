@@ -68,8 +68,11 @@ impl Default for ComplexityScorer {
 
 impl std::fmt::Display for ComplexityScorer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "optimal<={}, complex<={}, critical>{}", 
-            self.threshold_optimal, self.threshold_complex, self.threshold_complex)
+        write!(
+            f,
+            "optimal<={}, complex<={}, critical>{}",
+            self.threshold_optimal, self.threshold_complex, self.threshold_complex
+        )
     }
 }
 
@@ -109,8 +112,22 @@ mod tests {
         let scorer = ComplexityScorer::new();
         let q = make_query("SELECT 1");
         let issues = vec![
-            Issue::new("T-1", "test", Severity::Critical, Dimension::Security, Location::new(1,1), "x"),
-            Issue::new("T-2", "test", Severity::High, Dimension::Security, Location::new(1,1), "x"),
+            Issue::new(
+                "T-1",
+                "test",
+                Severity::Critical,
+                Dimension::Security,
+                Location::new(1, 1),
+                "x",
+            ),
+            Issue::new(
+                "T-2",
+                "test",
+                Severity::High,
+                Dimension::Security,
+                Location::new(1, 1),
+                "x",
+            ),
         ];
         let score = scorer.calculate(&q, &issues);
         assert!(score >= 50);

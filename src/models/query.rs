@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::models::issue::Location;
+use serde::{Deserialize, Serialize};
 use std::cell::OnceCell;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,19 +32,31 @@ pub struct Query {
 
 impl Query {
     pub fn is_select(&self) -> bool {
-        self.query_type.as_deref().map(|t| t.eq_ignore_ascii_case("SELECT")).unwrap_or(false)
+        self.query_type
+            .as_deref()
+            .map(|t| t.eq_ignore_ascii_case("SELECT"))
+            .unwrap_or(false)
     }
 
     pub fn is_insert(&self) -> bool {
-        self.query_type.as_deref().map(|t| t.eq_ignore_ascii_case("INSERT")).unwrap_or(false)
+        self.query_type
+            .as_deref()
+            .map(|t| t.eq_ignore_ascii_case("INSERT"))
+            .unwrap_or(false)
     }
 
     pub fn is_update(&self) -> bool {
-        self.query_type.as_deref().map(|t| t.eq_ignore_ascii_case("UPDATE")).unwrap_or(false)
+        self.query_type
+            .as_deref()
+            .map(|t| t.eq_ignore_ascii_case("UPDATE"))
+            .unwrap_or(false)
     }
 
     pub fn is_delete(&self) -> bool {
-        self.query_type.as_deref().map(|t| t.eq_ignore_ascii_case("DELETE")).unwrap_or(false)
+        self.query_type
+            .as_deref()
+            .map(|t| t.eq_ignore_ascii_case("DELETE"))
+            .unwrap_or(false)
     }
 
     /// Returns the uppercase version of raw SQL. Cached after first call.
@@ -92,12 +104,10 @@ impl Query {
             return true;
         }
         // Python str.format / f-string style: {name}, {}, {TABLE_NAME}, etc.
-        if raw.contains('{') && raw.contains('}')
-            && !raw.contains("${") && !raw.contains("#{") {
+        if raw.contains('{') && raw.contains('}') && !raw.contains("${") && !raw.contains("#{") {
             let upper = self.raw_upper();
             // Skip actual SQL blocks that use {} (PL/pgSQL, DO $$)
-            if !upper.contains("BEGIN") && !upper.contains("$$")
-                && !upper.contains("JSONB") {
+            if !upper.contains("BEGIN") && !upper.contains("$$") && !upper.contains("JSONB") {
                 let bytes = raw.as_bytes();
                 for i in 0..bytes.len().saturating_sub(1) {
                     if bytes[i] == b'{' {

@@ -7,28 +7,59 @@ use regex::Regex;
 struct CartesianProductRule;
 static PAT_CROSS: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\bCROSS\s+JOIN\b").unwrap());
 impl Rule for CartesianProductRule {
-    fn id(&self) -> &'static str { "PERF-JOIN-001" }
-    fn name(&self) -> &'static str { "Cartesian Product (CROSS JOIN)" }
-    fn severity(&self) -> Severity { Severity::High }
-    fn dimension(&self) -> Dimension { Dimension::Performance }
-    fn category(&self) -> Option<Category> { Some(Category::PerfJoin) }
-    fn impact(&self) -> &'static str { "Produces row count = table1_rows * table2_rows, exponential cost." }
+    fn id(&self) -> &'static str {
+        "PERF-JOIN-001"
+    }
+    fn name(&self) -> &'static str {
+        "Cartesian Product (CROSS JOIN)"
+    }
+    fn severity(&self) -> Severity {
+        Severity::High
+    }
+    fn dimension(&self) -> Dimension {
+        Dimension::Performance
+    }
+    fn category(&self) -> Option<Category> {
+        Some(Category::PerfJoin)
+    }
+    fn impact(&self) -> &'static str {
+        "Produces row count = table1_rows * table2_rows, exponential cost."
+    }
     fn check(&self, query: &Query) -> Vec<Issue> {
-        PAT_CROSS.find(&query.raw).map(|m| {
-            vec![self.build_issue(query, "CROSS JOIN detected. This produces a Cartesian product.", m.as_str())]
-        }).unwrap_or_default()
+        PAT_CROSS
+            .find(&query.raw)
+            .map(|m| {
+                vec![self.build_issue(
+                    query,
+                    "CROSS JOIN detected. This produces a Cartesian product.",
+                    m.as_str(),
+                )]
+            })
+            .unwrap_or_default()
     }
 }
 
 struct TooManyJoinsRule;
 static PAT_JOIN: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\bJOIN\b").unwrap());
 impl Rule for TooManyJoinsRule {
-    fn id(&self) -> &'static str { "PERF-JOIN-002" }
-    fn name(&self) -> &'static str { "Excessive Joins" }
-    fn severity(&self) -> Severity { Severity::Medium }
-    fn dimension(&self) -> Dimension { Dimension::Performance }
-    fn category(&self) -> Option<Category> { Some(Category::PerfJoin) }
-    fn impact(&self) -> &'static str { "High join count increases query plan complexity and memory usage." }
+    fn id(&self) -> &'static str {
+        "PERF-JOIN-002"
+    }
+    fn name(&self) -> &'static str {
+        "Excessive Joins"
+    }
+    fn severity(&self) -> Severity {
+        Severity::Medium
+    }
+    fn dimension(&self) -> Dimension {
+        Dimension::Performance
+    }
+    fn category(&self) -> Option<Category> {
+        Some(Category::PerfJoin)
+    }
+    fn impact(&self) -> &'static str {
+        "High join count increases query plan complexity and memory usage."
+    }
     fn check(&self, query: &Query) -> Vec<Issue> {
         let count = PAT_JOIN.find_iter(&query.raw).count();
         if count >= 5 {
@@ -42,12 +73,24 @@ impl Rule for TooManyJoinsRule {
 
 struct LeftJoinWithIsNotNullRule;
 impl Rule for LeftJoinWithIsNotNullRule {
-    fn id(&self) -> &'static str { "PERF-JOIN-003" }
-    fn name(&self) -> &'static str { "LEFT JOIN With IS NOT NULL Filter" }
-    fn severity(&self) -> Severity { Severity::Low }
-    fn dimension(&self) -> Dimension { Dimension::Performance }
-    fn category(&self) -> Option<Category> { Some(Category::PerfJoin) }
-    fn impact(&self) -> &'static str { "The LEFT JOIN preserves unmatched rows, then WHERE immediately removes them." }
+    fn id(&self) -> &'static str {
+        "PERF-JOIN-003"
+    }
+    fn name(&self) -> &'static str {
+        "LEFT JOIN With IS NOT NULL Filter"
+    }
+    fn severity(&self) -> Severity {
+        Severity::Low
+    }
+    fn dimension(&self) -> Dimension {
+        Dimension::Performance
+    }
+    fn category(&self) -> Option<Category> {
+        Some(Category::PerfJoin)
+    }
+    fn impact(&self) -> &'static str {
+        "The LEFT JOIN preserves unmatched rows, then WHERE immediately removes them."
+    }
 
     fn check(&self, query: &Query) -> Vec<Issue> {
         let upper = query.raw_upper();
@@ -67,19 +110,31 @@ impl Rule for LeftJoinWithIsNotNullRule {
         // LEFT JOIN orders o ...
         // LEFT JOIN orders AS o ...
         // LEFT JOIN "orders" o ...
-        static PAT_LEFT_ALIAS: once_cell::sync::Lazy<regex::Regex> = once_cell::sync::Lazy::new(|| {
-            regex::Regex::new(
+        static PAT_LEFT_ALIAS: once_cell::sync::Lazy<regex::Regex> = once_cell::sync::Lazy::new(
+            || {
+                regex::Regex::new(
                 r#"(?i)\bLEFT\s+JOIN\s+([A-Za-z_][\w$]*|"[^"]+"|`[^`]+`|\[[^\]]+\])(?:\s+(?:AS\s+)?)?([A-Za-z_][\w$]*)?"#
             ).unwrap()
-        });
+            },
+        );
 
         for caps in PAT_LEFT_ALIAS.captures_iter(&query.raw) {
-            let table = caps.get(1).map(|m| m.as_str()).unwrap_or("").trim_matches(|c| c == '"' || c == '`' || c == '[' || c == ']');
+            let table = caps
+                .get(1)
+                .map(|m| m.as_str())
+                .unwrap_or("")
+                .trim_matches(|c| c == '"' || c == '`' || c == '[' || c == ']');
             let alias = caps.get(2).map(|m| m.as_str()).unwrap_or(table);
 
             // Match alias.col IS NOT NULL or table.col IS NOT NULL in WHERE
-            let alias_pat = format!(r#"(?i)\b{}\s*\.\s*("?[\w$]+"?)\s+IS\s+NOT\s+NULL\b"#, regex::escape(alias));
-            let table_pat = format!(r#"(?i)\b{}\s*\.\s*("?[\w$]+"?)\s+IS\s+NOT\s+NULL\b"#, regex::escape(table));
+            let alias_pat = format!(
+                r#"(?i)\b{}\s*\.\s*("?[\w$]+"?)\s+IS\s+NOT\s+NULL\b"#,
+                regex::escape(alias)
+            );
+            let table_pat = format!(
+                r#"(?i)\b{}\s*\.\s*("?[\w$]+"?)\s+IS\s+NOT\s+NULL\b"#,
+                regex::escape(table)
+            );
 
             let alias_re = regex::Regex::new(&alias_pat).unwrap();
             let table_re = regex::Regex::new(&table_pat).unwrap();

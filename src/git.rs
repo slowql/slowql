@@ -1,6 +1,6 @@
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::collections::HashSet;
 
 pub fn get_changed_files(since: Option<&str>) -> HashSet<PathBuf> {
     let mut changed: HashSet<PathBuf> = HashSet::new();

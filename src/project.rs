@@ -2,10 +2,10 @@
 //! and duplicate query detection. Operates on the combined set of all parsed
 //! queries after individual file analysis is complete.
 
-use std::collections::{HashMap, HashSet};
-use crate::models::{Dimension, Issue, Severity};
 use crate::models::issue::{Category, Location, RuleConfidence};
 use crate::models::result::AnalysisResult;
+use crate::models::{Dimension, Issue, Severity};
+use std::collections::{HashMap, HashSet};
 
 /// Run all project-level checks on the combined analysis result.
 /// Returns additional issues to append.
@@ -32,14 +32,14 @@ fn detect_cross_file_breaks(result: &AnalysisResult) -> Vec<Issue> {
 
         if upper.contains("DROP TABLE") {
             // Extract table name after DROP TABLE [IF EXISTS]
-            if let Some(name) = extract_drop_table_name(&upper) {
+            if let Some(name) = extract_drop_table_name(upper) {
                 dropped_tables.push((name, file.to_string()));
             }
         }
 
         if upper.contains("DROP COLUMN") {
             // Extract table and column from ALTER TABLE x DROP COLUMN y
-            if let Some((table, col)) = extract_drop_column(&upper) {
+            if let Some((table, col)) = extract_drop_column(upper) {
                 dropped_columns.push((table, col, file.to_string()));
             }
         }
@@ -50,35 +50,59 @@ fn detect_cross_file_breaks(result: &AnalysisResult) -> Vec<Issue> {
         let file = query.location.file.as_deref().unwrap_or("");
 
         for (dropped_table, drop_file) in &dropped_tables {
-            if file == drop_file { continue; } // same file is not cross-file
-            // Skip same-directory files (likely dialect variants like h2.sql, mysql.sql, pg.sql)
+            if file == drop_file {
+                continue;
+            } // same file is not cross-file
+              // Skip same-directory files (likely dialect variants like h2.sql, mysql.sql, pg.sql)
             let file_dir = file.rsplit('/').nth(1).unwrap_or("");
             let drop_dir = drop_file.rsplit('/').nth(1).unwrap_or("");
-            if !file_dir.is_empty() && file_dir == drop_dir { continue; }
+            if !file_dir.is_empty() && file_dir == drop_dir {
+                continue;
+            }
             // Skip when both files are in a directory structure that suggests
             // they are dialect variants (e.g., v1/h2-foo.sql and v1/mysql-foo.sql)
             let file_name = file.rsplit('/').next().unwrap_or("");
             let drop_name = drop_file.rsplit('/').next().unwrap_or("");
-            let dialect_prefixes = ["h2-", "mysql-", "postgres-", "postgresql-",
-                "mariadb-", "sqlite-", "oracle-", "mssql-", "tsql-",
-                "redshift-", "snowflake-", "bigquery-", "clickhouse-",
-                "duckdb-", "presto-", "trino-", "spark-", "databricks-"];
+            let dialect_prefixes = [
+                "h2-",
+                "mysql-",
+                "postgres-",
+                "postgresql-",
+                "mariadb-",
+                "sqlite-",
+                "oracle-",
+                "mssql-",
+                "tsql-",
+                "redshift-",
+                "snowflake-",
+                "bigquery-",
+                "clickhouse-",
+                "duckdb-",
+                "presto-",
+                "trino-",
+                "spark-",
+                "databricks-",
+            ];
             let file_is_dialect = dialect_prefixes.iter().any(|p| file_name.starts_with(p));
             let drop_is_dialect = dialect_prefixes.iter().any(|p| drop_name.starts_with(p));
-            if file_is_dialect || drop_is_dialect { continue; }
+            if file_is_dialect || drop_is_dialect {
+                continue;
+            }
             // Skip when both files are under a migrations/ or initialization/ directory.
             // Migration files contain intentional destructive DDL.
             let file_lower = file.to_lowercase();
             let drop_lower = drop_file.to_lowercase();
             if (file_lower.contains("/migrations/") || file_lower.contains("/initialization/"))
-                && (drop_lower.contains("/migrations/") || drop_lower.contains("/initialization/")) {
+                && (drop_lower.contains("/migrations/") || drop_lower.contains("/initialization/"))
+            {
                 continue;
             }
             let lower_table = dropped_table.to_lowercase();
             if query.tables.iter().any(|t| t.to_lowercase() == lower_table) {
                 let msg = format!(
                     "Cross-file breaking change: table '{}' is dropped in {} but referenced here.",
-                    dropped_table, short_path(drop_file)
+                    dropped_table,
+                    short_path(drop_file)
                 );
                 let mut issue = Issue::new(
                     "SCH-BRK-001",
@@ -96,28 +120,30 @@ fn detect_cross_file_breaks(result: &AnalysisResult) -> Vec<Issue> {
         }
 
         for (dropped_table, dropped_col, drop_file) in &dropped_columns {
-            if file == drop_file { continue; }
+            if file == drop_file {
+                continue;
+            }
             let lower_table = dropped_table.to_lowercase();
             let lower_col = dropped_col.to_lowercase();
-            if query.tables.iter().any(|t| t.to_lowercase() == lower_table) {
-                if query.columns.iter().any(|c| c.to_lowercase() == lower_col) {
-                    let msg = format!(
+            if query.tables.iter().any(|t| t.to_lowercase() == lower_table)
+                && query.columns.iter().any(|c| c.to_lowercase() == lower_col)
+            {
+                let msg = format!(
                         "Cross-file breaking change: column '{}.{}' is dropped in {} but referenced here.",
                         dropped_table, dropped_col, short_path(drop_file)
                     );
-                    let mut issue = Issue::new(
-                        "SCH-BRK-001",
-                        msg,
-                        Severity::High,
-                        Dimension::Schema,
-                        query.location.clone(),
-                        query.snippet(100),
-                    );
-                    issue.category = Some(Category::RelDataIntegrity);
-                    issue.confidence = RuleConfidence::Contextual;
-                    issue.source_context = query.source_context.clone();
-                    issues.push(issue);
-                }
+                let mut issue = Issue::new(
+                    "SCH-BRK-001",
+                    msg,
+                    Severity::High,
+                    Dimension::Schema,
+                    query.location.clone(),
+                    query.snippet(100),
+                );
+                issue.category = Some(Category::RelDataIntegrity);
+                issue.confidence = RuleConfidence::Contextual;
+                issue.source_context = query.source_context.clone();
+                issues.push(issue);
             }
         }
     }
@@ -140,12 +166,22 @@ fn detect_unused_objects(result: &AnalysisResult) -> Vec<Issue> {
         let file = query.location.file.as_deref().unwrap_or("").to_string();
 
         // Detect definitions
-        for keyword in &["CREATE VIEW", "CREATE OR REPLACE VIEW",
-                         "CREATE FUNCTION", "CREATE OR REPLACE FUNCTION",
-                         "CREATE PROCEDURE", "CREATE OR REPLACE PROCEDURE"] {
+        for keyword in &[
+            "CREATE VIEW",
+            "CREATE OR REPLACE VIEW",
+            "CREATE FUNCTION",
+            "CREATE OR REPLACE FUNCTION",
+            "CREATE PROCEDURE",
+            "CREATE OR REPLACE PROCEDURE",
+        ] {
             if upper.contains(keyword) {
-                if let Some(name) = extract_object_name(&upper, keyword) {
-                    defined.push((keyword.to_string(), name, query.location.clone(), file.clone()));
+                if let Some(name) = extract_object_name(upper, keyword) {
+                    defined.push((
+                        keyword.to_string(),
+                        name,
+                        query.location.clone(),
+                        file.clone(),
+                    ));
                 }
             }
         }
@@ -170,7 +206,8 @@ fn detect_unused_objects(result: &AnalysisResult) -> Vec<Issue> {
         // Strip schema prefix for matching
         let base_name = lower_name.rsplit('.').next().unwrap_or(&lower_name);
         if !referenced.contains(base_name) {
-            let msg = format!(
+            let msg =
+                format!(
                 "Unused database object: {} '{}' is defined but never referenced in the project.",
                 obj_type.replace("CREATE OR REPLACE ", "").replace("CREATE ", ""),
                 name
@@ -201,15 +238,22 @@ fn detect_duplicate_queries(result: &AnalysisResult) -> Vec<Issue> {
     let mut seen: HashMap<String, Vec<Location>> = HashMap::new();
 
     for query in &result.queries {
-        if query.normalized.is_empty() { continue; }
+        if query.normalized.is_empty() {
+            continue;
+        }
         // Skip DDL and admin queries
         let qt = query.query_type.as_deref().unwrap_or("");
-        if !matches!(qt, "SELECT" | "INSERT" | "UPDATE" | "DELETE") { continue; }
+        if !matches!(qt, "SELECT" | "INSERT" | "UPDATE" | "DELETE") {
+            continue;
+        }
         // Skip non-production queries (test, example, seed)
         let file = query.location.file.as_deref().unwrap_or("");
-        if file.contains("/test/") || file.contains("/tests/")
-            || file.contains("/spec/") || file.contains("/examples/")
-            || file.contains("/fixtures/") || file.contains("/__tests__/")
+        if file.contains("/test/")
+            || file.contains("/tests/")
+            || file.contains("/spec/")
+            || file.contains("/examples/")
+            || file.contains("/fixtures/")
+            || file.contains("/__tests__/")
         {
             continue;
         }
@@ -219,13 +263,16 @@ fn detect_duplicate_queries(result: &AnalysisResult) -> Vec<Issue> {
     }
 
     for (normalized, locations) in &seen {
-        if locations.len() < 2 { continue; }
+        if locations.len() < 2 {
+            continue;
+        }
         // Only report at the second occurrence
         for loc in &locations[1..] {
             let first_file = locations[0].file.as_deref().unwrap_or("unknown");
             let msg = format!(
                 "Duplicate query detected. Same query also appears at {}:{}.",
-                short_path(first_file), locations[0].line
+                short_path(first_file),
+                locations[0].line
             );
             let mut issue = Issue::new(
                 "QUAL-DEAD-003",
@@ -237,9 +284,7 @@ fn detect_duplicate_queries(result: &AnalysisResult) -> Vec<Issue> {
             );
             issue.category = Some(Category::QualTechDebt);
             issue.confidence = RuleConfidence::Advisory;
-            issue.source_context = infer_context_from_path(
-                loc.file.as_deref().unwrap_or("")
-            );
+            issue.source_context = infer_context_from_path(loc.file.as_deref().unwrap_or(""));
             issues.push(issue);
         }
     }
@@ -253,70 +298,107 @@ fn extract_drop_table_name(upper: &str) -> Option<String> {
     let idx = upper.find("DROP TABLE")?;
     let after = &upper[idx + "DROP TABLE".len()..];
     let after = after.trim_start();
-    let after = if after.starts_with("IF EXISTS") {
-        after["IF EXISTS".len()..].trim_start()
+    let after = if let Some(stripped) = after.strip_prefix("IF EXISTS") {
+        stripped.trim_start()
     } else {
         after
     };
-    let name = after.split(|c: char| c.is_whitespace() || c == ';' || c == '(')
+    let name = after
+        .split(|c: char| c.is_whitespace() || c == ';' || c == '(')
         .next()
         .unwrap_or("")
         .trim_matches(|c: char| c == '"' || c == '`' || c == '[' || c == ']');
-    if name.is_empty() { None } else { Some(name.to_string()) }
+    if name.is_empty() {
+        None
+    } else {
+        Some(name.to_string())
+    }
 }
 
 fn extract_drop_column(upper: &str) -> Option<(String, String)> {
     let idx = upper.find("ALTER TABLE")?;
     let after = &upper[idx + "ALTER TABLE".len()..].trim_start();
-    let table = after.split_whitespace().next()?
+    let table = after
+        .split_whitespace()
+        .next()?
         .trim_matches(|c: char| c == '"' || c == '`' || c == '[' || c == ']');
 
     let col_idx = upper.find("DROP COLUMN")?;
     let after_col = &upper[col_idx + "DROP COLUMN".len()..].trim_start();
-    let col = after_col.split(|c: char| c.is_whitespace() || c == ';' || c == ',')
+    let col = after_col
+        .split(|c: char| c.is_whitespace() || c == ';' || c == ',')
         .next()
         .unwrap_or("")
         .trim_matches(|c: char| c == '"' || c == '`' || c == '[' || c == ']');
 
-    if table.is_empty() || col.is_empty() { None } else { Some((table.to_string(), col.to_string())) }
+    if table.is_empty() || col.is_empty() {
+        None
+    } else {
+        Some((table.to_string(), col.to_string()))
+    }
 }
 
 fn extract_object_name(upper: &str, keyword: &str) -> Option<String> {
     let idx = upper.find(keyword)?;
     let after = &upper[idx + keyword.len()..].trim_start();
-    let name = after.split(|c: char| c.is_whitespace() || c == '(' || c == ';')
+    let name = after
+        .split(|c: char| c.is_whitespace() || c == '(' || c == ';')
         .next()
         .unwrap_or("")
         .trim_matches(|c: char| c == '"' || c == '`' || c == '[' || c == ']');
-    if name.is_empty() || name == "AS" { None } else { Some(name.to_string()) }
+    if name.is_empty() || name == "AS" {
+        None
+    } else {
+        Some(name.to_string())
+    }
 }
 
 fn infer_context_from_path(path: &str) -> String {
     let lower = path.to_lowercase();
-    if lower.contains("/test/") || lower.contains("/tests/")
-        || lower.contains("/spec/") || lower.contains("/__tests__/")
-        || lower.contains("/e2e/") || lower.contains(".spec.")
-        || lower.contains(".test.") || lower.contains("/test_resources/")
-        || lower.contains("/test-resources/") {
+    if lower.contains("/test/")
+        || lower.contains("/tests/")
+        || lower.contains("/spec/")
+        || lower.contains("/__tests__/")
+        || lower.contains("/e2e/")
+        || lower.contains(".spec.")
+        || lower.contains(".test.")
+        || lower.contains("/test_resources/")
+        || lower.contains("/test-resources/")
+    {
         "test".to_string()
-    } else if lower.contains("/migration/") || lower.contains("/migrations/")
-        || lower.contains("/db/migrate/") {
+    } else if lower.contains("/migration/")
+        || lower.contains("/migrations/")
+        || lower.contains("/db/migrate/")
+    {
         "migration".to_string()
-    } else if lower.contains("/example/") || lower.contains("/examples/")
-        || lower.contains("/doc/") || lower.contains("/docs/")
-        || lower.contains("/demo/") || lower.contains("/scripts/")
-        || lower.contains("/script/") {
+    } else if lower.contains("/example/")
+        || lower.contains("/examples/")
+        || lower.contains("/doc/")
+        || lower.contains("/docs/")
+        || lower.contains("/demo/")
+        || lower.contains("/scripts/")
+        || lower.contains("/script/")
+    {
         "example".to_string()
-    } else if lower.contains("/seed/") || lower.contains("/seeds/")
-        || lower.contains("/fixtures/") || lower.ends_with("/seed.sql")
-        || lower.ends_with("/data.sql") {
+    } else if lower.contains("/seed/")
+        || lower.contains("/seeds/")
+        || lower.contains("/fixtures/")
+        || lower.ends_with("/seed.sql")
+        || lower.ends_with("/data.sql")
+    {
         "seed".to_string()
-    } else if lower.contains("/connection_adapter") || lower.contains("/db/backends/")
-        || lower.contains("/db/models/sql/") || lower.contains("/lib/arel/")
-        || lower.contains("/activerecord/lib/") {
+    } else if lower.contains("/connection_adapter")
+        || lower.contains("/db/backends/")
+        || lower.contains("/db/models/sql/")
+        || lower.contains("/lib/arel/")
+        || lower.contains("/activerecord/lib/")
+    {
         "framework_internal".to_string()
-    } else if lower.ends_with("/structure.sql") || lower.ends_with("/schema.sql")
-        || lower.contains("/schema/") || lower.contains("/ddl/") {
+    } else if lower.ends_with("/structure.sql")
+        || lower.ends_with("/schema.sql")
+        || lower.contains("/schema/")
+        || lower.contains("/ddl/")
+    {
         "ddl_schema".to_string()
     } else {
         "application".to_string()
@@ -339,7 +421,10 @@ mod tests {
             dialect: "postgresql".to_string(),
             location: Location::new(1, 1).with_file(file),
             query_type: Some(
-                sql.trim().split_whitespace().next().unwrap_or("SELECT").to_uppercase()
+                sql.split_whitespace()
+                    .next()
+                    .unwrap_or("SELECT")
+                    .to_uppercase(),
             ),
             ..Default::default()
         };
@@ -355,23 +440,36 @@ mod tests {
     #[test]
     fn cross_file_drop_table_detected() {
         let mut result = AnalysisResult::new();
-        result.queries.push(make_query("DROP TABLE users", "migrations/001.sql"));
-        result.queries.push(make_query("SELECT id, name FROM users WHERE id = 1", "src/app.sql"));
+        result
+            .queries
+            .push(make_query("DROP TABLE users", "migrations/001.sql"));
+        result.queries.push(make_query(
+            "SELECT id, name FROM users WHERE id = 1",
+            "src/app.sql",
+        ));
 
         let issues = analyze_project(&result);
-        assert!(issues.iter().any(|i| i.rule_id == "SCH-BRK-001"),
-            "should detect cross-file break when DROP TABLE and SELECT reference same table");
+        assert!(
+            issues.iter().any(|i| i.rule_id == "SCH-BRK-001"),
+            "should detect cross-file break when DROP TABLE and SELECT reference same table"
+        );
     }
 
     #[test]
     fn same_file_drop_not_cross_file() {
         let mut result = AnalysisResult::new();
-        result.queries.push(make_query("DROP TABLE temp_data", "cleanup.sql"));
-        result.queries.push(make_query("CREATE TABLE temp_data (id INT)", "cleanup.sql"));
+        result
+            .queries
+            .push(make_query("DROP TABLE temp_data", "cleanup.sql"));
+        result
+            .queries
+            .push(make_query("CREATE TABLE temp_data (id INT)", "cleanup.sql"));
 
         let issues = analyze_project(&result);
-        assert!(!issues.iter().any(|i| i.rule_id == "SCH-BRK-001"),
-            "same-file DROP should not be flagged as cross-file break");
+        assert!(
+            !issues.iter().any(|i| i.rule_id == "SCH-BRK-001"),
+            "same-file DROP should not be flagged as cross-file break"
+        );
     }
 
     #[test]
@@ -387,8 +485,10 @@ mod tests {
         result.queries.push(q2);
 
         let issues = analyze_project(&result);
-        assert!(issues.iter().any(|i| i.rule_id == "QUAL-DEAD-003"),
-            "should detect duplicate queries across files");
+        assert!(
+            issues.iter().any(|i| i.rule_id == "QUAL-DEAD-003"),
+            "should detect duplicate queries across files"
+        );
     }
 
     #[test]
@@ -404,7 +504,9 @@ mod tests {
         result.queries.push(q2);
 
         let issues = analyze_project(&result);
-        assert!(!issues.iter().any(|i| i.rule_id == "QUAL-DEAD-003"),
-            "different queries should not be flagged as duplicates");
+        assert!(
+            !issues.iter().any(|i| i.rule_id == "QUAL-DEAD-003"),
+            "different queries should not be flagged as duplicates"
+        );
     }
 }

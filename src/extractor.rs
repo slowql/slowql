@@ -12,7 +12,8 @@ pub struct ExtractedQuery {
 }
 
 static SQL_START: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"(?i)^\s*(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|TRUNCATE|GRANT|REVOKE)\b").unwrap()
+    Regex::new(r"(?i)^\s*(SELECT|INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|TRUNCATE|GRANT|REVOKE)\b")
+        .unwrap()
 });
 
 fn has_sql_structure(upper: &str) -> bool {
@@ -59,7 +60,12 @@ fn ddl_like(upper: &str) -> bool {
                 return false;
             }
             let mut i = 1;
-            while i < tokens.len() && matches!(tokens[i], "OR" | "REPLACE" | "TEMP" | "TEMPORARY" | "IF" | "NOT" | "EXISTS") {
+            while i < tokens.len()
+                && matches!(
+                    tokens[i],
+                    "OR" | "REPLACE" | "TEMP" | "TEMPORARY" | "IF" | "NOT" | "EXISTS"
+                )
+            {
                 i += 1;
             }
             if i >= tokens.len() {
@@ -67,9 +73,21 @@ fn ddl_like(upper: &str) -> bool {
             }
             matches!(
                 tokens[i],
-                "TABLE" | "INDEX" | "VIEW" | "SEQUENCE" | "SCHEMA" | "DATABASE"
-                    | "COLUMN" | "CONSTRAINT" | "TRIGGER" | "FUNCTION"
-                    | "PROCEDURE" | "TYPE" | "ROLE" | "USER" | "EXTENSION"
+                "TABLE"
+                    | "INDEX"
+                    | "VIEW"
+                    | "SEQUENCE"
+                    | "SCHEMA"
+                    | "DATABASE"
+                    | "COLUMN"
+                    | "CONSTRAINT"
+                    | "TRIGGER"
+                    | "FUNCTION"
+                    | "PROCEDURE"
+                    | "TYPE"
+                    | "ROLE"
+                    | "USER"
+                    | "EXTENSION"
                     | "MATERIALIZED"
             )
         }
@@ -130,7 +148,10 @@ fn is_likely_sql(s: &str) -> bool {
         "VALUES",
         "SET",
     ];
-    if incomplete_fragments.iter().any(|frag| upper_fragment == *frag) {
+    if incomplete_fragments
+        .iter()
+        .any(|frag| upper_fragment == *frag)
+    {
         return false;
     }
 
@@ -159,10 +180,26 @@ fn is_likely_sql(s: &str) -> bool {
         let words: Vec<&str> = trimmed.split_whitespace().collect();
         if words.len() >= 3 {
             let first_upper = words[0].to_uppercase();
-            if matches!(first_upper.as_str(), "DELETE" | "UPDATE" | "INSERT" | "SELECT" | "CREATE" | "DROP") {
+            if matches!(
+                first_upper.as_str(),
+                "DELETE" | "UPDATE" | "INSERT" | "SELECT" | "CREATE" | "DROP"
+            ) {
                 // Count how many words before a structural SQL keyword
-                let structural = ["FROM", "INTO", "SET", "TABLE", "WHERE", "VALUES", "JOIN",
-                    "INDEX", "VIEW", "SCHEMA", "DATABASE", "COLUMN", "CONSTRAINT"];
+                let structural = [
+                    "FROM",
+                    "INTO",
+                    "SET",
+                    "TABLE",
+                    "WHERE",
+                    "VALUES",
+                    "JOIN",
+                    "INDEX",
+                    "VIEW",
+                    "SCHEMA",
+                    "DATABASE",
+                    "COLUMN",
+                    "CONSTRAINT",
+                ];
                 let mut found_structural = false;
                 let mut words_before_structural = 0;
                 for w in &words[1..] {
@@ -186,7 +223,8 @@ fn is_likely_sql(s: &str) -> bool {
                 let lower_words: Vec<String> = words.iter().map(|w| w.to_lowercase()).collect();
                 if lower_words.len() >= 4 {
                     let first = &lower_words[0];
-                    if ["delete", "update", "create", "insert", "select"].contains(&first.as_str()) {
+                    if ["delete", "update", "create", "insert", "select"].contains(&first.as_str())
+                    {
                         if let Some(from_idx) = lower_words.iter().position(|w| w == "from") {
                             if from_idx >= 2 {
                                 return false;
@@ -196,9 +234,12 @@ fn is_likely_sql(s: &str) -> bool {
                 }
                 // If no structural keyword found at all and no SQL punctuation, reject
                 if !found_structural {
-                    let has_punct = trimmed.contains('(') || trimmed.contains(')')
-                        || trimmed.contains('=') || trimmed.contains(',')
-                        || trimmed.contains(';') || trimmed.contains('*')
+                    let has_punct = trimmed.contains('(')
+                        || trimmed.contains(')')
+                        || trimmed.contains('=')
+                        || trimmed.contains(',')
+                        || trimmed.contains(';')
+                        || trimmed.contains('*')
                         || trimmed.contains('\'');
                     if !has_punct {
                         return false;
@@ -226,18 +267,53 @@ fn is_likely_sql(s: &str) -> bool {
     // Reject natural language prose: common English function words
     // that never appear in valid SQL.
     let lower = trimmed.to_lowercase();
-    if [" the ", " a ", " an ", " this ", " that ",
-        " is ", " are ", " was ", " were ", " been ",
-        " have ", " has ", " had ", " does ", " did ",
-        " will ", " would ", " could ", " should ",
-        " may ", " might ", " can ", " must ",
-        " your ", " their ", " its ", " which ",
-        " because ", " although ", " however ",
-        " return ", " returns ", " returned ",
-        " informing ", " succeeded ", " failing ",
-        " silently ", " optionally ", " whether ",
-        " object ", " objects ", " needed ",
-    ].iter().any(|m| lower.contains(m)) {
+    if [
+        " the ",
+        " a ",
+        " an ",
+        " this ",
+        " that ",
+        " is ",
+        " are ",
+        " was ",
+        " were ",
+        " been ",
+        " have ",
+        " has ",
+        " had ",
+        " does ",
+        " did ",
+        " will ",
+        " would ",
+        " could ",
+        " should ",
+        " may ",
+        " might ",
+        " can ",
+        " must ",
+        " your ",
+        " their ",
+        " its ",
+        " which ",
+        " because ",
+        " although ",
+        " however ",
+        " return ",
+        " returns ",
+        " returned ",
+        " informing ",
+        " succeeded ",
+        " failing ",
+        " silently ",
+        " optionally ",
+        " whether ",
+        " object ",
+        " objects ",
+        " needed ",
+    ]
+    .iter()
+    .any(|m| lower.contains(m))
+    {
         return false;
     }
 
@@ -321,17 +397,13 @@ fn extract_python(content: &str, file_path: &str) -> Vec<ExtractedQuery> {
     let mut queries = Vec::new();
     let mut used: Vec<(usize, usize)> = Vec::new();
 
-    static TRIPLE: Lazy<Regex> = Lazy::new(|| {
-        Regex::new(r#"(?s)(""".*?"""|'''.*?''')"#).unwrap()
-    });
+    static TRIPLE: Lazy<Regex> = Lazy::new(|| Regex::new(r#"(?s)(""".*?"""|'''.*?''')"#).unwrap());
 
-    static FSTRING: Lazy<Regex> = Lazy::new(|| {
-        Regex::new(r#"(?m)\bf("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')"#).unwrap()
-    });
+    static FSTRING: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r#"(?m)\bf("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')"#).unwrap());
 
-    static SINGLE: Lazy<Regex> = Lazy::new(|| {
-        Regex::new(r#"(?m)("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')"#).unwrap()
-    });
+    static SINGLE: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r#"(?m)("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')"#).unwrap());
 
     for m in TRIPLE.find_iter(content) {
         let inner = strip_quote(m.as_str());
@@ -456,7 +528,8 @@ fn is_jpql(sql: &str) -> bool {
     for prefix in &["FROM ", "DELETE FROM ", "UPDATE "] {
         if let Some(pos) = upper.find(prefix) {
             let after = sql[pos + prefix.len()..].trim_start();
-            let first_word: String = after.chars()
+            let first_word: String = after
+                .chars()
                 .take_while(|c| c.is_alphanumeric() || *c == '_')
                 .collect();
             if first_word.len() >= 2 {

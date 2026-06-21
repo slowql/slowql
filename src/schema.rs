@@ -50,7 +50,9 @@ impl Schema {
 
 impl Table {
     pub fn has_column(&self, name: &str) -> bool {
-        self.columns.iter().any(|c| c.name.eq_ignore_ascii_case(name))
+        self.columns
+            .iter()
+            .any(|c| c.name.eq_ignore_ascii_case(name))
     }
 
     pub fn has_index_on(&self, columns: &[String]) -> bool {
@@ -60,9 +62,9 @@ impl Table {
 
 /// Parse DDL SQL into a Schema.
 pub fn parse_ddl(sql: &str, dialect: &str) -> Schema {
+    use sqlparser::ast::*;
     use sqlparser::dialect::*;
     use sqlparser::parser::Parser;
-    use sqlparser::ast::*;
 
     let dialect_obj: Box<dyn Dialect> = match dialect.to_lowercase().as_str() {
         "postgresql" | "postgres" => Box::new(PostgreSqlDialect {}),
@@ -125,33 +127,41 @@ pub fn parse_ddl(sql: &str, dialect: &str) -> Schema {
 
                 // Check table-level constraints
                 for constraint in &create.constraints {
-                    match constraint {
-                        TableConstraint::PrimaryKey { columns: pk_columns, .. } => {
-                            for c in pk_columns {
-                                let name = c.to_string();
-                                pk_cols.push(name.clone());
-                                if let Some(col) = columns.iter_mut().find(|col| col.name == name) {
-                                    col.primary_key = true;
-                                    col.nullable = false;
-                                }
+                    if let TableConstraint::PrimaryKey {
+                        columns: pk_columns,
+                        ..
+                    } = constraint
+                    {
+                        for c in pk_columns {
+                            let name = c.to_string();
+                            pk_cols.push(name.clone());
+                            if let Some(col) = columns.iter_mut().find(|col| col.name == name) {
+                                col.primary_key = true;
+                                col.nullable = false;
                             }
                         }
-                        _ => {}
                     }
                 }
 
-                schema.tables.insert(table_name.clone(), crate::schema::Table {
-                    name: table_name,
-                    columns,
-                    indexes: Vec::new(),
-                    primary_key: pk_cols,
-                    partition_columns: Vec::new(),
-                    estimated_rows: None,
-                });
+                schema.tables.insert(
+                    table_name.clone(),
+                    crate::schema::Table {
+                        name: table_name,
+                        columns,
+                        indexes: Vec::new(),
+                        primary_key: pk_cols,
+                        partition_columns: Vec::new(),
+                        estimated_rows: None,
+                    },
+                );
             }
             Statement::CreateIndex(create_idx) => {
                 let table_name = create_idx.table_name.to_string();
-                let index_name = create_idx.name.as_ref().map(|n| n.to_string()).unwrap_or_default();
+                let index_name = create_idx
+                    .name
+                    .as_ref()
+                    .map(|n| n.to_string())
+                    .unwrap_or_default();
                 let cols: Vec<String> = create_idx.columns.iter().map(|c| c.to_string()).collect();
                 let unique = create_idx.unique;
 

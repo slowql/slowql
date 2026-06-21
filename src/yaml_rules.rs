@@ -23,17 +23,24 @@ impl Rule for YamlRule {
     fn name(&self) -> &'static str {
         Box::leak(self.rule_name.clone().into_boxed_str())
     }
-    fn severity(&self) -> Severity { self.rule_severity }
-    fn dimension(&self) -> Dimension { self.rule_dimension }
+    fn severity(&self) -> Severity {
+        self.rule_severity
+    }
+    fn dimension(&self) -> Dimension {
+        self.rule_dimension
+    }
     fn impact(&self) -> &'static str {
         Box::leak(self.rule_impact.clone().into_boxed_str())
     }
 
     fn check(&self, query: &Query) -> Vec<Issue> {
-        self.pattern.find(&query.raw).map(|m| {
-            let msg = self.message_template.replace("{match}", m.as_str());
-            vec![self.build_issue(query, &msg, m.as_str())]
-        }).unwrap_or_default()
+        self.pattern
+            .find(&query.raw)
+            .map(|m| {
+                let msg = self.message_template.replace("{match}", m.as_str());
+                vec![self.build_issue(query, &msg, m.as_str())]
+            })
+            .unwrap_or_default()
     }
 }
 
@@ -45,22 +52,34 @@ pub fn load_yaml_rules(path: &Path) -> Result<Vec<Box<dyn Rule>>, String> {
     let data: serde_yaml::Value = serde_yaml::from_str(&content)
         .map_err(|e| format!("Invalid YAML in {}: {}", path.display(), e))?;
 
-    let rules_array = data.get("rules")
+    let rules_array = data
+        .get("rules")
         .and_then(|v| v.as_sequence())
         .ok_or_else(|| format!("No 'rules' array in {}", path.display()))?;
 
     let mut rules: Vec<Box<dyn Rule>> = Vec::new();
 
     for spec in rules_array {
-        let id = spec.get("id").and_then(|v| v.as_str())
+        let id = spec
+            .get("id")
+            .and_then(|v| v.as_str())
             .ok_or("YAML rule missing 'id'")?;
         let name = spec.get("name").and_then(|v| v.as_str()).unwrap_or(id);
-        let pattern_str = spec.get("pattern").and_then(|v| v.as_str())
+        let pattern_str = spec
+            .get("pattern")
+            .and_then(|v| v.as_str())
             .ok_or_else(|| format!("YAML rule '{}' missing 'pattern'", id))?;
-        let message = spec.get("message").and_then(|v| v.as_str()).unwrap_or("Pattern matched.");
+        let message = spec
+            .get("message")
+            .and_then(|v| v.as_str())
+            .unwrap_or("Pattern matched.");
         let impact = spec.get("impact").and_then(|v| v.as_str()).unwrap_or("");
 
-        let severity = match spec.get("severity").and_then(|v| v.as_str()).unwrap_or("medium") {
+        let severity = match spec
+            .get("severity")
+            .and_then(|v| v.as_str())
+            .unwrap_or("medium")
+        {
             "critical" => Severity::Critical,
             "high" => Severity::High,
             "medium" => Severity::Medium,
@@ -69,7 +88,11 @@ pub fn load_yaml_rules(path: &Path) -> Result<Vec<Box<dyn Rule>>, String> {
             _ => Severity::Medium,
         };
 
-        let dimension = match spec.get("dimension").and_then(|v| v.as_str()).unwrap_or("quality") {
+        let dimension = match spec
+            .get("dimension")
+            .and_then(|v| v.as_str())
+            .unwrap_or("quality")
+        {
             "security" => Dimension::Security,
             "performance" => Dimension::Performance,
             "reliability" => Dimension::Reliability,
@@ -104,7 +127,9 @@ mod tests {
     fn load_yaml_rules_from_string() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("custom.yaml");
-        std::fs::write(&path, r#"
+        std::fs::write(
+            &path,
+            r#"
 rules:
   - id: "CUSTOM-001"
     name: "No DROP in production"
@@ -112,7 +137,9 @@ rules:
     dimension: "reliability"
     pattern: "\\bDROP\\s+TABLE\\b"
     message: "DROP TABLE detected: {match}"
-"#).unwrap();
+"#,
+        )
+        .unwrap();
 
         let rules = load_yaml_rules(&path).unwrap();
         assert_eq!(rules.len(), 1);
@@ -135,12 +162,16 @@ rules:
     fn yaml_rule_no_match() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("custom.yaml");
-        std::fs::write(&path, r#"
+        std::fs::write(
+            &path,
+            r#"
 rules:
   - id: "CUSTOM-002"
     pattern: "\\bDROP\\b"
     message: "DROP detected"
-"#).unwrap();
+"#,
+        )
+        .unwrap();
 
         let rules = load_yaml_rules(&path).unwrap();
         let query = Query {

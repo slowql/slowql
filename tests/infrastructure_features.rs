@@ -1,6 +1,8 @@
 use slowql_lib::baseline::Baseline;
 use slowql_lib::config::Config;
-use slowql_lib::context::{classify_source, filter_issues_by_context, MIGRATION, TEST, APPLICATION};
+use slowql_lib::context::{
+    classify_source, filter_issues_by_context, APPLICATION, MIGRATION, TEST,
+};
 use slowql_lib::models::{AnalysisResult, Dimension, Issue, Location, Severity};
 use slowql_lib::suppressions::parse_suppressions;
 
@@ -8,13 +10,17 @@ use slowql_lib::suppressions::parse_suppressions;
 fn config_loads_toml() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("slowql.toml");
-    std::fs::write(&path, r#"
+    std::fs::write(
+        &path,
+        r#"
 [analysis]
 dialect = "postgresql"
 
 [severity]
 fail_on = "critical"
-"#).unwrap();
+"#,
+    )
+    .unwrap();
 
     let config = Config::from_toml(&path).unwrap();
     assert_eq!(config.analysis.dialect.as_deref(), Some("postgresql"));
@@ -25,7 +31,11 @@ fail_on = "critical"
 fn config_loads_yaml() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("slowql.yaml");
-    std::fs::write(&path, "analysis:\n  dialect: mysql\nseverity:\n  fail_on: high\n").unwrap();
+    std::fs::write(
+        &path,
+        "analysis:\n  dialect: mysql\nseverity:\n  fail_on: high\n",
+    )
+    .unwrap();
 
     let config = Config::from_yaml(&path).unwrap();
     assert_eq!(config.analysis.dialect.as_deref(), Some("mysql"));
@@ -36,7 +46,10 @@ fn config_loads_yaml() {
 fn classify_context_paths() {
     assert_eq!(classify_source(Some("migrations/001.sql"), ""), MIGRATION);
     assert_eq!(classify_source(Some("tests/test_queries.sql"), ""), TEST);
-    assert_eq!(classify_source(Some("queries.sql"), "SELECT 1"), APPLICATION);
+    assert_eq!(
+        classify_source(Some("queries.sql"), "SELECT 1"),
+        APPLICATION
+    );
 }
 
 #[test]
@@ -58,9 +71,30 @@ fn inline_suppression_all_rules() {
 #[test]
 fn context_filtering_migration() {
     let issues = vec![
-        Issue::new("SEC-INJ-001", "sec", Severity::High, Dimension::Security, Location::new(1,1), "x"),
-        Issue::new("PERF-SCAN-001", "perf", Severity::Medium, Dimension::Performance, Location::new(1,1), "x"),
-        Issue::new("REL-DATA-001", "rel", Severity::Critical, Dimension::Reliability, Location::new(1,1), "x"),
+        Issue::new(
+            "SEC-INJ-001",
+            "sec",
+            Severity::High,
+            Dimension::Security,
+            Location::new(1, 1),
+            "x",
+        ),
+        Issue::new(
+            "PERF-SCAN-001",
+            "perf",
+            Severity::Medium,
+            Dimension::Performance,
+            Location::new(1, 1),
+            "x",
+        ),
+        Issue::new(
+            "REL-DATA-001",
+            "rel",
+            Severity::Critical,
+            Dimension::Reliability,
+            Location::new(1, 1),
+            "x",
+        ),
     ];
     let filtered = filter_issues_by_context(issues, MIGRATION);
     assert_eq!(filtered.len(), 2);
@@ -74,8 +108,22 @@ fn baseline_roundtrip_and_filter() {
     let path = dir.path().join(".slowql-baseline");
 
     let mut result = AnalysisResult::new();
-    result.add_issue(Issue::new("TEST-001", "old issue", Severity::High, Dimension::Security, Location::new(1,1), "SELECT *"));
-    result.add_issue(Issue::new("TEST-002", "new issue", Severity::Medium, Dimension::Performance, Location::new(2,1), "DELETE FROM t"));
+    result.add_issue(Issue::new(
+        "TEST-001",
+        "old issue",
+        Severity::High,
+        Dimension::Security,
+        Location::new(1, 1),
+        "SELECT *",
+    ));
+    result.add_issue(Issue::new(
+        "TEST-002",
+        "new issue",
+        Severity::Medium,
+        Dimension::Performance,
+        Location::new(2, 1),
+        "DELETE FROM t",
+    ));
 
     let baseline = Baseline::generate(&result);
     baseline.save(&path).unwrap();
@@ -83,8 +131,22 @@ fn baseline_roundtrip_and_filter() {
     assert_eq!(loaded.entry_count, 2);
 
     let mut new_result = AnalysisResult::new();
-    new_result.add_issue(Issue::new("TEST-001", "old issue", Severity::High, Dimension::Security, Location::new(1,1), "SELECT *"));
-    new_result.add_issue(Issue::new("TEST-003", "brand new", Severity::Low, Dimension::Quality, Location::new(3,1), "x"));
+    new_result.add_issue(Issue::new(
+        "TEST-001",
+        "old issue",
+        Severity::High,
+        Dimension::Security,
+        Location::new(1, 1),
+        "SELECT *",
+    ));
+    new_result.add_issue(Issue::new(
+        "TEST-003",
+        "brand new",
+        Severity::Low,
+        Dimension::Quality,
+        Location::new(3, 1),
+        "x",
+    ));
 
     let (filtered, suppressed) = Baseline::filter_new(new_result, &loaded);
     assert_eq!(suppressed, 1);
@@ -96,7 +158,9 @@ fn baseline_roundtrip_and_filter() {
 fn config_loads_table_metadata_yaml() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("slowql.yaml");
-    std::fs::write(&path, r#"
+    std::fs::write(
+        &path,
+        r#"
 analysis:
   dialect: postgresql
   table_metadata:
@@ -108,16 +172,36 @@ analysis:
         - created_at
       events:
         - event_date
-"#).unwrap();
+"#,
+    )
+    .unwrap();
 
     let config = Config::from_yaml(&path).unwrap();
     assert_eq!(config.analysis.table_metadata.large_tables.len(), 2);
-    assert!(config.analysis.table_metadata.large_tables.contains(&"transactions".to_string()));
-    assert!(config.analysis.table_metadata.large_tables.contains(&"events".to_string()));
+    assert!(config
+        .analysis
+        .table_metadata
+        .large_tables
+        .contains(&"transactions".to_string()));
+    assert!(config
+        .analysis
+        .table_metadata
+        .large_tables
+        .contains(&"events".to_string()));
     assert_eq!(config.analysis.table_metadata.partitioned_tables.len(), 2);
-    let tx_cols = config.analysis.table_metadata.partitioned_tables.get("transactions").unwrap();
+    let tx_cols = config
+        .analysis
+        .table_metadata
+        .partitioned_tables
+        .get("transactions")
+        .unwrap();
     assert_eq!(tx_cols, &vec!["created_at".to_string()]);
-    let ev_cols = config.analysis.table_metadata.partitioned_tables.get("events").unwrap();
+    let ev_cols = config
+        .analysis
+        .table_metadata
+        .partitioned_tables
+        .get("events")
+        .unwrap();
     assert_eq!(ev_cols, &vec!["event_date".to_string()]);
 }
 
@@ -145,7 +229,11 @@ fn application_unbounded_select_fires_perf_scan_003() {
     use slowql_lib::engine::Engine;
     let engine = Engine::with_default_config();
     // .sql file = application context
-    let result = engine.analyze("SELECT id FROM users", Some("postgresql"), Some("app/queries.sql"));
+    let result = engine.analyze(
+        "SELECT id FROM users",
+        Some("postgresql"),
+        Some("app/queries.sql"),
+    );
     assert!(
         result.issues.iter().any(|i| i.rule_id == "PERF-SCAN-003"),
         "PERF-SCAN-003 should fire in application context"

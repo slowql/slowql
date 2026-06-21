@@ -1,8 +1,8 @@
+use crate::models::result::AnalysisResult;
+use crate::models::Issue;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::Path;
-use crate::models::result::AnalysisResult;
-use crate::models::Issue;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BaselineEntry {
@@ -15,7 +15,11 @@ impl BaselineEntry {
     pub fn from_issue(issue: &Issue) -> Self {
         let norm_rule = issue.rule_id.to_uppercase();
         let norm_file = issue.location.file.clone().unwrap_or_default();
-        let norm_snippet = issue.snippet.split_whitespace().collect::<Vec<_>>().join(" ");
+        let norm_snippet = issue
+            .snippet
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ");
         let payload = format!("{}|{}|{}", norm_rule, norm_file, norm_snippet);
 
         // Simple hash using std
@@ -43,7 +47,11 @@ pub struct Baseline {
 
 impl Baseline {
     pub fn generate(result: &AnalysisResult) -> Self {
-        let entries: Vec<BaselineEntry> = result.issues.iter().map(BaselineEntry::from_issue).collect();
+        let entries: Vec<BaselineEntry> = result
+            .issues
+            .iter()
+            .map(BaselineEntry::from_issue)
+            .collect();
         Baseline {
             version: result.version.clone(),
             created_at: chrono::Utc::now().to_rfc3339(),
@@ -98,16 +106,44 @@ mod tests {
     #[test]
     fn generate_and_filter() {
         let mut result = AnalysisResult::new();
-        result.add_issue(Issue::new("TEST-001", "old issue", Severity::High, Dimension::Security, Location::new(1, 1), "SELECT *"));
-        result.add_issue(Issue::new("TEST-002", "new issue", Severity::Medium, Dimension::Performance, Location::new(2, 1), "DELETE FROM t"));
+        result.add_issue(Issue::new(
+            "TEST-001",
+            "old issue",
+            Severity::High,
+            Dimension::Security,
+            Location::new(1, 1),
+            "SELECT *",
+        ));
+        result.add_issue(Issue::new(
+            "TEST-002",
+            "new issue",
+            Severity::Medium,
+            Dimension::Performance,
+            Location::new(2, 1),
+            "DELETE FROM t",
+        ));
 
         let baseline = Baseline::generate(&result);
         assert_eq!(baseline.entry_count, 2);
 
         // Add a new issue
         let mut new_result = AnalysisResult::new();
-        new_result.add_issue(Issue::new("TEST-001", "old issue", Severity::High, Dimension::Security, Location::new(1, 1), "SELECT *"));
-        new_result.add_issue(Issue::new("TEST-003", "brand new", Severity::Low, Dimension::Quality, Location::new(3, 1), "x"));
+        new_result.add_issue(Issue::new(
+            "TEST-001",
+            "old issue",
+            Severity::High,
+            Dimension::Security,
+            Location::new(1, 1),
+            "SELECT *",
+        ));
+        new_result.add_issue(Issue::new(
+            "TEST-003",
+            "brand new",
+            Severity::Low,
+            Dimension::Quality,
+            Location::new(3, 1),
+            "x",
+        ));
 
         let (filtered, suppressed) = Baseline::filter_new(new_result, &baseline);
         assert_eq!(suppressed, 1);

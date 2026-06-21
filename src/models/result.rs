@@ -25,8 +25,17 @@ impl Statistics {
         }
         let mut by_dimension = HashMap::new();
         for dim in [
-            "security", "performance", "reliability", "compliance",
-            "cost", "quality", "schema", "data", "migration", "operational", "business",
+            "security",
+            "performance",
+            "reliability",
+            "compliance",
+            "cost",
+            "quality",
+            "schema",
+            "data",
+            "migration",
+            "operational",
+            "business",
         ] {
             by_dimension.insert(dim.to_string(), 0);
         }
@@ -39,8 +48,14 @@ impl Statistics {
 
     pub fn record_issue(&mut self, issue: &Issue) {
         self.total_issues += 1;
-        *self.by_severity.entry(issue.severity.as_str().to_string()).or_insert(0) += 1;
-        *self.by_dimension.entry(issue.dimension.as_str().to_string()).or_insert(0) += 1;
+        *self
+            .by_severity
+            .entry(issue.severity.as_str().to_string())
+            .or_insert(0) += 1;
+        *self
+            .by_dimension
+            .entry(issue.dimension.as_str().to_string())
+            .or_insert(0) += 1;
     }
 }
 
@@ -74,18 +89,39 @@ impl AnalysisResult {
     }
 
     pub fn has_critical(&self) -> bool {
-        self.statistics.by_severity.get("critical").copied().unwrap_or(0) > 0
+        self.statistics
+            .by_severity
+            .get("critical")
+            .copied()
+            .unwrap_or(0)
+            > 0
     }
 
     pub fn has_high(&self) -> bool {
-        self.statistics.by_severity.get("high").copied().unwrap_or(0) > 0
+        self.statistics
+            .by_severity
+            .get("high")
+            .copied()
+            .unwrap_or(0)
+            > 0
     }
 
     pub fn exit_code(&self) -> i32 {
-        if self.has_critical() { return 3; }
-        if self.has_high() { return 2; }
-        let info_count = self.statistics.by_severity.get("info").copied().unwrap_or(0);
-        if self.statistics.total_issues > info_count { return 1; }
+        if self.has_critical() {
+            return 3;
+        }
+        if self.has_high() {
+            return 2;
+        }
+        let info_count = self
+            .statistics
+            .by_severity
+            .get("info")
+            .copied()
+            .unwrap_or(0);
+        if self.statistics.total_issues > info_count {
+            return 1;
+        }
         0
     }
 

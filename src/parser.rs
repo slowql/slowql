@@ -382,13 +382,12 @@ fn detect_query_type(sql: &str) -> Option<String> {
     let upper = trimmed.to_uppercase();
 
     for kw in &[
-        "SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "ALTER", "DROP", "TRUNCATE",
-        "MERGE", "GRANT", "REVOKE", "WITH",
+        "SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "ALTER", "DROP", "TRUNCATE", "MERGE",
+        "GRANT", "REVOKE", "WITH",
     ] {
-        if upper.starts_with(kw) {
+        if let Some(after) = upper.strip_prefix(kw) {
             // Require word boundary after keyword to prevent
             // "UPDATED_CHECK_TIME" matching "UPDATE"
-            let after = &upper[kw.len()..];
             let is_boundary = after.is_empty()
                 || after.starts_with(' ')
                 || after.starts_with('\n')
@@ -396,7 +395,9 @@ fn detect_query_type(sql: &str) -> Option<String> {
                 || after.starts_with('\t')
                 || after.starts_with('(')
                 || after.starts_with(';');
-            if !is_boundary { continue; }
+            if !is_boundary {
+                continue;
+            }
 
             return Some(if *kw == "WITH" {
                 "SELECT".into()
@@ -433,7 +434,11 @@ mod tests {
 
     #[test]
     fn parse_single_select() {
-        let queries = parse("SELECT id, name FROM users WHERE id = 1", "postgresql", None);
+        let queries = parse(
+            "SELECT id, name FROM users WHERE id = 1",
+            "postgresql",
+            None,
+        );
         assert_eq!(queries.len(), 1);
         assert_eq!(queries[0].query_type.as_deref(), Some("SELECT"));
         assert!(queries[0].tables.contains(&"users".to_string()));
@@ -505,8 +510,14 @@ $func$ LANGUAGE plpgsql;
 
     #[test]
     fn detect_query_type_requires_word_boundary() {
-        assert_eq!(detect_query_type("UPDATE users SET x = 1"), Some("UPDATE".into()));
-        assert_eq!(detect_query_type("updated_check_time timestamp with time zone"), None);
+        assert_eq!(
+            detect_query_type("UPDATE users SET x = 1"),
+            Some("UPDATE".into())
+        );
+        assert_eq!(
+            detect_query_type("updated_check_time timestamp with time zone"),
+            None
+        );
         assert_eq!(detect_query_type("delete_me integer"), None);
         assert_eq!(detect_query_type("create_user text"), None);
     }
@@ -514,6 +525,9 @@ $func$ LANGUAGE plpgsql;
     #[test]
     fn detect_query_type_with_keyword_boundary_and_paren() {
         assert_eq!(detect_query_type("SELECT(1)"), Some("SELECT".into()));
-        assert_eq!(detect_query_type("WITH cte AS (SELECT 1) SELECT * FROM cte"), Some("SELECT".into()));
+        assert_eq!(
+            detect_query_type("WITH cte AS (SELECT 1) SELECT * FROM cte"),
+            Some("SELECT".into())
+        );
     }
 }

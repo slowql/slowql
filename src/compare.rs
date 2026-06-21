@@ -1,8 +1,8 @@
 //! Query comparison mode: detect structurally similar queries that
 //! could be consolidated, and highlight differences between query variants.
 
+use crate::models::issue::{Category, Issue, RuleConfidence};
 use crate::models::query::Query;
-use crate::models::issue::{Issue, Category, RuleConfidence};
 use crate::models::{Dimension, Severity};
 use std::collections::HashMap;
 
@@ -24,13 +24,14 @@ pub fn find_similar_queries(queries: &[Query]) -> Vec<Issue> {
         buckets.entry(skeleton).or_default().push((idx, query));
     }
 
-    for (_skeleton, group) in &buckets {
+    for group in buckets.values() {
         if group.len() < 2 {
             continue;
         }
 
         // Check if the queries come from different files
-        let files: std::collections::HashSet<&str> = group.iter()
+        let files: std::collections::HashSet<&str> = group
+            .iter()
             .filter_map(|(_, q)| q.location.file.as_deref())
             .collect();
 
@@ -43,7 +44,8 @@ pub fn find_similar_queries(queries: &[Query]) -> Vec<Issue> {
             let first_file = first.location.file.as_deref().unwrap_or("unknown");
             let msg = format!(
                 "Similar query found at {}:{}. Consider extracting to a shared query.",
-                short_path(first_file), first.location.line
+                short_path(first_file),
+                first.location.line
             );
             let mut issue = Issue::new(
                 "QUAL-COMPARE-001",
@@ -166,7 +168,10 @@ mod tests {
             ..Default::default()
         };
         let issues = find_similar_queries(&[q1, q2]);
-        assert!(!issues.is_empty(), "should detect similar queries across files");
+        assert!(
+            !issues.is_empty(),
+            "should detect similar queries across files"
+        );
     }
 
     #[test]
@@ -186,6 +191,9 @@ mod tests {
             ..Default::default()
         };
         let issues = find_similar_queries(&[q1, q2]);
-        assert!(issues.is_empty(), "same-file similar queries should not flag");
+        assert!(
+            issues.is_empty(),
+            "same-file similar queries should not flag"
+        );
     }
 }

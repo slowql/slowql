@@ -10,17 +10,36 @@ static PAT_LOG_001: Lazy<Regex> = Lazy::new(|| {
 });
 
 impl Rule for SensitiveDataInErrorOutputRule {
-    fn id(&self) -> &'static str { "SEC-LOG-001" }
-    fn name(&self) -> &'static str { "Sensitive Data in Error Output" }
-    fn severity(&self) -> Severity { Severity::Medium }
-    fn dimension(&self) -> Dimension { Dimension::Security }
-    fn category(&self) -> Option<Category> { Some(Category::SecLogging) }
-    fn impact(&self) -> &'static str { "Sensitive data in error messages may be logged, displayed to users, or sent to monitoring systems." }
+    fn id(&self) -> &'static str {
+        "SEC-LOG-001"
+    }
+    fn name(&self) -> &'static str {
+        "Sensitive Data in Error Output"
+    }
+    fn severity(&self) -> Severity {
+        Severity::Medium
+    }
+    fn dimension(&self) -> Dimension {
+        Dimension::Security
+    }
+    fn category(&self) -> Option<Category> {
+        Some(Category::SecLogging)
+    }
+    fn impact(&self) -> &'static str {
+        "Sensitive data in error messages may be logged, displayed to users, or sent to monitoring systems."
+    }
 
     fn check(&self, query: &Query) -> Vec<Issue> {
-        PAT_LOG_001.find(&query.raw).map(|m| {
-            vec![self.build_issue(query, &format!("Sensitive data exposed in error output: {}", m.as_str()), m.as_str())]
-        }).unwrap_or_default()
+        PAT_LOG_001
+            .find(&query.raw)
+            .map(|m| {
+                vec![self.build_issue(
+                    query,
+                    &format!("Sensitive data exposed in error output: {}", m.as_str()),
+                    m.as_str(),
+                )]
+            })
+            .unwrap_or_default()
     }
 }
 
@@ -30,17 +49,36 @@ static PAT_LOG_002: Lazy<Regex> = Lazy::new(|| {
 });
 
 impl Rule for AuditTrailManipulationRule {
-    fn id(&self) -> &'static str { "SEC-LOG-002" }
-    fn name(&self) -> &'static str { "Audit Trail Manipulation" }
-    fn severity(&self) -> Severity { Severity::High }
-    fn dimension(&self) -> Dimension { Dimension::Security }
-    fn category(&self) -> Option<Category> { Some(Category::SecLogging) }
-    fn impact(&self) -> &'static str { "Audit log tampering destroys forensic capability and violates every compliance framework." }
+    fn id(&self) -> &'static str {
+        "SEC-LOG-002"
+    }
+    fn name(&self) -> &'static str {
+        "Audit Trail Manipulation"
+    }
+    fn severity(&self) -> Severity {
+        Severity::High
+    }
+    fn dimension(&self) -> Dimension {
+        Dimension::Security
+    }
+    fn category(&self) -> Option<Category> {
+        Some(Category::SecLogging)
+    }
+    fn impact(&self) -> &'static str {
+        "Audit log tampering destroys forensic capability and violates every compliance framework."
+    }
 
     fn check(&self, query: &Query) -> Vec<Issue> {
-        PAT_LOG_002.find(&query.raw).map(|m| {
-            vec![self.build_issue(query, &format!("Audit trail manipulation detected: {}", m.as_str()), m.as_str())]
-        }).unwrap_or_default()
+        PAT_LOG_002
+            .find(&query.raw)
+            .map(|m| {
+                vec![self.build_issue(
+                    query,
+                    &format!("Audit trail manipulation detected: {}", m.as_str()),
+                    m.as_str(),
+                )]
+            })
+            .unwrap_or_default()
     }
 }
 

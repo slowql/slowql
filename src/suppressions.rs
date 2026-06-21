@@ -16,7 +16,11 @@ fn parse_rule_list(raw: Option<&str>) -> Option<HashSet<String>> {
                 .map(|r| r.trim().to_uppercase())
                 .filter(|r| !r.is_empty())
                 .collect();
-            if rules.is_empty() { None } else { Some(rules) }
+            if rules.is_empty() {
+                None
+            } else {
+                Some(rules)
+            }
         }
     }
 }
@@ -27,7 +31,8 @@ fn matches_rules(rule_id: &str, rules: &Option<HashSet<String>>) -> bool {
         None => true, // all rules suppressed
         Some(set) => {
             let upper = rule_id.to_uppercase();
-            set.iter().any(|pattern| upper == *pattern || upper.starts_with(&format!("{}-", pattern)))
+            set.iter()
+                .any(|pattern| upper == *pattern || upper.starts_with(&format!("{}-", pattern)))
         }
     }
 }
@@ -97,8 +102,8 @@ pub fn parse_suppressions(sql: &str) -> SuppressionMap {
                 "disable-next-line" => {
                     // Find next non-blank, non-comment line
                     let mut target = line_num + 1;
-                    for k in (idx + 1)..lines.len() {
-                        let trimmed = lines[k].trim();
+                    for (k, line_text) in lines.iter().enumerate().skip(idx + 1) {
+                        let trimmed = line_text.trim();
                         if !trimmed.is_empty() && !trimmed.starts_with("--") {
                             target = (k + 1) as u32;
                             break;
@@ -168,7 +173,8 @@ mod tests {
 
     #[test]
     fn disable_file() {
-        let sql = "-- slowql-disable-file PERF-SCAN-001\nSELECT * FROM users;\nSELECT * FROM orders;";
+        let sql =
+            "-- slowql-disable-file PERF-SCAN-001\nSELECT * FROM users;\nSELECT * FROM orders;";
         let map = parse_suppressions(sql);
         assert!(map.is_suppressed(2, "PERF-SCAN-001"));
         assert!(map.is_suppressed(3, "PERF-SCAN-001"));
@@ -222,7 +228,8 @@ mod tests {
 
     #[test]
     fn suppression_does_not_leak() {
-        let sql = "-- slowql-disable-next-line PERF-SCAN-001\nSELECT * FROM users;\nSELECT * FROM orders";
+        let sql =
+            "-- slowql-disable-next-line PERF-SCAN-001\nSELECT * FROM users;\nSELECT * FROM orders";
         let map = parse_suppressions(sql);
         assert!(map.is_suppressed(2, "PERF-SCAN-001"));
         assert!(!map.is_suppressed(3, "PERF-SCAN-001"));

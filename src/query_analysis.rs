@@ -100,11 +100,15 @@ impl QueryFacts {
                 for col in &insert.columns {
                     self.insert_columns.push(col.value.clone());
                 }
-                self.insert_has_values = insert.source.as_ref()
+                self.insert_has_values = insert
+                    .source
+                    .as_ref()
                     .map(|s| matches!(s.body.as_ref(), SetExpr::Values(_)))
                     .unwrap_or(false);
             }
-            Statement::Update { table, selection, .. } => {
+            Statement::Update {
+                table, selection, ..
+            } => {
                 self.statement_type = "UPDATE".to_string();
                 self.update_table = table_name_from_twj(table);
                 self.has_where = selection.is_some();
@@ -129,7 +133,11 @@ impl QueryFacts {
                 }
             }
             _ => {
-                self.statement_type = format!("{}", stmt).split_whitespace().next().unwrap_or("UNKNOWN").to_uppercase();
+                self.statement_type = format!("{}", stmt)
+                    .split_whitespace()
+                    .next()
+                    .unwrap_or("UNKNOWN")
+                    .to_uppercase();
             }
         }
     }
@@ -213,14 +221,11 @@ impl QueryFacts {
     }
 
     fn check_aggregation(&mut self, expr: &Expr) {
-        match expr {
-            Expr::Function(func) => {
-                let name = func.name.to_string().to_uppercase();
-                if matches!(name.as_str(), "COUNT" | "SUM" | "AVG" | "MIN" | "MAX") {
-                    self.has_aggregation = true;
-                }
+        if let Expr::Function(func) = expr {
+            let name = func.name.to_string().to_uppercase();
+            if matches!(name.as_str(), "COUNT" | "SUM" | "AVG" | "MIN" | "MAX") {
+                self.has_aggregation = true;
             }
-            _ => {}
         }
     }
 
@@ -243,30 +248,27 @@ impl QueryFacts {
     }
 
     fn check_pk_equality(&mut self, expr: &Expr) {
-        match expr {
-            Expr::BinaryOp { left, op, right } => {
-                if matches!(op, BinaryOperator::Eq) {
-                    let col_name = match left.as_ref() {
-                        Expr::Identifier(id) => Some(id.value.to_lowercase()),
-                        Expr::CompoundIdentifier(parts) => parts.last().map(|p| p.value.to_lowercase()),
-                        _ => None,
-                    };
-                    if let Some(name) = col_name {
-                        if name == "id" || name.ends_with("_id") {
-                            // Check right side is a literal or parameter
-                            match right.as_ref() {
-                                Expr::Value(_) | Expr::UnaryOp { .. } => {
-                                    self.where_has_pk_equality = true;
-                                }
-                                _ => {}
+        if let Expr::BinaryOp { left, op, right } = expr {
+            if matches!(op, BinaryOperator::Eq) {
+                let col_name = match left.as_ref() {
+                    Expr::Identifier(id) => Some(id.value.to_lowercase()),
+                    Expr::CompoundIdentifier(parts) => parts.last().map(|p| p.value.to_lowercase()),
+                    _ => None,
+                };
+                if let Some(name) = col_name {
+                    if name == "id" || name.ends_with("_id") {
+                        // Check right side is a literal or parameter
+                        match right.as_ref() {
+                            Expr::Value(_) | Expr::UnaryOp { .. } => {
+                                self.where_has_pk_equality = true;
                             }
+                            _ => {}
                         }
                     }
                 }
-                self.check_pk_equality(left);
-                self.check_pk_equality(right);
             }
-            _ => {}
+            self.check_pk_equality(left);
+            self.check_pk_equality(right);
         }
     }
 
@@ -319,7 +321,9 @@ impl QueryFacts {
     /// Check if a value appears inside a string literal (not as an identifier).
     pub fn is_in_string_literal(&self, value: &str) -> bool {
         let lower = value.to_lowercase();
-        self.string_literals.iter().any(|s| s.to_lowercase().contains(&lower))
+        self.string_literals
+            .iter()
+            .any(|s| s.to_lowercase().contains(&lower))
     }
 
     /// Check if query is a simple single-row lookup (WHERE pk = value).
@@ -330,7 +334,11 @@ impl QueryFacts {
     /// Check if a column name appears in the SELECT list.
     pub fn selects_column(&self, name: &str) -> bool {
         let lower = name.to_lowercase();
-        self.selects_star || self.selected_columns.iter().any(|c| c.to_lowercase() == lower)
+        self.selects_star
+            || self
+                .selected_columns
+                .iter()
+                .any(|c| c.to_lowercase() == lower)
     }
 }
 
@@ -401,7 +409,7 @@ mod tests {
     fn insert_with_columns() {
         let facts = QueryFacts::from_sql(
             "INSERT INTO users (name, email) VALUES ('John', 'john@example.com')",
-            "postgresql"
+            "postgresql",
         );
         assert_eq!(facts.statement_type, "INSERT");
         assert!(facts.insert_has_values);
@@ -413,7 +421,7 @@ mod tests {
     fn string_literal_detection() {
         let facts = QueryFacts::from_sql(
             "INSERT INTO users (email) VALUES ('test@example.com')",
-            "postgresql"
+            "postgresql",
         );
         assert!(facts.is_in_string_literal("@example.com"));
         assert!(facts.is_in_string_literal("test@"));
@@ -445,7 +453,7 @@ mod tests {
     fn join_count() {
         let facts = QueryFacts::from_sql(
             "SELECT * FROM a JOIN b ON a.id=b.id JOIN c ON b.id=c.id",
-            "postgresql"
+            "postgresql",
         );
         assert_eq!(facts.join_count, 2);
     }

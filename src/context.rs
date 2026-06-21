@@ -1,5 +1,5 @@
-use regex::Regex;
 use once_cell::sync::Lazy;
+use regex::Regex;
 
 pub const MIGRATION: &str = "migration";
 pub const APPLICATION: &str = "application";
@@ -11,76 +11,134 @@ pub const EXAMPLE: &str = "example";
 pub const FRAMEWORK_INTERNAL: &str = "framework_internal";
 pub const ADHOC: &str = "adhoc";
 
-static PATH_PATTERNS: Lazy<Vec<(Regex, &'static str)>> = Lazy::new(|| vec![
-    (Regex::new(r"(?i)(?:^|/)alembic/").unwrap(), MIGRATION),
-    (Regex::new(r"(?i)(?:^|/)migrations?/").unwrap(), MIGRATION),
-    (Regex::new(r"(?i)[_-]migrations?/").unwrap(), MIGRATION),
-    (Regex::new(r"(?i)(?:^|/)migrator/").unwrap(), MIGRATION),
-    (Regex::new(r"(?i)(?:^|/)snapshot/").unwrap(), MIGRATION),
-    (Regex::new(r"(?i)(?:^|/)db/migrate/").unwrap(), MIGRATION),
-    (Regex::new(r"(?i)(?:^|/)flyway/").unwrap(), MIGRATION),
-    (Regex::new(r"(?i)(?:^|/)liquibase/").unwrap(), MIGRATION),
-    (Regex::new(r"(?i)(?:^|/)prisma/migrations/").unwrap(), MIGRATION),
-    (Regex::new(r"(?i)(?:^|/)tests?/").unwrap(), TEST),
-    (Regex::new(r"(?i)(?:^|/)spec/").unwrap(), TEST),
-    (Regex::new(r"(?i)(?:^|/)__tests__/").unwrap(), TEST),
-    (Regex::new(r"(?i)(?:^|/)e2e/").unwrap(), TEST),
-    (Regex::new(r"(?i)(?:^|/)\.circleci/").unwrap(), TEST),
-    (Regex::new(r"(?i)(?:^|/)\.github/").unwrap(), TEST),
-    (Regex::new(r"(?i)(?:^|/)\.gitlab-ci/").unwrap(), TEST),
-    (Regex::new(r"(?i)(?:^|/)test[_-]resources?/").unwrap(), TEST),
-    (Regex::new(r"(?i)(?:^|/)testdata/").unwrap(), TEST),
-    (Regex::new(r"(?i)(?:^|/)python-sources/").unwrap(), TEST),
-    (Regex::new(r"(?i)(?:^|/)python-sources/").unwrap(), TEST),
-    (Regex::new(r"(?i)(?:^|/)scripts?/").unwrap(), EXAMPLE),
-    (Regex::new(r"(?i)(?:^|/)models?/.*\.sql$").unwrap(), DBT_MODEL),
-    (Regex::new(r"(?i)(?:^|/)seeds?/").unwrap(), SEED),
-    (Regex::new(r"(?i)(?:^|/)fixtures?/").unwrap(), SEED),
-    (Regex::new(r"(?i)(?:^|/)seeders?/").unwrap(), SEED),
-    (Regex::new(r"(?i)indexer_seeders?/").unwrap(), SEED),
-    (Regex::new(r"(?i)(?:^|/)seed\.sql$").unwrap(), SEED),
-    (Regex::new(r"(?i)/data\.sql$").unwrap(), SEED),
-    (Regex::new(r"(?i)(?:^|/)schema\.sql$").unwrap(), DDL_SCHEMA),
-    (Regex::new(r"(?i)(?:^|/)structure\.sql$").unwrap(), DDL_SCHEMA),
-    (Regex::new(r"(?i)(?:^|/)schema/").unwrap(), DDL_SCHEMA),
-    (Regex::new(r"(?i)(?:^|/)ddl/").unwrap(), DDL_SCHEMA),
-    (Regex::new(r"(?i)(?:^|/)examples?/").unwrap(), EXAMPLE),
-    (Regex::new(r"(?i)(?:^|/)docs?/").unwrap(), EXAMPLE),
-    (Regex::new(r"(?i)(?:^|/)benchmarks?/").unwrap(), EXAMPLE),
-    (Regex::new(r"(?i)(?:^|/)demo/").unwrap(), EXAMPLE),
-    (Regex::new(r"(?i)(?:^|/)samples?/").unwrap(), EXAMPLE),
-    (Regex::new(r"(?i)(?:^|/)\.semgrep/").unwrap(), EXAMPLE),
-    (Regex::new(r"(?i)(?:^|/)bin/").unwrap(), EXAMPLE),
-    (Regex::new(r"(?i)(?:^|/)devenv/").unwrap(), EXAMPLE),
-    (Regex::new(r"(?i)(?:^|/)docker/").unwrap(), EXAMPLE),
-    (Regex::new(r"(?i)/infer_schema").unwrap(), FRAMEWORK_INTERNAL),
-    (Regex::new(r"(?i)(?:^|/)src/").unwrap(), APPLICATION),
-    // ORM and framework internal SQL adapter code
-    // These files contain intentionally generic SQL templates
-    (Regex::new(r"(?i)(?:^|/)connection_adapters?/").unwrap(), FRAMEWORK_INTERNAL),
-    (Regex::new(r"(?i)(?:^|/)db/backends?/").unwrap(), FRAMEWORK_INTERNAL),
-    (Regex::new(r"(?i)(?:^|/)db/models?/sql/").unwrap(), FRAMEWORK_INTERNAL),
-    (Regex::new(r"(?i)(?:^|/)lib/arel/").unwrap(), FRAMEWORK_INTERNAL),
-    (Regex::new(r"(?i)(?:^|/)activerecord/lib/").unwrap(), FRAMEWORK_INTERNAL),
-    (Regex::new(r"(?i)/models/[^/]+/sql\.py$").unwrap(), FRAMEWORK_INTERNAL),
-    (Regex::new(r"(?i)/[^/]+/sql\.py$").unwrap(), FRAMEWORK_INTERNAL),
-    (Regex::new(r"(?i)/backend/sql\.py$").unwrap(), FRAMEWORK_INTERNAL),
-    (Regex::new(r"(?i)/clickhouse/[^/]+\.py$").unwrap(), FRAMEWORK_INTERNAL),
-    (Regex::new(r"(?i)/sql/[^/]+_sql\.py$").unwrap(), FRAMEWORK_INTERNAL),
-    (Regex::new(r"(?i)_sql\.py$").unwrap(), FRAMEWORK_INTERNAL),
-    (Regex::new(r"(?i)/dags/").unwrap(), FRAMEWORK_INTERNAL),
-    (Regex::new(r"(?i)/management/").unwrap(), FRAMEWORK_INTERNAL),
-    (Regex::new(r"(?i)/store/").unwrap(), FRAMEWORK_INTERNAL),
-    ]);
+static PATH_PATTERNS: Lazy<Vec<(Regex, &'static str)>> = Lazy::new(|| {
+    vec![
+        (Regex::new(r"(?i)(?:^|/)alembic/").unwrap(), MIGRATION),
+        (Regex::new(r"(?i)(?:^|/)migrations?/").unwrap(), MIGRATION),
+        (Regex::new(r"(?i)[_-]migrations?/").unwrap(), MIGRATION),
+        (Regex::new(r"(?i)(?:^|/)migrator/").unwrap(), MIGRATION),
+        (Regex::new(r"(?i)(?:^|/)snapshot/").unwrap(), MIGRATION),
+        (Regex::new(r"(?i)(?:^|/)db/migrate/").unwrap(), MIGRATION),
+        (Regex::new(r"(?i)(?:^|/)flyway/").unwrap(), MIGRATION),
+        (Regex::new(r"(?i)(?:^|/)liquibase/").unwrap(), MIGRATION),
+        (
+            Regex::new(r"(?i)(?:^|/)prisma/migrations/").unwrap(),
+            MIGRATION,
+        ),
+        (Regex::new(r"(?i)(?:^|/)tests?/").unwrap(), TEST),
+        (Regex::new(r"(?i)(?:^|/)spec/").unwrap(), TEST),
+        (Regex::new(r"(?i)(?:^|/)__tests__/").unwrap(), TEST),
+        (Regex::new(r"(?i)(?:^|/)e2e/").unwrap(), TEST),
+        (Regex::new(r"(?i)(?:^|/)\.circleci/").unwrap(), TEST),
+        (Regex::new(r"(?i)(?:^|/)\.github/").unwrap(), TEST),
+        (Regex::new(r"(?i)(?:^|/)\.gitlab-ci/").unwrap(), TEST),
+        (Regex::new(r"(?i)(?:^|/)test[_-]resources?/").unwrap(), TEST),
+        (Regex::new(r"(?i)(?:^|/)testdata/").unwrap(), TEST),
+        (Regex::new(r"(?i)(?:^|/)python-sources/").unwrap(), TEST),
+        (Regex::new(r"(?i)(?:^|/)python-sources/").unwrap(), TEST),
+        (Regex::new(r"(?i)(?:^|/)scripts?/").unwrap(), EXAMPLE),
+        (
+            Regex::new(r"(?i)(?:^|/)models?/.*\.sql$").unwrap(),
+            DBT_MODEL,
+        ),
+        (Regex::new(r"(?i)(?:^|/)seeds?/").unwrap(), SEED),
+        (Regex::new(r"(?i)(?:^|/)fixtures?/").unwrap(), SEED),
+        (Regex::new(r"(?i)(?:^|/)seeders?/").unwrap(), SEED),
+        (Regex::new(r"(?i)indexer_seeders?/").unwrap(), SEED),
+        (Regex::new(r"(?i)(?:^|/)seed\.sql$").unwrap(), SEED),
+        (Regex::new(r"(?i)/data\.sql$").unwrap(), SEED),
+        (Regex::new(r"(?i)(?:^|/)schema\.sql$").unwrap(), DDL_SCHEMA),
+        (
+            Regex::new(r"(?i)(?:^|/)structure\.sql$").unwrap(),
+            DDL_SCHEMA,
+        ),
+        (Regex::new(r"(?i)(?:^|/)schema/").unwrap(), DDL_SCHEMA),
+        (Regex::new(r"(?i)(?:^|/)ddl/").unwrap(), DDL_SCHEMA),
+        (Regex::new(r"(?i)(?:^|/)examples?/").unwrap(), EXAMPLE),
+        (Regex::new(r"(?i)(?:^|/)docs?/").unwrap(), EXAMPLE),
+        (Regex::new(r"(?i)(?:^|/)benchmarks?/").unwrap(), EXAMPLE),
+        (Regex::new(r"(?i)(?:^|/)demo/").unwrap(), EXAMPLE),
+        (Regex::new(r"(?i)(?:^|/)samples?/").unwrap(), EXAMPLE),
+        (Regex::new(r"(?i)(?:^|/)\.semgrep/").unwrap(), EXAMPLE),
+        (Regex::new(r"(?i)(?:^|/)bin/").unwrap(), EXAMPLE),
+        (Regex::new(r"(?i)(?:^|/)devenv/").unwrap(), EXAMPLE),
+        (Regex::new(r"(?i)(?:^|/)docker/").unwrap(), EXAMPLE),
+        (
+            Regex::new(r"(?i)/infer_schema").unwrap(),
+            FRAMEWORK_INTERNAL,
+        ),
+        (Regex::new(r"(?i)(?:^|/)src/").unwrap(), APPLICATION),
+        // ORM and framework internal SQL adapter code
+        // These files contain intentionally generic SQL templates
+        (
+            Regex::new(r"(?i)(?:^|/)connection_adapters?/").unwrap(),
+            FRAMEWORK_INTERNAL,
+        ),
+        (
+            Regex::new(r"(?i)(?:^|/)db/backends?/").unwrap(),
+            FRAMEWORK_INTERNAL,
+        ),
+        (
+            Regex::new(r"(?i)(?:^|/)db/models?/sql/").unwrap(),
+            FRAMEWORK_INTERNAL,
+        ),
+        (
+            Regex::new(r"(?i)(?:^|/)lib/arel/").unwrap(),
+            FRAMEWORK_INTERNAL,
+        ),
+        (
+            Regex::new(r"(?i)(?:^|/)activerecord/lib/").unwrap(),
+            FRAMEWORK_INTERNAL,
+        ),
+        (
+            Regex::new(r"(?i)/models/[^/]+/sql\.py$").unwrap(),
+            FRAMEWORK_INTERNAL,
+        ),
+        (
+            Regex::new(r"(?i)/[^/]+/sql\.py$").unwrap(),
+            FRAMEWORK_INTERNAL,
+        ),
+        (
+            Regex::new(r"(?i)/backend/sql\.py$").unwrap(),
+            FRAMEWORK_INTERNAL,
+        ),
+        (
+            Regex::new(r"(?i)/clickhouse/[^/]+\.py$").unwrap(),
+            FRAMEWORK_INTERNAL,
+        ),
+        (
+            Regex::new(r"(?i)/sql/[^/]+_sql\.py$").unwrap(),
+            FRAMEWORK_INTERNAL,
+        ),
+        (Regex::new(r"(?i)_sql\.py$").unwrap(), FRAMEWORK_INTERNAL),
+        (Regex::new(r"(?i)/dags/").unwrap(), FRAMEWORK_INTERNAL),
+        (Regex::new(r"(?i)/management/").unwrap(), FRAMEWORK_INTERNAL),
+        (Regex::new(r"(?i)/store/").unwrap(), FRAMEWORK_INTERNAL),
+    ]
+});
 
-static CONTENT_PATTERNS: Lazy<Vec<(Regex, &'static str)>> = Lazy::new(|| vec![
-    (Regex::new(r"(?im)revision\s*[:=].*\ndown_revision").unwrap(), MIGRATION),
-    (Regex::new(r"(?m)class\s+\w*Migration\w*\s*\(").unwrap(), MIGRATION),
-    (Regex::new(r"(?m)def\s+(up|down)\s*\(").unwrap(), MIGRATION),
-    (Regex::new(r"(?i)--\s*(?:flyway|liquibase|prisma)").unwrap(), MIGRATION),
-    (Regex::new(r"\{\{\s*ref\s*\(").unwrap(), DBT_MODEL),
-    (Regex::new(r"\{%\s*(config|materialization)").unwrap(), DBT_MODEL),
-]);
+static CONTENT_PATTERNS: Lazy<Vec<(Regex, &'static str)>> = Lazy::new(|| {
+    vec![
+        (
+            Regex::new(r"(?im)revision\s*[:=].*\ndown_revision").unwrap(),
+            MIGRATION,
+        ),
+        (
+            Regex::new(r"(?m)class\s+\w*Migration\w*\s*\(").unwrap(),
+            MIGRATION,
+        ),
+        (Regex::new(r"(?m)def\s+(up|down)\s*\(").unwrap(), MIGRATION),
+        (
+            Regex::new(r"(?i)--\s*(?:flyway|liquibase|prisma)").unwrap(),
+            MIGRATION,
+        ),
+        (Regex::new(r"\{\{\s*ref\s*\(").unwrap(), DBT_MODEL),
+        (
+            Regex::new(r"\{%\s*(config|materialization)").unwrap(),
+            DBT_MODEL,
+        ),
+    ]
+});
 
 /// Allowed rule prefixes for non-production contexts.
 /// Production contexts (APPLICATION, ADHOC, DBT_MODEL) get full analysis.
@@ -111,13 +169,16 @@ pub fn classify_source(file_path: Option<&str>, content: &str) -> &'static str {
         // Check for test file naming FIRST, before any path pattern.
         // These are always test files regardless of directory path.
         let filename = normalized.rsplit('/').next().unwrap_or(&normalized);
-        if filename.contains(".spec.") || filename.contains(".test.")
-            || filename.contains("_spec.") || filename.contains("_test.")
+        if filename.contains(".spec.")
+            || filename.contains(".test.")
+            || filename.contains("_spec.")
+            || filename.contains("_test.")
             || filename.starts_with("test_")
             || filename.contains("testinfra")
             || filename.contains("test_infra")
             || filename == "conftest.py"
-            || filename == "tests.py" {
+            || filename == "tests.py"
+        {
             return TEST;
         }
         for (pattern, ctx) in PATH_PATTERNS.iter() {
@@ -163,17 +224,21 @@ pub fn filter_issues_by_context(
             if denied.is_empty() {
                 issues
             } else {
-                issues.into_iter().filter(|i| !denied.contains(&i.rule_id.as_str())).collect()
+                issues
+                    .into_iter()
+                    .filter(|i| !denied.contains(&i.rule_id.as_str()))
+                    .collect()
             }
         }
-        Some(allowed) => {
-            issues.into_iter().filter(|i| {
+        Some(allowed) => issues
+            .into_iter()
+            .filter(|i| {
                 if denied.contains(&i.rule_id.as_str()) {
                     return false;
                 }
                 allowed.iter().any(|prefix| i.rule_id.starts_with(prefix))
-            }).collect()
-        }
+            })
+            .collect(),
     }
 }
 
@@ -183,7 +248,10 @@ mod tests {
 
     #[test]
     fn classify_migration_paths() {
-        assert_eq!(classify_source(Some("alembic/versions/001.py"), ""), MIGRATION);
+        assert_eq!(
+            classify_source(Some("alembic/versions/001.py"), ""),
+            MIGRATION
+        );
         assert_eq!(classify_source(Some("db/migrate/001.sql"), ""), MIGRATION);
         assert_eq!(classify_source(Some("migrations/001.sql"), ""), MIGRATION);
     }
@@ -203,22 +271,56 @@ mod tests {
     #[test]
     fn classify_adhoc() {
         assert_eq!(classify_source(None, "SELECT 1"), ADHOC);
-        assert_eq!(classify_source(Some("queries.sql"), "SELECT 1"), APPLICATION);
+        assert_eq!(
+            classify_source(Some("queries.sql"), "SELECT 1"),
+            APPLICATION
+        );
     }
 
     #[test]
     fn classify_dbt_by_content() {
-        assert_eq!(classify_source(None, "SELECT {{ ref('users') }}"), DBT_MODEL);
+        assert_eq!(
+            classify_source(None, "SELECT {{ ref('users') }}"),
+            DBT_MODEL
+        );
     }
 
     #[test]
     fn filter_migration_context() {
         use crate::models::{Dimension, Issue, Location, Severity};
         let issues = vec![
-            Issue::new("SEC-INJ-001", "sec", Severity::High, Dimension::Security, Location::new(1,1), "x"),
-            Issue::new("PERF-SCAN-001", "perf", Severity::Medium, Dimension::Performance, Location::new(1,1), "x"),
-            Issue::new("REL-DATA-001", "rel", Severity::Critical, Dimension::Reliability, Location::new(1,1), "x"),
-            Issue::new("SEC-INJ-005", "denied", Severity::High, Dimension::Security, Location::new(1,1), "x"),
+            Issue::new(
+                "SEC-INJ-001",
+                "sec",
+                Severity::High,
+                Dimension::Security,
+                Location::new(1, 1),
+                "x",
+            ),
+            Issue::new(
+                "PERF-SCAN-001",
+                "perf",
+                Severity::Medium,
+                Dimension::Performance,
+                Location::new(1, 1),
+                "x",
+            ),
+            Issue::new(
+                "REL-DATA-001",
+                "rel",
+                Severity::Critical,
+                Dimension::Reliability,
+                Location::new(1, 1),
+                "x",
+            ),
+            Issue::new(
+                "SEC-INJ-005",
+                "denied",
+                Severity::High,
+                Dimension::Security,
+                Location::new(1, 1),
+                "x",
+            ),
         ];
         let filtered = filter_issues_by_context(issues, MIGRATION);
         assert_eq!(filtered.len(), 2); // SEC-INJ-001 + REL-DATA-001 (SEC-INJ-005 denied, PERF filtered)

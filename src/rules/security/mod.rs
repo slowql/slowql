@@ -1,12 +1,12 @@
-pub mod injection;
 pub mod authentication;
 pub mod authorization;
-pub mod cryptography;
-pub mod data_protection;
 pub mod command;
 pub mod configuration;
+pub mod cryptography;
+pub mod data_protection;
 pub mod dos;
 pub mod information;
+pub mod injection;
 pub mod logging;
 pub mod session;
 

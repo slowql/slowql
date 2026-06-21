@@ -1,4 +1,3 @@
-
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
@@ -374,10 +373,7 @@ impl Issue {
         snippet: impl Into<String>,
     ) -> Self {
         let rule_id = rule_id.into();
-        let doc_url = format!(
-            "https://slowql.dev/rules/{}",
-            rule_id.to_lowercase().replace('-', "-")
-        );
+        let doc_url = format!("https://slowql.dev/rules/{}", rule_id.to_lowercase());
         Issue {
             rule_id,
             message: message.into(),

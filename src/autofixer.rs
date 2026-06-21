@@ -7,10 +7,11 @@ impl AutoFixer {
         let mut updated = query.to_string();
 
         if let (Some(start), Some(end)) = (fix.start, fix.end) {
-            if start <= end && end <= query.len() {
-                if fix.original.is_empty() || &query[start..end] == fix.original {
-                    updated = format!("{}{}{}", &query[..start], fix.replacement, &query[end..]);
-                }
+            if start <= end
+                && end <= query.len()
+                && (fix.original.is_empty() || query[start..end] == fix.original)
+            {
+                updated = format!("{}{}{}", &query[..start], fix.replacement, &query[end..]);
             }
         } else if !fix.original.is_empty() && query.contains(&fix.original) {
             updated = query.replacen(&fix.original, &fix.replacement, 1);
@@ -23,7 +24,8 @@ impl AutoFixer {
         let mut updated = query.to_string();
 
         // Span-based fixes first (right to left to preserve offsets)
-        let mut span_fixes: Vec<&Fix> = fixes.iter()
+        let mut span_fixes: Vec<&Fix> = fixes
+            .iter()
             .filter(|f| f.start.is_some() && f.end.is_some())
             .collect();
         span_fixes.sort_by(|a, b| b.start.cmp(&a.start));
@@ -33,7 +35,10 @@ impl AutoFixer {
         }
 
         // Text-based fixes
-        for fix in fixes.iter().filter(|f| f.start.is_none() && f.end.is_none()) {
+        for fix in fixes
+            .iter()
+            .filter(|f| f.start.is_none() && f.end.is_none())
+        {
             if !fix.original.is_empty() && updated.contains(&fix.original) {
                 updated = updated.replacen(&fix.original, &fix.replacement, 1);
             }
