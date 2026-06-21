@@ -78,7 +78,6 @@ fn analysis_result_exit_codes_match_current_python_behavior() {
 
 #[test]
 fn severity_display_and_parse() {
-    use std::str::FromStr;
     for sev in &["critical", "high", "medium", "low", "info"] {
         let parsed: Severity = sev.parse().unwrap();
         assert_eq!(parsed.as_str(), *sev);
@@ -165,4 +164,103 @@ fn rule_confidence_parse() {
     assert_eq!("contextual".parse::<slowql_lib::models::issue::RuleConfidence>().unwrap(), slowql_lib::models::issue::RuleConfidence::Contextual);
     assert_eq!("advisory".parse::<slowql_lib::models::issue::RuleConfidence>().unwrap(), slowql_lib::models::issue::RuleConfidence::Advisory);
     assert!("invalid".parse::<slowql_lib::models::issue::RuleConfidence>().is_err());
+}
+
+#[test]
+fn query_is_select() {
+    let q = slowql_lib::models::Query {
+        query_type: Some("SELECT".to_string()),
+        ..Default::default()
+    };
+    assert!(q.is_select());
+    assert!(!q.is_insert());
+    assert!(!q.is_update());
+    assert!(!q.is_delete());
+}
+
+#[test]
+fn query_is_insert() {
+    let q = slowql_lib::models::Query {
+        query_type: Some("INSERT".to_string()),
+        ..Default::default()
+    };
+    assert!(q.is_insert());
+    assert!(!q.is_select());
+}
+
+#[test]
+fn query_raw_upper_cached() {
+    let q = slowql_lib::models::Query {
+        raw: "select * from users".to_string(),
+        ..Default::default()
+    };
+    assert_eq!(q.raw_upper(), "SELECT * FROM USERS");
+    // Second call uses cache
+    assert_eq!(q.raw_upper(), "SELECT * FROM USERS");
+}
+
+#[test]
+fn query_raw_lower_cached() {
+    let q = slowql_lib::models::Query {
+        raw: "SELECT * FROM Users".to_string(),
+        ..Default::default()
+    };
+    assert_eq!(q.raw_lower(), "select * from users");
+}
+
+#[test]
+fn query_has_keyword() {
+    let q = slowql_lib::models::Query {
+        raw: "SELECT * FROM users WHERE id = 1".to_string(),
+        ..Default::default()
+    };
+    assert!(q.has_keyword("WHERE"));
+    assert!(q.has_keyword("from"));
+    assert!(!q.has_keyword("JOIN"));
+}
+
+#[test]
+fn query_snippet() {
+    let q = slowql_lib::models::Query {
+        raw: "SELECT * FROM users WHERE id = 1".to_string(),
+        ..Default::default()
+    };
+    assert_eq!(q.snippet(10), "SELECT * F");
+    assert_eq!(q.snippet(1000), "SELECT * FROM users WHERE id = 1");
+}
+
+#[test]
+fn query_is_templated_python() {
+    let q = slowql_lib::models::Query {
+        raw: "SELECT * FROM %s WHERE id = %s".to_string(),
+        ..Default::default()
+    };
+    assert!(q.is_templated());
+}
+
+#[test]
+fn query_is_templated_ruby() {
+    let q = slowql_lib::models::Query {
+        raw: "SELECT * FROM #{table} WHERE id = 1".to_string(),
+        ..Default::default()
+    };
+    assert!(q.is_templated());
+}
+
+#[test]
+fn query_is_templated_go() {
+    let q = slowql_lib::models::Query {
+        raw: "SELECT * FROM {{ .Ident .Table }} WHERE id = 1".to_string(),
+        ..Default::default()
+    };
+    assert!(q.is_templated());
+}
+
+#[test]
+fn query_not_templated() {
+    let q = slowql_lib::models::Query {
+        raw: "SELECT * FROM users WHERE id = 1".to_string(),
+        ..Default::default()
+    };
+    assert!(!q.is_templated());
 }

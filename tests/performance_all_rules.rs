@@ -1171,3 +1171,51 @@ WHERE
         )).is_empty()
     );
 }
+
+#[test]
+fn batch_002_while_with_limit() {
+    let r = all();
+    let rule = find(&r, "PERF-BATCH-002");
+    assert!(rule.check(&q("WHILE @count > 0 BEGIN DELETE TOP (1000) FROM t WHERE x = 1 END", "tsql", "SELECT")).is_empty());
+}
+
+#[test]
+fn mem_002_unbounded_temp() {
+    let r = all();
+    let rule = find(&r, "PERF-MEM-002");
+    assert!(!rule.check(&q("SELECT * INTO #temp FROM large_table", "tsql", "SELECT")).is_empty());
+    assert!(rule.check(&q("SELECT * INTO #temp FROM large_table WHERE id = 1", "tsql", "SELECT")).is_empty());
+}
+
+#[test]
+fn tsql_003_convert_in_join() {
+    let r = all();
+    let rule = find(&r, "PERF-TSQL-003");
+    assert!(!rule.check(&q("SELECT * FROM a JOIN b ON CONVERT(VARCHAR, a.id) = b.id", "tsql", "SELECT")).is_empty());
+    assert!(rule.check(&q("SELECT * FROM a JOIN b ON a.id = b.id", "tsql", "SELECT")).is_empty());
+}
+
+#[test]
+fn net_001_many_columns() {
+    let r = all();
+    let rule = find(&r, "PERF-NET-001");
+    let cols = (0..25).map(|i| format!("col{}", i)).collect::<Vec<_>>().join(", ");
+    let sql = format!("SELECT {} FROM t", cols);
+    assert!(!rule.check(&q(&sql, "postgresql", "SELECT")).is_empty());
+}
+
+#[test]
+fn lock_003_long_transaction() {
+    let r = all();
+    let rule = find(&r, "PERF-LOCK-003");
+    let long_sql = format!("BEGIN TRANSACTION; {} COMMIT", "UPDATE t SET x = 1; ".repeat(30));
+    assert!(!rule.check(&q(&long_sql, "tsql", "SELECT")).is_empty());
+}
+
+#[test]
+fn execution_sort_001() {
+    let r = all();
+    let rule = find(&r, "PERF-SORT-001");
+    assert!(!rule.check(&q("SELECT * FROM t ORDER BY description", "postgresql", "SELECT")).is_empty());
+    assert!(rule.check(&q("SELECT * FROM t ORDER BY id", "postgresql", "SELECT")).is_empty());
+}

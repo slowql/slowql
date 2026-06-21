@@ -1107,3 +1107,25 @@ fn session_002_no_timeout() {
         ))
         .is_empty());
 }
+
+#[test]
+fn session_002_with_expiry() {
+    let r = all();
+    let rule = find(&r, "SEC-SESSION-002");
+    // Query with expiry check should NOT fire
+    assert!(rule.check(&q("SELECT user_id FROM sessions WHERE session_token = $1 AND expires_at > NOW()", "postgresql", "SELECT")).is_empty());
+}
+
+#[test]
+fn dos_001_with_maxrecursion() {
+    let r = all();
+    let rule = find(&r, "SEC-DOS-001");
+    assert!(rule.check(&q("WITH RECURSIVE cte AS (SELECT 1 UNION ALL SELECT n+1 FROM cte) SELECT * FROM cte OPTION (MAXRECURSION 100)", "tsql", "SELECT")).is_empty());
+}
+
+#[test]
+fn dos_001_non_recursive_cte_no_fire() {
+    let r = all();
+    let rule = find(&r, "SEC-DOS-001");
+    assert!(rule.check(&q("WITH cte AS (SELECT 1) SELECT * FROM cte", "postgresql", "SELECT")).is_empty());
+}
