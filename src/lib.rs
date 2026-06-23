@@ -19,3 +19,4 @@ pub mod query_analysis;
 pub mod schema;
 pub mod scoring;
 pub mod yaml_rules;
+pub mod cli;
