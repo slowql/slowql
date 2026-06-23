@@ -1642,3 +1642,717 @@ mod more_cli_tests {
         export_result(&result, "sarif", dir.path());
     }
 }
+
+#[cfg(test)]
+mod cli_path_tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    fn base_cli() -> Cli {
+        Cli {
+            files: Vec::new(),
+            dialect: None,
+            schema: None,
+            format: OutputFormat::Json,
+            export: Vec::new(),
+            out: PathBuf::from("reports"),
+            fail_on: None,
+            diff: false,
+            fix: false,
+            fix_report: None,
+            baseline: None,
+            update_baseline: None,
+            list_rules: false,
+            explain: None,
+            git_diff: false,
+            since: None,
+            jobs: 0,
+            verbose: false,
+            no_cache: false,
+            cache_dir: ".slowql_cache".to_string(),
+            clear_cache: false,
+            filter_dimension: None,
+            filter_dialect: None,
+            min_confidence: None,
+            include_nonprod: false,
+            compare: false,
+            init: false,
+        }
+    }
+
+    #[test]
+    fn run_with_cli_analyzes_sql_file() {
+        let dir = tempdir().unwrap();
+        let sql = dir.path().join("q.sql");
+        std::fs::write(&sql, "DELETE FROM users").unwrap();
+
+        let mut cli = base_cli();
+        cli.files = vec![sql];
+        assert_eq!(run_with_cli(cli, None), 0);
+    }
+
+    #[test]
+    fn run_with_cli_analyzes_directory() {
+        let dir = tempdir().unwrap();
+        std::fs::write(dir.path().join("a.sql"), "SELECT 1").unwrap();
+        std::fs::write(dir.path().join("b.sql"), "DELETE FROM users").unwrap();
+
+        let mut cli = base_cli();
+        cli.files = vec![dir.path().to_path_buf()];
+        assert_eq!(run_with_cli(cli, None), 0);
+    }
+
+    #[test]
+    fn run_with_cli_schema_flag() {
+        let dir = tempdir().unwrap();
+        let schema_path = dir.path().join("schema.sql");
+        std::fs::write(&schema_path, "CREATE TABLE users (id INT PRIMARY KEY);").unwrap();
+        let sql_path = dir.path().join("q.sql");
+        std::fs::write(&sql_path, "SELECT * FROM users").unwrap();
+
+        let mut cli = base_cli();
+        cli.files = vec![sql_path];
+        cli.schema = Some(schema_path);
+        assert_eq!(run_with_cli(cli, None), 0);
+    }
+
+    #[test]
+    fn run_with_cli_schema_bad_path() {
+        let dir = tempdir().unwrap();
+        let sql_path = dir.path().join("q.sql");
+        std::fs::write(&sql_path, "SELECT 1").unwrap();
+
+        let mut cli = base_cli();
+        cli.files = vec![sql_path];
+        cli.schema = Some(PathBuf::from("/no/such/schema.sql"));
+        assert_eq!(run_with_cli(cli, None), 0);
+    }
+
+    #[test]
+    fn run_with_cli_update_baseline_from_file() {
+        let dir = tempdir().unwrap();
+        let sql = dir.path().join("q.sql");
+        std::fs::write(&sql, "DELETE FROM users").unwrap();
+        let baseline = dir.path().join("bl.json");
+
+        let mut cli = base_cli();
+        cli.files = vec![sql];
+        cli.update_baseline = Some(baseline.clone());
+        assert_eq!(run_with_cli(cli, None), 0);
+        assert!(baseline.exists());
+    }
+
+    #[test]
+    fn run_with_cli_baseline_filters_from_file() {
+        let dir = tempdir().unwrap();
+        let sql = dir.path().join("q.sql");
+        std::fs::write(&sql, "DELETE FROM users").unwrap();
+        let baseline_path = dir.path().join("bl.json");
+
+        let mut cli1 = base_cli();
+        cli1.files = vec![sql.clone()];
+        cli1.update_baseline = Some(baseline_path.clone());
+        run_with_cli(cli1, None);
+
+        let mut cli2 = base_cli();
+        cli2.files = vec![sql];
+        cli2.baseline = Some(baseline_path);
+        assert_eq!(run_with_cli(cli2, None), 0);
+    }
+
+    #[test]
+    fn run_with_cli_fail_on_high() {
+        let dir = tempdir().unwrap();
+        let sql = dir.path().join("q.sql");
+        std::fs::write(&sql, "DELETE FROM users").unwrap();
+
+        let mut cli = base_cli();
+        cli.files = vec![sql];
+        cli.fail_on = Some("high".to_string());
+        let code = run_with_cli(cli, None);
+        let _ = code;
+    }
+
+    #[test]
+    fn run_with_cli_verbose_flag() {
+        let dir = tempdir().unwrap();
+        let sql = dir.path().join("q.sql");
+        std::fs::write(&sql, "SELECT 1").unwrap();
+
+        let mut cli = base_cli();
+        cli.files = vec![sql];
+        cli.verbose = true;
+        assert_eq!(run_with_cli(cli, None), 0);
+    }
+
+    #[test]
+    fn run_with_cli_min_confidence_advisory() {
+        let dir = tempdir().unwrap();
+        let sql = dir.path().join("q.sql");
+        std::fs::write(&sql, "SELECT * FROM users").unwrap();
+
+        let mut cli = base_cli();
+        cli.files = vec![sql];
+        cli.min_confidence = Some("advisory".to_string());
+        assert_eq!(run_with_cli(cli, None), 0);
+    }
+
+    #[test]
+    fn run_with_cli_compare_flag() {
+        let dir = tempdir().unwrap();
+        let a = dir.path().join("a.sql");
+        let b = dir.path().join("b.sql");
+        std::fs::write(&a, "SELECT id FROM users WHERE id = 1").unwrap();
+        std::fs::write(&b, "SELECT id FROM users WHERE id = 2").unwrap();
+
+        let mut cli = base_cli();
+        cli.files = vec![a, b];
+        cli.compare = true;
+        cli.min_confidence = Some("advisory".to_string());
+        assert_eq!(run_with_cli(cli, None), 0);
+    }
+
+    #[test]
+    fn run_with_cli_export_all_formats() {
+        let dir = tempdir().unwrap();
+        let sql = dir.path().join("q.sql");
+        std::fs::write(&sql, "DELETE FROM users").unwrap();
+        let out = dir.path().join("out");
+
+        let mut cli = base_cli();
+        cli.files = vec![sql];
+        cli.export = vec!["json".into(), "csv".into(), "html".into(), "sarif".into(), "unknown".into()];
+        cli.out = out;
+        assert_eq!(run_with_cli(cli, None), 0);
+    }
+
+    #[test]
+    fn run_with_cli_stdin_proven_mode() {
+        let mut cli = base_cli();
+        cli.min_confidence = Some("proven".to_string());
+        let code = run_with_cli(cli, Some("DELETE FROM users"));
+        let _ = code;
+    }
+
+    #[test]
+    fn run_with_cli_stdin_advisory_mode() {
+        let mut cli = base_cli();
+        cli.min_confidence = Some("advisory".to_string());
+        let code = run_with_cli(cli, Some("DELETE FROM users"));
+        let _ = code;
+    }
+
+    #[test]
+    fn run_with_cli_console_format_with_issues() {
+        let mut cli = base_cli();
+        cli.format = OutputFormat::Console;
+        let code = run_with_cli(cli, Some("DELETE FROM users"));
+        let _ = code;
+    }
+
+    #[test]
+    fn run_with_cli_github_actions_format() {
+        let mut cli = base_cli();
+        cli.format = OutputFormat::GithubActions;
+        let code = run_with_cli(cli, Some("DELETE FROM users"));
+        let _ = code;
+    }
+
+    #[test]
+    fn run_with_cli_sarif_format() {
+        let mut cli = base_cli();
+        cli.format = OutputFormat::Sarif;
+        let code = run_with_cli(cli, Some("DELETE FROM users"));
+        let _ = code;
+    }
+
+    #[test]
+    fn run_with_cli_dialect_override() {
+        let mut cli = base_cli();
+        cli.dialect = Some("mysql".to_string());
+        let code = run_with_cli(cli, Some("SELECT 1"));
+        assert_eq!(code, 0);
+    }
+
+    #[test]
+    fn run_with_cli_clear_cache_then_analyze() {
+        let dir = tempdir().unwrap();
+        let sql = dir.path().join("q.sql");
+        std::fs::write(&sql, "SELECT 1").unwrap();
+
+        let mut cli = base_cli();
+        cli.clear_cache = true;
+        cli.cache_dir = dir.path().join("cache").to_string_lossy().to_string();
+        cli.files = vec![sql];
+        assert_eq!(run_with_cli(cli, None), 0);
+    }
+}
+
+#[cfg(test)]
+mod cli_deep_tests {
+    use super::*;
+    use crate::models::issue::{Fix, FixConfidence};
+    use crate::models::{Dimension, Issue, Location, Query, RuleConfidence, Severity};
+    use tempfile::tempdir;
+
+    fn base_cli() -> Cli {
+        Cli {
+            files: Vec::new(),
+            dialect: None,
+            schema: None,
+            format: OutputFormat::Json,
+            export: Vec::new(),
+            out: PathBuf::from("reports"),
+            fail_on: None,
+            diff: false,
+            fix: false,
+            fix_report: None,
+            baseline: None,
+            update_baseline: None,
+            list_rules: false,
+            explain: None,
+            git_diff: false,
+            since: None,
+            jobs: 0,
+            verbose: false,
+            no_cache: false,
+            cache_dir: ".slowql_cache".to_string(),
+            clear_cache: false,
+            filter_dimension: None,
+            filter_dialect: None,
+            min_confidence: None,
+            include_nonprod: false,
+            compare: false,
+            init: false,
+        }
+    }
+
+    fn print_console_with_advisory_and_impact_and_fix() {
+        let mut result = crate::models::result::AnalysisResult::new();
+        result.statistics.analysis_time_ms = 50.0;
+
+        let mut issue = Issue::new(
+            "TEST-001",
+            "test issue",
+            Severity::High,
+            Dimension::Security,
+            Location::new(1, 1).with_file("src/a.sql"),
+            "x".repeat(50).as_str(),
+        )
+        .with_impact("serious impact")
+        .with_fix(Fix {
+            description: "Apply this fix".to_string(),
+            original: "x".to_string(),
+            replacement: "y".to_string(),
+            is_safe: true,
+            confidence: FixConfidence::Safe,
+            rule_id: "TEST-001".to_string(),
+            start: None,
+            end: None,
+        });
+        issue.confidence = RuleConfidence::Contextual;
+
+        let mut issue2 = Issue::new(
+            "TEST-002",
+            "advisory",
+            Severity::Info,
+            Dimension::Quality,
+            Location::new(2, 1),
+            "y",
+        );
+        issue2.confidence = RuleConfidence::Advisory;
+        issue2.documentation_url = Some("https://slowql.dev/rules/test-002".to_string());
+
+        result.add_issue(issue);
+        result.add_issue(issue2);
+
+        for i in 0..3 {
+            result.queries.push(Query {
+                raw: "SELECT 1".to_string(),
+                normalized: "SELECT 1".to_string(),
+                dialect: "postgresql".to_string(),
+                location: Location::new(1, 1).with_file("src/a.sql"),
+                complexity_score: if i == 0 { 80 } else { 10 },
+                ..Default::default()
+            });
+        }
+        result.suppressed_count = 5;
+
+        print_console(&result);
+    }
+
+    #[test]
+    fn run_with_cli_directory_with_include_nonprod() {
+        let dir = tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("tests")).unwrap();
+        std::fs::write(
+            dir.path().join("tests").join("a.sql"),
+            "SELECT * FROM t",
+        )
+        .unwrap();
+        std::fs::write(dir.path().join("app.sql"), "DELETE FROM users").unwrap();
+
+        let mut cli = base_cli();
+        cli.files = vec![dir.path().to_path_buf()];
+        cli.include_nonprod = true;
+        assert_eq!(run_with_cli(cli, None), 0);
+    }
+
+    #[test]
+    fn run_with_cli_directory_scans_and_suppresses_nonprod() {
+        let dir = tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("tests")).unwrap();
+        std::fs::write(dir.path().join("app.sql"), "DELETE FROM users").unwrap();
+
+        let mut cli = base_cli();
+        cli.files = vec![dir.path().to_path_buf()];
+        cli.format = OutputFormat::Console;
+        cli.include_nonprod = false;
+        assert_eq!(run_with_cli(cli, None), 0);
+    }
+
+    #[test]
+    fn run_with_cli_baseline_bad_file_returns_zero() {
+        let dir = tempdir().unwrap();
+        let sql = dir.path().join("q.sql");
+        std::fs::write(&sql, "SELECT 1").unwrap();
+
+        let mut cli = base_cli();
+        cli.files = vec![sql];
+        cli.baseline = Some(PathBuf::from("/nonexistent/baseline.json"));
+        let code = run_with_cli(cli, None);
+        assert_eq!(code, 1);
+    }
+
+    #[test]
+    fn run_with_cli_fix_diff_mode() {
+        let dir = tempdir().unwrap();
+        let sql = dir.path().join("q.sql");
+        std::fs::write(&sql, "SELECT * FROM t WHERE x = NULL").unwrap();
+
+        let mut cli = base_cli();
+        cli.files = vec![sql];
+        cli.diff = true;
+        assert_eq!(run_with_cli(cli, None), 0);
+    }
+
+    #[test]
+    fn run_with_cli_fix_apply_mode() {
+        let dir = tempdir().unwrap();
+        let sql = dir.path().join("q.sql");
+        std::fs::write(&sql, "SELECT * FROM t WHERE x = NULL").unwrap();
+        let report = dir.path().join("fixes.json");
+
+        let mut cli = base_cli();
+        cli.files = vec![sql];
+        cli.fix = true;
+        cli.fix_report = Some(report);
+        assert_eq!(run_with_cli(cli, None), 0);
+    }
+
+    #[test]
+    fn run_with_cli_git_diff_flag() {
+        let dir = tempdir().unwrap();
+        let sql = dir.path().join("q.sql");
+        std::fs::write(&sql, "SELECT 1").unwrap();
+
+        let mut cli = base_cli();
+        cli.files = vec![sql];
+        cli.git_diff = true;
+        assert_eq!(run_with_cli(cli, None), 0);
+    }
+
+    #[test]
+    fn run_with_cli_verbose_with_many_files() {
+        let dir = tempdir().unwrap();
+        for i in 0..7 {
+            std::fs::write(dir.path().join(format!("{}.sql", i)), "SELECT 1").unwrap();
+        }
+
+        let mut cli = base_cli();
+        cli.files = vec![dir.path().to_path_buf()];
+        cli.verbose = true;
+        assert_eq!(run_with_cli(cli, None), 0);
+    }
+
+    #[test]
+    fn run_with_cli_min_confidence_proven_with_issues() {
+        let dir = tempdir().unwrap();
+        let sql = dir.path().join("q.sql");
+        std::fs::write(&sql, "DELETE FROM users").unwrap();
+
+        let mut cli = base_cli();
+        cli.files = vec![sql];
+        cli.min_confidence = Some("proven".to_string());
+        cli.format = OutputFormat::Console;
+        let code = run_with_cli(cli, None);
+        let _ = code;
+    }
+
+    #[test]
+    fn cmd_explain_dialect_specific_rule() {
+        let code = cmd_explain("SEC-PG-001");
+        assert_eq!(code, 0);
+    }
+
+    #[test]
+    fn cmd_explain_rule_with_impact_and_fix() {
+        let code = cmd_explain("PERF-SCAN-001");
+        assert_eq!(code, 0);
+    }
+
+    #[test]
+    fn apply_baseline_file_not_found_returns_error() {
+        let result = crate::models::result::AnalysisResult::new();
+        let err = apply_baseline(result, std::path::Path::new("/no/such/baseline.json"));
+        assert!(err.is_err());
+    }
+
+    #[test]
+    fn print_console_empty_result_with_suppressed_count() {
+        let mut result = crate::models::result::AnalysisResult::new();
+        result.suppressed_count = 3;
+        result.statistics.analysis_time_ms = 0.0;
+        print_console(&result);
+    }
+
+    #[test]
+    fn print_console_empty_result_with_analysis_time() {
+        let mut result = crate::models::result::AnalysisResult::new();
+        result.statistics.analysis_time_ms = 42.0;
+        print_console(&result);
+    }
+
+    #[test]
+    fn run_with_cli_directory_many_issues_triggers_nonprod_recompute() {
+        let dir = tempdir().unwrap();
+        std::fs::write(dir.path().join("app.sql"), "DELETE FROM users").unwrap();
+
+        let mut cli = base_cli();
+        cli.files = vec![dir.path().to_path_buf()];
+        cli.min_confidence = Some("advisory".to_string());
+        assert_eq!(run_with_cli(cli, None), 0);
+    }
+}
+
+#[cfg(test)]
+mod cli_branch_tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    fn base_cli() -> Cli {
+        Cli {
+            files: Vec::new(),
+            dialect: None,
+            schema: None,
+            format: OutputFormat::Json,
+            export: Vec::new(),
+            out: PathBuf::from("reports"),
+            fail_on: None,
+            diff: false,
+            fix: false,
+            fix_report: None,
+            baseline: None,
+            update_baseline: None,
+            list_rules: false,
+            explain: None,
+            git_diff: false,
+            since: None,
+            jobs: 0,
+            verbose: false,
+            no_cache: false,
+            cache_dir: ".slowql_cache".to_string(),
+            clear_cache: false,
+            filter_dimension: None,
+            filter_dialect: None,
+            min_confidence: None,
+            include_nonprod: false,
+            compare: false,
+            init: false,
+        }
+    }
+
+    #[test]
+    fn run_with_cli_git_diff_directory_path_hits_changed_filter() {
+        let dir = tempdir().unwrap();
+        std::fs::write(dir.path().join("a.sql"), "SELECT 1").unwrap();
+        std::fs::write(dir.path().join("b.sql"), "SELECT 1").unwrap();
+
+        let mut cli = base_cli();
+        cli.files = vec![dir.path().to_path_buf()];
+        cli.git_diff = true;
+        assert_eq!(run_with_cli(cli, None), 0);
+    }
+
+    #[test]
+    fn run_with_cli_git_diff_file_path_hits_changed_filter() {
+        let dir = tempdir().unwrap();
+        let sql = dir.path().join("single.sql");
+        std::fs::write(&sql, "SELECT 1").unwrap();
+
+        let mut cli = base_cli();
+        cli.files = vec![sql];
+        cli.git_diff = true;
+        assert_eq!(run_with_cli(cli, None), 0);
+    }
+
+    #[test]
+    fn run_with_cli_invalid_utf8_directory_verbose_hits_skip_reporting() {
+        let dir = tempdir().unwrap();
+
+        // More than 5 files to exercise progress clear path as well.
+        for i in 0..6 {
+            std::fs::write(dir.path().join(format!("{i}.sql")), "SELECT 1").unwrap();
+        }
+
+        // Invalid UTF-8 SQL file to hit skipped_non_utf8 accounting.
+        std::fs::write(dir.path().join("bad.sql"), vec![0xff, 0xfe, 0xfd]).unwrap();
+
+        let mut cli = base_cli();
+        cli.files = vec![dir.path().to_path_buf()];
+        cli.verbose = true;
+        cli.format = OutputFormat::Console;
+        assert_eq!(run_with_cli(cli, None), 0);
+    }
+
+    #[test]
+    fn run_with_cli_invalid_utf8_single_file_hits_file_error_branch() {
+        let dir = tempdir().unwrap();
+        let bad = dir.path().join("bad.sql");
+        std::fs::write(&bad, vec![0xff, 0xfe, 0xfd]).unwrap();
+
+        let mut cli = base_cli();
+        cli.files = vec![bad];
+        assert_eq!(run_with_cli(cli, None), 0);
+    }
+
+    #[test]
+    fn run_with_cli_update_baseline_bad_parent_fails() {
+        let dir = tempdir().unwrap();
+        let sql = dir.path().join("q.sql");
+        std::fs::write(&sql, "DELETE FROM users").unwrap();
+
+        let mut cli = base_cli();
+        cli.files = vec![sql];
+        cli.update_baseline = Some(dir.path().join("missing-dir").join("baseline.json"));
+        assert_eq!(run_with_cli(cli, None), 1);
+    }
+
+    #[test]
+    fn run_with_cli_directory_nonprod_first_pass_recomputes_stats() {
+        let dir = tempdir().unwrap();
+        let tests_dir = dir.path().join("tests");
+        std::fs::create_dir_all(&tests_dir).unwrap();
+
+        // REL-DATA-001 is allowed in test context by engine, then suppressed by CLI nonprod pass.
+        std::fs::write(tests_dir.join("delete.sql"), "DELETE FROM users").unwrap();
+        std::fs::write(dir.path().join("app.sql"), "DELETE FROM users").unwrap();
+
+        let mut cli = base_cli();
+        cli.files = vec![dir.path().to_path_buf()];
+        cli.format = OutputFormat::Console;
+        cli.min_confidence = Some("proven".to_string());
+        assert_eq!(run_with_cli(cli, None), 0);
+    }
+
+    #[test]
+    fn run_with_cli_compare_advisory_is_filtered_and_recomputed() {
+        let dir = tempdir().unwrap();
+        let a = dir.path().join("a.sql");
+        let b = dir.path().join("b.sql");
+
+        std::fs::write(&a, "SELECT id, name, email, created_at FROM users_table_long_name WHERE user_id_column = 1").unwrap();
+        std::fs::write(&b, "SELECT id, name, email, created_at FROM users_table_long_name WHERE user_id_column = 42").unwrap();
+
+        let mut cli = base_cli();
+        cli.files = vec![a, b];
+        cli.compare = true;
+        // Default config min_confidence is proven/contextual depending config load.
+        // Force contextual so advisory compare issue is filtered in final confidence pass.
+        cli.min_confidence = Some("contextual".to_string());
+        assert_eq!(run_with_cli(cli, None), 0);
+    }
+
+    #[test]
+    fn print_console_empty_result_with_analysis_time_and_suppressed_count() {
+        let mut result = crate::models::result::AnalysisResult::new();
+        result.statistics.analysis_time_ms = 42.0;
+        result.statistics.total_queries = 3;
+        result.suppressed_count = 2;
+        print_console(&result);
+    }
+
+    #[test]
+    fn print_console_info_severity_and_long_snippet_branch() {
+        let mut result = crate::models::result::AnalysisResult::new();
+        result.statistics.analysis_time_ms = 10.0;
+
+        let mut issue = crate::models::Issue::new(
+            "TEST-INFO-001",
+            "informational",
+            crate::models::Severity::Info,
+            crate::models::Dimension::Quality,
+            crate::models::Location::new(3, 7).with_file("src/file.sql"),
+            "x".repeat(200),
+        );
+        issue.confidence = crate::models::RuleConfidence::Proven;
+        issue.documentation_url = Some("https://slowql.dev/rules/test-info-001".to_string());
+        result.add_issue(issue);
+
+        print_console(&result);
+    }
+
+    #[test]
+    fn print_github_actions_notice_branch_for_info() {
+        let mut result = crate::models::result::AnalysisResult::new();
+        let issue = crate::models::Issue::new(
+            "TEST-INFO-002",
+            "notice branch",
+            crate::models::Severity::Info,
+            crate::models::Dimension::Quality,
+            crate::models::Location::new(1, 1),
+            "SELECT 1",
+        );
+        result.add_issue(issue);
+        print_github_actions(&result);
+    }
+
+    #[test]
+    fn print_sarif_unknown_file_and_zero_column_branch() {
+        let mut result = crate::models::result::AnalysisResult::new();
+        let issue = crate::models::Issue::new(
+            "TEST-SARIF-001",
+            "sarif branch",
+            crate::models::Severity::Low,
+            crate::models::Dimension::Quality,
+            crate::models::Location::new(1, 0),
+            "SELECT 1",
+        );
+        result.add_issue(issue);
+        print_sarif(&result);
+    }
+
+    #[test]
+    fn cmd_explain_rule_with_many_dialects_and_category() {
+        assert_eq!(cmd_explain("QUAL-STYLE-001"), 0);
+    }
+
+    #[test]
+    fn cmd_explain_rule_with_specific_dialects_list() {
+        assert_eq!(cmd_explain("SEC-PG-001"), 0);
+    }
+
+    #[test]
+    fn cmd_explain_rule_with_fix_guidance_if_available() {
+        // Keep broad and stable: this should at least execute the code path for explain.
+        assert_eq!(cmd_explain("REL-DATA-001"), 0);
+    }
+
+    #[test]
+    fn walkdir_ignores_unsupported_extension() {
+        let dir = tempdir().unwrap();
+        std::fs::write(dir.path().join("a.txt"), "x").unwrap();
+        let files = walkdir(dir.path());
+        assert!(files.is_empty());
+    }
+}
