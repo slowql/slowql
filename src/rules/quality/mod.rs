@@ -484,7 +484,7 @@ impl Rule for DuplicateConditionRule {
         // SELECT ... WHERE, which prevents duplicate predicate detection.
         let where_body = match lower.find("where ") {
             Some(pos) => &lower[pos + "where ".len()..],
-            None => lower.as_ref(),
+            None => lower,
         };
         let parts: Vec<&str> = where_body.split(" and ").collect();
         for i in 0..parts.len() {

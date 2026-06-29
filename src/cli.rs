@@ -1196,10 +1196,7 @@ fn cmd_explain(rule_id: &str) -> i32 {
     let engine = Engine::with_default_config();
     let rules = engine.registry_ref().all();
 
-    if let Some(rule) = rules
-        .iter()
-        .find(|r: &&Box<dyn crate::rules::base::Rule>| r.id().eq_ignore_ascii_case(rule_id))
-    {
+    if let Some(rule) = rules.iter().find(|r| r.id().eq_ignore_ascii_case(rule_id)) {
         println!("Rule:       {}", rule.id());
         println!("Name:       {}", rule.name());
         println!("Severity:   {}", rule.severity().as_str());

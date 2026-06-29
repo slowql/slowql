@@ -149,7 +149,6 @@ impl Rule for PgSleepUsageRule {
 
 /// PERF-TSQL-004 (WAITFOR DELAY) moved to performance/execution.rs
 /// where it belongs by dimension and category.
-
 pub fn rules() -> Vec<Box<dyn Rule>> {
     vec![
         Box::new(UnboundedRecursiveCteRule),

@@ -7,6 +7,10 @@ use crate::models::result::AnalysisResult;
 use crate::models::{Dimension, Issue, Severity};
 use std::collections::{HashMap, HashSet};
 
+type DroppedTable = (String, String);
+type DroppedColumn = (String, String, String);
+type DroppedColumnKey = (String, String);
+
 /// Run all project-level checks on the combined analysis result.
 /// Returns additional issues to append.
 pub fn analyze_project(result: &AnalysisResult) -> Vec<Issue> {
@@ -39,10 +43,9 @@ fn detect_cross_file_breaks(result: &AnalysisResult) -> Vec<Issue> {
 
     // Phase 1: index all DROP TABLE and DROP COLUMN statements.
     // Key: lowercase table name -> vec of (original_name, source_file).
-    let mut dropped_table_index: HashMap<String, Vec<(String, String)>> = HashMap::new();
+    let mut dropped_table_index: HashMap<String, Vec<DroppedTable>> = HashMap::new();
     // Key: (lowercase_table, lowercase_col) -> vec of (table, col, source_file).
-    let mut dropped_col_index: HashMap<(String, String), Vec<(String, String, String)>> =
-        HashMap::new();
+    let mut dropped_col_index: HashMap<DroppedColumnKey, Vec<DroppedColumn>> = HashMap::new();
 
     for query in &result.queries {
         let upper = query.raw_upper();

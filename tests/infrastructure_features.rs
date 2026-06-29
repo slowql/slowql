@@ -289,7 +289,7 @@ fn config_custom_rules_none_by_default() {
 fn config_complexity_defaults() {
     let config = Config::default();
     // Default derives give 0, serde defaults give 40/70
-    assert_eq!(config.complexity.enabled, false);
+    assert!(!config.complexity.enabled);
     assert_eq!(config.complexity.threshold_optimal, 0);
     assert_eq!(config.complexity.threshold_complex, 0);
 }
