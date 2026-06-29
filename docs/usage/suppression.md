@@ -1,115 +1,87 @@
 # Inline Suppression
 
-SlowQL supports inline suppression directives written as SQL line comments. These directives instruct the engine to skip specific rules for a given line, block, or file without modifying your analysis configuration.
-
-SlowQL automatically filters false positives via [context-aware analysis](../architecture/context-awareness.md) before suppression directives are evaluated. Migration files, test files, seed files, and schema files each receive a tailored rule set that eliminates noise without manual configuration. Suppression directives are only needed for edge cases that slip past context filtering.
-
-Suppression directives are the standard escape hatch available in every production-grade linter. They exist for cases where a rule fires correctly by design but is not applicable to a specific line, such as an intentional full table scan inside a one-off maintenance script or a known false positive in generated SQL.
-
----
+Rules can be silenced using directives written in SQL comments. No configuration file changes required.
 
 ## Directives
 
-### Suppress the current line
+### Current Line
 
 ```sql
-SELECT * FROM archive_audit_log;  -- slowql-disable-line PERF-SCAN-001
+SELECT * FROM archive;  -- slowql-disable-line PERF-SCAN-001
 ```
 
-The directive must appear on the same line as the statement it suppresses. Only the specified rule is skipped; all other rules continue to fire on that line.
+### Next Line
 
----
-
-### Suppress the next line
-
-```sql
+``` SQL
 -- slowql-disable-next-line SEC-INJ-001
-SELECT id, password_hash FROM users WHERE id = $1;
+SELECT id FROM sessions WHERE id = $1;
 ```
 
-The directive must appear on the line immediately before the target statement. Blank lines between the directive and the target are allowed; the engine skips them and applies suppression to the next non-blank, non-comment line.
+### Block
 
----
-
-### Suppress a block
-
-```sql
+``` SQL
 -- slowql-disable PERF-SCAN-001
 SELECT * FROM event_stream;
 SELECT * FROM session_log;
 -- slowql-enable PERF-SCAN-001
 ```
+Block without matching `enable` extends to end of file.
 
-All lines between the `disable` and `enable` directives are suppressed for the named rule. If no matching `enable` is present, suppression applies to the remainder of the file.
+### Entire File
 
----
-
-### Suppress the entire file
-
-```sql
+``` SQL
 -- slowql-disable-file PERF-SCAN-001
 ```
+Can appear anywhere in the file.
 
-This directive can appear anywhere in the file. It suppresses the named rule for every issue found in that file, regardless of line number.
+## Rule ID Formats
 
----
+All directives accept:
 
-## Rule ID formats
+**Exact rule ID**:
 
-All four directives accept the following formats for the rule identifier:
-
-**Exact rule ID.** Only the specified rule is suppressed.
-
-```sql
+``` SQL
 SELECT * FROM t;  -- slowql-disable-line PERF-SCAN-001
 ```
 
-**Prefix.** All rules whose ID starts with the prefix are suppressed.
-
-```sql
+**Prefix (suppresses all matching rules)**:
+``` SQL
 SELECT * FROM t;  -- slowql-disable-line PERF-SCAN
 ```
 
-The prefix `PERF-SCAN` would suppress `PERF-SCAN-001`, `PERF-SCAN-002`, and any other rule in that group.
-
-**Multiple rule IDs.** Comma-separated values are supported on a single directive.
-
-```sql
+**Comma-separated**:
+``` SQL
 SELECT * FROM t;  -- slowql-disable-line PERF-SCAN-001, SEC-INJ-001
 ```
 
-**No rule ID.** Omitting the rule ID suppresses all rules for that scope.
-
-```sql
+**No rule ID (suppresses all rules)**:
+``` SQL
 SELECT * FROM t;  -- slowql-disable-line
 ```
+Matching is case-insensitive.
 
-Matching is case-insensitive. `perf-scan-001` and `PERF-SCAN-001` are equivalent.
+## In Application Code
+Suppression works in Python, TypeScript, Go, Ruby, and other extracted languages:
 
----
-
-## Suppression inside string literals
-
-Directives inside SQL string literals are ignored. The following does not suppress anything:
-
-```sql
-SELECT '-- slowql-disable-line PERF-SCAN-001' AS note FROM t;
+``` Python
+query = "SELECT * FROM archive"  # slowql-disable-line PERF-SCAN-001
 ```
 
----
+``` TypeScript
+const q = "DELETE FROM temp_data";  // slowql-disable-line REL-DATA-001
+```
 
 ## Reporting
+Suppressed issues are counted separately and reported at the end of output:
+``` text
+  (12 issues suppressed by inline directives)
+```
 
-Suppressed issues are not included in the reported output or counted toward severity thresholds. The engine tracks how many issues were suppressed per run and exposes that count via the Python API in `AnalysisResult.suppressed_count`.
+## When to Use
+Use suppression for:
 
----
+- Intentional full table scans in maintenance scripts
+- Known acceptable patterns in generated SQL
+- Intentional destructive operations in cleanup scripts
 
-## When to use suppression
-
-Suppression should be the last resort, applied only when a rule fires correctly but is contextually inapplicable. Common legitimate uses:
-
-- Intentional full table scans inside maintenance scripts or backfill jobs.
-- Known false positives in generated SQL that cannot be refactored.
-- Schema migration files where destructive operations are expected.
-
-For persistent patterns, prefer `disabled_rules` in your configuration file, which disables a rule globally across all files.
+For permanent project-wide exceptions, use `disabled_rules` in your config file instead.

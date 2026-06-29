@@ -1,75 +1,96 @@
 # Development Setup
 
-To contribute upstream to SlowQL, you must configure a native enterprise development environment locally. The project heavily relies on modern Python static typing and strict formatting gates.
+## Prerequisites
 
-## System Prerequisites
+- [Rust toolchain](https://rustup.rs/) (stable, 1.75+)
+- Git
 
-- Python 3.11 or greater
-- Git version 2.20+
-- An active UNIX-like shell (Linux, macOS, or WSL2)
-
-## Installation Workflow
-
-1. **Clone the Source Engine**
-   Ensure you fork the repository prior to cloning down your working copy:
-   ```bash
-   git clone https://github.com/slowql/slowql.git
-   cd slowql
-   ```
-
-2. **Isolate the Environment**
-   We strongly mandate operating entirely inside a virtual environment to prevent dependency collisions with global Python binaries:
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate
-   ```
-
-3. **Install Dependencies via Hatchling**
-   SlowQL utilizes `hatchling` via the `pyproject.toml` definition. Install the project completely in editable mode targeting the `dev` tag:
-   ```bash
-   pip install -e ".[dev]"
-   ```
-   *This bootstraps `pytest`, `ruff`, `mypy`, `sqlglot`, and other essential CI tools locally.*
-
-4. **Initialize Security Hooks (Mandatory)**
-   All pull requests must pass formatting logic locally. Initialize `pre-commit` to attach our formatting gates directly to your local Git commits:
-   ```bash
-   pre-commit install
-   ```
-
-## Verifying the Sandbox
-
-Ensure your dependencies resolved perfectly by executing the primary testing pipeline natively:
+## Clone and Build
 
 ```bash
-pytest
-ruff check .
-mypy src/slowql --strict
+git clone https://github.com/slowql/slowql.git
+cd slowql
+cargo build
 ```
 
-If all three executions return zero errors, your development sandbox is officially validated.
+## Run Tests
+``` Bash
+# Full test suite (625 tests)
+cargo test
 
-## IDE Configuration
+# Library tests only (faster)
+cargo test --lib
 
-### Visual Studio Code
-To prevent syntax collisions across contributors, define the following variables inside your local `.vscode/settings.json`:
+# Specific test
+cargo test --lib extract_helpers
 
-```json
+# Specific integration test file
+cargo test --test adversarial_edge_cases
+```
+
+## Format
+``` Bash
+cargo fmt --all
+```
+
+## Build Release Binary
+``` Bash
+cargo build --release
+./target/release/slowql --version
+```
+
+## Install Locally
+``` Bash
+cargo install --path .
+slowql --version
+```
+
+## Project Structure
+``` text
+src/
+  cli.rs              # CLI and output formatting
+  engine.rs           # Analysis orchestration
+  parser.rs           # SQL parsing
+  extractor.rs        # SQL extraction from app code
+  context.rs          # File context classification
+  config.rs           # Configuration
+  project.rs          # Cross-file analysis
+  models/             # Data models
+  rules/              # Rule implementations
+    security/
+    performance/
+    reliability/
+    quality/
+    cost/
+    compliance/
+    migration/
+    schema/
+tests/                # Integration tests
+  adversarial_edge_cases.rs
+  cli_end_to_end.rs
+  security_all_rules.rs
+  performance_all_rules.rs
+  ... (16 test files total)
+```
+
+## Editor Configuration
+
+### VS Code
+Install the `rust-analyzer` extension for inline type hints and go-to-definition.
+Recommended `settings.json`:
+``` JSON
 {
-    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
-    "[python]": {
-        "editor.defaultFormatter": "charliermarsh.ruff",
-        "editor.formatOnSave": true,
-        "editor.codeActionsOnSave": {
-            "source.fixAll": "explicit",
-            "source.organizeImports": "explicit"
-        }
-    },
-    "python.analysis.typeCheckingMode": "strict",
-    "mypy-type-checker.args": [
-        "--config-file=pyproject.toml"
-    ]
+  "rust-analyzer.checkOnSave.command": "clippy",
+  "editor.formatOnSave": true,
+  "[rust]": {
+    "editor.defaultFormatter": "rust-lang.rust-analyzer"
+  }
 }
 ```
 
-This guarantees that native `ruff` formatting and `mypy` assertions execute structurally prior to submitting Pull Requests.
+## Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `RUST_BACKTRACE=1` | Enable full backtraces on panics |
+| `RUST_LOG=debug` | Enable debug logging |

@@ -3,603 +3,404 @@
 <img src="assets/logo.png" alt="SlowQL Logo" style="width: 600px; height: 200px; object-fit: cover; object-position: center;" />
 
 <br/>
+
+**Next-generation SQL static analyzer. Written in Rust.**
+
+Zero false positives in proven mode. Tested against 28 open-source repositories.
+
 <p align="center">
-  <!-- Support & License -->
   <a href="https://github.com/slowql/slowql/blob/main/LICENSE">
-    <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" />
+    <img src="https://img.shields.io/badge/License-AGPL--3.0-blue.svg" />
   </a>
-  <a href="https://github.com/sponsors/slowql">
-    <img src="https://img.shields.io/badge/Sponsor%20SlowQL-%F0%9F%92%B0-brightgreen" />
-  </a>
-</p>
-
-**Production-focused offline SQL static analyzer.**
-
-Catch security vulnerabilities, performance regressions, reliability issues, compliance risks, cost inefficiencies, and code quality problems before they reach production.
-
-<p align="center">
-  <!-- Release & Version -->
   <a href="https://github.com/slowql/slowql/releases">
     <img src="https://img.shields.io/github/v/release/slowql/slowql?logo=github&label=Release&color=4c1" />
   </a>
-  <a href="https://pypi.org/project/slowql/">
-    <img src="https://img.shields.io/pypi/v/slowql?logo=pypi&logoColor=white&label=PyPI&color=3775A9" />
-  </a>
-  <a href="https://pypi.org/project/slowql/">
-    <img src="https://img.shields.io/pypi/pyversions/slowql?logo=python&logoColor=white&label=Python" />
-  </a>
-</p>
-
-<p align="center">
-  <!-- Distribution & Runtime -->
-  <a href="https://hub.docker.com/r/makroumi/slowql">
-    <img src="https://img.shields.io/docker/v/makroumi/slowql?logo=docker&label=Docker&color=2496ED" />
-  </a>
-  <a href="https://github.com/slowql/slowql/pkgs/container/slowql">
-    <img src="https://img.shields.io/badge/GHCR-available-181717?logo=github" />
-  </a>
-  <a href="https://marketplace.visualstudio.com/items?itemName=Makroumi.slowql-vscode">
-    <img src="https://img.shields.io/visual-studio-marketplace/v/Makroumi.slowql-vscode?logo=visualstudiocode&label=VS%20Code&color=007ACC" />
-  </a>
-</p>
-
-<p align="center">
-  <!-- Usage & Adoption -->
-  <a href="https://pypistats.org/packages/slowql">
-    <img src="https://img.shields.io/pypi/dm/slowql?logo=pypi&logoColor=white&label=Downloads" />
-  </a>
-  <a href="https://hub.docker.com/r/makroumi/slowql">
-    <img src="https://img.shields.io/docker/pulls/makroumi/slowql?logo=docker&label=Pulls" />
+  <a href="https://github.com/slowql/slowql/actions/workflows/ci.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/slowql/slowql/ci.yml?label=CI&logo=githubactions" />
   </a>
   <a href="https://github.com/slowql/slowql/stargazers">
     <img src="https://img.shields.io/github/stars/slowql/slowql?logo=github&label=Stars" />
   </a>
 </p>
 
-<p align="center">
-  <!-- Quality & CI -->
-  <a href="https://github.com/slowql/slowql/actions/workflows/ci.yml">
-    <img src="https://img.shields.io/github/actions/workflow/status/slowql/slowql/ci.yml?label=CI&logo=githubactions" />
-  </a>
-  <a href="https://codecov.io/gh/slowql/slowql">
-    <img src="https://codecov.io/gh/slowql/slowql/graph/badge.svg" />
-  </a>
-  <a href="https://snyk.io/test/github/slowql/slowql">
-    <img src="https://snyk.io/test/github/slowql/slowql/badge.svg" />
-  </a>
-</p>
-
-<p align="center">
-  <!-- Code Quality -->
-  <a href="https://github.com/astral-sh/ruff">
-    <img src="https://img.shields.io/badge/lint-ruff-46a758?logo=ruff" />
-  </a>
-  <a href="http://mypy-lang.org/">
-    <img src="https://img.shields.io/badge/types-mypy-blue?logo=python" />
-  </a>
-</p>
-
-<p align="center">
-  <!-- Community -->
-  <a href="https://github.com/slowql/slowql/issues">
-    <img src="https://img.shields.io/github/issues/slowql/slowql?logo=github&label=Issues" />
-  </a>
-  <a href="https://github.com/slowql/slowql/discussions">
-    <img src="https://img.shields.io/github/discussions/slowql/slowql?logo=github&label=Discussions" />
-  </a>
-  <a href="https://github.com/slowql/slowql/graphs/contributors">
-    <img src="https://img.shields.io/github/contributors/slowql/slowql?logo=github&color=success" />
-  </a>
-</p>
-
 </div>
 
+## What SlowQL Does
 
-## Why SlowQL
+SlowQL scans SQL files and application source code for security vulnerabilities, performance regressions, reliability risks, cost inefficiencies, compliance violations, and code quality problems. It runs offline without connecting to any database.
 
-**Offline-First Analysis.** Catch bugs without ever connecting to a live database. SlowQL works entirely on SQL source files, making it safe to run anywhere.
+## Key Properties
 
-**Custom Rule Engine.** Define your own organizational SQL conventions via YAML rules or Python plugins. Custom rules integrate seamlessly with the built-in catalog and support full reporting and suppression.
-
-**282 Built-in Rules.** Covers security, performance, reliability, compliance, cost, and quality. Each rule includes impact documentation, fix guidance, and severity classification.
-
-**Dead SQL Detection.** Safely identify unused database objects and redundant code. SlowQL detects unused views, stored procedures, and functions by analyzing definitions and usages across your entire project. It also flags unreachable code paths in procedures (e.g., after `RETURN`) and near-duplicate queries that should be consolidated.
-
-**Cross-File SQL Analysis.** Detect breaking changes across multiple files. SlowQL understands relationships between DDL, views, and procedures, flagging when a schema change in one file (e.g., `DROP COLUMN`) breaks a query in another.
-
-**dbt & Jinja Support.** Natively parses dbt models and SQL templates containing Jinja tags (`{{ ref() }}`, `{% if %}`, `{% for %}`). Enforces dbt best practices including missing references and hardcoded schema detection.
-
-**Migration Framework Support.** Natively supports **Alembic**, **Django migrations**, **Flyway**, **Liquibase**, **Prisma Migrate**, and **Knex**. SlowQL understands the ordering, dependencies, and context of migration files to catch destructive changes before they break your existing queries.
-
-**Context-Aware Analysis.** Automatically classifies files as migrations, tests, seeds, dbt models, or application code and filters rules accordingly. Migrations do not flag SELECT *, tests do not warn about missing LIMIT, and app code does not suggest dbt syntax. Zero false positives by design.
-
-**14 SQL Dialects.** Dialect-aware analysis for PostgreSQL, MySQL, SQL Server (T-SQL), Oracle, SQLite, Snowflake, BigQuery, Redshift, ClickHouse, DuckDB, Presto, Trino, Spark, and Databricks. Universal rules fire on all dialects; dialect-specific rules only fire when relevant.
-
-**Schema-Aware Validation.** Optionally validate against your DDL files to catch missing tables, columns, and suggest indexes.
-
-**Safe Autofix.** Conservative, exact-text-replacement fixes with `FixConfidence.SAFE`. No guessing, no heuristic rewrites. Preview with `--diff`, apply with `--fix`.
-
-**CI/CD Native.** GitHub Actions, SARIF, pre-commit hooks, JSON/HTML/CSV exports. Exit codes based on severity thresholds.
-
-**Editor Integration.** VS Code extension via [slowql-vscode](https://marketplace.visualstudio.com/items?itemName=Makroumi.slowql-vscode) and foundational LSP server for other editors.
-
-**Application Code SQL Extraction.** Automatically extract and analyze SQL strings embedded in **Python**, **TypeScript/JavaScript**, **Java**, **Go**, **Ruby**, and **MyBatis XML mapper** files. SlowQL uses language‑specific heuristics (AST for Python, regex for others) and a dedicated MyBatis XML parser to find SQL, flagging potential injection risks in dynamic constructions. It distinguishes safe `#{param}` parameterization from unsafe `${param}` interpolation and marks queries using dynamic MyBatis tags (`<if>`, `<where>`, `<set>`, etc.) as dynamic.
-
----
+- **Zero false positives in proven mode.** Verified against Django, Rails, Prisma, Hasura, Supabase, ClickHouse, Vitess, Citus, TimescaleDB, and 19 other open-source projects.
+- **Three confidence levels.** `proven` (structurally verified, act without review), `contextual` (accurate with context, verify before acting), `advisory` (style hints and best practices).
+- **Context-aware.** Automatically classifies files as application code, migrations, tests, seeds, framework internals, or documentation. Rules are filtered by context to eliminate noise.
+- **Fast.** Scans 171k queries (ClickHouse) in 14 seconds. Scans typical application repos in under 1 second (Ryzen i7 U4700, 12GB RAM)
+- **Offline.** No database connection, no network, no telemetry.
 
 ## Installation
 
-### pipx (recommended)
+### From source (requires Rust toolchain)
 
 ```bash
-pipx install slowql
-```
-
-### pip
-
-```bash
-pip install slowql
+git clone https://github.com/slowql/slowql.git
+cd slowql
+cargo install --path .
 ```
 
 ### Docker
-
-```bash
-docker run --rm -v $(pwd):/src makroumi/slowql /src/queries.sql
+``` Bash
+docker run --rm -v $(pwd):/src ghcr.io/slowql/slowql /src
 ```
-
-Requirements: Python 3.11+, Linux / macOS / Windows.
-
----
 
 ## Quick Start
+``` Bash
+# Scan a directory (default: proven mode, zero false positives)
+slowql src/
 
-```bash
+# Scan a single SQL file
 slowql queries.sql
+
+# Scan with schema validation
+slowql src/ --schema db/schema.sql
+
+# Show all findings including hints
+slowql src/ --min-confidence advisory
+
+# CI mode with failure threshold
+slowql src/ --fail-on high --format github-actions
 ```
 
-Analyze application code (extracts SQL strings automatically):
-```bash
-slowql src/app.py src/services/
+## Confidence Modes
+SlowQL uses three confidence levels to separate verified defects from style suggestions.
+
+| Mode      | Flag                               | What it shows                                                                                   |
+| --------- | ---------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Proven    | `default`                          | Only structurally verified findings. Zero false positives by design.                            |
+| Contextual | `--min-confidence contextual`      | Adds context-dependent findings. Accurate when schema and usage context are available.            |
+| Advisory  | `--min-confidence advisory`      | Adds style hints, dead code detection, and best-practice suggestions.                           |
+
+``` Bash
+# Proven mode (default) - safe for CI gates
+slowql src/
+
+# Contextual mode - for code review
+slowql src/ --min-confidence contextual
+
+# Advisory mode - for comprehensive audit
+slowql src/ --min-confidence advisory
 ```
 
-Analyze with schema validation:
-```bash
-slowql queries.sql --schema schema.sql
-```
+## What It Catches
+| Dimension | Rules | Examples |
+| --------- | ----- | -------- |
+| Security  | 61    | SQL injection, privilege escalation, credential exposure, SSRF |
+| Performance | 73 | Full table scans, missing indexes, unbounded queries, N+1 joins |
+| Reliability | 44 | DELETE without WHERE, missing transactions, race conditions |
+| Quality | 52 | Null comparison errors, naming issues, dead code, complexity |
+| Cost | 33 | Cloud warehouse optimization, partition pruning, storage waste |
+| Compliance | 18 | GDPR, HIPAA, PCI-DSS, SOX, CCPA patterns |
 
-Run in CI mode with failure thresholds:
-```bash
-slowql init --dialect postgresql --fail-on high
-slowql src/ --fail-on high
-```
+## Supported Languages and Formats
+### SQL files
+Direct analysis of `.sql` files. Supports 14 SQL dialects.
 
-### Analyze MyBatis mapper files:
-```bash
-slowql src/main/resources/mapper/UserMapper.xml
-slowql src/main/resources/mapper/ --schema db/schema.sql
-```
+### Application Code
+Extracts SQL strings from source code and analyzes them:
 
+- **Python** - triple-quoted strings, f-strings, cursor.execute()
+- **TypeScript/JavaScript** - template literals, db.query(), knex.raw()
+- **Java/Kotlin** - prepareStatement(), createNativeQuery()
+- **Go** - db.Query(), db.Exec()
+- **Ruby** - connection.execute(), heredocs
+- **C#** - connection.Execute()
+- **MyBatis XML** - mapper files with dynamic SQL tags
 
-Preview and apply safe fixes:
-```bash
-slowql queries.sql --diff
-slowql queries.sql --fix --fix-report fix-report.json
-```
+### Framework Support
+- **Migrations**: Alembic, Django, Flyway, Liquibase, Prisma, Knex
+- **dbt**: ref() resolution, Jinja template stripping
+- **ORMs**: Detects query builder patterns vs raw SQL
 
-### Explore the Rule Catalog
-List all built-in rules dynamically or get detailed documentation for a specific rule:
-```bash
-slowql --list-rules
-slowql --explain PERF-SCAN-001
-```
+## SQL Dialects
+Dialect-aware analysis for 14 database engines:
 
-### Python API integration
-Integrate SlowQL directly into your Python scripts with three lines of code:
-```python
-import slowql
-result = slowql.analyze("SELECT * FROM users")
-```
+- PostgreSQL
+- MySQL
+- SQL Server (T-SQL)
+- Oracle
+- SQLite
+- Snowflake
+- BigQuery
+- Redshift
+- ClickHouse
+- DuckDB
+- Presto
+- Trino
+- Spark
+- Databricks
 
----
+107 rules are dialect-specific. 175 rules are universal.
+
+## Context Classification
+SlowQL automatically classifies each file by its role in the project:
+
+| **Context** | **Effect** |
+|---------|--------|
+| `application` | Full rule analysis |
+| `migration` | Only security and reliability rules |
+| `test` | Only security and reliability rules |
+| `seed` | Only security and reliability rules |
+| `example` | Only security and reliability rules |
+| `framework_internal` | Only security and reliability rules, with deny list |
+| `ddl_schema` | Only security, reliability, and compliance rules |
+| `dbt_model` | Full analysis minus unbounded SELECT |
+| `adhoc` | Full analysis minus context-dependent rules |
+
+No configuration needed. Context is inferred from file paths and content patterns.
 
 ## Schema-Aware Validation
-
-SlowQL performs optional schema-aware validation by inspecting your DDL files. This catches structural issues that generic static analysis misses.
-
-**Tables and Columns.** Detect references to non-existent tables or columns.
-
-**Index Suggestions.** Identify filtered columns that lack corresponding indexes.
-
-```bash
-slowql queries.sql --schema database/schema.sql
-slowql migrations/ --schema schema.sql --fail-on critical
+Validate queries against your DDL files:
+``` Bash
+slowql src/ --schema db/schema.sql
 ```
 
-Schema findings:
-
-| Rule | Description |
+| **Rule** | **Description** |
 |------|-------------|
 | `SCHEMA-TBL-001` | Table referenced but not defined in schema |
-| `SCHEMA-COL-001` | Column referenced but not present in table definition |
-| `SCHEMA-IDX-001` | Missing index suggested for filtered column |
-
----
-
-SlowQL ships with **282 rules** across six dimensions:
-
-| Dimension | Focus | Rules |
-|-----------|-------|------:|
-| Security | SQL injection, privilege escalation, credential exposure, SSRF | 61 |
-| Performance | Full scans, indexing, joins, locking, sorting, pagination | 73 |
-| Reliability | Data loss prevention, transactions, race conditions, idempotency | 44 |
-| Quality | Naming, complexity, null handling, style, dbt, dead SQL | 51 |
-| Cost | Cloud warehouse optimization, storage, compute, network | 33 |
-| Compliance | GDPR, HIPAA, PCI-DSS, SOX, CCPA | 18 |
-
-## MyBatis XML Support
-
-**MyBatis** is a popular Java/Spring ORM framework that uses XML mapper files to define SQL statements. SlowQL now parses these mapper files and applies all existing SQL rules.
-
-### Supported MyBatis Tags
-- `<select>`, `<insert>`, `<update>`, `<delete>`, `<sql>`
-- Dynamic tags: `<if>`, `<where>`, `<set>`, `<foreach>`, `<choose>`, `<when>`, `<otherwise>`, `<trim>`
-
-### Parameter Syntax
-- Safe: `#{param}` – uses prepared‑statement style parameterization.
-- Unsafe: `${param}` – direct string interpolation, flagged as potential SQL injection.
-
-### Dynamic SQL Detection
-Queries containing any dynamic tags are marked `is_dynamic = True` and are analyzed for injection and performance issues.
-
-### Example
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<mapper namespace="com.example.UserMapper">
-  <!-- Safe -->
-  <select id="findUserById" resultType="User">
-    SELECT * FROM users WHERE id = #{id}
-  </select>
-
-  <!-- Unsafe -->
-  <select id="searchUsers" resultType="User">
-    SELECT * FROM users WHERE name LIKE ${searchTerm}
-  </select>
-
-  <!-- Dynamic -->
-  <update id="updateUser">
-    UPDATE users
-    <set>
-      <if test="name != null">name = #{name},</if>
-      <if test="email != null">email = #{email},</if>
-    </set>
-    WHERE id = #{id}
-  </update>
-</mapper>
-```
-
-SlowQL will extract three statements, flag `SELECT *` (PERF‑SCAN‑001), flag unsafe `${}` (SEC‑INJ‑001), and mark the update as dynamic.
-
-### Relevant Rules
-- `SEC‑INJ‑001` … `SEC‑INJ‑011` – injection patterns.
-- `PERF‑SCAN‑001` – `SELECT *`.
-- `QUAL‑DBT‑001` – hard‑coded table names.
-
-## Dialect‑Specific Rules
-
-107 rules are dialect-aware, firing only on the relevant database engine:
-
-| Dialect | Specific Rules | Examples |
-|---------|---------------:|---------|
-| PostgreSQL | 12 | `pg_sleep` detection, `SECURITY DEFINER` without `search_path`, `CREATE INDEX` without `CONCURRENTLY` |
-| MySQL | 15 | `LOAD DATA LOCAL INFILE`, `utf8` vs `utf8mb4`, `ORDER BY RAND()`, MyISAM detection |
-| T-SQL (SQL Server) | 23 | `OPENROWSET`, `sp_OACreate`, `@@IDENTITY`, `MERGE` without `HOLDLOCK`, `SET NOCOUNT ON` |
-| Oracle | 11 | `UTL_HTTP`/`UTL_FILE`, `EXECUTE IMMEDIATE` injection, `CONNECT BY` without `NOCYCLE` |
-| Snowflake | 9 | `COPY INTO` credentials, `VARIANT` in `WHERE`, `CLONE` without `COPY GRANTS` |
-| BigQuery | 6 | `SELECT *` cost, `DISTINCT` on `UNNEST`, repeated subqueries |
-| SQLite | 6 | `ATTACH DATABASE` file access, `PRAGMA foreign_keys = OFF`, `AUTOINCREMENT` overhead |
-| Redshift | 7 | `COPY` with embedded credentials, `COPY` without `MANIFEST`, `DISTSTYLE ALL` |
-| ClickHouse | 7 | `url()` SSRF, mutations, `SELECT` without `FINAL`, `JOIN` without `GLOBAL` |
-| DuckDB | 3 | `COPY` without `FORMAT`, large `IN` lists, old-style casts |
-| Presto / Trino | 4 | Implicit cross-joins, `INSERT OVERWRITE` without partition, `ORDER BY` without `LIMIT` |
-| Spark / Databricks | 5 | `BROADCAST` on large table, UDF in `WHERE`, `CACHE TABLE` without filter |
-
-The remaining 175 rules are universal and fire on all dialects.
-
----
+| `SCHEMA-COL-001` | Column referenced but not in table definition |
 
 ## Safe Autofix
-
-SlowQL provides conservative, zero-risk autofixes for rules where the replacement is 100% semantically equivalent:
-
-```bash
+Conservative, exact-text-replacement fixes. No heuristic rewrites.
+``` Bash
+# Preview fixes
 slowql queries.sql --diff
+
+# Apply fixes (creates .bak backup)
 slowql queries.sql --fix
+
+# Apply and write report
 slowql queries.sql --fix --fix-report fixes.json
 ```
 
-Autofix principles:
-
-1. Only exact text replacements. No schema inference, no heuristic rewrites.
-2. Every fix is tagged with `FixConfidence.SAFE`, meaning the output is functionally identical to the input.
-3. A `.bak` backup is always created before writing.
-4. Fixes can be previewed as a unified diff before applying.
-
-Examples of safe autofixes:
-
-| Rule | Before | After |
+| **Rule** | **Before** | **After** |
 |------|--------|-------|
 | `QUAL-NULL-001` | `WHERE x = NULL` | `WHERE x IS NULL` |
 | `QUAL-STYLE-002` | `EXISTS (SELECT * FROM t)` | `EXISTS (SELECT 1 FROM t)` |
-| `QUAL-MYSQL-003` | `LOCK IN SHARE MODE` | `FOR SHARE` |
-| `QUAL-TSQL-001` | `SET ANSI_NULLS OFF` | `SET ANSI_NULLS ON` |
-| `QUAL-ORA-002` | `SELECT 1 FROM DUAL` | `SELECT 1` |
-
----
 
 ## Inline Suppression
-
-Rules can be silenced on a per-line, per-block, or per-file basis using directives written directly in SQL comments. No configuration file changes are required.
-
-```sql
+Suppress rules directly in SQL comments:
+``` SQL
 SELECT * FROM archive;  -- slowql-disable-line PERF-SCAN-001
 
 -- slowql-disable-next-line SEC-INJ-001
-SELECT id, token FROM sessions WHERE id = $1;
+SELECT id FROM sessions WHERE id = $1;
 
 -- slowql-disable PERF-SCAN
-SELECT * FROM event_stream;
-SELECT * FROM session_log;
+SELECT * FROM logs;
 -- slowql-enable PERF-SCAN
 
--- slowql-disable-file REL-001
+-- slowql-disable-file
 ```
 
-| Directive | Scope |
-|---|---|
-| `-- slowql-disable-line RULE-ID` | Current line only |
-| `-- slowql-disable-next-line RULE-ID` | Next non-blank line |
-| `-- slowql-disable RULE-ID` | Open block until matching `enable` or EOF |
-| `-- slowql-enable RULE-ID` | Closes an open block |
-| `-- slowql-disable-file RULE-ID` | Entire file |
+## Baseline Mode
+Adopt SlowQL on existing codebases without drowning in warnings:
+``` Bash
+# Create baseline of current issues
+slowql src/ --update-baseline .slowql-baseline
 
-The rule ID may be an exact identifier, a prefix, comma-separated values, or omitted entirely to suppress all rules for that scope. Matching is case-insensitive.
-
----
-
-## Baseline Mode (Diff Mode)
-
-Baseline Mode allows you to adopt SlowQL on an existing, chaotic codebase without drowning in thousands of initial warnings. This is similar to SonarQube's "New Code Period."
-
-1. **Create a baseline:** Store all your current issues in a `.slowql-baseline` file.
-   ```bash
-   slowql queries/ --update-baseline
-   ```
-
-2. **Run against the baseline:** Now, SlowQL will only flag **new** issues introduced *after* the baseline was created.
-   ```bash
-   slowql queries/ --baseline
-   ```
-
-Because issues are fingerprinted via content hashes, standard edits like appending blank lines won't suddenly "un-suppress" your baseline issues. See the full [Baseline Docs](docs/usage/baseline.md) for CI/CD setup.
-
----
+# Only report new issues
+slowql src/ --baseline .slowql-baseline
+```
 
 ## Git-Aware Analysis
-
-In CI environments, running static analysis over thousands of files on every commit is slow and unnecessary. SlowQL supports git-aware analysis to cleanly skip untouched files.
-
-```bash
-# Only analyze files that are changed, staged, or untracked
+Only analyze changed files:
+``` Bash
 slowql . --git-diff
-
-# Analyze files changed since branching off main
 slowql . --since main
 ```
 
----
+## Output formats
+| **Format** | **Flag** | **Use case** |
+|------|------|--------|
+| Console | `default` | Human-readable terminal output |
+| JSON | `--format json` | CI/CD pipelines, custom tooling |
+| SARIF | `--format sarif` | GitHub Code Scanning, IDE integration |
+| GitHub Actions | `--format github-actions` | PR annotations |
 
-## CLI Usage
-
-### Primary Flags
+Export to files:
+``` Bash
+slowql src/ --export json --export html --export csv --out reports/
 ```
---input-file       Path to SQL file or directory
---schema           Path to DDL schema file
---baseline         Path to baseline file (suppress known issues)
---update-baseline  Update/create the baseline file
---fail-on          Failure threshold: critical, high, medium, low, info, never
---interactive      Opt-in to full interactive experience (animations, menus) when no inputs are provided
---select-dialect   Opt-in to prompt for dialect selection interactively
---non-interactive  (deprecated, now the default) Explicitly disable interactive mode
---git-diff         Only analyze files changed in the current workspace
---since            Analyze files changed since a specific git revision (e.g. main)
---cache-dir        Directory to store cache files (default: .slowql_cache)
---no-cache         Disable query result caching
---clear-cache      Clear cache directory before analysis
---jobs, -j         Number of parallel workers for analyzing multiple files. (0 = auto)
---compare          Enable query comparison mode
-```
-
-### Output Control
-```
---format                        Primary output: console, github-actions, sarif
---export                        Export to disk: json, html, csv, sarif
---out                           Directory for exported reports
---diff                          Preview safe autofix diff
---fix                           Apply safe autofixes (single file, creates .bak)
---fix-report                    Write JSON report of fixes
---list-rules                    List all 282 rules with severity, dimension, and dialect
---list-rules --filter-dimension Filter by dimension (security, performance, etc.)
---list-rules --filter-dialect   Filter by dialect (postgresql, mysql, etc.)
---explain RULE-ID               Show full documentation for a specific rule
-```
-
-### Exit Codes
-```
-0    No issues found or issues below failure threshold
-2    Issues found meet or exceed --fail-on threshold
-3    Runtime error or tool failure
-```
-
----
 
 ## Configuration
+SlowQL discovers configuration from `slowql.yaml`, `slowql.toml`, `.slowql.yaml`, `.slowql.toml`, or `pyproject.toml` (under `[tool.slowql]`).
 
-SlowQL discovers configuration from `slowql.toml`, `.slowql.toml`, `slowql.yaml`, `.slowql.yaml`, or `pyproject.toml` (under `[tool.slowql]`).
-
-```yaml
-severity:
-  fail_on: high
-  warn_on: medium
-
+``` YAML
 analysis:
   dialect: postgresql
   enabled_dimensions:
     - security
     - performance
     - reliability
-  disabled_rules:
-    - PERF-SCAN-001
-  severity_overrides:
-    PERF-SCAN-001: info
-    QUAL-NULL-001: critical
+    - cost
+    - quality
+  disabled_rules: []
+  # min_confidence: proven
 
-# Configuration is discovered from the analyzed directory or any parent.
-# This allows project-specific and per-directory configuration.
-
-schema:
-  path: db/schema.sql
-
-output:
-  format: console
-  verbose: false
-  show_fixes: true
-
-cost:
-  cloud_provider: none
+severity:
+  fail_on: high
 
 compliance:
   frameworks:
     - gdpr
+
+schema:
+  path: db/schema.sql
+  ```
+
+Generate a starter config:
+``` Bash
+slowql --init
+```
+  
+## Custom Rules
+Define organization-specific rules in YAML:
+ ``` YAML
+  rules:
+  - id: ORG-001
+    name: "Require tenant_id filter"
+    severity: high
+    dimension: security
+    pattern: "SELECT.*FROM\\s+orders\\b(?!.*tenant_id)"
+    message: "All queries on orders table must filter by tenant_id"
 ```
 
----
-
-## CI Integration
-
-### GitHub Action (Official)
-
-```yaml
-- uses: slowql/slowql-action@v1
-  with:
-    path: "./sql/**/*.sql"
-    schema: "db/schema.sql"
-    fail-on: high
-    format: github-actions
+Load with config:
+``` YAML
+analysis:
+  custom_rules: .slowql-rules.yaml
 ```
 
-### Direct CLI in CI
-
-```yaml
+## CI integration
+### GitHub Actions
+``` YAML
 - name: SlowQL Analysis
   run: |
-    pip install slowql
-    slowql --input-file sql/ --schema db/schema.sql --fail-on high --format github-actions
+    slowql src/ --fail-on high --format github-actions
 ```
 
 ### Pre-commit
-
-```yaml
+``` YAML
 repos:
   - repo: https://github.com/slowql/slowql
-    rev: v1.6.2
+    rev: v2.0.0
     hooks:
       - id: slowql
         args: [--fail-on, high]
 ```
 
----
+## CLI Reference
+``` text
+Usage: slowql [OPTIONS] [FILES]...
 
-## <a id="vscode-extension"></a>🔌 VS Code Extension
+Arguments:
+  [FILES]...  Input SQL files or directories
 
-Install [slowql-vscode](https://marketplace.visualstudio.com/items?itemName=Makroumi.slowql-vscode) from the VS Code Marketplace for real-time SQL analysis in your editor. The extension uses the SlowQL LSP server for diagnostics.
+Options:
+  -d, --dialect <DIALECT>          SQL dialect
+  -s, --schema <SCHEMA>            Path to DDL schema file
+      --format <FORMAT>            Output format [console, json, sarif, github-actions]
+      --export <EXPORT>            Export results to file (json, html, csv, sarif)
+      --out <OUT>                  Output directory for exports [default: reports]
+      --fail-on <FAIL_ON>          Fail at or above this severity
+      --diff                       Preview safe autofix diff
+      --fix                        Apply safe autofixes (.bak backup created)
+      --baseline <BASELINE>        Path to baseline file
+      --update-baseline <PATH>     Create or update baseline file
+      --list-rules                 List all available rules
+      --explain <RULE>             Show documentation for a specific rule
+      --git-diff                   Only analyze files changed in git
+      --since <REV>                Analyze files changed since a git revision
+      --min-confidence <LEVEL>     Minimum confidence: proven, contextual, advisory
+      --include-nonprod            Include test/example/seed contexts in output
+      --compare                    Detect similar queries across files
+      --init                       Create a slowql.yaml config file
+      --verbose                    Enable verbose output
+  -h, --help                       Print help
+  -V, --version                    Print version
+```
 
----
+### Exit Codes
+| **Code** | **Meaning** |
+|------|---------|
+| 0 | No issues found (or below threshold) |
+| 1 | Issues found at medium or low severity |
+| 2 | Issues found at high severity |
+| 3 | Issues found at critical severity |
 
-### Query Complexity Scoring
+## Explore Rules
+``` Bash
+# List all rules
+slowql --list-rules
 
-SlowQL now provides a numerical complexity score (0-100) for every analyzed query, helping teams enforce quality policies and track complexity trends.
+# Filter by dimension
+slowql --list-rules --filter-dimension security
 
-- **Spectral Analysis:** Scores are calculated based on structural patterns like joins, subqueries, and aggregations.
-- **Visual Feedback:** Terminal output highlights query complexity to help identify candidates for optimization.
+# Filter by dialect
+slowql --list-rules --filter-dialect postgresql
 
-#### Configuration
-
-You can enable/disable complexity scoring and set thresholds for "optimal", "complex", and "critical" queries in your `.slowql.yml`:
-
-```yaml
-complexity:
-  enabled: true
-  threshold_optimal: 40
-  threshold_complex: 70
+# Explain a specific rule
+slowql --explain PERF-SCAN-001
 ```
 
 ## Architecture
+``` text
+Files -> Walker -> Context Classifier -> Parser -> Rule Engine -> Issues -> Reporter
+                                           |           |             |
+                                      Extractor    Schema        Autofix
+                                    (app code)   Validator     (safe only)
+``` 
+- **Walker**: Traverses directories, filters by supported extensions
+- **Context Classifier**: Classifies files by role (application, test, migration, etc.)
+- **Parser**: Splits SQL statements, detects dialect, extracts tables/columns
+- **Extractor**: Pulls SQL from Python, TypeScript, Java, Go, Ruby, C#, MyBatis XML
+- **Rule Engine**: 282+ rules across 6 dimensions with confidence levels
+- **Schema Validator**: Optional DDL-based table/column existence checks
+- **Autofix**: Conservative text-replacement fixes with backup
+- **Reporter**: Console, JSON, SARIF, GitHub Actions, HTML, CSV
 
-SlowQL is a modular pipeline:
+## Verified Against
+SlowQL v2.0.0 was hardened against these open-sourrce repositories with zero false positives in proven mode:
+(AMD Ryzen i7 U4700 12GB RAM)
 
-```
-SQL Files → Parser (sqlglot) → AST → Context → Analyzers → Rules → Issues → Reporters
-                                 ↑   Classify    ↑          ↓
-                           Schema Inspector |     AutoFixer
-                           (DDL parsing)    |  (safe text fixes)
-                                             +-- 3-layer filter
-                                                 (allow/deny/cross-file)
-```
-
-**Parser.** Uses [sqlglot](https://github.com/tobymao/sqlglot) for multi-dialect SQL parsing. Handles statement splitting, dialect detection, and AST generation.
-
-**Engine.** Orchestrates parsing, context classification, analyzer execution, schema validation, and result aggregation.
-
-**Context Classifier.** Classifies each file into a source context (migration, test, seed, dbt_model, application, etc.) and applies three-layer filtering to eliminate false positives before issues reach reporters.
-
-**Analyzers.** Six domain-specific analyzers (Security, Performance, Reliability, Compliance, Cost, Quality), each loading rules from the catalog.
-
-**Custom Rules.** Dynamic plugin system that loads user-defined rules from YAML files (regex-based) or Python modules (AST-based) at runtime.
-
-**Rules.** 282 detection rules implemented as `PatternRule` (regex), `ASTRule` (sqlglot AST traversal), or custom `Rule` subclasses.
-
-**Schema Inspector.** Parses DDL files into a schema model. Enables table/column existence checks and index suggestions.
-
-**Reporters.** Console (rich TUI), GitHub Actions annotations, SARIF 2.1.0, JSON, HTML, CSV.
-
-**AutoFixer.** Conservative text-based fix engine. Span-based and exact-text replacements only.
-
----
+| **Repository** | **Queries** | **Time** |
+|---|---|---|
+| ClickHouse | 171,533 | 14s |
+| graphql-engine | 84,101 | 54s |
+| citus | 64,468 | 5s |
+| timescaledb | 30,775 | 2.5s |
+| spark | 19,892 | 2s |
+| sqlfluff | 14,979 | 1s |
+| vitess | 2,312 | 0.5s |
+| postgrest | 2,322 | 0.4s |
+| mybatis-3 | 1,703 | 0.3s |
+| metabase | 1,310 | 0.5s |
+| supabase | 817 | 0.3s |
+| django | 201 | 0.2s |
+| rails | 164 | 0.2s |
+| prisma-engines | 167 | 0.1s |
+| sqlmap | 142 | 0.1s |
+| + 13 more
 
 ## Development
-
-```bash
+``` Bash
 git clone https://github.com/slowql/slowql.git
-pip install -e ".[dev]"
-
-pytest
-ruff check .
-mypy src/slowql
+cd slowql
+cargo build
+cargo test
 ```
-
----
+625 tests covering rules, extractors, context classification, CLI, and integration scenarios.
 
 ## License
+AGPL-3.0. See [LICENSE](LICENSE).
 
-Apache License 2.0. See [LICENSE](LICENSE).
-
-**Issues:** [github.com/slowql/slowql/issues](https://github.com/slowql/slowql/issues)
-
-**Discussions:** [github.com/slowql/slowql/discussions](https://github.com/slowql/slowql/discussions)
-
----
-
-<p align="center">
-<a href="#slowql">Back to top</a>
-</p>
+Copyright (C) 2025-2026 [El Mehdi Makroumi](https://github.com/makroumi).

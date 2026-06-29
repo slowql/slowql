@@ -1,115 +1,162 @@
 # Adding Rules
 
-SlowQL evaluates SQL logic through isolated `Rule` modules. The engine architecture partitions rules by physical dimension to streamline debugging and documentation boundaries.
+Rules are implemented as Rust structs in `src/rules/`. Each rule implements the `Rule` trait from `src/rules/base.rs`.
 
-```text
-src/slowql/rules/
-├── security/       # Injection, Exfiltration
-├── performance/    # IO Scaling, Missing Indicies
-├── reliability/    # Unbounded Deletes, Transactions
-├── cost/           # Cartesian Joins, Network Egress
-├── compliance/     # PCI-DSS, GDPR
-└── quality/        # Style drift, Deprecated Syntax
+## File Organization
+
+``` text
+src/rules/
+security/ # SEC-* rules
+performance/ # PERF-* rules
+reliability/ # REL-* rules
+quality/ # QUAL-* rules
+cost/ # COST-* rules
+compliance/ # COMP-* rules
+migration/ # MIG-* rules
+schema/ # SCHEMA-* rules
 ```
 
-## System Interfaces
+## Rule Trait
 
-Every rule inside the engine extends fundamentally from one of two parent classes depending on execution necessity:
+```rust
+pub trait Rule: Send + Sync {
+    fn id(&self) -> &'static str;
+    fn name(&self) -> &'static str;
+    fn severity(&self) -> Severity;
+    fn dimension(&self) -> Dimension;
 
-### 1. PatternRule
-Used for string-matching payloads. Inherit `PatternRule` exclusively when an immutable Regex string resolves the vulnerability faster than full AST parsing.
+    fn confidence(&self) -> RuleConfidence {
+        RuleConfidence::Proven  // override when needed
+    }
 
-```python
-from slowql.rules.base import PatternRule
-from slowql.core.models import Severity, Dimension
+    fn dialects(&self) -> DialectSet {
+        DialectSet::universal()  // override for dialect-specific rules
+    }
 
-class NakedDeleteRule(PatternRule):
-    id = "REL-DATA-001"
-    name = "Unbounded Delete Detection"
-    severity = Severity.CRITICAL
-    dimension = Dimension.RELIABILITY
-    
-    # Empty tuple enforces universality across all dialects
-    dialects = () 
+    fn impact(&self) -> &'static str { "" }
+    fn fix_guidance(&self) -> Option<&'static str> { None }
+    fn category(&self) -> Option<Category> { None }
 
-    pattern = r"(?i)^\s*DELETE\s+FROM\s+\w+\s*(?!WHERE|RETURNING|;)"
-    impact = "An unqualified DELETE will purge the entire target architecture."
-    fix_guidance = "Append an explicit WHERE clause or switch to TRUNCATE."
+    fn check(&self, query: &Query) -> Vec<Issue>;
+}
 ```
 
-### 2. ASTRule
-Used for mathematical traversal of the SQL syntax structure. Inherit from `ASTRule` to loop over parsed `sqlglot` nodes.
+## Minimal Rule Example
 
-```python
-from sqlglot import exp
-from slowql.rules.base import ASTRule
-from slowql.core.models import Query, Issue, Location
+``` Rust
+struct DeleteWithoutWhereRule;
 
-class SelectAsteriskRule(ASTRule):
-    id = "PERF-SCAN-001"
-    
-    def check_ast(self, query: Query, ast: exp.Expression) -> list[Issue]:
-        issues = []
-        for star in ast.find_all(exp.Star):
-            # Complex parent traversal checking if the Star is buried
-            parent = star.parent
-            if isinstance(parent, exp.Select):
-                issues.append(
-                    Issue(
-                        rule_id=self.id,
-                        message="Wildcard projection detected.",
-                        location=Location(
-                            line=query.location.line, 
-                            column=query.location.column
-                        )
-                    )
-                )
-        return issues
+impl Rule for DeleteWithoutWhereRule {
+    fn id(&self) -> &'static str { "REL-DATA-001" }
+    fn name(&self) -> &'static str { "Catastrophic Data Loss Risk" }
+    fn severity(&self) -> Severity { Severity::Critical }
+    fn dimension(&self) -> Dimension { Dimension::Reliability }
+
+    fn impact(&self) -> &'static str {
+        "Instant data loss of entire table content."
+    }
+
+    fn check(&self, query: &Query) -> Vec<Issue> {
+        let qt = query.query_type.as_deref().unwrap_or("");
+        if qt != "DELETE" && qt != "UPDATE" {
+            return Vec::new();
+        }
+        if query.raw_upper().contains("WHERE") {
+            return Vec::new();
+        }
+        let msg = format!("CRITICAL: {} statement has no WHERE clause.", qt);
+        vec![self.build_issue(query, &msg, query.snippet(80))]
+    }
+}
 ```
 
-## Dialect Guarding
+## Confidence Guidelines
 
-Not all vulnerabilities span dynamically across database providers. To restrict a rule's execution entirely to an explicit datastore logic:
+| **Confidence** | **When to use** |
+| ---------- | ---------- |
+| **Proven** | Pattern is always wrong. Zero false positives. Example: WHERE x = NULL. |
+| **Contextual** | Usually wrong but has legitimate uses. Example: CREATE USER without password (valid for Unix socket auth). |
+| **Advisory** | Style preference or best practice. Example: INSERT without column list. |
 
-```python
-class SnowflakeOptimizationRule(ASTRule):
-    id = "COST-SF-001"
-    
-    # The rule engine mathematically guarantees this object will only 
-    # execute if the active document is parsed natively as Snowflake.
-    dialects = ("snowflake",)
+## Dialect-Specific Rules
+
+``` Rust
+fn dialects(&self) -> DialectSet {
+    DialectSet::new(&["postgresql"])
+}
+```
+The engine skips rules that do not match the query's dialect.
+
+## Register the Rule
+
+Add it to the `rules()` function in the appropriate module:
+``` Rust
+pub fn rules() -> Vec<Box<dyn Rule>> {
+    vec![
+        Box::new(DeleteWithoutWhereRule),
+        // ... existing rules
+    ]
+}
 ```
 
-## Remediation Autofixing
+## String Slicing
+Always use `query.snippet(N)` for snippets. Never use raw byte slicing:
+``` Rust
+// WRONG: panics on multibyte UTF-8
+let snip = &query.raw[..80];
 
-SlowQL engineers its `--fix` capabilities natively through returning `Fix` class artifacts. 
-To construct an automated repair sequence, assign `RemediationMode.SAFE_APPLY` class attributes and construct a 100% semantically equivalent replacement.
-
-```python
-from slowql.core.models import Fix, RemediationMode, FixConfidence
-import re
-
-class DeprecatedJoinRule(PatternRule):
-    id = "QUAL-MODERN-001"
-    remediation_mode = RemediationMode.SAFE_APPLY
-
-    def suggest_fix(self, query: Query) -> Fix | None:
-        match = re.search(r"(\w+),\s*(\w+)", query.raw, re.IGNORECASE)
-        if not match:
-            return None
-            
-        return Fix(
-            description="Replaced Comma Join natively with CROSS JOIN",
-            original=match.group(0),
-            replacement=f"{match.group(1)} CROSS JOIN {match.group(2)}",
-            confidence=FixConfidence.SAFE,
-            is_safe=True,
-            rule_id=self.id,
-        )
+// CORRECT: respects UTF-8 character boundaries
+let snip = query.snippet(80);
 ```
 
-## Final Registry Process
+## Testing
 
-Once the class is validated:
-1. Embed the newly manufactured class into the native file's `__all__` list.
-2. Initialize the class explicitly inside `src/slowql/rules/catalog.py` under the `get_all_rules()` function so the Master Registry incorporates its AST schema map.
+Every rule must have tests in the same file or in `tests/`:
+``` Rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn q(sql: &str, qt: &str) -> Query {
+        Query {
+            raw: sql.to_string(),
+            query_type: Some(qt.to_string()),
+            source_context: "application".to_string(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn fires_on_delete_without_where() {
+        let rule = DeleteWithoutWhereRule;
+        let issues = rule.check(&q("DELETE FROM users", "DELETE"));
+        assert!(!issues.is_empty());
+    }
+
+    #[test]
+    fn no_fire_on_delete_with_where() {
+        let rule = DeleteWithoutWhereRule;
+        let issues = rule.check(&q("DELETE FROM users WHERE id = 1", "DELETE"));
+        assert!(issues.is_empty());
+    }
+}
+```
+
+## Cusom YAML Rules
+
+Users can define rules without modifying source code:
+``` YAML
+rules:
+  - id: ORG-001
+    name: "Require tenant_id filter"
+    severity: high
+    dimension: security
+    pattern: "SELECT.*FROM\\s+orders\\b(?!.*tenant_id)"
+    message: "All queries on orders table must filter by tenant_id"
+```
+
+Load via config:
+``` YAML
+analysis:
+  custom_rules: .slowql-rules.yaml
+```

@@ -1,19 +1,27 @@
 # Security Policy
 
+## Reporting a Vulnerability
+
+If you discover a security vulnerability in SlowQL, please report it responsibly.
+
+**Email:** elmehdi.makroumi@gmail.com
+
+Please do NOT open a public GitHub issue for security vulnerabilities.
+
 ## Supported Versions
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 1.0.x   | ✅                 |
-| < 1.0   | ❌                 |
+| Version | Supported |
+|---------|-----------|
+| 1.6.x   | Yes       |
+| < 1.6   | No        |
 
-## Reporting Vulnerabilities
-**Do not** open public issues for vulnerabilities.
+## Response Timeline
 
-Open an issue or start a discussion at [github.com/slowql/slowql/discussions](https://github.com/slowql/slowql/discussions).
+- Acknowledgment: within 48 hours
+- Initial assessment: within 5 business days
+- Fix release: within 30 days for critical issues
 
-## Best Practices
-- Sanitize SQL before sharing logs
-- Use `--no-color` in CI
-- Keep SlowQL updated
-- Review detector findings regularly
+## Copyright
+
+SlowQL is Copyright (C) 2025-2026 El Mehdi Makroumi. All rights reserved.
+Licensed under AGPL-3.0. Commercial licensing available.

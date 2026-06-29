@@ -1,83 +1,66 @@
 # Release Process
 
-This framework governs how core maintainers prepare, package, and distribute the SlowQL engine across binary and container registries.
+## Versioning
 
-## Versioning Standards
+SlowQL follows semantic versioning (`MAJOR.MINOR.PATCH`):
 
-SlowQL enforces semantic versioning logic (`MAJOR.MINOR.PATCH`):
+- **MAJOR**: Breaking CLI or API changes
+- **MINOR**: New rules, new dialect support, backward-compatible features
+- **PATCH**: Bug fixes, false positive corrections, performance improvements
 
-- **MAJOR**: Fundamental API breaks or massive CLI argument restructures.
-- **MINOR**: New Rules added, new Dialect capabilities, backward-compatible engine features.
-- **PATCH**: False positive hotfixes, AST parsing patches, performance improvements.
-
-Declare the version upgrade strictly inside `pyproject.toml` natively:
-
-```toml
-[project]
-version = "1.6.1"
-```
-
-## Changelog Tracking
-
-Document all technical modifications explicitly inside `CHANGELOG.md` utilizing the standard distribution formats:
-
-```markdown
-## [1.6.1] - 2026-03-24
-### Added
-- Created `COST-SF-001` to detect Cartesian loops in Snowflake queries.
-- Attached dialect scoping to the `Rule` metaclass.
-### Fixed
-- Re-architected `sqlglot` parsing to natively support `presto` Window Function clauses.
-```
-
-## Internal Release Validation
-
-Prior to generating distribution artifacts, run the absolute gatekeeping pipeline locally to detect regressions:
+## Pre-release Checklist
 
 ```bash
-ruff format .
-ruff check .
-mypy src/slowql --strict
-pytest
+# Run full test suite
+cargo test
+
+# Format
+cargo fmt --all
+
+# Build release
+cargo build --release
+
+# Verify version
+./target/release/slowql --version
 ```
-*If any component returns a non-zero exit code, immediately abort the release track.*
-
-## Generating Binary Packages
-
-SlowQL relies on the `hatchling` backend to construct modern distribution wheels natively.
-
-```bash
-# Clean legacy distribution folders
-rm -rf dist/
-
-# Compile source distributions and wheels
-python -m build
+## Version Bump
+Update version in `Cargo.toml`:
+``` TOML
+[package]
+version = "2.1.0"
 ```
-This deposits the immutable artifacts natively under `/dist/`.
+## Changelog
+Update `CHANGELOG.md` with the new version entry before tagging.
 
-## Publishing to Registries
-
-### 1. PyPI (Python Package Index)
-Execute standard `twine` uploads strictly pushing the signed artifacts:
-
-```bash
-twine upload dist/*
+## Tagging
+``` Bash
+git add Cargo.toml Cargo.lock CHANGELOG.md
+git commit -m "release: v2.1.0"
+git tag v2.1.0
+git push origin main --tags
 ```
 
-### 2. GitHub Releases
-Tag the repository natively reflecting the standard `v{VERSION}` logic to trigger internal actions cleanly:
+## GitHub Release
+1. Go to Releases on Github
+2. Create a release from the tag
+3. Paste the CHANGELOG entry for this version
+4. Attach pre-built bonaries if available
 
-```bash
-git tag v1.6.1
-git push origin v1.6.1
+## Binary Distribution
+The CI pipeline builds binaries for:
+- `x86_64-unknown-linux-gnu`
+- `aarch64-unknown-linux-gnu`
+- `x86_64-apple-darwin`
+- `aarch64-apple-darwin`
+- `x86_64-pc-windows-msvc`
+
+## Docker
+After tagging, the CI pipeline builds and pushes:
+- `ghcr.io/slowql/slowql:latest`
+- `ghcr.io/slowql/slowql:v2.1.0`\
+
+## Install from Cargo
+``` Bash
+cargo install slowql
 ```
-Navigate to the GitHub UI and convert the Tag into a robust Release securely pasting the corresponding `CHANGELOG.md` segment.
 
-### 3. GitHub Container Registry (GHCR)
-The master GitHub Action natively intercepts new Tags and automatically compiles, scans, and deposits the immutable Docker Image into `ghcr.io/slowql/slowql:latest` and `ghcr.io/slowql/slowql:v1.6.1`.
-
-## Pipeline Best Practices
-
-- Releases should remain aggressively rapid. Do not batch 40 rules; drop 5 rules per minor version.
-- Validate AST logic extremely heavily offline prior to publishing `[all]` extras tags.
-- Use Draft Releases dynamically within GitHub if coordination across the VS Code Extension pipeline is required.

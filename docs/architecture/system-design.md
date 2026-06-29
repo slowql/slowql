@@ -1,60 +1,80 @@
-# System Architecture Overview
+# System Design
 
-SlowQL is designed as a high-performance, stateless static analysis engine. At its core, it processes raw SQL text into Abstract Syntax Trees (ASTs) using explicit grammar dialects, then routes those trees through categorical analyzers containing hundreds of discrete rules.
+SlowQL is a single-pass SQL static analyzer written in Rust.
 
-## High-Level Pipeline
-
-The complete lifecycle of a `slowql` analysis run, coordinated by the main [`SlowQL` engine class](../api/python-api.md), follows this strict pipeline:
-
-```mermaid
-graph TD
-    classDef input fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
-    classDef process fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
-    classDef config fill:#fff3e0,stroke:#e65100,stroke-width:2px;
-    classDef output fill:#fce4ec,stroke:#c2185b,stroke-width:2px;
-
-    A[Input SQL Files]:::input --> B(Universal Parser)
-    
-    subgraph Engine Orchestration [SlowQL Engine]
-        B -->|AST & Raw Tokens| C{DDL Auto-Detect}
-        C -->|Schema Metadata| D(Analyzer Registry)
-        D -->|Dialect-Filtered Rules| E[Execution Pipeline]
-    end
-
-    CFG[slowql.yaml Config]:::config --> D
-
-    E -->|1..* Issues| F[Reporters]:::output
-    E -->|Safe Autofix .bak| G[File System]:::output
+## Pipeline
+``` text
+Files -> Walker -> Context Classifier -> Parser -> Rule Engine -> Issues -> Reporter
+| | |
+Extractor Schema Autofix
+(app code) Validator (safe only)
 ```
 
-## 1. SQL Ingestion & Parsing
-SQL files are ingested and instantly split into individual statements via the `SourceSplitter`. The `UniversalParser` then leverages the immensely powerful `sqlglot` library to transform these raw text chunks into fully mapped Abstract Syntax Trees (ASTs).
+## Components
 
-If no dialect is provided in `slowql.yaml`, `UniversalParser` utilizes a Regex-based scoring system (`DIALECT_DETECTION_RULES`) to auto-detect the dialect (Postgres, BigQuery, Snowflake, etc.) before parsing.
+### Walker (`cli.rs`)
+Traverses directories recursively. Filters by supported file extensions (.sql, .py, .ts, .js, .java, .go, .rb, .kt, .cs, .xml). Skips non-UTF-8 files.
 
-## 2. DDL Auto-Detection
-Before executing rules, the `engine.py` quietly scans the raw queries for `CREATE TABLE` statements. If found, it routes them to the `SchemaInspector` which parses `DDL` logic to establish a mock-schema in memory. This enables schema-aware rules (like `MissingIndexRule` or `ColumnExistsRule`) to operate correctly without connecting to a live database.
+### Context Classifier (`context.rs`)
+Classifies each file by its role in the project based on path patterns and content analysis. Returns one of: `application`, `migration`, `test`, `seed`, `example`, `framework_internal`, `ddl_schema`, `dbt_model`, `adhoc`.
 
-## 3. The Analyzer Registry
-SlowQL groups its huge library of rules into specific dimensional **Analyzers** (`SecurityAnalyzer`, `PerformanceAnalyzer`, etc.) which all inherit from `BaseAnalyzer` or `CompositeAnalyzer`.
+Rules are filtered based on context. Non-production contexts only allow security and reliability rules.
 
-The `AnalyzerRegistry` natively discovers and loads these components from entry points on boot, making the architecture highly extensible.
+### Parser (`parser.rs`)
+Splits SQL content into individual statements. Detects dialect from SQL patterns. Extracts table names, column names, and query type. Uses the `sqlparser` crate for structural parsing.
 
-## 4. The Execution Pipeline
-Inside `RuleBasedAnalyzer`, every single active rule (`ASTRule` or `PatternRule`) is executed against the parsed ASTs. 
-Because `slowql` enforces strict Dialect Guardians (e.g., `dialects=("snowflake",)` on rules), the pipeline automatically and safely skips rules that aren't relevant to the current dialect, practically eliminating false positives. 
+### Extractor (`extractor.rs`)
+Extracts SQL strings from application source code:
+- Python: triple-quoted strings, f-strings
+- TypeScript/JavaScript: template literals, sink-aware regex
+- Java/Kotlin: prepareStatement, createNativeQuery
+- Go: db.Query, db.Exec
+- Ruby: connection.execute, heredocs
+- C#: connection.Execute
 
-## 5. Context-Aware Filtering
+Each extractor uses language-specific patterns to identify SQL sinks and extract the SQL string content.
 
-Before result aggregation, the Engine classifies each file into a source context (migration, test, seed, dbt_model, application, adhoc, etc.) using path patterns and content heuristics. A three-layer filter then removes false positives:
+### Rule Engine (`engine.rs`)
+Iterates all parsed queries through all enabled rules. Applies:
+- Dimension filtering (enabled_dimensions config)
+- Rule enable/disable lists
+- Severity overrides
+- Confidence demotion for templated queries
+- Context-based filtering
+- Inline suppression
 
-1. **Allowlist**: Non-production contexts only see security (SEC-) and reliability (REL-) rules.
-2. **Deny list**: Context-specific exclusions (e.g., SEC-INJ-005 denied in migrations because data is developer-controlled).
-3. **Cross-file filter**: Project-level rules respect per-file context.
+### Rules (`rules/`)
+282+ rules across 8 modules: security, performance, reliability, quality, cost, compliance, migration, schema. Each rule implements the `Rule` trait with id, name, severity, dimension, confidence, and check method.
 
-See [Context-Aware Analysis](context-awareness.md) for the full specification.
+### Schema Validator (`schema.rs`)
+Parses DDL files into a schema model. Validates table and column references against the schema.
 
-## 6. Result Aggregation
-Finally, any triggered rule yields an `Issue` object containing the `RemediationMode`, `Severity`, explicit location, and potentially a `FixConfidence.SAFE` replacement string.
+### Project Analyzer (`project.rs`)
+Cross-file analysis after individual file analysis:
+- Duplicate query detection (HashMap-based, O(Q))
+- Cross-file breaking changes (indexed lookups, O(Q + T))
+- Unused object detection (definition/reference matching)
 
-The Engine accumulates these into an `AnalysisResult` dataclass and passes them to the configured **Reporter** (e.g., Cyberpunk TUI Console, `SARIF` for CI/CD Pipeline, or JSON hook).
+### Autofix (`autofixer.rs`)
+Conservative text-replacement fixes. Only applies fixes tagged as `FixConfidence::Safe`. Creates .bak backups.
+
+### Reporter (`cli.rs`)
+Outputs results in console, JSON, SARIF 2.1.0, or GitHub Actions annotation format. Supports HTML, CSV, and JSON file exports.
+
+## Performance Characteristics
+
+- Per-query rule execution: O(rules * query_length)
+- Project-level analysis: O(Q) with HashMap indexing
+- Context classification: O(1) per file (regex matching)
+- Memory: proportional to total query count and raw SQL size
+- Skips project-level analysis for corpora exceeding 20,000 queries
+
+## Confidence Architecture
+
+Every rule declares a confidence level:
+
+- **Proven**: The finding is structurally deterministic. No false positives possible from the SQL text alone.
+- **Contextual**: The finding is accurate when context (schema, file role, runtime environment) is available. May need human verification.
+- **Advisory**: The finding is a style preference or best practice. Not provably wrong.
+
+Default mode is `proven`. Users opt into lower confidence levels explicitly.

@@ -25,3 +25,7 @@ Consequences: Warning → Temporary ban → Permanent ban
 ## Attribution
 
 Adapted from [Contributor Covenant](https://www.contributor-covenant.org/).
+
+---
+
+SlowQL is Copyright (C) 2025-2026 El Mehdi Makroumi. All rights reserved.

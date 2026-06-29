@@ -1,70 +1,122 @@
 # Application Code SQL Extraction
 
-SlowQL can automatically extract and analyze SQL strings embedded within application code. This allows you to catch SQL vulnerabilities and performance issues directly in your application source files, even when the SQL isn't stored in standalone `.sql` files.
+SlowQL extracts SQL strings from application source code and analyzes them with the same rules applied to `.sql` files.
 
 ## Supported Languages
 
-SlowQL currently supports SQL extraction from:
+| Language | Extensions | Extraction Method |
+|----------|-----------|-------------------|
+| Python | `.py` | Triple-quoted strings, f-strings, single/double-quoted strings |
+| TypeScript/JavaScript | `.ts`, `.js`, `.tsx`, `.jsx` | Template literals, sink-aware regex |
+| Java | `.java` | `prepareStatement()`, `createNativeQuery()` |
+| Kotlin | `.kt` | `prepareStatement()`, `createNativeQuery()` |
+| Go | `.go` | `db.Query()`, `db.Exec()` |
+| Ruby | `.rb` | `connection.execute()`, `find_by_sql()`, heredocs |
+| C# | `.cs` | `connection.Execute()` |
+| MyBatis XML | `.xml` | Full XML parser with dynamic tag support |
 
-- **Python** (via AST analysis)
-- **TypeScript & JavaScript** (via regex)
-- **Java** (via regex)
-- **Go** (via regex)
-- **Ruby** (via regex)
+## How Extraction Works
 
-## How it Works
+SlowQL identifies SQL sink functions for each language and extracts the string arguments.
 
-When you run SlowQL on a directory or a specific application file, it detects the file extension and applies the appropriate extraction logic.
+### Python
 
-### Python AST Analysis
+```python
+# Extracted as SQL
+cursor.execute("SELECT id FROM users WHERE active = true")
 
-For Python, SlowQL uses the `ast` module to perform precise extraction. It can identify:
-- Static string constants
-- f-strings (dynamic parts are masked with `__dynamic__` to allow parsing)
-- Multi-line strings (triple quotes)
+# f-strings are extracted and marked as dynamic
+query = f"SELECT * FROM users WHERE id = {user_id}"
+cursor.execute(query)
 
-### Regex-based Extraction
+# Triple-quoted strings
+query = """
+    DELETE FROM sessions
+    WHERE expires_at < NOW()
+"""
+```
 
-For other languages, SlowQL uses optimized regular expressions to find string literals that look like SQL queries (e.g., starting with `SELECT`, `INSERT`, `UPDATE`, etc.).
+### TypeScript/JavaScript
+
+``` TypeScript
+// db.query() and pool.query() are recognized sinks
+const result = await db.query("SELECT * FROM orders WHERE id = $1", [id]);
+
+// Template literals are marked as dynamic
+const result = await db.query(`SELECT * FROM ${table} WHERE id = $1`);
+
+// knex.raw() is recognized
+const rows = await knex.raw("SELECT id FROM users WHERE email = ?", [email]);
+```
+
+### Go
+
+``` Go
+// db.Query() and db.Exec() are recognized
+rows, err := db.Query("SELECT id FROM users WHERE active = true")
+
+// Format strings with %s or %v are marked as dynamic
+query := fmt.Sprintf("SELECT * FROM %s WHERE id = $1", tableName)
+rows, err := db.Query(query, id)
+```
+
+### Ruby
+
+``` Ruby
+# connection.execute() and find_by_sql() are recognized
+User.find_by_sql("SELECT * FROM users WHERE active = 1")
+
+# Heredoc SQL
+connection.execute(<<~SQL
+  DELETE FROM sessions WHERE expires_at < NOW()
+SQL
+)
+
+# Interpolation is marked as dynamic
+connection.execute("SELECT * FROM users WHERE id = #{user_id}")
+```
 
 ## Dynamic SQL Detection
 
-One of the most powerful features of the extraction engine is the ability to identify **dynamic SQL**. 
+When SlowQL detects string interpolation, format verbs, or template placeholders, it marks the extracted query as `is_dynamic`. This affects rule analysis:
 
-When SlowQL finds an f-string in Python or a template literal in TypeScript, it flags the resulting query as `is_dynamic`. This information is then used by the security rules (like `SEC-INJ-001`) to automatically flag the query as a potential SQL injection risk, as it's being constructed using string interpolation rather than parameterized inputs.
+- Dynamic queries are demoted from proven to contextual confidence.
+- Injection rules (`SEC-INJ-001`) are specifically designed to flag dynamic construction.
+
+## JPQL Filtering
+Java queries using JPQL (Java Persistence Query Language) with entity class names like `UserEntity` are automatically detected and filtered out. SlowQL only analyzes queries targeting actual database tables.
+
+``` Java
+// Filtered out (JPQL)
+em.createQuery("SELECT u FROM UserEntity u WHERE u.id = :id");
+
+// Analyzed (SQL)
+em.createNativeQuery("SELECT id FROM users WHERE id = ?");
+```
+
+## Inline Suppression in Application Code
+
+Suppression comments work in application code too:
+
+``` Python
+# Python
+query = "SELECT * FROM archive"  # slowql-disable-line PERF-SCAN-001
+
+# TypeScript
+const q = "DELETE FROM temp_data";  // slowql-disable-line REL-DATA-001
+```
 
 ## Usage
 
-Simply pass the application files or directories to the `slowql` command:
+``` Bash
+# Scan Python application directory
+slowql src/
 
-```bash
-slowql src/app.py src/services/
+# Scan specific file
+slowql src/services/user_service.py
+
+# Scan with schema validation
+slowql src/ --schema db/schema.sql
 ```
 
-SlowQL will output issues found within those files, including precise line and column numbers.
 
-### Example (Python)
-
-```python
-# src/db.py
-def get_user(user_id):
-    # SlowQL will flag this line for SQL injection
-    query = f"SELECT * FROM users WHERE id = {user_id}"
-    return db.execute(query)
-```
-
-Running SlowQL:
-
-```bash
-$ slowql src/db.py
-
-src/db.py:4:5: SEC-INJ-001: Potential SQL injection: Query is dynamically constructed (e.g., f-string or template literal).
-```
-
-## Inline Suppression
-
-You can use standard SlowQL suppression comments within your application code to silence specific rules:
-
-```python
-query = f"SELECT * FROM users WHERE id = {user_id}"  # slowql-disable-line SEC-INJ-001
-```

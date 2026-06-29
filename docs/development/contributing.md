@@ -1,47 +1,126 @@
-# Contributing Workflow
+# Contributing
 
-First and foremost, thank you for your commitment to expanding SlowQL! 
+See [CONTRIBUTING.md](../../CONTRIBUTING.md) in the project root.
+EOF
 
-SlowQL's community aggressively pioneers the advancement of SQL static analysis against security vulnerabilities, unbounded resource consumption, and reliability regressions.
+cat > docs/development/adding-rules.md << 'EOF'
+# Adding Rules
 
-## Standard Operational Workflow
+## Rule Trait
 
-1. **Fork the Upstream Repository:** Clone the repository under your personal GitHub domain.
-2. **Target Working Branches:** Checkout a clean branch structurally diverging from `main`:
-   ```bash
-   git checkout -b feat/add-clickhouse-cost-rule
-   ```
-3. **Execution & Implementation:** Develop your logic, strictly implementing `ASTRule` structures and explicit `sqlglot` traversal when applicable.
-4. **Mandatory Check Suites:** Prior to formulating a Pull Request, absolutely verify the local toolchain generates zero warnings:
-   ```bash
-   ruff format .
-   ruff check .
-   mypy src/slowql --strict
-   pytest
-   ```
-5. **Issue a Pull Request:** Deploy your logic towards the primary `main` axis.
+Every rule implements the `Rule` trait defined in `src/rules/base.rs`:
 
-## Code Style Conventions
+```rust
+pub trait Rule: Send + Sync {
+    fn id(&self) -> &'static str;
+    fn name(&self) -> &'static str;
+    fn severity(&self) -> Severity;
+    fn dimension(&self) -> Dimension;
 
-The project repository relies natively on the automation capabilities established within `pyproject.toml` to settle syntax opinions natively natively offline.
+    fn confidence(&self) -> RuleConfidence {
+        RuleConfidence::Proven  // default
+    }
 
-- **Formatting:** Administered purely via the Rust-based executable `ruff format`. Execute `ruff format .` prior to commits.
-- **Linting:** Verified entirely via `ruff check .`. All configurations including `flake8` bugs, unutilized scopes, and missing docstrings must resolve `0`.
-- **Typing Framework:** Dynamic Python types are rejected. Assert static signatures natively with `mypy --strict`.
-- **Topology Restrictions:** Native 100 character line boundaries enforced inherently.
+    fn check(&self, query: &Query) -> Vec<Issue>;
+}
+```
 
-## Conventional Commits
+## Confidence Guidelines
 
-We aggressively follow [Conventional Commits](https://www.conventionalcommits.org/) standards. Your underlying logic must explicitly map to these syntax limits:
+Choose the right confidence level:
 
-- `feat:` Newly exposed functionalities (e.g., adding a rule logic mapping).
-- `fix:` Engine pipeline repairs and AST traversal overrides.
-- `docs:` Internal documentation re-architecting.
-- `test:` Scaling test coverage across explicit rule modules.
-- `chore:` Internal CI/CD workflow patches, maintenance, packaging dependencies.
+- **Proven**: The pattern is always wrong regardless of context. Example: `WHERE x = NULL`.
+- **Contextual**: The pattern is usually wrong but has legitimate uses. Example: `CREATE USER without password` (valid for Unix socket auth).
+- **Advisory**: The pattern is a style preference. Example: `INSERT without column list`.
 
-## Pull Requests
+## File Organization
+Rules are organized by dimension:
+``` text
+src/rules/
+  security/        # SEC-* rules
+  performance/     # PERF-* rules
+  reliability/     # REL-* rules
+  quality/         # QUAL-* rules
+  cost/            # COST-* rules
+  compliance/      # COMP-* rules
+  migration/       # MIG-* rules
+  schema/          # SCHEMA-* rules
+```
 
-Isolate PRs dynamically indicating explicit changes. Include comprehensive operational boundaries proving your logic was executed offline natively. Cross-link corresponding issue IDs executing `Closes #123`.
+## Example Rule
+``` Rust
+struct MyRule;
+static PAT: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\bDANGEROUS_PATTERN\b").unwrap());
 
-*Pull requests containing cascading compilation faults during internal execution testing checks will be immediately deferred.*
+impl Rule for MyRule {
+    fn id(&self) -> &'static str { "SEC-CUSTOM-001" }
+    fn name(&self) -> &'static str { "Dangerous Pattern Detected" }
+    fn severity(&self) -> Severity { Severity::High }
+    fn dimension(&self) -> Dimension { Dimension::Security }
+
+    fn confidence(&self) -> RuleConfidence {
+        RuleConfidence::Proven
+    }
+
+    fn impact(&self) -> &'static str {
+        "This pattern can lead to data exposure."
+    }
+
+    fn check(&self, query: &Query) -> Vec<Issue> {
+        PAT.find(&query.raw)
+            .map(|m| vec![self.build_issue(query, "Dangerous pattern found", m.as_str())])
+            .unwrap_or_default()
+    }
+}
+```
+
+## Register thre Rule
+Add it to the `rules()` function in the appropriate module:
+``` Rust
+pub fn rules() -> Vec<Box<dyn Rule>> {
+    vec![
+        Box::new(MyRule),
+        // ... other rules
+    ]
+}
+```
+
+## Testing
+Every rule must have tests:
+``` Rust
+#[test]
+fn my_rule_fires() {
+    let query = q("SELECT DANGEROUS_PATTERN FROM t", "postgresql", "SELECT");
+    let rule = MyRule;
+    assert!(!rule.check(&query).is_empty());
+}
+
+#[test]
+fn my_rule_does_not_fire_on_safe_sql() {
+    let query = q("SELECT id FROM users WHERE id = 1", "postgresql", "SELECT");
+    let rule = MyRule;
+    assert!(rule.check(&query).is_empty());
+}
+```
+
+## String Slicing
+Never use raw byte slicing on query text:
+``` Rust
+// WRONG: panics on multibyte UTF-8
+let snip = &query.raw[..80];
+
+// CORRECT: respects character boundaries
+let snip = query.snippet(80);
+```
+
+## Custom YAML Rules
+Users can define rules without mpdifying source code:
+``` YAML
+rules:
+  - id: ORG-001
+    name: "Require tenant_id filter"
+    severity: high
+    dimension: security
+    pattern: "SELECT.*FROM\\s+orders\\b(?!.*tenant_id)"
+    message: "All queries on orders table must filter by tenant_id"
+```
