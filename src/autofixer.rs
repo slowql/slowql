@@ -28,7 +28,7 @@ impl AutoFixer {
             .iter()
             .filter(|f| f.start.is_some() && f.end.is_some())
             .collect();
-        span_fixes.sort_by(|a, b| b.start.cmp(&a.start));
+        span_fixes.sort_by_key(|b| std::cmp::Reverse(b.start));
 
         for fix in &span_fixes {
             updated = Self::apply_fix(&updated, fix);

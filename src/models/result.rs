@@ -127,7 +127,7 @@ impl AnalysisResult {
 
     pub fn sorted_by_severity(&self) -> Vec<&Issue> {
         let mut issues: Vec<&Issue> = self.issues.iter().collect();
-        issues.sort_by(|a, b| b.severity.cmp(&a.severity));
+        issues.sort_by_key(|b| std::cmp::Reverse(b.severity));
         issues
     }
 }
