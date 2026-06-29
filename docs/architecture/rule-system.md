@@ -1,35 +1,99 @@
 # Rule System
 
-SlowQL separates logical rules from its execution framework. This enables absolute code decoupling where adding a new check logic is simply a matter of tossing a subclass into the respective directory.
+SlowQL rules are implemented as Rust structs that implement the `Rule` trait.
 
-## Analysers vs. Rules
+## Rule Trait
 
-The system is fundamentally categorized into two domains:
+```rust
+pub trait Rule: Send + Sync {
+    fn id(&self) -> &'static str;
+    fn name(&self) -> &'static str;
+    fn severity(&self) -> Severity;
+    fn dimension(&self) -> Dimension;
 
-1. **Analyzers**: Represent rigid, logical dimensions (`SecurityAnalyzer`, `CostAnalyzer`, `PerformanceAnalyzer`). These classes subclass `RuleBasedAnalyzer` or `CompositeAnalyzer`. Their absolute truth is to be discovered and registered dynamically when the engine boots via `AnalyzerRegistry` (utilizing python entry points `slowql.analyzers`).
-2. **Rules**: Individual logic gates enforcing a single static condition (`SelectStarRule`, `DropTableWithoutTransactionRule`).
+    fn confidence(&self) -> RuleConfidence {
+        RuleConfidence::Proven  // default
+    }
 
-## Rule Classes
+    fn category(&self) -> Option<Category> { None }
+    fn dialects(&self) -> DialectSet { DialectSet::universal() }
+    fn impact(&self) -> &'static str { "" }
+    fn fix_guidance(&self) -> Option<&'static str> { None }
 
-All rules must be declared universally in `src/slowql/rules/<dimension>/` and inherent the `Rule` foundation class. 
-The foundation forces the presence of rule metadata (the `id`, `name`, `severity`, `dimension` `dialects`, `impact`, and `fix_guidance`). 
+    fn check(&self, query: &Query) -> Vec<Issue>;
+}
+```
 
-When defining custom checks, you choose one of two distinct subclasses:
+## Confidence Levels
 
-### 1. `PatternRule`
-A high-performance pattern matcher completely ignoring the `sqlglot` AST infrastructure. 
+| **Level** | **Value** | **Description** |
+|-----------|-----------|-----------------|
+| `Proven` | 3 | Structurally deterministic. Zero false positives. Default. |
+| `Contextual` | 2 | Accurate with context. May need verification. |
+| `Advisory` | 1 | Style hint or best practice. Not provably wrong. |
 
-Instead of an AST context, it leans on compiled Regular Expressions (`self.pattern`) or raw tokenizer scanning (`self.check(query)` checking against `query.raw` tokens). Highly efficient, but only robust on simplistic edge cases where the query format isn't ambiguous.
+Confidence levels are ordered. `proven > contextual > advisory`. The `--min-confidence` flag filters by this order.
 
-### 2. `ASTRule`
-The most commonly registered object in SlowQL. Instead of string matching, it natively analyzes the pre-parsed `exp.Expression` tree constructed by `UniversalParser`. 
+## RuleContext
+Rules receive a `RuleContext` alongside each query:
 
-By iterating via `ast.find_all(exp.Select)`, it guarantees zero false positives from syntax nested inside subqueries, string literals, or single-line comments.
+```rust
+pub struct RuleContext<'a> {
+    pub schema: Option<&'a Schema>,
+    pub table_metadata: &'a HashMap<String, TableMetadata>,
+    pub source_context: &'a str,
+}
+```
+Rules can use this to:
+- Check if a table exists in the schema
+- Check if a table is marked as large or partitioned
+- Adjust behavior based on file context
 
-## Safe Autofixes
+## Dialect Filtering
+Rules declare which dialects they apply to via `dialects()`. Universal rules return `DialectSet::universal()`. Dialect-specific rules return `DialectSet::new(&["postgresql"])`.
 
-Because SlowQL guarantees high execution safety, many default rules are marked with `RemediationMode.SAFE_APPLY` inside their class definition.
+The engine skips rules that do not match the query's dialect.
 
-Through implementing a `suggest_fix(self, query: Query) -> Fix` method, a Rule can yield an explicit textual diff patch (`original` vs `replacement`) coupled with a `FixConfidence` assertion (typically `FixConfidence.SAFE`).
+## Issue Building
+Rules use `build_issue()` to create issues consistently:
+``` Rust
+fn check(&self, query: &Query) -> Vec<Issue> {
+    if query.raw_upper().contains("DANGEROUS_PATTERN") {
+        return vec![self.build_issue(
+            query,
+            "Dangerous pattern found",
+            query.snippet(80),  // always use snippet(), never raw slicing
+        )];
+    }
+    Vec::new()
+}
+```
 
-If the user initiates `slowql --fix`, the Engine compiles these `Fix` objects across all queries to rewrite the script programmatically while caching backups, completely automating the SQL engineering effort.
+## Rule Dimensions
+| **Dimension** | **Prefix** | **Count** |
+|---------------|------------|-----------|
+| Security      | `SEC-`       | 61        |
+| Performance   | `PERF-`      | 73        |
+| Reliability   | `REL-`       | 44        |
+| Quality       | `QUAL-`      | 52        |
+| Cost          | `COST-`      | 33        |
+| Compliance    | `COMP-`      | 18        |
+| Migration     | `MIG-`       | 2         |
+| Schema        | `SCHEMA-`    | 2         |
+
+## Custom YAML Rules
+Users can define rules without modifying source code:
+``` YAML
+rules:
+  - id: ORG-001
+    name: "Require tenant_id"
+    severity: high
+    dimension: security
+    pattern: "SELECT.*FROM\\s+orders\\b(?!.*tenant_id)"
+    message: "All queries on orders must filter by tenant_id"
+```
+YAML rules support:
+- Regex patterns
+- Severity and dimension
+- Custom messages with `{match}` placeholder
+- Dialect filtering

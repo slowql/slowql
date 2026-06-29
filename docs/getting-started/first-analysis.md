@@ -1,69 +1,84 @@
 # First Analysis
 
-With SlowQL installed and configured, you are ready to execute your first static validation. This guide demonstrates how to analyze SQL queries across multiple execution modes and strictly interpret the resulting telemetry.
+## Scan a SQL File
 
----
-
-## Analyze a SQL File
-
-The fundamental workflow involves passing a SQL file (or an entire directory) directly to the engine:
-
-```bash
-slowql queries.sql --fast
+``` bash
+slowql queries.sql
 ```
-The `--fast` flag disables terminal intro animations to accelerate the return of the analysis payload.
+SlowQL runs in **proven mode** by default. Only structurally verified findings are shown. Zero false positives.
 
----
-
-## Interactive Paste Mode
-
-If you need to rapidly benchmark a floating query snippet outside of a file structure, utilize the clipboard mode:
-
-```bash
-slowql --mode paste
+## Scan a Directory
+``` bash
+slowql src/
 ```
-SlowQL will temporarily hand over STDIN, allowing you to paste your SQL payload directly into the terminal buffer for immediate parsing.
+SlowQL walks the directory recursively, finds all supported files, classifies each file by context, and runs appropriate rules.
 
----
+## Read the Output
+``` text
+[proven mode] Only structurally verified findings shown.
+
+SlowQL v2.0.0 - 142 queries scanned, 3 issues found
+
+  CRITICAL: 1
+      HIGH: 2
+
+  src/api.py
+    CRITICAL SEC-INJ-001    45:12  Potential SQL injection: string concatenation with variable
+               > "SELECT * FROM users WHERE id = " + user_id
+               https://slowql.dev/rules/sec-inj-001
+
+    HIGH PERF-SCAN-002      89:1   Unbounded DELETE detected (missing WHERE).
+               > DELETE FROM sessions
+               https://slowql.dev/rules/perf-scan-002
+
+  src/reports.sql
+    HIGH REL-DATA-001       12:1   CRITICAL: DELETE statement has no WHERE clause.
+               > DELETE FROM audit_log
+               https://slowql.dev/rules/rel-data-001
+
+  3 files | 142 queries | 287ms | 495 queries/sec
+```
+
+## Severity Levels
+
+| **Severity** | **Meaning** |
+|----------|---------|
+| **critical** | Data loss, active injection vectors, catastrophic risk |
+| **high** | Severe structural flaws, security vulnerabilities |
+| **medium** | Suboptimal patterns, technical debt |
+| **low** | Style issues, minor optimizations |
+| **info** | Informational only |
+
+
+## Exit Codes
+
+| **Code** | **Meaning** |
+|----------|---------|
+| **0** | No issues found or issues below threshold |
+| **1** | Issues found at medium or low severity |
+| **2** | Issues found at high severity |
+| **3** | Issues found at critical severity |
+
+## Show More Findings
+``` bash
+# Add context-dependent findings (for code review)
+slowql src/ --min-confidence contextual
+
+# Add all hints and style suggestions
+slowql src/ --min-confidence advisory
+```
 
 ## Export Results
+``` bash
+# Export to JSON
+slowql src/ --export json --out reports/
 
-For auditing, compliance trails, or downstream security integrations, export your findings to standard serialization formats:
-
-```bash
-slowql queries.sql --export json sarif --out build/reports/
+# Export to multiple formats
+slowql src/ --export json --export html --export sarif --out reports/
 ```
-**Supported Formats:** `json`, `csv`, `html`, `sarif`.
-SlowQL will drop the respective serialized payloads (e.g. `slowql_report.json`) into the target `--out` directory while still printing the console summary.
 
----
+## Next Steps
 
-## CI/CD Safe Mode
-
-When running strictly within a headless environment or GitHub Action, it is critical to lock down the UI and prevent pipeline hangups:
-
-```bash
-slowql src/ --fail-on high --format github-actions --export sarif --out artifacts/
-```
-- `--non-interactive`: Extraneous when `<file>` arguments are provided, as SlowQL now defaults to non-interactive mode immediately to guarantee CI/CD safety by bypassing UI elements and dialect selectors.
-- `--fail-on high`: Instructs the engine to exit with a non-zero status code if `High` or `Critical` flaws are detected, failing the pipeline run natively.
-
----
-
-## Interpreting Results
-
-SlowQL mathematically scores identified vulnerabilities across exactly four impact strata:
-
-- **Critical:** Absolute blockers. Expected to trigger catastrophic data losses (`DELETE` without `WHERE`) or severe security exfiltration vectors.
-- **High:** Severe structural flaws guaranteeing latency degradation or non-compliance (missing critical indices on joined properties).
-- **Medium:** Suboptimal technical debt. Valid but excessively expensive querying patterns (e.g. nested subqueries instead of `CTEs`, arbitrary `SELECT *`).
-- **Low:** Aesthetic drift, stylistic non-conformity, or minute optimizations.
-
----
-
-## Related Documentation
-
-- [Installation](installation.md): Review global vs Docker deployment strategies.
-- [Configuration](configuration.md): Define ruleset boundaries inside `slowql.yaml`.
-- [CLI Reference](../usage/cli-reference.md): Read the exhaustive engine argument list.
-- [Rules Explorer](../rules/overview.md): Browse the granular 272 AST rules.
+- [Configuration](/docs/getting-started/configuration.md) - Set dialect, disabled rules, fail-on threshold
+- [CLI Reference](/docs/getting-started/cli-reference.md) - Full flag reference
+- [CI/CD Integration](/docs/getting-started/ci-cd-integration.md) - Use in pipelines

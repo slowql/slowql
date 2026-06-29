@@ -135,9 +135,7 @@ fn apply_baseline(
     baseline_path: &std::path::Path,
 ) -> Result<(crate::models::result::AnalysisResult, usize), String> {
     let baseline = crate::baseline::Baseline::load(baseline_path)?;
-    Ok(crate::baseline::Baseline::filter_new(
-        result, &baseline,
-    ))
+    Ok(crate::baseline::Baseline::filter_new(result, &baseline))
 }
 
 fn update_baseline_file(
@@ -154,7 +152,6 @@ pub fn run() -> i32 {
 }
 
 fn run_with_cli(cli: Cli, stdin_override: Option<&str>) -> i32 {
-
     // Handle --list-rules
     if cli.list_rules {
         cmd_list_rules(
@@ -901,7 +898,20 @@ fn print_console(result: &crate::models::result::AnalysisResult) {
 }
 
 fn print_json(result: &crate::models::result::AnalysisResult) {
-    match serde_json::to_string_pretty(result) {
+    // Omit the queries array from JSON output by default.
+    // The full queries payload can be 100MB+ on large repos, causing
+    // serialization to dominate wall time (e.g. 800s on 170k queries).
+    // Time: O(issues + statistics) instead of O(queries).
+    // Space: output size drops from ~131MB to ~KB for large repos.
+    let output = serde_json::json!({
+        "issues": &result.issues,
+        "statistics": &result.statistics,
+        "dialect": &result.dialect,
+        "timestamp": &result.timestamp,
+        "version": &result.version,
+        "suppressed_count": &result.suppressed_count,
+    });
+    match serde_json::to_string_pretty(&output) {
         Ok(json) => println!("{}", json),
         Err(e) => eprintln!("Error serializing to JSON: {}", e),
     }
@@ -1079,10 +1089,7 @@ fn html_escape(s: &str) -> String {
         .replace('"', "&quot;")
 }
 
-fn compute_exit_code(
-    result: &crate::models::result::AnalysisResult,
-    fail_on: Option<&str>,
-) -> i32 {
+fn compute_exit_code(result: &crate::models::result::AnalysisResult, fail_on: Option<&str>) -> i32 {
     let threshold = match fail_on {
         None | Some("never") => return 0,
         Some(s) => match s {
@@ -1189,7 +1196,10 @@ fn cmd_explain(rule_id: &str) -> i32 {
     let engine = Engine::with_default_config();
     let rules = engine.registry_ref().all();
 
-    if let Some(rule) = rules.iter().find(|r: &&Box<dyn crate::rules::base::Rule>| r.id().eq_ignore_ascii_case(rule_id)) {
+    if let Some(rule) = rules
+        .iter()
+        .find(|r: &&Box<dyn crate::rules::base::Rule>| r.id().eq_ignore_ascii_case(rule_id))
+    {
         println!("Rule:       {}", rule.id());
         println!("Name:       {}", rule.name());
         println!("Severity:   {}", rule.severity().as_str());
@@ -1821,7 +1831,13 @@ mod cli_path_tests {
 
         let mut cli = base_cli();
         cli.files = vec![sql];
-        cli.export = vec!["json".into(), "csv".into(), "html".into(), "sarif".into(), "unknown".into()];
+        cli.export = vec![
+            "json".into(),
+            "csv".into(),
+            "html".into(),
+            "sarif".into(),
+            "unknown".into(),
+        ];
         cli.out = out;
         assert_eq!(run_with_cli(cli, None), 0);
     }
@@ -1927,6 +1943,7 @@ mod cli_deep_tests {
         }
     }
 
+    #[test]
     fn print_console_with_advisory_and_impact_and_fix() {
         let mut result = crate::models::result::AnalysisResult::new();
         result.statistics.analysis_time_ms = 50.0;
@@ -1985,11 +2002,7 @@ mod cli_deep_tests {
     fn run_with_cli_directory_with_include_nonprod() {
         let dir = tempdir().unwrap();
         std::fs::create_dir_all(dir.path().join("tests")).unwrap();
-        std::fs::write(
-            dir.path().join("tests").join("a.sql"),
-            "SELECT * FROM t",
-        )
-        .unwrap();
+        std::fs::write(dir.path().join("tests").join("a.sql"), "SELECT * FROM t").unwrap();
         std::fs::write(dir.path().join("app.sql"), "DELETE FROM users").unwrap();
 
         let mut cli = base_cli();
@@ -2354,5 +2367,108 @@ mod cli_branch_tests {
         std::fs::write(dir.path().join("a.txt"), "x").unwrap();
         let files = walkdir(dir.path());
         assert!(files.is_empty());
+    }
+}
+
+#[cfg(test)]
+mod cli_final_branches {
+    use super::*;
+    use std::fs;
+    use tempfile::tempdir;
+
+    fn base_cli() -> Cli {
+        Cli {
+            files: Vec::new(),
+            dialect: None,
+            schema: None,
+            format: OutputFormat::Json,
+            export: Vec::new(),
+            out: PathBuf::from("reports"),
+            fail_on: None,
+            diff: false,
+            fix: false,
+            fix_report: None,
+            baseline: None,
+            update_baseline: None,
+            list_rules: false,
+            explain: None,
+            git_diff: false,
+            since: None,
+            jobs: 0,
+            verbose: false,
+            no_cache: false,
+            cache_dir: ".slowql_cache".to_string(),
+            clear_cache: false,
+            filter_dimension: None,
+            filter_dialect: None,
+            min_confidence: None,
+            include_nonprod: false,
+            compare: false,
+            init: false,
+        }
+    }
+
+    #[test]
+    fn run_with_cli_fix_actually_modifies_file_and_makes_backup() {
+        let dir = tempdir().unwrap();
+        let sql_file = dir.path().join("fix_me.sql");
+        // Trigger QUAL-STYLE-001 which has a safe fix
+        fs::write(&sql_file, "SELECT * FROM users WHERE email = NULL").unwrap();
+
+        let mut cli = base_cli();
+        cli.files = vec![sql_file.clone()];
+        cli.fix = true;
+        cli.format = OutputFormat::Console;
+
+        let code = run_with_cli(cli, None);
+        assert_eq!(code, 0);
+
+        let content = fs::read_to_string(&sql_file).unwrap();
+        assert!(content.contains("IS NULL"));
+        assert!(!content.contains("= NULL"));
+
+        let backup = dir.path().join("fix_me.sql.bak");
+        assert!(backup.exists(), "Backup file should be created");
+    }
+
+    #[test]
+    fn run_with_cli_diff_preview_outputs_text() {
+        let dir = tempdir().unwrap();
+        let sql_file = dir.path().join("diff_me.sql");
+        fs::write(&sql_file, "SELECT * FROM users WHERE email = NULL").unwrap();
+
+        let mut cli = base_cli();
+        cli.files = vec![sql_file];
+        cli.diff = true;
+        cli.format = OutputFormat::Console;
+
+        // This exercises the println! in the diff branch
+        assert_eq!(run_with_cli(cli, None), 0);
+    }
+
+    #[test]
+    fn cmd_explain_covers_guidance_and_dialect_all() {
+        // SEC-INJ-001 has fix guidance
+        assert_eq!(cmd_explain("SEC-INJ-001"), 0);
+        // REL-DATA-001 is a universal rule (dialects: all)
+        assert_eq!(cmd_explain("REL-DATA-001"), 0);
+    }
+
+    #[test]
+    fn run_with_cli_init_fail_on_write_error() {
+        let mut cli = base_cli();
+        cli.init = true;
+        // Point to a directory that exists as a file to force write error
+        let dir = tempdir().unwrap();
+        let fake_path = dir.path().join("slowql.yaml");
+        fs::create_dir(&fake_path).unwrap();
+
+        // Temporarily change CWD to force the error on the hardcoded "slowql.yaml" name
+        let original = std::env::current_dir().unwrap();
+        std::env::set_current_dir(dir.path()).unwrap();
+        let res = run_with_cli(cli, None);
+        std::env::set_current_dir(original).unwrap();
+
+        assert_eq!(res, 1);
     }
 }

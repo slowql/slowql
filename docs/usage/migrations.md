@@ -1,73 +1,58 @@
 # Migration Analysis
 
-SlowQL provides native support for popular database migration frameworks. Instead of analyzing migration files as isolated SQL snippets, SlowQL understands the context, ordering, and dependencies of your migration project.
+SlowQL automatically detects and classifies migration files. When a file is classified as a migration, only security and reliability rules fire. Performance, cost, quality, and compliance rules are suppressed.
 
 ## Supported Frameworks
 
-SlowQL automatically detects the following migration frameworks:
+SlowQL detects migrations by file path patterns:
 
-- **Alembic** (Python/SQLAlchemy)
-- **Django Migrations**
-- **Flyway** (Java/JVM)
-- **Liquibase** (Java/JVM)
-- **Prisma Migrate** (TypeScript/Node.js)
-- **Knex** (JavaScript/TypeScript)
+| Framework | Detected Paths |
+|-----------|---------------|
+| Alembic | `/alembic/`, `/versions/` |
+| Django | `/migrations/` |
+| Flyway | `/flyway/`, `*.sql` in migration dirs |
+| Liquibase | `/liquibase/` |
+| Prisma | `/prisma/migrations/` |
+| Knex | `/migrations/` |
+| Generic | `/db/migrate/`, `/migrator/`, `/snapshot/` |
 
-## How it Works
+## Context Rules for Migrations
 
-When you point SlowQL to a directory, it first checks if it contains a known migration project structure. If a framework is detected:
+In migration context, only these rule prefixes are allowed:
+- `SEC-` (security)
+- `REL-` (reliability)
 
-1. **Project Detection:** SlowQL identifies the framework (e.g., finding `alembic.ini` or `versions/` folder).
-2. **Migration Discovery:** It discovers all migration files and determines their execution order based on timestamps or dependencies.
-3. **State Tracking:** SlowQL simulates the application of migrations to track the evolving schema state.
-4. **Contextual Analysis:** It analyzes each migration with the knowledge of what the schema looked like *before* and *after* that migration.
+Specific rules are additionally denied even in migration context:
+- `SEC-INJ-005` (second-order injection) - migration data is developer-controlled
+- `REL-DATA-004` (DROP statement) - intentional in migrations
+- `MIG-BRK-001` (breaking change) - not cross-file in migration directories
 
-## Command Usage
+## Migration-Specific Rules
 
-Simply pass the directory containing your migration project:
+| Rule | Description |
+|------|-------------|
+| `MIG-BRK-001` | Breaking change: dropping table that is referenced in another file |
+| `SCH-BRK-001` | Cross-file breaking change: dropped column referenced elsewhere |
+
+## Usage
 
 ```bash
-# Analyze all migrations in the current project
-slowql ./migrations
+# Analyze all migrations
+slowql db/migrations/
 
-# Analyze specific migration files with project context
-slowql ./migrations/versions/v1_init.py --input-file ./migrations/versions/v2_add_col.py
+# Analyze with schema validation
+slowql db/migrations/ --schema db/schema.sql
+
+# Include migration context in output (migrations are nonprod by default)
+slowql db/migrations/ --include-nonprod
 ```
 
-## Migration Rules
+## Why Migrations Are Non-Production
 
-SlowQL includes specific rules for migrations, such as:
+By default, migrations are classified as non-production and suppressed from the main output. This is intentional:
 
-- **Destructive Changes (`MIG-BRK-001`):** Detecting `DROP COLUMN` or `RENAME TABLE` that might break existing queries.
-- **Locking Issues:** Identifying DDL operations that perform full table locks on large tables.
-- **Idempotency:** Ensuring migrations can be safely run multiple times without error.
-- **Dialect Compatibility:** Verifying that migration SQL is valid for your target database dialect.
+* Migrations routinely use `DROP TABLE`, `DROP COLUMN`, `TRUNCATE`
+* These are intentional destructive operations, not bugs
+* Performance rules on `SELECT *` or missing `LIMIT` are irrelevant in migration context
 
-## Context-Aware Filtering
-
-SlowQL automatically recognizes migration files and filters out irrelevant rules. Only security (SEC-) and reliability (REL-) rules fire on migrations - performance, cost, quality, and compliance noise is eliminated entirely.
-
-Specific exclusions for migrations:
-- SEC-INJ-005 (second-order injection) is suppressed because migration data is developer-controlled, not user input.
-- PERF-SCAN-001 (SELECT *) is suppressed because migrations routinely select all columns.
-- QUAL-DBT-001 (missing dbt ref) is suppressed because migrations use raw table names.
-
-This means your migrations only surface issues that matter: idempotency guards (REL-IDEM-001), missing transactions, and genuine security concerns.
-
-See [Context-Aware Analysis](../architecture/context-awareness.md) for the full specification.
-
-## Configuration
-
-You can configure migration analysis in your `slowql.toml`:
-
-```toml
-[analysis]
-# Focus analysis on specific migration folders
-migration_dirs = ["./backend/migrations"]
-
-# Enable destructive change detection
-detect_destructive_changes = true
-
-# Require review for any DDL on production tables
-critical_production_tables = ["users", "orders", "payments"]
-```
+Use `--include-nonprod` to see migration findings alongside application findings.

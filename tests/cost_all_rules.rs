@@ -417,3 +417,201 @@ fn partition_001_schema_partition_metadata() {
         "should not fire when schema partition column is in WHERE"
     );
 }
+
+#[test]
+fn bq_002() {
+    let r = all();
+    let rule = find(&r, "COST-BQ-002");
+    assert!(!rule
+        .check(&q("SELECT id FROM t", "bigquery", "SELECT"))
+        .is_empty());
+    assert!(rule
+        .check(&q("SELECT id FROM t LIMIT 10", "bigquery", "SELECT"))
+        .is_empty());
+    assert!(rule
+        .check(&q("SELECT id FROM t", "postgresql", "SELECT"))
+        .is_empty());
+}
+#[test]
+fn bq_003() {
+    let r = all();
+    let rule = find(&r, "COST-BQ-003");
+    assert!(!rule
+        .check(&q(
+            "SELECT (SELECT 1) FROM (SELECT 2) x",
+            "bigquery",
+            "SELECT"
+        ))
+        .is_empty());
+    assert!(rule
+        .check(&q(
+            "WITH cte AS (SELECT 1) SELECT * FROM cte",
+            "bigquery",
+            "SELECT"
+        ))
+        .is_empty());
+}
+#[test]
+fn sf_002() {
+    let r = all();
+    let rule = find(&r, "COST-SF-002");
+    assert!(!rule
+        .check(&q("COPY INTO t FROM @stage", "snowflake", "SELECT"))
+        .is_empty());
+    assert!(rule
+        .check(&q(
+            "COPY INTO t FROM @stage FILE_FORMAT=(TYPE=CSV)",
+            "snowflake",
+            "SELECT"
+        ))
+        .is_empty());
+}
+#[test]
+fn sf_003() {
+    let r = all();
+    let rule = find(&r, "COST-SF-003");
+    assert!(!rule
+        .check(&q(
+            "SELECT * FROM t, LATERAL FLATTEN(input => v:arr)",
+            "snowflake",
+            "SELECT"
+        ))
+        .is_empty());
+}
+#[test]
+fn cross_001() {
+    let r = all();
+    let rule = find(&r, "COST-CROSS-001");
+    let mut query = q(
+        "SELECT * FROM db1.schema1.table1 JOIN db2.schema2.table2 ON 1=1",
+        "postgresql",
+        "SELECT",
+    );
+    query.tables = vec![
+        "db1.schema1.table1".to_string(),
+        "db2.schema2.table2".to_string(),
+    ];
+    query.facts = Some(slowql_lib::query_analysis::QueryFacts::from_sql(
+        &query.raw,
+        "postgresql",
+    ));
+    assert!(!rule.check(&query).is_empty());
+}
+#[test]
+fn cross_003() {
+    let r = all();
+    let rule = find(&r, "COST-CROSS-003");
+    assert!(!rule
+        .check(&q("BEGIN DISTRIBUTED TRANSACTION", "tsql", "SELECT"))
+        .is_empty());
+}
+#[test]
+fn archive_001() {
+    let r = all();
+    let rule = find(&r, "COST-ARCHIVE-001");
+    assert!(!rule
+        .check(&q(
+            "SELECT id, created_at FROM events",
+            "postgresql",
+            "SELECT"
+        ))
+        .is_empty());
+}
+#[test]
+fn compress_001() {
+    let r = all();
+    let rule = find(&r, "COST-COMPRESS-001");
+    assert!(!rule
+        .check(&q(
+            "CREATE TABLE t (body TEXT, data CLOB)",
+            "postgresql",
+            "CREATE"
+        ))
+        .is_empty());
+}
+#[test]
+fn mysql_001() {
+    let r = all();
+    let rule = find(&r, "COST-MYSQL-001");
+    assert!(!rule
+        .check(&q(
+            "SELECT * FROM t GROUP BY x ORDER BY y",
+            "mysql",
+            "SELECT"
+        ))
+        .is_empty());
+}
+#[test]
+fn ora_001() {
+    let r = all();
+    let rule = find(&r, "COST-ORA-001");
+    assert!(!rule
+        .check(&q("SELECT /*+ FULL(t) */ * FROM t", "oracle", "SELECT"))
+        .is_empty());
+}
+#[test]
+fn presto_001() {
+    let r = all();
+    let rule = find(&r, "COST-PRESTO-001");
+    assert!(!rule
+        .check(&q("SELECT * FROM t", "presto", "SELECT"))
+        .is_empty());
+}
+#[test]
+fn rs_001() {
+    let r = all();
+    let rule = find(&r, "COST-RS-001");
+    assert!(!rule
+        .check(&q(
+            "UNLOAD ('SELECT * FROM t') TO 's3://bucket'",
+            "redshift",
+            "SELECT"
+        ))
+        .is_empty());
+}
+#[test]
+fn spark_002() {
+    let r = all();
+    let rule = find(&r, "COST-SPARK-002");
+    assert!(!rule
+        .check(&q("CACHE TABLE big_table", "spark", "SELECT"))
+        .is_empty());
+}
+#[test]
+fn network_001() {
+    let r = all();
+    let rule = find(&r, "COST-NETWORK-001");
+    assert!(!rule
+        .check(&q(
+            "SELECT * FROM OPENQUERY(LinkedServer, 'SELECT 1')",
+            "tsql",
+            "SELECT"
+        ))
+        .is_empty());
+}
+#[test]
+fn page_001() {
+    let r = all();
+    let rule = find(&r, "COST-PAGE-001");
+    assert!(!rule
+        .check(&q("SELECT * FROM t OFFSET 5000", "postgresql", "SELECT"))
+        .is_empty());
+    assert!(rule
+        .check(&q("SELECT * FROM t OFFSET 10", "postgresql", "SELECT"))
+        .is_empty());
+}
+#[test]
+fn page_003() {
+    let r = all();
+    let rule = find(&r, "COST-PAGE-003");
+    assert!(!rule
+        .check(&q("SELECT COUNT(*) FROM users", "postgresql", "SELECT"))
+        .is_empty());
+    assert!(rule
+        .check(&q(
+            "SELECT COUNT(*) FROM users WHERE active=true",
+            "postgresql",
+            "SELECT"
+        ))
+        .is_empty());
+}

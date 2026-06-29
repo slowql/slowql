@@ -1,6 +1,6 @@
 [package]
 name = "slowql"
-version = "1.6.7"
+version = "2.0.0"
 edition = "2021"
 authors = ["El Mehdi Makroumi <elmehdi.makroumi@gmail.com>"]
 description = "Next-generation SQL static analyzer: Security, Performance, Reliability, Compliance, Cost, Quality"

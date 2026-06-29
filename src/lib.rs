@@ -9,6 +9,7 @@ pub mod suppressions;
 
 pub mod autofixer;
 pub mod cache;
+pub mod cli;
 pub mod compare;
 pub mod extractor;
 pub mod git;
@@ -19,4 +20,3 @@ pub mod query_analysis;
 pub mod schema;
 pub mod scoring;
 pub mod yaml_rules;
-pub mod cli;

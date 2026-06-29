@@ -56,17 +56,88 @@ static PATH_PATTERNS: Lazy<Vec<(Regex, &'static str)>> = Lazy::new(|| {
         (Regex::new(r"(?i)(?:^|/)ddl/").unwrap(), DDL_SCHEMA),
         (Regex::new(r"(?i)(?:^|/)examples?/").unwrap(), EXAMPLE),
         (Regex::new(r"(?i)(?:^|/)docs?/").unwrap(), EXAMPLE),
+        (Regex::new(r"(?i)(?:^|/)bench/").unwrap(), EXAMPLE),
         (Regex::new(r"(?i)(?:^|/)benchmarks?/").unwrap(), EXAMPLE),
         (Regex::new(r"(?i)(?:^|/)demo/").unwrap(), EXAMPLE),
         (Regex::new(r"(?i)(?:^|/)samples?/").unwrap(), EXAMPLE),
+        (
+            Regex::new(r"(?i)(?:^|/)dataset_templates?/").unwrap(),
+            EXAMPLE,
+        ),
         (Regex::new(r"(?i)(?:^|/)\.semgrep/").unwrap(), EXAMPLE),
         (Regex::new(r"(?i)(?:^|/)bin/").unwrap(), EXAMPLE),
         (Regex::new(r"(?i)(?:^|/)devenv/").unwrap(), EXAMPLE),
         (Regex::new(r"(?i)(?:^|/)docker/").unwrap(), EXAMPLE),
+        // CI test/fuzz queries (e.g. ClickHouse ci/jobs/queries/)
+        (Regex::new(r"(?i)(?:^|/)ci/").unwrap(), TEST),
+        (Regex::new(r"(?i)_fuzz").unwrap(), TEST),
+        // Configuration/initialization scripts (e.g. vitess config/init_db.sql)
+        (Regex::new(r"(?i)(?:^|/)config/").unwrap(), DDL_SCHEMA),
+        // Integration/golden test directories
+        (Regex::new(r"(?i)(?:^|/)integration-tests?/").unwrap(), TEST),
+        (Regex::new(r"(?i)(?:^|/)golden/").unwrap(), TEST),
+        (Regex::new(r"(?i)(?:^|/)roachtest/").unwrap(), TEST),
+        // Development setup directories
+        (Regex::new(r"(?i)(?:^|/)dev/").unwrap(), EXAMPLE),
+        // Database system internal SQL (e.g. ClickHouse information_schema views)
+        (
+            Regex::new(r"(?i)(?:^|/)information_schema/").unwrap(),
+            FRAMEWORK_INTERNAL,
+        ),
+        // PostgreSQL extension SQL (e.g. citus, timescaledb install/upgrade scripts)
+        // Matches both versioned (name--version.sql) and non-versioned (name.sql)
+        // extension SQL under a sql/ directory in database engine source trees.
+        (
+            Regex::new(r"(?i)(?:^|/)sql/[^/]+--[^/]+\.sql$").unwrap(),
+            FRAMEWORK_INTERNAL,
+        ),
+        (
+            Regex::new(r"(?i)(?:^|/)columnar/sql/").unwrap(),
+            FRAMEWORK_INTERNAL,
+        ),
+        // Extension SQL directories (e.g. timescaledb sql/updates/, sql/pre_install/)
+        (
+            Regex::new(r"(?i)(?:^|/)sql/updates/").unwrap(),
+            FRAMEWORK_INTERNAL,
+        ),
+        (
+            Regex::new(r"(?i)(?:^|/)sql/pre_install/").unwrap(),
+            FRAMEWORK_INTERNAL,
+        ),
+        // Top-level sql/ directory in database extensions (e.g. timescaledb/sql/*.sql)
+        // These contain extension installation/upgrade PL/pgSQL, not application queries.
+        (Regex::new(r"(?i)/sql/[^/]+\.sql$").unwrap(), DDL_SCHEMA),
         (
             Regex::new(r"(?i)/infer_schema").unwrap(),
             FRAMEWORK_INTERNAL,
         ),
+        // Database engine backend internals (e.g. citus src/backend/)
+        // Contains extension/engine SQL, not application queries.
+        (
+            Regex::new(r"(?i)(?:^|/)src/backend/").unwrap(),
+            FRAMEWORK_INTERNAL,
+        ),
+        // Documentation site content (e.g. mybatis-3 src/site/*/xdoc/)
+        // SQL in these files is illustrative, not production code.
+        (Regex::new(r"(?i)(?:^|/)src/site/").unwrap(), EXAMPLE),
+        // Driver adapter infrastructure (e.g. prisma driver-adapters-manager)
+        // Contains intentional teardown/reset SQL, not application queries.
+        (
+            Regex::new(r"(?i)(?:^|/)driver-adapters?/").unwrap(),
+            FRAMEWORK_INTERNAL,
+        ),
+        (
+            Regex::new(r"(?i)(?:^|/)driver-adapters?-manager/").unwrap(),
+            FRAMEWORK_INTERNAL,
+        ),
+        (
+            Regex::new(r"(?i)(?:^|/)src-rsr/").unwrap(),
+            FRAMEWORK_INTERNAL,
+        ),
+        // Security tool payload directories (e.g. sqlmap data/procs/, extra/vulnserver/)
+        // SQL here is intentionally dangerous by design.
+        (Regex::new(r"(?i)(?:^|/)data/procs/").unwrap(), EXAMPLE),
+        (Regex::new(r"(?i)(?:^|/)vulnserver/").unwrap(), EXAMPLE),
         (Regex::new(r"(?i)(?:^|/)src/").unwrap(), APPLICATION),
         // ORM and framework internal SQL adapter code
         // These files contain intentionally generic SQL templates
@@ -156,6 +227,7 @@ fn denied_rules(context: &str) -> &'static [&'static str] {
         MIGRATION => &["SEC-INJ-005", "REL-DATA-004", "MIG-BRK-001"],
         TEST => &["REL-FK-002", "REL-DEAD-002", "SEC-AUTHZ-003"],
         SEED => &["SEC-INJ-005"],
+        FRAMEWORK_INTERNAL => &["REL-DATA-004", "SEC-LOG-002", "SEC-INJ-008", "SEC-INJ-011"],
         APPLICATION | ADHOC => &["QUAL-DBT-001", "QUAL-DBT-002"],
         DBT_MODEL => &["PERF-SCAN-003"],
         _ => &[],
@@ -269,6 +341,28 @@ mod tests {
     }
 
     #[test]
+    fn classify_framework_internal_and_example_paths() {
+        assert_eq!(
+            classify_source(Some("server/src-rsr/pg_table_metadata.sql"), ""),
+            FRAMEWORK_INTERNAL
+        );
+        assert_eq!(
+            classify_source(
+                Some("server/lib/pg-client/bench/queries/allArtists.sql"),
+                ""
+            ),
+            EXAMPLE
+        );
+        assert_eq!(
+            classify_source(
+                Some("dc-agents/sqlite/dataset_templates/TestingEdgeCases.sql"),
+                ""
+            ),
+            EXAMPLE
+        );
+    }
+
+    #[test]
     fn classify_adhoc() {
         assert_eq!(classify_source(None, "SELECT 1"), ADHOC);
         assert_eq!(
@@ -326,5 +420,63 @@ mod tests {
         assert_eq!(filtered.len(), 2); // SEC-INJ-001 + REL-DATA-001 (SEC-INJ-005 denied, PERF filtered)
         assert!(filtered.iter().any(|i| i.rule_id == "SEC-INJ-001"));
         assert!(filtered.iter().any(|i| i.rule_id == "REL-DATA-001"));
+    }
+
+    #[test]
+    fn filter_framework_internal_context_denies_known_internal_noise() {
+        use crate::models::{Dimension, Issue, Location, Severity};
+        let issues = vec![
+            Issue::new(
+                "SEC-INJ-001",
+                "keep",
+                Severity::High,
+                Dimension::Security,
+                Location::new(1, 1),
+                "x",
+            ),
+            Issue::new(
+                "SEC-INJ-008",
+                "deny",
+                Severity::High,
+                Dimension::Security,
+                Location::new(1, 1),
+                "x",
+            ),
+            Issue::new(
+                "SEC-INJ-011",
+                "deny",
+                Severity::High,
+                Dimension::Security,
+                Location::new(1, 1),
+                "x",
+            ),
+            Issue::new(
+                "REL-DATA-004",
+                "deny",
+                Severity::High,
+                Dimension::Reliability,
+                Location::new(1, 1),
+                "x",
+            ),
+            Issue::new(
+                "SEC-LOG-002",
+                "deny",
+                Severity::High,
+                Dimension::Security,
+                Location::new(1, 1),
+                "x",
+            ),
+            Issue::new(
+                "PERF-SCAN-001",
+                "filtered_by_prefix",
+                Severity::Medium,
+                Dimension::Performance,
+                Location::new(1, 1),
+                "x",
+            ),
+        ];
+        let filtered = filter_issues_by_context(issues, FRAMEWORK_INTERNAL);
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].rule_id, "SEC-INJ-001");
     }
 }

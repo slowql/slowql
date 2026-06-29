@@ -122,3 +122,41 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
         Box::new(MissingIndexRule),
     ]
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{Location, Query};
+
+    fn q(sql: &str) -> Query {
+        Query {
+            raw: sql.to_string(),
+            normalized: sql.to_string(),
+            dialect: "postgresql".to_string(),
+            location: Location::new(1, 1),
+            query_type: Some("SELECT".to_string()),
+            source_context: "application".to_string(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn all_schema_rules_metadata() {
+        let rules = all_rules();
+        assert_eq!(rules.len(), 4);
+        for rule in &rules {
+            let _ = rule.id();
+            let _ = rule.name();
+            let _ = rule.severity();
+            let _ = rule.dimension();
+            let _ = rule.category();
+            let _ = rule.impact();
+            let _ = rule.fix_guidance();
+            let _ = rule.confidence();
+            let _ = rule.dialects();
+            // All schema rules return empty vec (require context)
+            let issues = rule.check(&q("SELECT 1"));
+            assert!(issues.is_empty());
+        }
+    }
+}

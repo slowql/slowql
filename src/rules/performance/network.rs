@@ -45,7 +45,7 @@ impl Rule for ExcessiveColumnCountRule {
                     "SELECT with {} columns - consider reducing.",
                     comma_count + 1
                 );
-                let snip = &query.raw[..query.raw.len().min(100)];
+                let snip = query.snippet(100);
                 return vec![self.build_issue(query, &msg, snip)];
             }
         }
@@ -88,7 +88,7 @@ impl Rule for MissingSetNocountRule {
         if query.raw_upper().contains("SET NOCOUNT ON") {
             return Vec::new();
         }
-        let snip = &query.raw[..query.raw.len().min(80)];
+        let snip = query.snippet(80);
         vec![self.build_issue(
             query,
             "Stored procedure without SET NOCOUNT ON - unnecessary network overhead.",
@@ -176,7 +176,7 @@ impl Rule for OrderByWithoutLimitRedshiftRule {
         if upper.contains("LIMIT") || upper.contains("TOP") {
             return Vec::new();
         }
-        let snip = &query.raw[..query.raw.len().min(80)];
+        let snip = query.snippet(80);
         vec![self.build_issue(
             query,
             "ORDER BY without LIMIT on Redshift - full redistribution to leader node.",
@@ -266,7 +266,7 @@ impl Rule for ClickHouseSelectWithoutPrewhereRule {
         if query.raw_upper().contains("PREWHERE") {
             return Vec::new();
         }
-        let snip = &query.raw[..query.raw.len().min(80)];
+        let snip = query.snippet(80);
         vec![self.build_issue(
             query,
             "WHERE without PREWHERE - consider PREWHERE for I/O reduction.",
@@ -318,7 +318,7 @@ impl Rule for ClickHouseJoinWithoutGlobalRule {
         if !PAT_CH_JOIN.is_match(&query.raw) {
             return Vec::new();
         }
-        let snip = &query.raw[..query.raw.len().min(80)];
+        let snip = query.snippet(80);
         vec![self.build_issue(
             query,
             "JOIN with subquery without GLOBAL - redundant execution on each shard.",
@@ -449,7 +449,7 @@ impl Rule for PrestoOrderByWithoutLimitRule {
         if !upper.contains("ORDER BY") || upper.contains("LIMIT") {
             return Vec::new();
         }
-        let snip = &query.raw[..query.raw.len().min(80)];
+        let snip = query.snippet(80);
         vec![self.build_issue(
             query,
             "ORDER BY without LIMIT on Presto/Trino - coordinator OOM risk.",
@@ -632,51 +632,6 @@ impl Rule for LikeWithoutCollateNocaseRule {
     }
 }
 
-struct SqliteAutoIncrementRule;
-static PAT_SQLITE_AUTO: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\bAUTOINCREMENT\b").unwrap());
-impl Rule for SqliteAutoIncrementRule {
-    fn id(&self) -> &'static str {
-        "QUAL-SQLITE-001"
-    }
-    fn name(&self) -> &'static str {
-        "AUTOINCREMENT Overhead in SQLite"
-    }
-    fn severity(&self) -> Severity {
-        Severity::Low
-    }
-    fn dimension(&self) -> Dimension {
-        Dimension::Quality
-    }
-    fn category(&self) -> Option<Category> {
-        Some(Category::QualSchemaDesign)
-    }
-    fn dialects(&self) -> DialectSet {
-        DialectSet::new(&["sqlite"])
-    }
-    fn impact(&self) -> &'static str {
-        "AUTOINCREMENT adds CPU overhead by maintaining the sqlite_sequence table."
-    }
-
-    fn confidence(&self) -> RuleConfidence {
-        RuleConfidence::Advisory
-    }
-    fn check(&self, query: &Query) -> Vec<Issue> {
-        if !self.dialect_matches(query) {
-            return Vec::new();
-        }
-        PAT_SQLITE_AUTO
-            .find(&query.raw)
-            .map(|m| {
-                vec![self.build_issue(
-                    query,
-                    "AUTOINCREMENT adds overhead - INTEGER PRIMARY KEY auto-generates IDs.",
-                    m.as_str(),
-                )]
-            })
-            .unwrap_or_default()
-    }
-}
-
 // DuckDB
 struct DuckDBCopyWithoutFormatRule;
 static PAT_DUCK_COPY: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)\bCOPY\b").unwrap());
@@ -712,7 +667,7 @@ impl Rule for DuckDBCopyWithoutFormatRule {
         if query.raw_upper().contains("FORMAT") {
             return Vec::new();
         }
-        let snip = &query.raw[..query.raw.len().min(80)];
+        let snip = query.snippet(80);
         vec![self.build_issue(
             query,
             "COPY without explicit FORMAT - may cause incorrect parsing.",
@@ -802,7 +757,7 @@ impl Rule for MysqlGroupByImplicitSortRule {
         if query.raw_upper().contains("ORDER BY") {
             return Vec::new();
         }
-        let snip = &query.raw[..query.raw.len().min(80)];
+        let snip = query.snippet(80);
         vec![self.build_issue(
             query,
             "GROUP BY without ORDER BY - implicit sort removed in MySQL 8.0.",
@@ -862,7 +817,7 @@ impl Rule for LargeObjectUnboundedRule {
         for col in BLOB_COLS {
             if raw_lower.contains(col) {
                 let msg = format!("Unbounded SELECT of large object column '{}'.", col);
-                let snip = &query.raw[..query.raw.len().min(100)];
+                let snip = query.snippet(100);
                 return vec![self.build_issue(query, &msg, snip)];
             }
         }
@@ -886,10 +841,80 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
         Box::new(SparkUdfInWhereRule),
         Box::new(SqliteWalModeRule),
         Box::new(LikeWithoutCollateNocaseRule),
-        Box::new(SqliteAutoIncrementRule),
         Box::new(DuckDBCopyWithoutFormatRule),
         Box::new(DuckDBLargeInListRule),
         Box::new(MysqlGroupByImplicitSortRule),
         Box::new(LargeObjectUnboundedRule),
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{Location, Query};
+
+    fn q(sql: &str, dialect: &str, qt: &str) -> Query {
+        Query {
+            raw: sql.to_string(),
+            normalized: sql.to_string(),
+            dialect: dialect.to_string(),
+            location: Location::new(1, 1),
+            query_type: Some(qt.to_string()),
+            source_context: "application".to_string(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn metadata_coverage() {
+        let rules = rules();
+        for rule in &rules {
+            let _ = rule.id();
+            let _ = rule.name();
+            let _ = rule.severity();
+            let _ = rule.dimension();
+            let _ = rule.category();
+            let _ = rule.impact();
+            let _ = rule.fix_guidance();
+            let _ = rule.confidence();
+            let _ = rule.dialects();
+        }
+    }
+
+    #[test]
+    fn no_match_simple() {
+        let rules = rules();
+        let query = q("SELECT 1", "postgresql", "SELECT");
+        for rule in &rules {
+            let _ = rule.check(&query);
+        }
+    }
+
+    #[test]
+    fn dialect_coverage() {
+        let rules = rules();
+        let dialects = [
+            "postgresql",
+            "mysql",
+            "tsql",
+            "oracle",
+            "sqlite",
+            "bigquery",
+            "snowflake",
+            "redshift",
+            "clickhouse",
+            "duckdb",
+            "presto",
+            "spark",
+        ];
+        for dialect in &dialects {
+            for qt in &["SELECT", "INSERT", "UPDATE", "DELETE", "CREATE"] {
+                let query = q("SELECT 1", dialect, qt);
+                for rule in &rules {
+                    let _ = rule.check(&query);
+                    let _ = rule.dialect_matches(&query);
+                }
+            }
+        }
+    }
 }

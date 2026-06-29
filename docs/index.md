@@ -1,57 +1,45 @@
-# Built for Modern SQL Workflows
+# SlowQL Documentation
 
-![SlowQL Demo](assets/slowql.gif)
+**SlowQL** is a next-generation SQL static analyzer written in Rust. It detects security vulnerabilities, performance regressions, reliability risks, cost inefficiencies, compliance violations, and code quality problems in SQL files and application source code.
 
-**SlowQL** is the ultimate, next-generation SQL static analyzer designed to detect security vulnerabilities, performance bottlenecks, and compliance violations instantly, before they reach production. 
+SlowQL runs entirely offline without connecting to any database.
 
-Unlike traditional linters that only format SQL, SlowQL builds a full Abstract Syntax Tree (AST) using `sqlglot` to semantically understand your queries.
+## Key Properties
 
----
-
-## Key Features
-
-- **279 Built-in Rules**: Comprehensive coverage strictly categorized across six dimensions: Security, Performance, Cost, Reliability, Compliance, and Quality.
-- **Cross-File Analysis**: Detect breaking changes across multiple files, transitive view dependencies, and stored procedure call graphs.
-- **Dialect Guardians**: Native support for **14 SQL dialects** (PostgreSQL, MySQL, T-SQL, Snowflake, BigQuery, etc.). Rules only trigger for the dialects they explicitly target, eliminating false positives natively.
-- **Context-Aware Analysis**: Automatically classifies files as migrations, tests, seeds, dbt models, or application code and filters rules accordingly. Migrations do not flag SELECT *, tests do not warn about missing LIMIT, and app code does not suggest dbt syntax. [Learn more](architecture/context-awareness.md)
-- **Safe Autofix**: Automatically and safely format and fix bad SQL (`--fix` and `--diff`), with atomic `.bak` file generation guaranteeing operational safety.
-- **Rich Output Pipelines**: Ships with a cyberpunk-inspired terminal UI for human operability, alongside native SARIF and JSON exporters for automated pipelines.
-- **Migration Framework Support**: Natively supports Alembic, Django, Flyway, Liquibase, Prisma, and Knex with full dependency and ordering awareness.
-- **Language Server Protocol (LSP)**: Instant execution diagnostics exposed directly in VS Code via the embedded `slowql-lsp` background server.
-
----
-
-## Why SlowQL?
-
-### No Database Connection Required
-SlowQL parses SQL fully offline via AST structure trees. Execution pipelines do not require functioning database clusters, credential routing, or valid schema definitions to identify missing `WHERE` clauses or `SELECT *` anti-patterns.
-
-### Speed First
-Written purely in Python 3.11+ and optimized heavily on multi-threaded generators, SlowQL processes tens of thousands of complex queries near instantly.
-
-### Seamless Extensibility
-Write custom rules in Python seamlessly without directly modifying the core engine logic. Teams can parse the AST manually, yield a raw `Issue` model, and SlowQL inherently resolves the formatting, routing, and serialized reporting.
-
----
+- **Zero false positives in proven mode.** Verified against 28 open-source repositories including Django, Rails, ClickHouse, Vitess, Citus, and TimescaleDB.
+- **Three confidence levels.** `proven` (act without review), `contextual` (verify before acting), `advisory` (style hints).
+- **Context-aware.** Automatically classifies files as application code, migrations, tests, seeds, framework internals, or documentation.
+- **282+ built-in rules** across security, performance, reliability, quality, cost, and compliance.
+- **14 SQL dialects.** PostgreSQL, MySQL, T-SQL, Oracle, SQLite, Snowflake, BigQuery, Redshift, ClickHouse, DuckDB, Presto, Trino, Spark, Databricks.
+- **Fast.** Scans 171k queries in 14 seconds. Typical repos under 1 second.
 
 ## Getting Started
 
-Ready to formally secure and optimize your database architectures?
+- [Installation](getting-started/installation.md)
+- [Quick Start](getting-started/quick-start.md)
+- [Configuration](getting-started/configuration.md)
 
-- [**Quick Start**](getting-started/quick-start.md) - Deploy your first analysis environment in 5 minutes.
-- [**CI/CD Integration**](usage/ci-cd-integration.md) - Enforce headless pipelines within GitHub Actions or GitLab.
-- [**Rule Overview**](rules/overview.md) - Browse the exact boundaries of all 279 security and performance assertions.
+## Usage
 
-### Explore the Rule Catalog via CLI
-Quickly discover and understand rules directly from your terminal:
-```bash
-slowql --list-rules
-slowql --explain PERF-SCAN-001
-```
+- [CLI Reference](usage/cli-reference.md)
+- [CI/CD Integration](usage/ci-cd-integration.md)
+- [Baseline Mode](usage/baseline.md)
+- [Inline Suppression](usage/suppression.md)
+- [Application Code Extraction](usage/app-code-extraction.md)
+- [Cross-File Analysis](usage/cross-file-analysis.md)
 
-### Python API Integration
-You don't need the CLI to use SlowQL. Integrate static analysis directly within your Python applications:
-```python
-import slowql
-result = slowql.analyze("SELECT * FROM users")
-```
+## Architecture
+
+- [System Design](architecture/system-design.md)
+- [Context Awareness](architecture/context-awareness.md)
+- [Rule System](architecture/rule-system.md)
+
+## Rules
+
+- [Rule Overview](rules/overview.md)
+
+## Development
+
+- [Contributing](development/contributing.md)
+- [Adding Rules](development/adding-rules.md)
+- [Testing](development/testing.md)

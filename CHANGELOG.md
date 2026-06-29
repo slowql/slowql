@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.0] - 2025-06-27
+
+### Changed
+- **Complete Rust rewrite.** SlowQL is now a native Rust binary. No Python runtime required.
+- **Three confidence modes.** Rules are classified as `proven`, `contextual`, or `advisory`. Default mode is `proven` (zero false positives).
+- **Context-aware file classification.** Automatically classifies files as application, test, migration, seed, example, framework internal, or DDL schema. Rules are filtered by context.
+- **JSON output no longer includes queries array.** Output size reduced from 131MB to <1KB on large repos.
+- **Project-level analysis uses indexed lookups.** Cross-file breaking change detection uses HashMap instead of nested loops. O(Q + T) instead of O(Q * T).
+
+### Added
+- **28-repo hardening corpus.** Verified zero false positives in proven mode against ClickHouse, Django, Rails, Prisma, Hasura, Supabase, Vitess, Citus, TimescaleDB, and 19 others.
+- **UTF-8 safety.** All string slicing uses character-boundary-safe methods. No panics on multibyte SQL.
+- **Knex `??` template detection.** Query builder identifier placeholders are recognized as templates.
+- **15+ context path patterns.** integration-tests, golden, roachtest, dev, config, ci, fuzz, src-rsr, driver-adapters, data/procs, vulnserver, information_schema, columnar/sql, sql/updates, src/backend.
+- **FRAMEWORK_INTERNAL deny list.** REL-DATA-004, SEC-LOG-002, SEC-INJ-008, SEC-INJ-011 suppressed in framework internal context.
+- **Extractor: prose/docstring rejection.** Strings containing URLs, sentence boundaries, or paragraph breaks are not treated as SQL.
+- **Object name validation.** `extract_object_name` rejects non-identifier strings like commas.
+- **Duplicate query detection skips test paths.** testdata/, endtoend/, *_test.go excluded.
+
+### Fixed
+- **48 raw byte slice panics.** All `&query.raw[..N]` patterns replaced with `query.snippet(N)` which respects UTF-8 boundaries.
+- **PERF-JOIN-002 confidence.** Changed from Proven to Contextual. Join count thresholds are not provably wrong without domain knowledge.
+- **QUAL-STYLE-005 confidence.** Changed from Proven to Advisory. INSERT without column list is a maintainability hint, not a defect.
+- **SEC-AUTH-003 confidence.** Changed from Proven to Contextual. CREATE USER without password is valid for Unix socket auth.
+- **SEC-AUTH-005 confidence.** Changed from Proven to Contextual. GRANT ALL to localhost DBA accounts is standard practice.
+- **SEC-CONFIG-004 confidence.** Changed from Proven to Contextual. Replication users require @'%' by design.
+- **Sink extractor regex.** Removed bare `raw` and `select` from TypeScript/JS sink patterns. These matched query builder methods, not raw SQL sinks.
+
+### Performance
+- **ClickHouse scan: 836s to 14s** (60x faster). Root cause: O(Q^2) project-level analysis replaced with O(Q) indexed lookups.
+- **nocodb scan: 776s to 0.16s** (4850x faster). Root cause: 1.4M lines of test fixture SQL no longer parsed unnecessarily.
+
 ## [Unreleased]
 
 ### Changed

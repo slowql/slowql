@@ -351,8 +351,20 @@ fn rel_sqlite_002() {
 fn rel_idem_002() {
     let r = all();
     let rule = find(&r, "REL-IDEM-002");
-    assert!(!rule.check(&q("UPDATE accounts SET balance = balance + 100 WHERE id = 1", "postgresql", "UPDATE")).is_empty());
-    assert!(rule.check(&q("UPDATE accounts SET balance = balance + 100 WHERE id = 1 AND version = 5", "postgresql", "UPDATE")).is_empty());
+    assert!(!rule
+        .check(&q(
+            "UPDATE accounts SET balance = balance + 100 WHERE id = 1",
+            "postgresql",
+            "UPDATE"
+        ))
+        .is_empty());
+    assert!(rule
+        .check(&q(
+            "UPDATE accounts SET balance = balance + 100 WHERE id = 1 AND version = 5",
+            "postgresql",
+            "UPDATE"
+        ))
+        .is_empty());
 }
 
 #[test]
@@ -366,7 +378,13 @@ fn rel_dead_001() {
 fn rel_stale_001() {
     let r = all();
     let rule = find(&r, "REL-STALE-001");
-    assert!(!rule.check(&q("UPDATE users SET name = 'x' WHERE id = 1; SELECT name FROM users WHERE id = 1", "postgresql", "SELECT")).is_empty());
+    assert!(!rule
+        .check(&q(
+            "UPDATE users SET name = 'x' WHERE id = 1; SELECT name FROM users WHERE id = 1",
+            "postgresql",
+            "SELECT"
+        ))
+        .is_empty());
     assert!(rule.check(&q("BEGIN; UPDATE users SET name = 'x' WHERE id = 1; SELECT name FROM users WHERE id = 1; COMMIT", "postgresql", "SELECT")).is_empty());
 }
 
@@ -374,21 +392,51 @@ fn rel_stale_001() {
 fn rel_pg_001_volatile_default() {
     let r = all();
     let rule = find(&r, "REL-PG-001");
-    assert!(!rule.check(&q("ALTER TABLE users ADD COLUMN created_at TIMESTAMP DEFAULT NOW()", "postgresql", "ALTER")).is_empty());
-    assert!(rule.check(&q("ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'active'", "postgresql", "ALTER")).is_empty());
+    assert!(!rule
+        .check(&q(
+            "ALTER TABLE users ADD COLUMN created_at TIMESTAMP DEFAULT NOW()",
+            "postgresql",
+            "ALTER"
+        ))
+        .is_empty());
+    assert!(rule
+        .check(&q(
+            "ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'active'",
+            "postgresql",
+            "ALTER"
+        ))
+        .is_empty());
 }
 
 #[test]
 fn rel_mysql_003_utf8() {
     let r = all();
     let rule = find(&r, "REL-MYSQL-003");
-    assert!(!rule.check(&q("CREATE TABLE t (name VARCHAR(255)) DEFAULT CHARSET utf8", "mysql", "CREATE")).is_empty());
-    assert!(rule.check(&q("CREATE TABLE t (name VARCHAR(255)) DEFAULT CHARSET utf8mb4", "mysql", "CREATE")).is_empty());
+    assert!(!rule
+        .check(&q(
+            "CREATE TABLE t (name VARCHAR(255)) DEFAULT CHARSET utf8",
+            "mysql",
+            "CREATE"
+        ))
+        .is_empty());
+    assert!(rule
+        .check(&q(
+            "CREATE TABLE t (name VARCHAR(255)) DEFAULT CHARSET utf8mb4",
+            "mysql",
+            "CREATE"
+        ))
+        .is_empty());
 }
 
 #[test]
 fn rel_mysql_004_cascade() {
     let r = all();
     let rule = find(&r, "REL-MYSQL-004");
-    assert!(!rule.check(&q("ALTER TABLE orders ADD FOREIGN KEY (user_id) REFERENCES users(id) ON UPDATE CASCADE", "mysql", "ALTER")).is_empty());
+    assert!(!rule
+        .check(&q(
+            "ALTER TABLE orders ADD FOREIGN KEY (user_id) REFERENCES users(id) ON UPDATE CASCADE",
+            "mysql",
+            "ALTER"
+        ))
+        .is_empty());
 }

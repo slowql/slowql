@@ -1,74 +1,85 @@
-# Pre-commit Hook Integration
+# Pre-commit Hook
 
-SlowQL can be seamlessly embedded into your local development workflow using the [`pre-commit`](https://pre-commit.com/) framework. By intercepting commits before they populate the Git ledger, you guarantee that malicious schemas, unprotected PII access paths, and syntactical bugs never execute natively.
+SlowQL integrates with the [pre-commit](https://pre-commit.com/) framework to block SQL issues before they enter your Git history.
 
----
+## Setup
 
-## Basic Setup
-
-Create or append slowly to `.pre-commit-config.yaml` located in the absolute root of your project repository.
+Add to `.pre-commit-config.yaml`:
 
 ```yaml
 repos:
   - repo: https://github.com/slowql/slowql
-    rev: v1.6.0 # Highly recommended to pin to a specific release
+    rev: v2.0.0
     hooks:
       - id: slowql
 ```
 
-Because `pre-commit` natively filters and passes only **modified files**, the CLI will execute blazingly fast against isolated query modifications without scanning your entire repository.
-
----
-
-## Overriding Standard Arguments
-
-You can explicitly pass SlowQL configurations using the `args` array. This completely bypasses the local `slowql.yaml` configuration if necessary.
-
-```yaml
-repos:
-  - repo: https://github.com/slowql/slowql
-    rev: v1.6.0
-    hooks:
-      - id: slowql
-        args: [
-            "--dialect", "postgresql",
-            "--fail-on", "high",
-            "--fast"
-        ]
-```
-
-> [!NOTE]
-> Because `pre-commit` provides file paths automatically, SlowQL enters non-interactive mode by default, guaranteeing it will never hang your commit process by waiting for `STDIN`.
-
----
-
-## 🛠️ The `--fix` Automation Limitation
-
-SlowQL boasts a powerful `--fix` ecosystem which outputs `RemediationMode.SAFE_APPLY` transformations.
-
-While it is exceptionally tempting to apply `--fix` via `args: ["--fix"]`, **SlowQL explicitly restricts the `--fix` parameter to single-file executions to guarantee backup integrity (`.bak` handling).**
-
-Because `pre-commit` intrinsically passes an array of multiple files (`slowql file1.sql file2.sql file3.sql`), utilizing `--fix` inside your `.pre-commit-config.yaml` **will trigger an operational warning and bypass the fix sequence.**
-
-### The Recommended Workflow
-Instead of hacking the auto-fix into pre-commit logic:
-1. Allow `pre-commit` to act as a **Read-Only Gatekeeper**.
-2. If the commit is rejected, execute `slowql myfile.sql --diff` locally to preview the issue.
-3. Trigger `slowql myfile.sql --fix` locally against the isolated document to rapidly remediate the highlighted vulnerabilities, and re-commit smoothly.
-
----
-
-## Local Installation & Usage
-
-Once you've mapped your `.pre-commit-config.yaml`, install the hooks globally within your Git repository so that it executes universally on `git commit`.
-
+install the hook:
 ```bash
-# Install the hook logic
 pre-commit install
 ```
 
-If you wish to force the runner against your entire repository (bypassing the 'changed files only' limitation) to establish an initial benchmark:
+## Configuration
 
+``` Yaml
+repos:
+  - repo: https://github.com/slowql/slowql
+    rev: v2.0.0
+    hooks:
+      - id: slowql
+        args:
+          - --fail-on
+          - high
+          - --min-confidence
+          - contextual
+```
+
+## What It Does
+
+When you run `git commit`, pre-commit passes the staged SQL files to SlowQL. If any issues at or above the `--fail-on` threshold are found, the commit is rejected.
+
+``` text
+SlowQL.......................................................................Failed
+- hook id: slowql
+- exit code: 2
+
+src/queries.sql
+  HIGH SEC-INJ-001    45:1  Potential SQL injection: string concatenation
+
+1 file | 3 queries | 12ms
+```
+Fix the issue and commit again.
+
+## Run Against All Files
+To run against the entire repository (not just staged files):
 ```bash
 pre-commit run --all-files
+```
+
+## Autofix Limitation
+The `--fix` flag works on single files only. If you want to apply autofixes, run it manually before committing:
+
+``` bash
+# Preview
+slowql src/queries.sql --diff
+
+# Apply
+slowql src/queries.sql --fix
+```
+
+## Manual Hook (Without pre-commit Framework)
+If you prefer a simple shell hook:
+
+``` Bash
+# .git/hooks/pre-commit
+#!/bin/sh
+slowql . --git-diff --fail-on high
+if [ $? -ne 0 ]; then
+  echo "SlowQL found issues. Fix them before committing."
+  exit 1
+fi
+```
+
+``` Bash
+chmod +x .git/hooks/pre-commit
 ```

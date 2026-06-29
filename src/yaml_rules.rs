@@ -184,3 +184,163 @@ rules:
         assert!(rules[0].check(&query).is_empty());
     }
 }
+
+#[cfg(test)]
+mod extra_tests {
+    use super::*;
+    use crate::models::Location;
+
+    fn make_query(sql: &str) -> crate::models::Query {
+        crate::models::Query {
+            raw: sql.to_string(),
+            normalized: sql.to_string(),
+            dialect: "postgresql".to_string(),
+            location: Location::new(1, 1),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn yaml_rule_id_and_name_and_impact_methods() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("r.yaml");
+        std::fs::write(
+            &path,
+            r#"
+rules:
+  - id: "CUSTOM-META-001"
+    name: "My Rule"
+    severity: "low"
+    dimension: "performance"
+    pattern: "FOOBAR"
+    message: "matched"
+    impact: "some impact text"
+"#,
+        )
+        .unwrap();
+        let rules = load_yaml_rules(&path).unwrap();
+        assert_eq!(rules[0].id(), "CUSTOM-META-001");
+        assert_eq!(rules[0].name(), "My Rule");
+        assert_eq!(rules[0].severity(), crate::models::Severity::Low);
+        assert_eq!(rules[0].dimension(), crate::models::Dimension::Performance);
+        assert!(!rules[0].impact().is_empty());
+    }
+
+    #[test]
+    fn yaml_rule_defaults_for_missing_optional_fields() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("r.yaml");
+        std::fs::write(
+            &path,
+            r#"
+rules:
+  - id: "CUSTOM-DEFAULT-001"
+    pattern: "BAZQUX"
+    message: "matched"
+"#,
+        )
+        .unwrap();
+        let rules = load_yaml_rules(&path).unwrap();
+        assert_eq!(rules[0].name(), "CUSTOM-DEFAULT-001");
+        assert_eq!(rules[0].severity(), crate::models::Severity::Medium);
+        assert_eq!(rules[0].dimension(), crate::models::Dimension::Quality);
+        assert!(rules[0].impact().is_empty());
+    }
+
+    #[test]
+    fn yaml_rule_all_severity_and_dimension_variants() {
+        for (sev, dim) in &[
+            ("critical", "security"),
+            ("high", "performance"),
+            ("medium", "reliability"),
+            ("low", "compliance"),
+            ("info", "cost"),
+            ("medium", "quality"),
+        ] {
+            let dir = tempfile::tempdir().unwrap();
+            let path = dir.path().join("r.yaml");
+            std::fs::write(
+                &path,
+                format!(
+                    r#"
+rules:
+  - id: "CUSTOM-VAR-001"
+    pattern: "X"
+    message: "m"
+    severity: "{}"
+    dimension: "{}"
+"#,
+                    sev, dim
+                ),
+            )
+            .unwrap();
+            let rules = load_yaml_rules(&path).unwrap();
+            assert!(!rules.is_empty());
+        }
+    }
+
+    #[test]
+    fn yaml_rule_unknown_severity_defaults_to_medium() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("r.yaml");
+        std::fs::write(
+            &path,
+            r#"
+rules:
+  - id: "CUSTOM-UNK-001"
+    pattern: "X"
+    message: "m"
+    severity: "bogus_level"
+    dimension: "bogus_dimension"
+"#,
+        )
+        .unwrap();
+        let rules = load_yaml_rules(&path).unwrap();
+        assert_eq!(rules[0].severity(), crate::models::Severity::Medium);
+        assert_eq!(rules[0].dimension(), crate::models::Dimension::Quality);
+    }
+
+    #[test]
+    fn yaml_rule_message_with_match_placeholder() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("r.yaml");
+        std::fs::write(
+            &path,
+            r#"
+rules:
+  - id: "CUSTOM-MSG-001"
+    pattern: "DROP\\s+TABLE"
+    message: "Found: {match}"
+"#,
+        )
+        .unwrap();
+        let rules = load_yaml_rules(&path).unwrap();
+        let q = make_query("DROP TABLE users");
+        let issues = rules[0].check(&q);
+        assert_eq!(issues.len(), 1);
+        assert!(issues[0].message.starts_with("Found:"));
+    }
+
+    #[test]
+    fn load_yaml_rules_missing_id_returns_error() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("r.yaml");
+        std::fs::write(
+            &path,
+            r#"
+rules:
+  - pattern: "X"
+    message: "no id here"
+"#,
+        )
+        .unwrap();
+        let result = load_yaml_rules(&path);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn load_yaml_rules_file_not_found_returns_error() {
+        let result = load_yaml_rules(std::path::Path::new("/no/such/file.yaml"));
+        assert!(result.is_err());
+    }
+}

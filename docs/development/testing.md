@@ -1,81 +1,62 @@
-# Testing Guidelines
+# Testing
 
-SlowQL asserts an absolute operational confidence tier. Due to the high-risk environment static analyzers operate inside during continuous integration tracks, total test coverage across `ASTRule` structures is critically enforced preventing destructive deployment regressions.
+## Runing Tests
+``` Bash
+# Full test suite (625 tests)
+cargo test
 
-## Pipeline Executions
+# Library tests only (fastest)
+cargo test --lib
 
-We leverage the `pytest` orchestration network completely natively.
+# Specific test
+cargo test --lib extract_helpers
 
-**Execute the full suite targeting multiple Python topologies:**
-```bash
-pytest
+# Specific integration test file
+cargo test --test adversarial_edge_cases
+
+# Specific test in integration file
+cargo test --test quality_all_rules style_005
 ```
 
-**Execute explicit modular targeting:**
-```bash
-pytest tests/unit/test_rules.py -v
+## Test Organization
+``` text
+tests/
+  adversarial_edge_cases.rs    # 80 edge case scenarios
+  cli_end_to_end.rs            # CLI integration tests
+  compliance_all_rules.rs      # Compliance rule coverage
+  cost_all_rules.rs            # Cost rule coverage
+  coverage_branches.rs         # Branch coverage tests
+  coverage_models.rs           # Model coverage tests
+  infrastructure_features.rs   # Infrastructure feature tests
+  models_smoke.rs              # Model smoke tests
+  performance_all_rules.rs     # Performance rule coverage
+  quality_all_rules.rs         # Quality rule coverage
+  reliability_all_rules.rs     # Reliability rule coverage
+  schema_migration_rules.rs    # Schema/migration rule tests
+  security_all_rules.rs        # Security rule coverage
+  security_injection_rules.rs  # Injection rule tests
+  trigger_corpus.rs            # Real-world trigger patterns
 ```
 
-## AST Test Harnessing
+## Hardening Corpus
+SlowQL is validated against 28 open-source repositories. To run the corpus:
+``` Bash
+# Clone repos
+cd /tmp && mkdir -p slowql-repos && cd slowql-repos
+for repo in django/django rails/rails prisma/prisma-engines supabase/supabase; do
+  git clone --depth 1 https://github.com/$repo.git
+done
 
-Whenever deploying a new generic `PatternRule` or AST structural modification (`ASTRule`), explicit unit tests verifying logical execution bounds are inherently mandated.
-
-Tests should be segmented rigorously under `tests/`.
-
-### The Core Mock Assistant
-To bypass massive engine initialization layers, utilize standard model artifacts simulating an active SQL document.
-
-```python
-from slowql.core.models import Location, Query
-
-_LOC = Location(line=1, column=1)
-
-def _q(sql: str, dialect: str, query_type: str = "SELECT") -> Query:
-    return Query(
-        raw=sql, 
-        normalized=sql, 
-        dialect=dialect, 
-        location=_LOC, 
-        query_type=query_type
-    )
+# Scan each
+for repo in */; do
+  slowql "$repo" --format json | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+print(f'${repo}: issues={len(data.get(\"issues\",[]))}')
+"
+done
 ```
+Expected: zero issues in proven mode for all repos.
 
-For logic inheriting from `ASTRule`, `sqlglot` AST objects must be initialized inside the mock to accurately trigger the engine's deeper parser layers:
 
-```python
-import sqlglot
 
-def _ast_q(sql: str, dialect: str) -> Query:
-    try:
-        ast = sqlglot.parse_one(sql)
-    except Exception:
-        ast = None
-        
-    return Query(
-        raw=sql, 
-        normalized=sql, 
-        dialect=dialect, 
-        location=_LOC, 
-        query_type="SELECT", 
-        ast=ast
-    )
-```
-
-### Required Assertion Boundaries
-
-Enterprise coverage relies completely on defining absolute structural checks during pull requests.
-
-1. **True Positive Bounds:** Verify the rule aggressively identifies the explicit SQL syntax within its approved `Dialect` parameters.
-2. **False Positive Bounds:** Provide natively secure syntax proving the engine does not improperly label mathematically equivalent structures as vulnerabilities.
-3. **Dialect Segregation:** For dialect-restricted rules (e.g. `dialects = ("tsql",)`), assert the exact string payload provided against an unapproved dialect (e.g. `postgresql`) implicitly bypasses execution constraints gracefully.
-4. **Resilient Assertions:** Because the internal rules framework routinely scales dynamically, never hardcode scalar quantities during catalog verification models:
-
-**Correct Validation Schema:**
-```python
-assert len(get_all_rules()) >= 270
-```
-
-**Fatal Schema (`Breaks during next rule addition`):**
-```python
-assert len(get_all_rules()) == 272
-```

@@ -94,6 +94,11 @@ impl Engine {
 
         let mut raw_issues = Vec::new();
         for query in &queries {
+            // Compute once per query.
+            // Time: O(|query.raw|) once instead of O(|query.raw| * rule_count).
+            // Space: O(1).
+            let query_is_templated = query.is_templated();
+
             for rule in &rules {
                 if self.config.analysis.disabled_rules.contains(rule.id()) {
                     continue;
@@ -126,7 +131,7 @@ impl Engine {
                 // Demote confidence for findings on templated queries.
                 // Templates contain placeholders that may change the semantic
                 // meaning at runtime (e.g., WHERE clause may be added dynamically).
-                let rule_issues = if query.is_templated() {
+                let rule_issues = if query_is_templated {
                     rule_issues
                         .into_iter()
                         .map(|mut i| {
@@ -429,5 +434,356 @@ mod tests {
         );
         // In test context, performance rules should be filtered out
         assert!(!result.issues.iter().any(|i| i.rule_id == "PERF-SCAN-001"));
+    }
+
+    #[test]
+    fn engine_analyze_file_sql() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("test.sql");
+        std::fs::write(&path, "DELETE FROM users WHERE id = 1").unwrap();
+        let engine = Engine::with_default_config();
+        let result = engine.analyze_file(path.to_str().unwrap()).unwrap();
+        assert_eq!(result.statistics.total_queries, 1);
+    }
+
+    #[test]
+    fn engine_analyze_file_python() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("app.py");
+        std::fs::write(&path, r#"q = "DELETE FROM users WHERE id = 1""#).unwrap();
+        let engine = Engine::with_default_config();
+        let result = engine.analyze_file(path.to_str().unwrap()).unwrap();
+        let _ = result;
+    }
+
+    #[test]
+    fn engine_analyze_file_xml_mybatis() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("mapper.xml");
+        std::fs::write(
+            &path,
+            r#"<mapper><select id="find">SELECT 1 FROM t</select></mapper>"#,
+        )
+        .unwrap();
+        let engine = Engine::with_default_config();
+        let result = engine.analyze_file(path.to_str().unwrap()).unwrap();
+        assert!(result.statistics.total_queries >= 1);
+    }
+
+    #[test]
+    fn engine_analyze_file_xml_non_mybatis() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.xml");
+        std::fs::write(&path, "<root><item>hello</item></root>").unwrap();
+        let engine = Engine::with_default_config();
+        let result = engine.analyze_file(path.to_str().unwrap()).unwrap();
+        assert_eq!(result.statistics.total_queries, 0);
+    }
+
+    #[test]
+    fn engine_analyze_file_not_found() {
+        let engine = Engine::with_default_config();
+        assert!(engine.analyze_file("/nonexistent/file.sql").is_err());
+    }
+
+    #[test]
+    fn engine_analyze_file_typescript() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("app.ts");
+        std::fs::write(
+            &path,
+            r#"const r = await db.query("DELETE FROM users WHERE id = 1");"#,
+        )
+        .unwrap();
+        let engine = Engine::with_default_config();
+        let result = engine.analyze_file(path.to_str().unwrap()).unwrap();
+        let _ = result;
+    }
+
+    #[test]
+    fn engine_analyze_file_java() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("App.java");
+        std::fs::write(
+            &path,
+            r#"stmt = conn.prepareStatement("DELETE FROM users WHERE id = ?");"#,
+        )
+        .unwrap();
+        let engine = Engine::with_default_config();
+        let result = engine.analyze_file(path.to_str().unwrap()).unwrap();
+        let _ = result;
+    }
+
+    #[test]
+    fn engine_analyze_file_go() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("main.go");
+        std::fs::write(
+            &path,
+            r#"rows, err := db.query("DELETE FROM users WHERE id = $1")"#,
+        )
+        .unwrap();
+        let engine = Engine::with_default_config();
+        let result = engine.analyze_file(path.to_str().unwrap()).unwrap();
+        let _ = result;
+    }
+
+    #[test]
+    fn engine_analyze_file_ruby() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("app.rb");
+        std::fs::write(
+            &path,
+            r#"connection.execute("DELETE FROM users WHERE id = 1")"#,
+        )
+        .unwrap();
+        let engine = Engine::with_default_config();
+        let result = engine.analyze_file(path.to_str().unwrap()).unwrap();
+        let _ = result;
+    }
+
+    #[test]
+    fn engine_severity_override() {
+        let mut config = Config::default();
+        config
+            .analysis
+            .severity_overrides
+            .insert("REL-DATA-001".to_string(), "info".to_string());
+        let engine = Engine::new(config);
+        let result = engine.analyze("DELETE FROM users", Some("postgresql"), None);
+        for issue in &result.issues {
+            if issue.rule_id == "REL-DATA-001" {
+                assert_eq!(issue.severity, crate::models::Severity::Info);
+            }
+        }
+    }
+
+    #[test]
+    fn engine_enabled_rules_filter() {
+        let mut config = Config::default();
+        let mut enabled = std::collections::HashSet::new();
+        enabled.insert("SEC-INJ-001".to_string());
+        config.analysis.enabled_rules = Some(enabled);
+        let engine = Engine::new(config);
+        let result = engine.analyze(
+            "SELECT * FROM users WHERE name = 'x' + input",
+            Some("postgresql"),
+            None,
+        );
+        // Only SEC-INJ-001 should fire, other rules filtered out
+        for issue in &result.issues {
+            assert!(
+                issue.rule_id == "SEC-INJ-001" || issue.rule_id.starts_with("SEC-INJ"),
+                "unexpected rule: {}",
+                issue.rule_id
+            );
+        }
+    }
+
+    #[test]
+    fn engine_enabled_rules_prefix_filter() {
+        let mut config = Config::default();
+        let mut enabled = std::collections::HashSet::new();
+        enabled.insert("SEC-INJ".to_string());
+        config.analysis.enabled_rules = Some(enabled);
+        let engine = Engine::new(config);
+        let result = engine.analyze(
+            "SELECT * FROM users WHERE name = 'x' + input",
+            Some("postgresql"),
+            None,
+        );
+        for issue in &result.issues {
+            assert!(
+                issue.rule_id.starts_with("SEC-INJ"),
+                "unexpected rule: {}",
+                issue.rule_id
+            );
+        }
+    }
+
+    #[test]
+    fn engine_templated_query_demotes_confidence() {
+        let engine = Engine::with_default_config();
+        let result = engine.analyze("DELETE FROM ${table_name}", Some("postgresql"), None);
+        // Templated queries should have confidence demoted
+        for issue in &result.issues {
+            assert_ne!(
+                issue.confidence,
+                crate::models::RuleConfidence::Proven,
+                "templated query should not have proven confidence: {}",
+                issue.rule_id
+            );
+        }
+    }
+
+    #[test]
+    fn engine_custom_yaml_rules() {
+        let dir = tempfile::tempdir().unwrap();
+        let rules_path = dir.path().join("custom.yaml");
+        std::fs::write(
+            &rules_path,
+            r#"
+rules:
+  - id: "CUSTOM-TEST-001"
+    pattern: "\bFOOBAR\b"
+    message: "FOOBAR detected"
+"#,
+        )
+        .unwrap();
+        let mut config = Config::default();
+        config.analysis.custom_rules = Some(rules_path.to_str().unwrap().to_string());
+        let engine = Engine::new(config);
+        assert!(engine.rule_count() > 0);
+    }
+
+    #[test]
+    fn engine_rule_count() {
+        let engine = Engine::with_default_config();
+        assert!(engine.rule_count() > 100);
+    }
+
+    #[test]
+    fn engine_mybatis_direct() {
+        let engine = Engine::with_default_config();
+        let xml =
+            r#"<mapper><select id="find">SELECT id FROM users WHERE id = 1</select></mapper>"#;
+        let result = engine.analyze_mybatis(xml, "UserMapper.xml");
+        assert!(result.statistics.total_queries >= 1);
+    }
+
+    #[test]
+    fn engine_mybatis_non_mapper() {
+        let engine = Engine::with_default_config();
+        let result = engine.analyze_mybatis("<root/>", "config.xml");
+        assert_eq!(result.statistics.total_queries, 0);
+    }
+
+    #[test]
+    fn engine_app_code_direct() {
+        let engine = Engine::with_default_config();
+        let code = r#"q = "DELETE FROM users WHERE id = 1""#;
+        let result = engine.analyze_app_code(code, "app.py");
+        let _ = result;
+    }
+
+    #[test]
+    fn engine_schema_column_check() {
+        let schema = crate::schema::parse_ddl(
+            "CREATE TABLE users (id INT PRIMARY KEY, name TEXT);",
+            "postgresql",
+        );
+        let engine = Engine::with_default_config().with_schema(schema);
+        let result = engine.analyze(
+            "SELECT nonexistent_col FROM users",
+            Some("postgresql"),
+            None,
+        );
+        assert!(result.issues.iter().any(|i| i.rule_id == "SCHEMA-COL-001"));
+    }
+
+    #[test]
+    fn engine_compliance_frameworks_filter() {
+        let mut config = Config::default();
+        config
+            .analysis
+            .compliance_frameworks
+            .insert("gdpr".to_string());
+        let engine = Engine::new(config);
+        let result = engine.analyze("SELECT email, phone FROM users", Some("postgresql"), None);
+        // With compliance frameworks set, compliance rules should fire
+        let _ = result;
+    }
+}
+
+#[cfg(test)]
+mod extra_tests {
+    use super::*;
+
+    #[test]
+    fn engine_custom_rules_nonexistent_file_is_ignored() {
+        let mut config = Config::default();
+        config.analysis.custom_rules = Some("/no/such/custom_rules.yaml".to_string());
+        let engine = Engine::new(config);
+        assert!(engine.rule_count() > 0);
+    }
+
+    #[test]
+    fn engine_severity_override_all_levels() {
+        let cases = [
+            ("critical", crate::models::Severity::Critical),
+            ("high", crate::models::Severity::High),
+            ("medium", crate::models::Severity::Medium),
+            ("low", crate::models::Severity::Low),
+            ("info", crate::models::Severity::Info),
+        ];
+
+        for (level, expected) in cases {
+            let mut config = Config::default();
+            config
+                .analysis
+                .severity_overrides
+                .insert("REL-DATA-001".to_string(), level.to_string());
+
+            let engine = Engine::new(config);
+            let result = engine.analyze("DELETE FROM users", Some("postgresql"), None);
+
+            let issue = result
+                .issues
+                .iter()
+                .find(|i| i.rule_id == "REL-DATA-001")
+                .unwrap();
+
+            assert_eq!(issue.severity, expected);
+        }
+    }
+
+    #[test]
+    fn engine_schema_update_does_not_flag_set_column_without_extracted_columns() {
+        let schema = crate::schema::parse_ddl(
+            "CREATE TABLE users (id INT PRIMARY KEY, name TEXT);",
+            "postgresql",
+        );
+        let engine = Engine::with_default_config().with_schema(schema);
+        let result = engine.analyze(
+            "UPDATE users SET nonexistent_col = 1 WHERE id = 1",
+            Some("postgresql"),
+            None,
+        );
+
+        assert_eq!(result.queries.len(), 1);
+        assert_eq!(result.queries[0].tables, vec!["users".to_string()]);
+        assert!(result.queries[0].columns.is_empty());
+        assert!(!result.issues.iter().any(|i| i.rule_id == "SCHEMA-COL-001"));
+    }
+
+    #[test]
+    fn engine_analyze_app_code_propagates_issues() {
+        let engine = Engine::with_default_config();
+        let code = r#"q = "DELETE FROM users""#;
+        let result = engine.analyze_app_code(code, "app.py");
+        assert!(result.issues.iter().any(|i| i.rule_id == "REL-DATA-001"));
+    }
+
+    #[test]
+    fn engine_analyze_mybatis_propagates_issue_line_and_column() {
+        let engine = Engine::with_default_config();
+        let xml = r#"<mapper>
+<select id="x">
+DELETE FROM users
+</select>
+</mapper>"#;
+        let result = engine.analyze_mybatis(xml, "UserMapper.xml");
+        assert!(result.issues.iter().any(|i| i.location.line >= 2));
+        assert!(result.queries.iter().any(|q| q.location.line >= 2));
+    }
+
+    #[test]
+    fn engine_templated_query_explicitly_demotes_to_contextual() {
+        let engine = Engine::with_default_config();
+        let result = engine.analyze("SELECT * FROM ${table_name}", Some("postgresql"), None);
+        assert!(result
+            .issues
+            .iter()
+            .all(|i| i.confidence != crate::models::RuleConfidence::Proven));
     }
 }

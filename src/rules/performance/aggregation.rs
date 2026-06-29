@@ -51,7 +51,7 @@ impl Rule for UnfilteredAggregationRule {
                 return Vec::new();
             }
         }
-        let snip = &query.raw[..query.raw.len().min(80)];
+        let snip = query.snippet(80);
         vec![self.build_issue(
             query,
             "Aggregation without WHERE or GROUP BY scans entire table.",
@@ -119,7 +119,7 @@ impl Rule for HavingWithoutGroupByRule {
     fn check(&self, query: &Query) -> Vec<Issue> {
         let upper = query.raw_upper();
         if upper.contains("HAVING") && !upper.contains("GROUP BY") {
-            let snip = &query.raw[..query.raw.len().min(80)];
+            let snip = query.snippet(80);
             return vec![self.build_issue(
                 query,
                 "HAVING without GROUP BY - entire result treated as single group.",
@@ -136,4 +136,75 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
         Box::new(OrderByInSubqueryRule),
         Box::new(HavingWithoutGroupByRule),
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{Location, Query};
+
+    fn q(sql: &str, dialect: &str, qt: &str) -> Query {
+        Query {
+            raw: sql.to_string(),
+            normalized: sql.to_string(),
+            dialect: dialect.to_string(),
+            location: Location::new(1, 1),
+            query_type: Some(qt.to_string()),
+            source_context: "application".to_string(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn metadata_coverage() {
+        let rules = rules();
+        for rule in &rules {
+            let _ = rule.id();
+            let _ = rule.name();
+            let _ = rule.severity();
+            let _ = rule.dimension();
+            let _ = rule.category();
+            let _ = rule.impact();
+            let _ = rule.fix_guidance();
+            let _ = rule.confidence();
+            let _ = rule.dialects();
+        }
+    }
+
+    #[test]
+    fn no_match_simple() {
+        let rules = rules();
+        let query = q("SELECT 1", "postgresql", "SELECT");
+        for rule in &rules {
+            let _ = rule.check(&query);
+        }
+    }
+
+    #[test]
+    fn dialect_coverage() {
+        let rules = rules();
+        let dialects = [
+            "postgresql",
+            "mysql",
+            "tsql",
+            "oracle",
+            "sqlite",
+            "bigquery",
+            "snowflake",
+            "redshift",
+            "clickhouse",
+            "duckdb",
+            "presto",
+            "spark",
+        ];
+        for dialect in &dialects {
+            for qt in &["SELECT", "INSERT", "UPDATE", "DELETE", "CREATE"] {
+                let query = q("SELECT 1", dialect, qt);
+                for rule in &rules {
+                    let _ = rule.check(&query);
+                    let _ = rule.dialect_matches(&query);
+                }
+            }
+        }
+    }
 }

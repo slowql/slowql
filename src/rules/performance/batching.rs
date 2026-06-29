@@ -61,7 +61,7 @@ impl Rule for LargeUnbatchedOperationRule {
             }
         }
         let msg = format!("Unbatched {} without row limit - affects entire table.", qt);
-        let snip = &query.raw[..query.raw.len().min(100)];
+        let snip = query.snippet(100);
         vec![self.build_issue(query, &msg, snip)]
     }
 }
@@ -96,7 +96,7 @@ impl Rule for MissingBatchSizeInLoopRule {
                 return vec![self.build_issue(
                     query,
                     "WHILE loop with unbatched DML detected.",
-                    &query.raw[..query.raw.len().min(80)],
+                    query.snippet(80),
                 )];
             }
         }
@@ -109,4 +109,156 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
         Box::new(LargeUnbatchedOperationRule),
         Box::new(MissingBatchSizeInLoopRule),
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{Location, Query};
+
+    fn q(sql: &str, dialect: &str, qt: &str) -> Query {
+        Query {
+            raw: sql.to_string(),
+            normalized: sql.to_string(),
+            dialect: dialect.to_string(),
+            location: Location::new(1, 1),
+            query_type: Some(qt.to_string()),
+            source_context: "application".to_string(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn metadata_coverage() {
+        let rules = rules();
+        for rule in &rules {
+            let _ = rule.id();
+            let _ = rule.name();
+            let _ = rule.severity();
+            let _ = rule.dimension();
+            let _ = rule.category();
+            let _ = rule.impact();
+            let _ = rule.fix_guidance();
+            let _ = rule.confidence();
+            let _ = rule.dialects();
+        }
+    }
+
+    #[test]
+    fn no_match_simple() {
+        let rules = rules();
+        let query = q("SELECT 1", "postgresql", "SELECT");
+        for rule in &rules {
+            let _ = rule.check(&query);
+        }
+    }
+
+    #[test]
+    fn dialect_coverage() {
+        let rules = rules();
+        let dialects = [
+            "postgresql",
+            "mysql",
+            "tsql",
+            "oracle",
+            "sqlite",
+            "bigquery",
+            "snowflake",
+            "redshift",
+            "clickhouse",
+            "duckdb",
+            "presto",
+            "spark",
+        ];
+        for dialect in &dialects {
+            for qt in &["SELECT", "INSERT", "UPDATE", "DELETE", "CREATE"] {
+                let query = q("SELECT 1", dialect, qt);
+                for rule in &rules {
+                    let _ = rule.check(&query);
+                    let _ = rule.dialect_matches(&query);
+                }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod extra_tests {
+    use super::*;
+    use crate::models::{Location, Query};
+
+    fn q(sql: &str, qt: &str) -> Query {
+        Query {
+            raw: sql.to_string(),
+            normalized: sql.to_string(),
+            dialect: "tsql".to_string(),
+            location: Location::new(1, 1),
+            query_type: Some(qt.to_string()),
+            source_context: "application".to_string(),
+            ..Default::default()
+        }
+    }
+
+    fn q_with_file(sql: &str, qt: &str, file: &str) -> Query {
+        Query {
+            raw: sql.to_string(),
+            normalized: sql.to_string(),
+            dialect: "tsql".to_string(),
+            location: Location::new(1, 1).with_file(file),
+            query_type: Some(qt.to_string()),
+            source_context: "application".to_string(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn batch_001_unbatched_update_fires() {
+        let rules = rules();
+        let rule = rules.iter().find(|r| r.id() == "PERF-BATCH-001").unwrap();
+        let query = q("UPDATE users SET active = 0", "UPDATE");
+        let issues = rule.check(&query);
+        assert!(!issues.is_empty(), "unbatched UPDATE should fire");
+    }
+
+    #[test]
+    fn batch_001_no_fire_when_where_present() {
+        let rules = rules();
+        let rule = rules.iter().find(|r| r.id() == "PERF-BATCH-001").unwrap();
+        let query = q("UPDATE users SET active = 0 WHERE id = 1", "UPDATE");
+        let issues = rule.check(&query);
+        assert!(issues.is_empty(), "UPDATE with WHERE should not fire");
+    }
+
+    #[test]
+    fn batch_001_no_fire_for_cleanup_file() {
+        let rules = rules();
+        let rule = rules.iter().find(|r| r.id() == "PERF-BATCH-001").unwrap();
+        let query = q_with_file(
+            "UPDATE cache SET val = null",
+            "UPDATE",
+            "scripts/cache_clear.sql",
+        );
+        let issues = rule.check(&query);
+        assert!(issues.is_empty(), "cache clear file should suppress");
+    }
+
+    #[test]
+    fn batch_002_while_without_limit_fires() {
+        let rules = rules();
+        let rule = rules.iter().find(|r| r.id() == "PERF-BATCH-002").unwrap();
+        let sql = "WHILE @@ROWCOUNT > 0 BEGIN UPDATE users SET active = 0 END";
+        let query = q(sql, "UPDATE");
+        let issues = rule.check(&query);
+        assert!(!issues.is_empty(), "WHILE without TOP or LIMIT should fire");
+    }
+
+    #[test]
+    fn batch_002_no_fire_when_top_present() {
+        let rules = rules();
+        let rule = rules.iter().find(|r| r.id() == "PERF-BATCH-002").unwrap();
+        let sql = "WHILE @@ROWCOUNT > 0 BEGIN UPDATE TOP(1000) users SET active = 0 END";
+        let query = q(sql, "UPDATE");
+        let issues = rule.check(&query);
+        assert!(issues.is_empty(), "WHILE with TOP should not fire");
+    }
 }

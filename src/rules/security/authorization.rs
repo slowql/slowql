@@ -200,7 +200,7 @@ impl Rule for HorizontalAuthorizationBypassRule {
         vec![self.build_issue(
             query,
             "Query on sensitive table without user/tenant scoping column in WHERE clause.",
-            &query.raw[..query.raw.len().min(100)],
+            query.snippet(100),
         )]
     }
 }
@@ -211,4 +211,126 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
         Box::new(SchemaOwnershipChangeRule),
         Box::new(HorizontalAuthorizationBypassRule),
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{Location, Query};
+
+    fn q(sql: &str, dialect: &str, qt: &str) -> Query {
+        Query {
+            raw: sql.to_string(),
+            normalized: sql.to_string(),
+            dialect: dialect.to_string(),
+            location: Location::new(1, 1),
+            query_type: Some(qt.to_string()),
+            source_context: "application".to_string(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn metadata_coverage() {
+        let rules = rules();
+        for rule in &rules {
+            let _ = rule.id();
+            let _ = rule.name();
+            let _ = rule.severity();
+            let _ = rule.dimension();
+            let _ = rule.category();
+            let _ = rule.impact();
+            let _ = rule.fix_guidance();
+            let _ = rule.confidence();
+            let _ = rule.dialects();
+        }
+    }
+
+    #[test]
+    fn no_match_simple() {
+        let rules = rules();
+        let query = q("SELECT 1", "postgresql", "SELECT");
+        for rule in &rules {
+            let _ = rule.check(&query);
+        }
+    }
+
+    #[test]
+    fn dialect_coverage() {
+        let rules = rules();
+        let dialects = [
+            "postgresql",
+            "mysql",
+            "tsql",
+            "oracle",
+            "sqlite",
+            "bigquery",
+            "snowflake",
+            "redshift",
+            "clickhouse",
+        ];
+        for dialect in &dialects {
+            for qt in &["SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP"] {
+                let query = q("SELECT 1", dialect, qt);
+                for rule in &rules {
+                    let _ = rule.check(&query);
+                    let _ = rule.dialect_matches(&query);
+                }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod extra_tests {
+    use super::*;
+    use crate::models::{Location, Query};
+
+    fn base_query(sql: &str) -> Query {
+        Query {
+            raw: sql.to_string(),
+            normalized: sql.to_string(),
+            dialect: "postgresql".to_string(),
+            location: Location::new(1, 1),
+            query_type: Some("SELECT".to_string()),
+            source_context: "application".to_string(),
+            facts: None,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn authz_003_tables_fallback_fires_without_scoping() {
+        let rules = rules();
+        let rule = rules.iter().find(|r| r.id() == "SEC-AUTHZ-003").unwrap();
+
+        let mut query = base_query("SELECT * FROM orders WHERE status = 'paid'");
+        query.tables = vec!["orders".to_string()];
+
+        let issues = rule.check(&query);
+        assert!(!issues.is_empty());
+    }
+
+    #[test]
+    fn authz_003_tables_fallback_no_fire_with_scoping() {
+        let rules = rules();
+        let rule = rules.iter().find(|r| r.id() == "SEC-AUTHZ-003").unwrap();
+
+        let mut query = base_query("SELECT * FROM orders WHERE tenant_id = 42");
+        query.tables = vec!["orders".to_string()];
+
+        let issues = rule.check(&query);
+        assert!(issues.is_empty());
+    }
+
+    #[test]
+    fn authz_003_raw_string_fallback_fires_when_tables_missing() {
+        let rules = rules();
+        let rule = rules.iter().find(|r| r.id() == "SEC-AUTHZ-003").unwrap();
+
+        let query = base_query("SELECT * FROM orders WHERE status = 'paid'");
+
+        let issues = rule.check(&query);
+        assert!(!issues.is_empty());
+    }
 }

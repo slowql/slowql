@@ -54,3 +54,22 @@ impl Default for RuleRegistry {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod extra_tests {
+    use super::*;
+
+    #[test]
+    fn default_registry_is_non_empty() {
+        let registry = RuleRegistry::default();
+        assert!(registry.all().len() > 100);
+    }
+
+    #[test]
+    fn enabled_for_dimensions_empty_set_returns_nothing() {
+        let registry = RuleRegistry::new();
+        let enabled = std::collections::HashSet::new();
+        let result = registry.enabled_for_dimensions(&enabled);
+        assert!(result.is_empty());
+    }
+}

@@ -1,138 +1,92 @@
 # CI/CD Integration
 
-Deploying SlowQL natively into your CI/CD pipeline guarantees that dangerous query regressions, expensive table scans, and SQL injections are blocked before they ever hit your staging or production environments.
+SlowQL is designed for headless CI/CD environments. It outputs machine-readable formats, returns meaningful exit codes, and runs fast enough to use on every commit.
 
-By leveraging SlowQL's default headless mode internally triggered when processing files in workflows, it conforms seamlessly to enterprise security checkpoints.
-
----
-
-## 1. GitHub Actions (Recommended)
-
-GitHub Actions offers the most streamlined integration by utilizing the `--format github-actions` flag. This outputs diagnostics using GitHub's native `::error file=...::` syntax, placing explicit squiggly lines and comments **directly on the changed code in your Pull Requests**.
-
-Furthermore, exporting via `--export sarif` integrates into GitHub's Advanced Security tab securely.
+## GitHub Actions
 
 ```yaml
-name: "SlowQL Enterprise Scan"
+name: SQL Analysis
 
-on:
-  push:
-    branches: [ "main", "develop" ]
-  pull_request:
-    branches: [ "main", "develop" ]
+on: [push, pull_request]
 
 jobs:
-  slowql-analysis:
-    name: SQL Static Analysis
+  slowql:
     runs-on: ubuntu-latest
-    permissions:
-      security-events: write
-      contents: read
-      pull-requests: write
-
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.11"
+      - uses: actions/checkout@v4
 
       - name: Install SlowQL
-        run: pip install slowql
+        run: cargo install --git https://github.com/slowql/slowql.git
 
-      - name: Run SlowQL Pipeline
-        id: slowql_scan
-        run: |
-          # SlowQL auto-detects non-interactive mode natively when files are provided
-          slowql \
-            --fail-on high \
-            --format github-actions \
-            --export sarif \
-            --out results/ \
-            **/*.sql
+      - name: Run SlowQL
+        run: slowql src/ --fail-on high --format github-actions
 
-      - name: Upload SARIF Security Results
+      - name: Export SARIF
+        if: always()
+        run: slowql src/ --export sarif --out results/
+
+      - name: Upload SARIF
+        if: always()
         uses: github/codeql-action/upload-sarif@v3
-        if: always() # Ensure SARIF uploads even if the pipeline fails
         with:
           sarif_file: results/slowql_report.sarif
-          category: slowql-analyzer
 ```
 
----
+### With Schema Validation
 
-## 2. GitLab CI
+``` Yaml
+      - name: Run SlowQL with Schema
+        run: slowql src/ --schema db/schema.sql --fail-on high --format github-actions
+```
 
-GitLab CI thrives on strict exit codes. SlowQL will intelligently throw an exit code `1` if the designated `--fail-on` threshold is breached, blocking the pipeline seamlessly.
+### Only Changed Files
 
-```yaml
-stages:
-  - lint
+``` Yaml
+      - name: Run SlowQL on Changed Files
+        run: slowql . --git-diff --fail-on high --format github-actions
+```
 
-slowql-enterprise-scan:
-  image: python:3.11-slim
+## GitLab CI
+
+``` Yaml
+slowql:
+  image: rust:latest
   stage: lint
   before_script:
-    - pip install slowql
+    - cargo install --git https://github.com/slowql/slowql.git
   script:
-    - slowql --fail-on medium --format console **/*.sql
+    - slowql src/ --fail-on high --format console
   artifacts:
     when: always
     paths:
-      - slowql_report/
+      - reports/
 ```
 
-> [!TIP]
-> If you wish to aggregate metrics, append `--export json --out slowql_report/` to retain a static footprint of the pipeline run.
+## Bitbucket Pipelines
 
----
-
-## 3. Bitbucket Pipelines
-
-Bitbucket pipelines utilize a lightweight docker ecosystem.
-
-```yaml
-image: python:3.11-slim
-
+``` Yaml
 pipelines:
   pull-requests:
     '**':
       - step:
-          name: SlowQL Architecture Validation
+          name: SQL Analysis
+          image: rust:latest
           script:
-            - pip install slowql
-            - slowql --fail-on high --format console source/**/*.sql
+            - cargo install --git https://github.com/slowql/slowql.git
+            - slowql src/ --fail-on high
 ```
 
----
+## Jenkins
 
-## 4. Jenkins Pipeline (Jenkinsfile)
-
-For enterprise Jenkins orchestrators, simply encasing SlowQL within a standard shell sequence properly triggers build failures when High/Critical issues are encountered.
-
-```groovy
+``` groovy
 pipeline {
     agent any
-
     stages {
-        stage('Database Initialization') {
-            steps {
-                // Setup...
-            }
-        }
-        
-        stage('SQL Linting (SlowQL)') {
+        stage('SQL Analysis') {
             steps {
                 sh '''
-                    # Ensure virtual environments or global spaces are activated
-                    pip install slowql
-                    
-                    slowql \
-                        --fail-on critical \
-                        --dialect postgresql \
-                        db/migrations/*.sql
+                    cargo install --git https://github.com/slowql/slowql.git
+                    slowql src/ --fail-on high --format console
                 '''
             }
         }
@@ -140,10 +94,41 @@ pipeline {
 }
 ```
 
----
+## Docker
 
-## Key Headless Considerations
+``` Yaml
+      - name: Run SlowQL
+        run: |
+          docker run --rm -v $(pwd):/src ghcr.io/slowql/slowql /src \
+            --fail-on high --format github-actions
+```
 
-When running in CI/CD, always ensure the following flags are present:
-1. `--fail-on {severity}`: Dictates your strictness policy. We recommend starting with `--fail-on critical` for legacy repositories and tightening to `high` or `medium` over time.
-2. `--dialect`: Supplying the dialect natively inside the pipeline command guarantees the Universal Parser isn't wasting processing time attempting to guess syntax configurations across thousands of migration files.
+## Ecit Codes
+
+| **Code** | **Meaning** | **CI Behavior** |
+|------|---------|-------------|
+| 0 | No issues found | Pass |
+| 1 | Medium or low issues found | Pass (unless `--fail-on medium`) |
+| 2 | High issues found | Fail (with `--fail-on high`) |
+| 3 | Critical issues found | Fail (with `--fail-on critical`) |
+
+## Recommended Settings
+
+For most teams, start with:
+
+``` Bash
+slowql src/ --fail-on high
+```
+This blocks critical and high severity issues while letting medium and low pass without breaking builds. Tighten over time as the codebase improves.
+
+## Output Formats by Use Case
+
+| **Use case** | **Recommended format** |
+|----------|-------------------|
+| Human-readable terminal output | `console` (default) |
+| GitHub PR annotations | `github-actions` |
+| Security scanning tab | `sarif` (upload to GitHub) |
+| Custom tooling | `json` |
+| Audit trail | `--export html` or `--export csv` |
+
+

@@ -1,157 +1,117 @@
 # CLI Reference
 
-The SlowQL Command Line Interface (CLI) is the primary method for executing static analysis workflows. Engineered for both interactive human usage and headless CI/CD operations, the CLI exposes the full capabilities of the SlowQL engine.
-
----
-
-## Execution Syntax
-
-The CLI accepts configuration via explicit flags or positional arguments.
+## Syntax
 
 ```bash
-slowql [OPTIONS] [FILE] [EXTRA_FILES...]
-slowql init [--dialect DIALECT] [--fail-on SEVERITY]
+slowql [OPTIONS] [FILES]...
 ```
 
-> [!TIP]
-> If no file is provided, SlowQL will default to interactive mode unless `--non-interactive` is passed.
+## Arguments
 
----
+Argument  | Description
+[FILES]...| SQL files or directories to analyze. Multiple paths accepted. 
 
-## Input & Target Selection
+## Analysis Options
+**Flag**  | **Description** | **Default**
+`-d, --dialect <DIALECT>` | SQL dialect. Auto-detected if not set. | auto
+`-s, --schema <SCHEMA>` | Path to DDL schema file for schema-aware validation. | none
+`--min-confidence <LEVEL>` | Minimum confidence level to report. Options: `proven`, `contextual`, `advisory`. | `proven`
+`--include-nonprod` | Include findings from test, example, seed, and framework contexts. | off
+`--fail-on <SEVERITY>` | Exit non-zero when issues at or above this severity are found. Options: `critical`, `high`, `medium`, `low`, `info`, `never`. | none
+`--compare` | Enable query comparison mode (detect similar queries across files). | off
 
-These arguments define the scope of the analysis.
+## Output Options
 
-| Flag | Description | Default |
-|---|---|---|
-| `[file]` | The primary SQL file or directory to parse (positional argument). | None |
-| `[extra_files...]` | Additional SQL files. Typically used by systems like `pre-commit` which pass arrays of changed files. | None |
-| `--input-file PATH` | Explicitly define the target file (alias for the positional `file` argument). | None |
-| `--init`, `init` | Scaffolds a `slowql.yaml` configuration profile in the current directory. Launches an interactive wizard by default, or runs non-interactively if `--dialect` and `--fail-on` arguments are provided. | `False` |
-| `--mode` | Editor mode selection: `{auto, paste, compose}`. `auto` detects a TTY terminal and switches to `compose` for multi-line SQL input. | `auto` |
+**Flag**  | **Description** | **Default**
+`--format <FORMAT>` | Output format. Options: `console`, `json`, `sarif`, `github-actions`. | `console`
+`--export <FORMAT>` | Export to file. Options: `json`, `html`, `csv`, `sarif`. Repeatable. | none
+`--out <DIR>` | Output directory for exported files. | reports
+`--verbose` | Enable verbose output including skipped files and context. | off
 
----
+## Autofix Options
 
-## Analysis Configuration
+**Flag**  | **Description** | **Default**
+`--diff` | Preview safe autofix changes without modifying files. | off
+`--fix` | Apply safe autofixes. Creates `.bak` backup before modifying. | off
+`--fix-report <PATH>` | Write JSON report of applied fixes. | none
 
-Modify how the parsing engine and rule registry inspect the queries.
+## Baseline Options
 
-| Flag | Description | Default |
-|---|---|---|
-| `--dialect`, `-d` | Forces a specific SQL dialect parser. Valid options: `postgresql`, `mysql`, `tsql`, `oracle`, `snowflake`, `bigquery`, `redshift`, `clickhouse`, `duckdb`, `presto`, `trino`, `spark`, `databricks`. | *Auto-detected* |
-| `--schema`, `-s` | Path to a DDL schema file (`.sql`). Enables schema-aware rules (e.g. validating missing columns or tables). | None |
-| `--baseline` | Path to a `.slowql-baseline` file. When provided, SlowQL only reports new issues not found in the baseline. | `None` |
-| `--update-baseline` | Analyzes target files and writes all found issues to the specified baseline file, exiting successfully. | `None` |
-| `--fail-on` | Threshold for returning a non-zero exit code (Pipeline failure). Options: `{critical, high, medium, low, info, never}`. | `high` |
-| `--no-cache` | Disables internal AST caching during the run. Useful for benchmarking or bypassing stale tokens. | `False` |
-| `--compare` | Enables query comparison mode for performance profiling between two SQL statements. | `False` |
+**Flag**  | **Description** | **Default**
+`--baseline <PATH>` | Path to baseline file. Only report new issues not in baseline. | none
+`--update-baseline <PATH>` | Create or update baseline file with current issues. | none
 
----
+## Rule Options
 
-## Output & Formatting
+**Flag**  | **Description** | **Default**
+`--list-rules` | List all available rules. | none
+`--filter-dimension <DIM>` | Filter `--list-rules` by dimension. | none
+`--filter-dialect <DIALECT>` | Filter `--list-rules` by dialect. | none
+`--explain <RULE>` | Show documentation for a specific rule. | none
 
-Control how SlowQL serializes and reports identified vulnerabilities.
+## Git Options
 
-| Flag | Description | Default |
-|---|---|---|
-| `--format` | The standard output (STDOUT) reporter. Options: `console` (Rich UI), `github-actions` (native PR annotations), `sarif` (raw JSON). | `console` |
-| `--export` | Auto-export formats saved to disk post-analysis. Options: `html`, `csv`, `json`, `sarif`. Multiple formats can be stacked (e.g. `--export json sarif`). | None |
-| `--out` | Output directory destination for the generated export files. | `./` |
-| `--verbose` | Output granular tracebacks, AST token arrays, and parser internals. | `False` |
-| `--export-session`| Dumps the active session history explicitly, highly useful for diagnosing headless CI environments. | `False` |
+**Flag**  | **Description** | **Default**
+`--git-diff` | Only analyze files changed in the current git working tree. | off
+`--since <REV>` | Only analyze files changed since a git revision (e.g. `main`, `HEAD~5`). | none
 
----
+## Cache Options
 
-## Safe Autofix System
+**Flag**  | **Description** | **Default**
+`--no-cache` | Disable caching. | off
+`--cache-dir <DIR>` | Directory to store cache files. | `.slowql_cache`
+`--clear-cache` | Clear cache before analysis. | off
 
-SlowQL can actively modify your raw SQL files by applying `RemediationMode.SAFE_APPLY` logic.
+## Other Options
 
-> [!WARNING]
-> Due to the inherent risks of automated code modification, the `--fix` parameter currently only executes on a **single file** at a time. It will safely generate a `.bak` backup copy of the original payload prior to modification.
+**Flag**  | **Description** | **Default**
+`--init` | Create a slowql.yaml config file in the current directory. | off
+`-j, --jobs <N>` | Number of parallel workers. 0 = auto-detect. | auto-detect
+`-h, --help` | Print help. | none
+`-V, --version` | Print version. | none
 
-| Flag | Description |
-|---|---|
-| `--diff` | Previews the exact textual changes and Git-style diffs for safe fixes in your terminal without touching the disk. |
-| `--fix` | Overwrites the target file with safe fixes, generating a `<filename>.bak` backup securely in the same directory. |
-| `--fix-report PATH` | Generates a structured JSON receipt detailing exactly which bytes were mutated during the fix execution. |
+## Dialects
 
----
+`postgresql`, `mysql`, `tsql`, `oracle`, `sqlite`, `snowflake`, `bigquery`, `redshift`, `clickhouse`, `duckdb`, `presto`, `trino`, `spark`, `databricks`
 
-## Rule Introspection
+## Exit COdes
 
-Inspect the internal metadata of the 272 built-in rules without executing analysis.
+**Code**  | **Meaning** 
+0 | No issues found or issues below threshold
+1 | Issues found at medium or low severity
+2 | Issues found at high severity
+3 | Issues found at critical severity
 
-| Flag | Description |
-|---|---|
-| `--list-rules` | Outputs a tabular grid of every active rule loaded into the registry. |
-| `--explain RULE_ID` | Renders the complete documentation, rationale, and remediation guidance for a specific Issue ID (e.g. `slowql --explain PERF-SCAN-001`). |
-| `--filter-dimension`| Filters `--list-rules` tabular output to a specific dimension natively (e.g. `cost`, `security`). |
-| `--filter-dialect` | Filters `--list-rules` by a specific datastore capability (e.g. `mysql`). |
+## Examples
 
----
+``` bash
+# Scan a directory in proven mode
+slowql src/
 
-## Inline Suppression
+# Scan with schema validation
+slowql src/ --schema db/schema.sql
 
-Rules can be silenced on a per-line, per-block, or per-file basis using directives written directly in SQL comments. This does not require any configuration file changes.
+# CI mode with annotations and SARIF export
+slowql src/ --fail-on high --format github-actions --export sarif --out reports/
 
-| Directive | Scope |
-|---|---|
-| `-- slowql-disable-line RULE-ID` | The line the comment appears on |
-| `-- slowql-disable-next-line RULE-ID` | The next non-blank, non-comment line |
-| `-- slowql-disable RULE-ID` | All lines until a matching `-- slowql-enable` |
-| `-- slowql-enable RULE-ID` | Closes an open block suppression |
-| `-- slowql-disable-file RULE-ID` | The entire file |
+# Show contextual findings for code review
+slowql src/ --min-confidence contextual
 
-The rule ID may be an exact identifier (`PERF-SCAN-001`), a prefix (`PERF-SCAN`), comma-separated values (`PERF-SCAN-001, SEC-INJ-001`), or omitted entirely to suppress all rules for the given scope. Matching is case-insensitive.
+# Preview safe autofixes
+slowql src/ --diff
 
-```sql
-SELECT * FROM archive;  -- slowql-disable-line PERF-SCAN-001
+# Apply safe autofixes
+slowql src/ --fix
 
--- slowql-disable-next-line SEC-INJ-001
-SELECT id, token FROM sessions WHERE id = $1;
+# Only analyze changed files
+slowql . --git-diff
 
--- slowql-disable PERF-SCAN-001
-SELECT * FROM event_stream;
-SELECT * FROM session_log;
--- slowql-enable PERF-SCAN-001
-```
+# Only analyze files changed since branching off main
+slowql . --since main
 
-See [Inline Suppression](suppression.md) for the full reference.
+# List security rules for PostgreSQL
+slowql --list-rules --filter-dimension security --filter-dialect postgresql
 
----
-
-
-Modify the aesthetic triggers, critical for continuous integration.
-
-| Flag | Description |
-|---|---|
-| `--non-interactive` | Prevents SlowQL from blocking the runner by pausing for missing user inputs or dialect confirmations. (Now the default whenever input files are given) |
-| `--select-dialect` | Forces the CLI to prompt for interactive dialect selection. |
-| `--no-intro` | Skips the startup Cyberpunk banner sequence. |
-| `--fast` | Deactivates CLI animations and typing layout effects for rapid execution. |
-| `--duration SECS` | Overrides the intro animation timing. |
-
----
-
-## Enterprise Examples
-
-**Headless CI/CD Pipeline Execution:**
-```bash
-slowql src/**/*.sql \
-  --non-interactive \
-  --fail-on high \
-  --format github-actions \
-  --export sarif \
-  --out build/security-reports/
-```
-
-**Discovering Snowflake Cost Inefficiencies:**
-```bash
-slowql --list-rules --filter-dialect snowflake --filter-dimension cost
-slowql --explain COST-SF-001
-```
-
-**Safely applying automated fixes with a JSON receipt:**
-```bash
-slowql database/migrations/v2.sql --fix --fix-report fix_receipt.json
+# Explain a rule
+slowql --explain SEC-INJ-001
 ```

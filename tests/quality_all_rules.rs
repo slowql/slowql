@@ -32,7 +32,7 @@ fn all() -> Vec<Box<dyn Rule>> {
 
 #[test]
 fn quality_rule_count() {
-    assert_eq!(all().len(), 51);
+    assert_eq!(all().len(), 52);
 }
 #[test]
 fn null_001() {
@@ -102,6 +102,11 @@ fn modern_004() {
 fn style_005() {
     let r = all();
     let rule = find(&r, "QUAL-STYLE-005");
+    assert_eq!(
+        rule.confidence().as_str(),
+        "advisory",
+        "QUAL-STYLE-005 must not be proven in strict mode"
+    );
     assert!(!rule
         .check(&q("INSERT INTO t VALUES (1,2,3)", "postgresql", "INSERT"))
         .is_empty());
@@ -330,6 +335,186 @@ fn doc_002_dynamic_sql_no_fire() {
         .check(&q(
             "SELECT id FROM users WHERE status = 'x' || input_var",
             "postgresql",
+            "SELECT"
+        ))
+        .is_empty());
+}
+
+#[test]
+fn style_001() {
+    let r = all();
+    let rule = find(&r, "QUAL-STYLE-001");
+    assert!(!rule
+        .check(&q("SELECT 1", "postgresql", "SELECT"))
+        .is_empty());
+    assert!(rule
+        .check(&q("SELECT 1 FROM dual", "postgresql", "SELECT"))
+        .is_empty());
+}
+#[test]
+fn style_003() {
+    let r = all();
+    let rule = find(&r, "QUAL-STYLE-003");
+    assert!(!rule
+        .check(&q(
+            "SELECT * FROM (SELECT 1) WHERE 1=1",
+            "postgresql",
+            "SELECT"
+        ))
+        .is_empty());
+}
+#[test]
+fn style_004() {
+    let r = all();
+    let rule = find(&r, "QUAL-STYLE-004");
+    assert!(!rule
+        .check(&q(
+            "-- SELECT * FROM old_table\nSELECT 1",
+            "postgresql",
+            "SELECT"
+        ))
+        .is_empty());
+}
+#[test]
+fn modern_001() {
+    let r = all();
+    let rule = find(&r, "QUAL-MODERN-001");
+    assert!(!rule
+        .check(&q(
+            "SELECT * FROM users, orders WHERE users.id = orders.user_id",
+            "postgresql",
+            "SELECT"
+        ))
+        .is_empty());
+}
+#[test]
+fn modern_002() {
+    let r = all();
+    let rule = find(&r, "QUAL-MODERN-002");
+    assert!(!rule
+        .check(&q(
+            "SELECT * FROM t WHERE created_at > '2024-01-01'",
+            "postgresql",
+            "SELECT"
+        ))
+        .is_empty());
+}
+#[test]
+fn complex_001() {
+    let r = all();
+    let rule = find(&r, "QUAL-COMPLEX-001");
+    assert!(!rule.check(&q("SELECT CASE WHEN x=1 THEN CASE WHEN y=2 THEN CASE WHEN z=3 THEN CASE WHEN w=4 THEN 'a' END END END END FROM t","postgresql","SELECT")).is_empty());
+}
+#[test]
+fn complex_002() {
+    let r = all();
+    let rule = find(&r, "QUAL-COMPLEX-002");
+    assert!(!rule
+        .check(&q(
+            "SELECT (SELECT (SELECT (SELECT 1)))",
+            "postgresql",
+            "SELECT"
+        ))
+        .is_empty());
+}
+#[test]
+fn name_004() {
+    let r = all();
+    let rule = find(&r, "QUAL-NAME-004");
+    let mut query = q("SELECT * FROM t", "postgresql", "SELECT");
+    query.columns = vec!["ORDER".to_string()];
+    assert!(!rule.check(&query).is_empty());
+}
+#[test]
+fn schema_002() {
+    let r = all();
+    let rule = find(&r, "QUAL-SCHEMA-002");
+    assert!(!rule
+        .check(&q(
+            "CREATE TABLE t (id INT PRIMARY KEY, user_id INT)",
+            "postgresql",
+            "CREATE"
+        ))
+        .is_empty());
+    assert!(rule
+        .check(&q(
+            "CREATE TABLE t (id INT PRIMARY KEY, user_id INT REFERENCES users(id))",
+            "postgresql",
+            "CREATE"
+        ))
+        .is_empty());
+}
+#[test]
+fn schema_003() {
+    let r = all();
+    let rule = find(&r, "QUAL-SCHEMA-003");
+    assert!(!rule
+        .check(&q(
+            "ALTER TABLE t ADD CONSTRAINT fk FOREIGN KEY (x) REFERENCES y(id)",
+            "postgresql",
+            "CREATE"
+        ))
+        .is_empty());
+}
+#[test]
+fn dry_001() {
+    let r = all();
+    let rule = find(&r, "QUAL-DRY-001");
+    assert!(!rule
+        .check(&q(
+            "SELECT * FROM t WHERE x = 1 AND x = 1",
+            "postgresql",
+            "SELECT"
+        ))
+        .is_empty());
+}
+#[test]
+fn test_003() {
+    let r = all();
+    let rule = find(&r, "QUAL-TEST-003");
+    assert!(!rule
+        .check(&q(
+            "INSERT INTO t VALUES ('test_data')",
+            "postgresql",
+            "INSERT"
+        ))
+        .is_empty());
+}
+#[test]
+fn mysql_002() {
+    let r = all();
+    let rule = find(&r, "QUAL-MYSQL-002");
+    assert!(!rule
+        .check(&q("SELECT * FROM t STRAIGHT_JOIN s", "mysql", "SELECT"))
+        .is_empty());
+}
+#[test]
+fn mysql_003() {
+    let r = all();
+    let rule = find(&r, "QUAL-MYSQL-003");
+    assert!(!rule
+        .check(&q("SELECT * FROM t LOCK IN SHARE MODE", "mysql", "SELECT"))
+        .is_empty());
+}
+#[test]
+fn tsql_002() {
+    let r = all();
+    let rule = find(&r, "QUAL-TSQL-002");
+    assert!(!rule
+        .check(&q("SET QUOTED_IDENTIFIER OFF", "tsql", "SELECT"))
+        .is_empty());
+}
+#[test]
+fn ch_001_qual() {
+    let r = all();
+    let rule = find(&r, "QUAL-CH-001");
+    assert!(!rule
+        .check(&q("SELECT * FROM t ORDER BY x", "clickhouse", "SELECT"))
+        .is_empty());
+    assert!(rule
+        .check(&q(
+            "SELECT * FROM t ORDER BY x LIMIT 10",
+            "clickhouse",
             "SELECT"
         ))
         .is_empty());

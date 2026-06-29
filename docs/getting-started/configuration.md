@@ -1,139 +1,106 @@
 # Configuration
 
-SlowQL's deeply typed configuration engine is designed to adapt to massive monorepos and enterprise architectures seamlessly.
+SlowQL discovers configuration from these files (in order):
 
-The engine resolves settings linearly. When `slowql` executes, it aggregates configurations in the following strict hierarchy:
-1. **Command Line Arguments** (Highest Priority)
-2. **Environment Variables**
-3. **Local Configuration Files**
-4. **Internal Defaults** (Lowest Priority)
+1. `slowql.yaml` or `.slowql.yaml`
+2. `slowql.toml` or `.slowql.toml`
+3. `pyproject.toml` (under `[tool.slowql]`)
 
----
+Configuration is searched in the analyzed directory and all parent directories.
 
-## File-Based Configuration
-
-SlowQL automatically climbs your directory tree looking for any of the following files:
-- `slowql.toml` or `slowql.yaml` (`.yml` / `.json` also supported)
-- Hidden dotfile equivalents (e.g., `.slowql.toml`)
-- The `[tool.slowql]` namespace inside `pyproject.toml`
-
-### Generating a Starter Config
-The fastest way to scaffold a configuration profile is by triggering the interactive assistant:
-```bash
-slowql --init
-```
-
-### The `slowql.yaml` Schema
-SlowQL groups settings into six root objects mapping directly to core engine behaviors:
+## Example Configuration
 
 ```yaml
-# slowql.yaml
-severity:
-  fail_on: high
-  warn_on: medium
-
-output:
-  format: console
-  color: true
-  show_snippets: true
-  max_issues: 0                  # 0 = unlimited display
-  group_by: severity             # groups by: severity, dimension, file, rule, none
-
 analysis:
-  dialect: postgresql            # Default AST Grammar
-  parallel: true                 # Hardware multithreading
-  max_workers: 0                 # Number of parallel workers (0 = auto)
-  timeout_seconds: 30.0          # Bailout for excessively complex payloads
-  max_query_length: 100000       # Prevent OOM parsing malicious squashes
+  dialect: postgresql
   enabled_dimensions:
     - security
     - performance
     - reliability
-  disabled_rules:                # Blacklist array
-    - QUAL-STYLE-001             
-  severity_overrides:            # Rule-specific level overrides
-    PERF-SCAN-001: info
-    QUAL-NULL-001: critical
-  
-schema:
-  path: schemas/prod_schema.sql  # Enables schema validation queries (column limits)
+    - cost
+    - quality
+  disabled_rules: []
+  min_confidence: proven
+  # custom_rules: .slowql-rules.yaml
 
+severity:
+  fail_on: high
+
+# compliance:
+#   frameworks:
+#     - gdpr
+#     - pci-dss
+
+# schema:
+#   path: db/schema.sql
+
+# complexity:
+#   threshold_optimal: 40
+#   threshold_complex: 70
+```
+
+## Generate Config
+``` Bash
+slowql --init
+slowql --init --dialect mysql
+```
+
+## Key Settings
+
+`analysis.dialect`
+SQL dialect for parsing. Auto-detected if not set.
+
+`analysis.min_confidence`
+Default confidence level. Options: `proven` (default), `contextual`, `advisory`.
+
+`analysis.disabled_rules`
+List of rule IDs to skip. Supports exact IDs and prefixes.
+``` YAML
+analysis:
+  disabled_rules:
+    - PERF-SCAN-001
+    - QUAL-STYLE
+```
+
+`analysis.severity_overrides`
+Override severity for specific rules.
+```yaml
+analysis:
+  severity_overrides:
+    QUAL-NULL-001: critical
+    PERF-SCAN-001: info
+```
+
+`severity.fail_on`
+Exit with non-zero code when issues at or above this severity are found. Used in CI.
+
+`compliance.frameworks`
+Enable compliance rules for specific frameworks. Without this, compliance rules are skipped.
+
+``` YAML
 compliance:
   frameworks:
-    - pci-dss
     - gdpr
-  strict_mode: true
-
-cost:
-  cloud_provider: snowflake
-  compute_cost_per_hour: 4.50
-  storage_cost_per_gb: 0.02
+    - hipaa
+    - pci-dss
 ```
 
----
-
-## Configuration Blocks Explained
-
-### Context-Aware Analysis
-
-SlowQL automatically classifies files into source contexts (migration, test, seed, dbt_model, application, etc.) and filters rules accordingly. This requires zero configuration - it works out of the box based on your directory structure.
-
-| Directory Pattern | Context | Rules Active |
-|---|---|---|
-| migrations/, alembic/versions/ | migration | SEC-, REL- |
-| tests/, spec/, *test*.sql | test | SEC-, REL- |
-| seeds/, fixtures/ | seed | SEC-, REL- |
-| schema.sql, ddl/ | ddl_schema | SEC-, REL-, COMP- |
-| models/*.sql | dbt_model | All (except PERF-SCAN-003) |
-| src/ | application | All (except QUAL-DBT-*) |
-| No file path | adhoc | All (except QUAL-DBT-*) |
-
-See [Context-Aware Analysis](../architecture/context-awareness.md) for details and customization.
-
----
-
-### `severity`
-Controls how pipeline exits handle found issues.
-- **`fail_on`**: Crucial for CI/CD. The process returns an exit code `1` if the analysis discovers any vulnerability equal to or exceeding this threshold. Options: `critical`, `high`, `medium`, `low`, `info`, `never`.
-
-### `output`
-Governs terminal formatting.
-- **`group_by`**: Re-slices the output array visually, highly useful for filtering (`severity`, `dimension`, `file`).
-
-### `analysis`
-Tunes the AST processor.
-- **`timeout_seconds`**: Because SQL parsing can hit algorithmic cliffs (e.g. 5,000 deep `IN` arrays), SlowQL will dynamically drop a query block if it exceeds this threshold to save CI minutes.
-- **`disabled_rules`**: A global blacklist for specific Rule IDs (e.g., `PERF-SCAN-001`) that your company doesn't care about enforcing.
-- **`severity_overrides`**: Customize the severity of specific rules on a per-project basis.
-  ```yaml
-  analysis:
-    severity_overrides:
-      PERF-SCAN-001: info      # Downgrade to Info
-      QUAL-NULL-001: critical  # Upgrade to Critical
-  ```
-
-### `compliance` & `cost`
-Configures the environment bounds for dimensions that require external realities (like specific frameworks or pricing tiers) to calculate accurate diagnostics.
-
----
-
-## Environment Variable Overrides
-
-SlowQL supports native, deeply nested environment variables by reading the `SLOWQL_` prefix and utilizing the standard double-underscore `__` separator for nesting schema definitions.
-
-This enables you to lock down the baseline config in Git via `slowql.yaml`, but override outputs dynamically in your CI runners:
-
-```bash
-# Force SARIF output despite what the YAML claims
-export SLOWQL_OUTPUT__FORMAT=sarif
-
-# Enforce strict parsing
-export SLOWQL_ANALYSIS__DIALECT=snowflake
-
-# Override cost parameters dynamically (e.g., in a cloud-specific runner)
-export SLOWQL_COST__COMPUTE_COST_PER_HOUR=2.50
-
-slowql src/
+`analysis.custom_rules`
+Path to a YAML file containing custom rules.
+``` YAML
+analysis:
+  custom_rules: .slowql-rules.yaml
 ```
 
-This flexibility prevents pipeline configurations from bleeding into developer local setups.
+`analysis.table_metadata`
+Provide metadata about tables for more accurate analysis.
+``` YAML
+analysis:
+  table_metadata:
+    large_tables:
+      - events
+      - logs
+    partitioned_tables:
+      events:
+        - created_at
+```

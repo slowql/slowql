@@ -197,3 +197,66 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+mod extra_tests {
+    use super::*;
+    use crate::models::Location;
+
+    fn q(sql: &str, qt: &str, file: &str) -> Query {
+        Query {
+            raw: sql.to_string(),
+            normalized: sql.to_string(),
+            query_type: Some(qt.to_string()),
+            location: Location::new(1, 1).with_file(file),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn no_similarity_when_only_one_query_in_bucket() {
+        let q1 = q(
+            "SELECT id, email FROM users WHERE id = 1",
+            "SELECT",
+            "src/a.sql",
+        );
+        let issues = find_similar_queries(&[q1]);
+        assert!(issues.is_empty());
+    }
+
+    #[test]
+    fn skeleton_handles_escaped_single_quotes() {
+        let s1 = normalize_to_skeleton("SELECT * FROM users WHERE name = 'it''s me'");
+        let s2 = normalize_to_skeleton("SELECT * FROM users WHERE name = 'don''t care'");
+        assert_eq!(s1, s2);
+    }
+
+    #[test]
+    fn skeleton_preserves_digits_inside_identifiers() {
+        let s = normalize_to_skeleton("SELECT col1, user2_name FROM t1 WHERE id = 42");
+        assert!(s.contains("COL1"));
+        assert!(s.contains("USER2_NAME"));
+        assert!(s.contains("T1"));
+    }
+
+    #[test]
+    fn skeleton_normalizes_decimal_literals() {
+        let s1 = normalize_to_skeleton("SELECT * FROM prices WHERE amount > 12.34");
+        let s2 = normalize_to_skeleton("SELECT * FROM prices WHERE amount > 56.78");
+        assert_eq!(s1, s2);
+    }
+
+    #[test]
+    fn skeleton_normalizes_repeated_whitespace() {
+        let s = normalize_to_skeleton("SELECT   *\nFROM\tusers   WHERE id = 1");
+        assert!(!s.contains("  "));
+    }
+
+    #[test]
+    fn non_dml_queries_are_skipped_in_compare() {
+        let q1 = q("CREATE TABLE t (id INT)", "CREATE", "src/a.sql");
+        let q2 = q("CREATE TABLE t (id INT)", "CREATE", "src/b.sql");
+        let issues = find_similar_queries(&[q1, q2]);
+        assert!(issues.is_empty());
+    }
+}

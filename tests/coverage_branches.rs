@@ -18,7 +18,6 @@ fn with_cwd<T>(dir: &std::path::Path, f: impl FnOnce() -> T) -> T {
 
 use slowql_lib::models::{Location, Query};
 
-
 fn q(sql: &str, dialect: &str, qt: &str) -> Query {
     Query {
         raw: sql.to_string(),
@@ -50,7 +49,9 @@ fn cost_multi_region_query() {
     let sql = "SELECT * FROM users@us-east.prod.rds.amazonaws.com WHERE region = 'eu-west'";
     let query = q(sql, "postgresql", "SELECT");
     let issues: Vec<_> = rules.iter().flat_map(|r| r.check(&query)).collect();
-    assert!(issues.iter().any(|i| i.message.contains("Multi-region") || i.message.contains("region")));
+    assert!(issues
+        .iter()
+        .any(|i| i.message.contains("Multi-region") || i.message.contains("region")));
 }
 
 #[test]
@@ -64,8 +65,8 @@ fn cost_snowflake_order_variant() {
 
 #[test]
 fn cost_partition_pruning_with_partition_col_in_raw() {
-    use slowql_lib::rules::base::RuleContext;
     use slowql_lib::config::TableMetadata;
+    use slowql_lib::rules::base::RuleContext;
     let mut partitioned = std::collections::HashMap::new();
     partitioned.insert("events".to_string(), vec!["event_date".to_string()]);
     let tm = TableMetadata {
@@ -79,13 +80,21 @@ fn cost_partition_pruning_with_partition_col_in_raw() {
     };
     let rules = slowql_lib::rules::cost::all_rules();
     // Query WITHOUT partition column in WHERE
-    let mut query = q("SELECT * FROM events WHERE status = 'active'", "postgresql", "SELECT");
+    let mut query = q(
+        "SELECT * FROM events WHERE status = 'active'",
+        "postgresql",
+        "SELECT",
+    );
     query.tables = vec!["events".to_string()];
     for rule in &rules {
         let _ = rule.check_with_context(&query, &ctx);
     }
     // Query WITH partition column in raw SQL (fallback path)
-    let mut query2 = q("SELECT * FROM events WHERE event_date = '2024-01-01'", "postgresql", "SELECT");
+    let mut query2 = q(
+        "SELECT * FROM events WHERE event_date = '2024-01-01'",
+        "postgresql",
+        "SELECT",
+    );
     query2.tables = vec!["events".to_string()];
     for rule in &rules {
         let _ = rule.check_with_context(&query2, &ctx);
@@ -102,7 +111,9 @@ fn compliance_gdpr_export_users_without_audit() {
     let sql = "SELECT * FROM export_data JOIN users ON export_data.user_id = users.id";
     let query = q(sql, "postgresql", "SELECT");
     let issues: Vec<_> = rules.iter().flat_map(|r| r.check(&query)).collect();
-    assert!(issues.iter().any(|i| i.message.contains("audit") || i.message.contains("activity")));
+    assert!(issues
+        .iter()
+        .any(|i| i.message.contains("audit") || i.message.contains("activity")));
 }
 
 #[test]
@@ -111,16 +122,21 @@ fn compliance_unencrypted_phi() {
     let sql = "SELECT * FROM patients WHERE encrypt=false AND sslmode=disable";
     let query = q(sql, "postgresql", "SELECT");
     let issues: Vec<_> = rules.iter().flat_map(|r| r.check(&query)).collect();
-    assert!(issues.iter().any(|i| i.message.contains("PHI") || i.message.contains("Insecure")));
+    assert!(issues
+        .iter()
+        .any(|i| i.message.contains("PHI") || i.message.contains("Insecure")));
 }
 
 #[test]
 fn compliance_sox_segregation_of_duties() {
     let rules = slowql_lib::rules::compliance::all_rules();
-    let sql = "UPDATE orders SET approved_by = 'admin', status = 'approved' WHERE created_by = 'admin'";
+    let sql =
+        "UPDATE orders SET approved_by = 'admin', status = 'approved' WHERE created_by = 'admin'";
     let query = q(sql, "postgresql", "UPDATE");
     let issues: Vec<_> = rules.iter().flat_map(|r| r.check(&query)).collect();
-    assert!(issues.iter().any(|i| i.message.contains("Segregation") || i.message.contains("Duties")));
+    assert!(issues
+        .iter()
+        .any(|i| i.message.contains("Segregation") || i.message.contains("Duties")));
 }
 
 // ---------------------------------------------------------------
@@ -233,7 +249,8 @@ fn mybatis_bind_tag() {
 
 #[test]
 fn mybatis_sql_fragment_with_statement() {
-    let xml = r#"<mapper><sql id="fullSelect">SELECT * FROM users WHERE active = true</sql></mapper>"#;
+    let xml =
+        r#"<mapper><sql id="fullSelect">SELECT * FROM users WHERE active = true</sql></mapper>"#;
     let queries = slowql_lib::mybatis::parse_mybatis_xml(xml, "test.xml");
     assert!(!queries.is_empty());
 }
@@ -244,7 +261,11 @@ fn mybatis_sql_fragment_with_statement() {
 
 #[test]
 fn parser_block_comment_in_split() {
-    let queries = slowql_lib::parser::parse("/* comment */ SELECT 1; /* another */ SELECT 2", "postgresql", None);
+    let queries = slowql_lib::parser::parse(
+        "/* comment */ SELECT 1; /* another */ SELECT 2",
+        "postgresql",
+        None,
+    );
     assert_eq!(queries.len(), 2);
 }
 
@@ -334,7 +355,10 @@ fn compare_short_skeleton_ignored() {
         ..Default::default()
     };
     let issues = slowql_lib::compare::find_similar_queries(&[q1, q2]);
-    assert!(issues.is_empty(), "short queries should not flag as similar");
+    assert!(
+        issues.is_empty(),
+        "short queries should not flag as similar"
+    );
 }
 
 #[test]
@@ -363,13 +387,17 @@ fn compare_ddl_ignored() {
 fn config_pyproject_toml() {
     let dir = tempfile::tempdir().unwrap();
     let pyproject = dir.path().join("pyproject.toml");
-    std::fs::write(&pyproject, r#"
+    std::fs::write(
+        &pyproject,
+        r#"
 [tool.slowql]
 [tool.slowql.analysis]
 dialect = "mysql"
 [tool.slowql.severity]
 fail_on = "critical"
-"#).unwrap();
+"#,
+    )
+    .unwrap();
     let config = with_cwd(dir.path(), slowql_lib::config::Config::find_and_load);
     assert_eq!(config.analysis.dialect.as_deref(), Some("mysql"));
 }
@@ -413,8 +441,12 @@ fn baseline_save_and_load() {
 
     let mut result = AnalysisResult::new();
     result.add_issue(slowql_lib::models::Issue::new(
-        "TEST-001", "test", slowql_lib::models::Severity::High,
-        slowql_lib::models::Dimension::Security, Location::new(1, 1), "x",
+        "TEST-001",
+        "test",
+        slowql_lib::models::Severity::High,
+        slowql_lib::models::Dimension::Security,
+        Location::new(1, 1),
+        "x",
     ));
     let baseline = Baseline::generate(&result);
     let dir = tempfile::tempdir().unwrap();
@@ -493,7 +525,10 @@ fn autofixer_span_fix_mismatch() {
     };
     // Original text does not match fix.original at span
     let result = AutoFixer::apply_fix("HELLO WORLD", &fix);
-    assert_eq!(result, "HELLO WORLD", "mismatched span fix should not apply");
+    assert_eq!(
+        result, "HELLO WORLD",
+        "mismatched span fix should not apply"
+    );
 }
 
 // ---------------------------------------------------------------
@@ -513,12 +548,16 @@ fn yaml_rules_missing_rules_key() {
 fn yaml_rules_invalid_regex() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("bad_regex.yaml");
-    std::fs::write(&path, r#"
+    std::fs::write(
+        &path,
+        r#"
 rules:
   - id: "BAD-001"
     pattern: "[invalid"
     message: "test"
-"#).unwrap();
+"#,
+    )
+    .unwrap();
     let result = slowql_lib::yaml_rules::load_yaml_rules(&path);
     assert!(result.is_err());
 }
@@ -527,11 +566,15 @@ rules:
 fn yaml_rules_missing_pattern() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("no_pattern.yaml");
-    std::fs::write(&path, r#"
+    std::fs::write(
+        &path,
+        r#"
 rules:
   - id: "NO-PAT-001"
     message: "test"
-"#).unwrap();
+"#,
+    )
+    .unwrap();
     let result = slowql_lib::yaml_rules::load_yaml_rules(&path);
     assert!(result.is_err());
 }
@@ -540,7 +583,9 @@ rules:
 fn yaml_rules_all_severity_levels() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("severities.yaml");
-    std::fs::write(&path, r#"
+    std::fs::write(
+        &path,
+        r#"
 rules:
   - id: "SEV-001"
     pattern: "\\bTEST1\\b"
@@ -567,7 +612,9 @@ rules:
     message: "test"
     severity: "unknown"
     dimension: "unknown"
-"#).unwrap();
+"#,
+    )
+    .unwrap();
     let rules = slowql_lib::yaml_rules::load_yaml_rules(&path).unwrap();
     assert_eq!(rules.len(), 5);
 }
@@ -694,7 +741,9 @@ fn injection_xpath_pattern() {
     let sql = "SELECT XMLQUERY('/root' || user_input || '/child[1]')";
     let query = q(sql, "postgresql", "SELECT");
     let issues: Vec<_> = rules.iter().flat_map(|r| r.check(&query)).collect();
-    assert!(issues.iter().any(|i| i.message.contains("XPath") || i.message.contains("XML")));
+    assert!(issues
+        .iter()
+        .any(|i| i.message.contains("XPath") || i.message.contains("XML")));
 }
 
 #[test]
@@ -745,10 +794,10 @@ fn engine_custom_rules_bad_file() {
 fn engine_severity_override_unknown() {
     // Line 122: unknown severity override falls through to default
     let mut config = slowql_lib::config::Config::default();
-    config.analysis.severity_overrides.insert(
-        "REL-DATA-001".to_string(),
-        "unknown_severity".to_string(),
-    );
+    config
+        .analysis
+        .severity_overrides
+        .insert("REL-DATA-001".to_string(), "unknown_severity".to_string());
     let engine = slowql_lib::engine::Engine::new(config);
     let result = engine.analyze("DELETE FROM users", Some("postgresql"), None);
     let _ = result;
@@ -801,7 +850,8 @@ fn mybatis_no_end_of_open_tag() {
 
 #[test]
 fn mybatis_insert_statement() {
-    let xml = r#"<mapper><insert id="add">INSERT INTO users (name) VALUES (#{name})</insert></mapper>"#;
+    let xml =
+        r#"<mapper><insert id="add">INSERT INTO users (name) VALUES (#{name})</insert></mapper>"#;
     let queries = slowql_lib::mybatis::parse_mybatis_xml(xml, "test.xml");
     assert!(!queries.is_empty());
 }
@@ -855,11 +905,7 @@ fn parser_update_table_extraction() {
 
 #[test]
 fn parser_delete_table_extraction() {
-    let queries = slowql_lib::parser::parse(
-        "DELETE FROM users WHERE id = 1",
-        "postgresql",
-        None,
-    );
+    let queries = slowql_lib::parser::parse("DELETE FROM users WHERE id = 1", "postgresql", None);
     assert!(!queries.is_empty());
     assert!(queries[0].tables.contains(&"users".to_string()));
 }
@@ -877,22 +923,14 @@ fn parser_select_with_join_tables() {
 
 #[test]
 fn parser_select_columns_extraction() {
-    let queries = slowql_lib::parser::parse(
-        "SELECT id, name AS n FROM users",
-        "postgresql",
-        None,
-    );
+    let queries = slowql_lib::parser::parse("SELECT id, name AS n FROM users", "postgresql", None);
     assert!(!queries.is_empty());
     assert!(queries[0].columns.contains(&"id".to_string()));
 }
 
 #[test]
 fn parser_select_wildcard_column() {
-    let queries = slowql_lib::parser::parse(
-        "SELECT * FROM users",
-        "postgresql",
-        None,
-    );
+    let queries = slowql_lib::parser::parse("SELECT * FROM users", "postgresql", None);
     assert!(!queries.is_empty());
     assert!(queries[0].columns.contains(&"*".to_string()));
 }

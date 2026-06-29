@@ -1,28 +1,74 @@
 # Export System
 
-Once the SlowQL engine translates SQL files into arrays of `Issue` dataclasses via the Rules Pipeline, the final architectural step involves formatting and exporting these findings to either human operators or downstream pipeline consumers.
+SlowQL supports multiple output formats and file export options.
 
-This is fundamentally managed through subclasses of the `BaseReporter`.
+## Output Formats
 
-## The BaseReporter Abstraction
-Every reporter must inherit from `slowql.reporters.base.BaseReporter` and implement the `report(result: AnalysisResult)` method. Repositories decoupling logic directly via dependency injection ensures that SlowQL can easily be extended into future output topologies (e.g., direct API payloads or Jira ticketing logic) simply by creating a new reporter class.
+### Console (default)
 
-## Current Subsystems
+Human-readable output with color-coded severity, code snippets, and documentation links.
 
-### 1. `ConsoleReporter`
-The default system orchestrator intended for human end-users. Inheriting heavily from the `rich` UI library, `console.py` handles:
-- Printing cyberpunk-styled summary banners.
-- Rendering explicit SQL text snippets surrounding the vulnerable nodes.
-- Handling ANSI escape characters for precise coloring (red for Critical/High, yellow for Medium).
-- Aggregating statistical throughput metrics (elapsed analysis time, total files processed).
+```bash
+slowql src/
+```
 
-### 2. `GitHubActionsReporter`
-Activated via `--format github-actions`. It strictly bypasses visual fluff and logs standardized string outputs (`::error file=bad_query.sql,line=4,col=1::Message`).
+### JSON
+Machine-readable output. Useful for custom tooling and pipelines.
+``` Bash
+slowql src/ --format json
+```
 
-GitHub Actions automatically intercepts these specific outputs on `STDOUT` and directly annotates the exact lines of code on internal PR diff views, making it completely effortless for developers to spot violations without opening logs.
+JSON Structure:
+``` JSON
+{
+  "issues": [...],
+  "statistics": {
+    "total_queries": 142,
+    "total_issues": 3,
+    "by_severity": {"critical": 1, "high": 2, "medium": 0, "low": 0, "info": 0},
+    "by_dimension": {"security": 2, "performance": 1, ...},
+    "analysis_time_ms": 287.4,
+    "parse_time_ms": 45.2
+  },
+  "dialect": "postgresql",
+  "version": "2.0.0",
+  "timestamp": "2025-06-27T15:00:00Z",
+  "suppressed_count": 12
+}
+```
 
-### 3. `JsonReporter`
-Standard serialization. Generates a robust, array-based `.json` output via `--export json`. Useful when coupling SlowQL internally into larger automated orchestration systems or security aggregation platforms that parse conventional text objects.
+### SARIF
+Static Analysis Results Interchange Format (SARIF 2.1.0). Integrates with GitHub Code Scanning.
+``` Bash
+slowql src/ --format sarif
+```
 
-### 4. `SarifReporter`
-A highly structured format generated via `--export sarif`. **Static Analysis Results Interchange Format (SARIF)** is a widely accepted OASIS standard. Integrating this into GitHub’s `codeql-action` populates the "Security" tab inside GitHub repositories securely, classifying SQL injections alongside native CodeQL scanning results automatically.
+### Github Actions
+Native GitHub Actions annotation format. Places error annotations directly on PR diffs.
+``` Bash
+slowql src/ --format github-actions
+```
+
+## File Exports
+Use `--export` to write results to disk while still printing console output:
+``` Bash
+# Single format
+slowql src/ --export json --out reports/
+
+# Multiple formats
+slowql src/ --export json --export html --export csv --export sarif --out reports/
+```
+Files are written to `--out` directory (default: `reports/`):
+
+``` text
+reports/
+  ├── slowql_report.json
+  ├── slowql_report.html
+  ├── slowql_report.csv
+  └── slowql_report.sarif
+```
+
+## JSON Output Design
+The `queries` array is deliberately excluded from JSON output. On large repos, including all parsed queries produces files 100MB+ in size and dominates wall time. The statistics object provides aggregate query counts without the full payload.
+
+If you need per-query data, use `--verbose` with console output.

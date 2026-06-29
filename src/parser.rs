@@ -530,4 +530,185 @@ $func$ LANGUAGE plpgsql;
             Some("SELECT".into())
         );
     }
+
+    #[test]
+    fn detect_dialect_postgresql() {
+        assert_eq!(
+            detect_dialect("SELECT id::int FROM t WHERE $1 = 1"),
+            "postgresql"
+        );
+    }
+
+    #[test]
+    fn detect_dialect_mysql() {
+        assert_eq!(detect_dialect("SELECT `name` FROM t LIMIT 10"), "mysql");
+    }
+
+    #[test]
+    fn detect_dialect_tsql() {
+        assert_eq!(detect_dialect("SELECT TOP 10 * FROM [users]"), "tsql");
+    }
+
+    #[test]
+    fn detect_dialect_oracle() {
+        assert_eq!(
+            detect_dialect("SELECT * FROM t WHERE ROWNUM < 10"),
+            "oracle"
+        );
+    }
+
+    #[test]
+    fn detect_dialect_snowflake() {
+        assert_eq!(
+            detect_dialect("SELECT * FROM t, LATERAL FLATTEN(col)"),
+            "snowflake"
+        );
+    }
+
+    #[test]
+    fn detect_dialect_generic() {
+        assert_eq!(detect_dialect("SELECT 1"), "generic");
+    }
+
+    #[test]
+    fn parse_merge_statement() {
+        let queries = parse(
+            "MERGE INTO t USING s ON t.id = s.id WHEN MATCHED THEN UPDATE SET t.x = s.x",
+            "tsql",
+            None,
+        );
+        assert!(!queries.is_empty());
+    }
+
+    #[test]
+    fn parse_grant_statement() {
+        let queries = parse("GRANT SELECT ON users TO readonly", "postgresql", None);
+        assert!(!queries.is_empty());
+        assert_eq!(queries[0].query_type.as_deref(), Some("GRANT"));
+    }
+
+    #[test]
+    fn parse_revoke_statement() {
+        let queries = parse("REVOKE INSERT ON users FROM writer", "postgresql", None);
+        assert!(!queries.is_empty());
+        assert_eq!(queries[0].query_type.as_deref(), Some("REVOKE"));
+    }
+
+    #[test]
+    fn parse_truncate_statement() {
+        let queries = parse("TRUNCATE TABLE users", "postgresql", None);
+        assert!(!queries.is_empty());
+    }
+
+    #[test]
+    fn parse_empty_dialect() {
+        let queries = parse("SELECT 1", "", None);
+        assert_eq!(queries.len(), 1);
+    }
+
+    #[test]
+    fn parse_unknown_dialect() {
+        let queries = parse("SELECT 1", "unknown", None);
+        assert_eq!(queries.len(), 1);
+    }
+
+    #[test]
+    fn parse_auto_detect_dialect() {
+        let queries = parse("SELECT id::int FROM users WHERE $1 = 1", "", None);
+        assert!(!queries.is_empty());
+    }
+
+    #[test]
+    fn parse_alter_table() {
+        let queries = parse(
+            "ALTER TABLE users ADD COLUMN email TEXT",
+            "postgresql",
+            None,
+        );
+        assert!(!queries.is_empty());
+        assert_eq!(queries[0].query_type.as_deref(), Some("ALTER"));
+    }
+
+    #[test]
+    fn parse_drop_table() {
+        let queries = parse("DROP TABLE IF EXISTS users", "postgresql", None);
+        assert!(!queries.is_empty());
+        assert_eq!(queries[0].query_type.as_deref(), Some("DROP"));
+    }
+
+    #[test]
+    fn parse_create_view() {
+        let queries = parse("CREATE VIEW v AS SELECT 1", "postgresql", None);
+        assert!(!queries.is_empty());
+    }
+
+    #[test]
+    fn parse_create_index() {
+        let queries = parse("CREATE INDEX idx ON users (name)", "postgresql", None);
+        assert!(!queries.is_empty());
+    }
+
+    #[test]
+    fn parse_insert_with_columns() {
+        let queries = parse(
+            "INSERT INTO users (name, email) VALUES ('a', 'b')",
+            "postgresql",
+            None,
+        );
+        assert!(!queries.is_empty());
+        assert!(queries[0].tables.contains(&"users".to_string()));
+    }
+
+    #[test]
+    fn parse_update_statement() {
+        let queries = parse(
+            "UPDATE users SET name = 'x' WHERE id = 1",
+            "postgresql",
+            None,
+        );
+        assert!(!queries.is_empty());
+        assert_eq!(queries[0].query_type.as_deref(), Some("UPDATE"));
+    }
+
+    #[test]
+    fn parse_delete_statement() {
+        let queries = parse("DELETE FROM users WHERE id = 1", "postgresql", None);
+        assert!(!queries.is_empty());
+    }
+
+    #[test]
+    fn parse_with_cte() {
+        let queries = parse(
+            "WITH cte AS (SELECT 1) SELECT * FROM cte",
+            "postgresql",
+            None,
+        );
+        assert_eq!(queries.len(), 1);
+        assert_eq!(queries[0].query_type.as_deref(), Some("SELECT"));
+    }
+
+    #[test]
+    fn parse_double_quoted_identifier() {
+        let sql = r#"SELECT "Name" FROM "Users""#;
+        let queries = parse(sql, "postgresql", None);
+        assert_eq!(queries.len(), 1);
+    }
+
+    #[test]
+    fn parse_various_dialects() {
+        for dialect in &[
+            "mysql",
+            "tsql",
+            "sqlite",
+            "bigquery",
+            "snowflake",
+            "redshift",
+            "clickhouse",
+            "duckdb",
+            "hive",
+        ] {
+            let queries = parse("SELECT 1", dialect, None);
+            assert_eq!(queries.len(), 1, "failed for dialect: {}", dialect);
+        }
+    }
 }

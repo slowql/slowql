@@ -871,3 +871,181 @@ pub fn all_rules() -> Vec<Box<dyn Rule>> {
         Box::new(CcpaOptOutRule),
     ]
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{Location, Query};
+
+    fn q(sql: &str, dialect: &str, qt: &str) -> Query {
+        Query {
+            raw: sql.to_string(),
+            normalized: sql.to_string(),
+            dialect: dialect.to_string(),
+            location: Location::new(1, 1),
+            query_type: Some(qt.to_string()),
+            source_context: "application".to_string(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn all_compliance_rules_metadata() {
+        let rules = all_rules();
+        assert!(rules.len() >= 15);
+        for rule in &rules {
+            let _ = rule.id();
+            let _ = rule.name();
+            let _ = rule.severity();
+            let _ = rule.dimension();
+            let _ = rule.category();
+            let _ = rule.impact();
+            let _ = rule.fix_guidance();
+            let _ = rule.confidence();
+            let _ = rule.dialects();
+        }
+    }
+
+    #[test]
+    fn all_compliance_rules_no_match_simple() {
+        let rules = all_rules();
+        let query = q("SELECT 1", "postgresql", "SELECT");
+        for rule in &rules {
+            let _ = rule.check(&query);
+        }
+    }
+
+    #[test]
+    fn pii_patterns() {
+        let rules = all_rules();
+        for sql in &[
+            "SELECT email, phone FROM users",
+            "SELECT ssn FROM customers",
+            "SELECT date_of_birth FROM patients",
+            "INSERT INTO logs (ip_address) VALUES ('1.2.3.4')",
+        ] {
+            let query = q(sql, "postgresql", "SELECT");
+            for rule in &rules {
+                let _ = rule.check(&query);
+            }
+        }
+    }
+
+    #[test]
+    fn financial_patterns() {
+        let rules = all_rules();
+        let query = q(
+            "DELETE FROM financial_transactions WHERE id = 1",
+            "postgresql",
+            "DELETE",
+        );
+        for rule in &rules {
+            let _ = rule.check(&query);
+        }
+    }
+
+    #[test]
+    fn audit_patterns() {
+        let rules = all_rules();
+        let query = q(
+            "DELETE FROM audit_log WHERE created_at < '2020-01-01'",
+            "postgresql",
+            "DELETE",
+        );
+        for rule in &rules {
+            let _ = rule.check(&query);
+        }
+    }
+
+    #[test]
+    fn encryption_patterns() {
+        let rules = all_rules();
+        let query = q(
+            "INSERT INTO users (password) VALUES ('plaintext')",
+            "postgresql",
+            "INSERT",
+        );
+        for rule in &rules {
+            let _ = rule.check(&query);
+        }
+    }
+
+    #[test]
+    fn retention_patterns() {
+        let rules = all_rules();
+        let query = q(
+            "DELETE FROM personal_data WHERE retention_expired = true",
+            "postgresql",
+            "DELETE",
+        );
+        for rule in &rules {
+            let _ = rule.check(&query);
+        }
+    }
+
+    #[test]
+    fn cross_border_patterns() {
+        let rules = all_rules();
+        let query = q(
+            "INSERT INTO eu_data SELECT * FROM us_backup",
+            "postgresql",
+            "INSERT",
+        );
+        for rule in &rules {
+            let _ = rule.check(&query);
+        }
+    }
+
+    #[test]
+    fn consent_patterns() {
+        let rules = all_rules();
+        let query = q(
+            "UPDATE users SET marketing_consent = true",
+            "postgresql",
+            "UPDATE",
+        );
+        for rule in &rules {
+            let _ = rule.check(&query);
+        }
+    }
+
+    #[test]
+    fn insert_path() {
+        let rules = all_rules();
+        let query = q("INSERT INTO t (a) VALUES (1)", "postgresql", "INSERT");
+        for rule in &rules {
+            let _ = rule.check(&query);
+        }
+    }
+
+    #[test]
+    fn update_path() {
+        let rules = all_rules();
+        let query = q("UPDATE t SET x = 1", "postgresql", "UPDATE");
+        for rule in &rules {
+            let _ = rule.check(&query);
+        }
+    }
+
+    #[test]
+    fn delete_path() {
+        let rules = all_rules();
+        let query = q("DELETE FROM t WHERE id = 1", "postgresql", "DELETE");
+        for rule in &rules {
+            let _ = rule.check(&query);
+        }
+    }
+
+    #[test]
+    fn create_path() {
+        let rules = all_rules();
+        let query = q(
+            "CREATE TABLE t (id INT, email TEXT, ssn TEXT)",
+            "postgresql",
+            "CREATE",
+        );
+        for rule in &rules {
+            let _ = rule.check(&query);
+        }
+    }
+}

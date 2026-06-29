@@ -120,9 +120,15 @@ fn is_not_templated_curly_number() {
 
 #[test]
 fn is_update_check() {
-    let q = Query { query_type: Some("UPDATE".to_string()), ..Default::default() };
+    let q = Query {
+        query_type: Some("UPDATE".to_string()),
+        ..Default::default()
+    };
     assert!(q.is_update());
-    let q2 = Query { query_type: Some("SELECT".to_string()), ..Default::default() };
+    let q2 = Query {
+        query_type: Some("SELECT".to_string()),
+        ..Default::default()
+    };
     assert!(!q2.is_update());
 }
 
@@ -161,8 +167,22 @@ fn config_find_and_load_json() {
 #[test]
 fn analysis_result_sorted() {
     let mut result = AnalysisResult::new();
-    result.add_issue(Issue::new("A", "low", Severity::Low, Dimension::Quality, Location::new(1,1), "x"));
-    result.add_issue(Issue::new("B", "high", Severity::High, Dimension::Security, Location::new(1,1), "x"));
+    result.add_issue(Issue::new(
+        "A",
+        "low",
+        Severity::Low,
+        Dimension::Quality,
+        Location::new(1, 1),
+        "x",
+    ));
+    result.add_issue(Issue::new(
+        "B",
+        "high",
+        Severity::High,
+        Dimension::Security,
+        Location::new(1, 1),
+        "x",
+    ));
     let sorted = result.sorted_by_severity();
     assert_eq!(sorted[0].severity, Severity::High);
 }

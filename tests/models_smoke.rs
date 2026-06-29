@@ -104,7 +104,14 @@ fn severity_color_codes() {
 
 #[test]
 fn dimension_display_and_parse() {
-    for dim in &["security", "performance", "reliability", "compliance", "cost", "quality"] {
+    for dim in &[
+        "security",
+        "performance",
+        "reliability",
+        "compliance",
+        "cost",
+        "quality",
+    ] {
         let parsed: Dimension = dim.parse().unwrap();
         assert_eq!(parsed.as_str(), *dim);
     }
@@ -113,11 +120,21 @@ fn dimension_display_and_parse() {
 
 #[test]
 fn issue_with_methods() {
-    let issue = Issue::new("TEST-001", "test", Severity::High, Dimension::Security, Location::new(1, 1), "snip")
-        .with_category(slowql_lib::models::issue::Category::SecInjection)
-        .with_impact("bad things happen")
-        .with_tags(vec!["tag1".to_string()]);
-    assert_eq!(issue.category, Some(slowql_lib::models::issue::Category::SecInjection));
+    let issue = Issue::new(
+        "TEST-001",
+        "test",
+        Severity::High,
+        Dimension::Security,
+        Location::new(1, 1),
+        "snip",
+    )
+    .with_category(slowql_lib::models::issue::Category::SecInjection)
+    .with_impact("bad things happen")
+    .with_tags(vec!["tag1".to_string()]);
+    assert_eq!(
+        issue.category,
+        Some(slowql_lib::models::issue::Category::SecInjection)
+    );
     assert_eq!(issue.impact.as_deref(), Some("bad things happen"));
     assert_eq!(issue.tags, vec!["tag1".to_string()]);
 }
@@ -126,8 +143,15 @@ fn issue_with_methods() {
 fn issue_with_fix() {
     let fix = slowql_lib::models::Fix::safe("fix it", "= NULL", "IS NULL", "TEST-001");
     assert!(fix.is_safe);
-    let issue = Issue::new("TEST-001", "test", Severity::High, Dimension::Quality, Location::new(1, 1), "snip")
-        .with_fix(fix);
+    let issue = Issue::new(
+        "TEST-001",
+        "test",
+        Severity::High,
+        Dimension::Quality,
+        Location::new(1, 1),
+        "snip",
+    )
+    .with_fix(fix);
     assert!(issue.fix.is_some());
     assert!(issue.fix.unwrap().is_safe);
 }
@@ -149,9 +173,30 @@ fn result_exit_code_no_issues() {
 #[test]
 fn result_sorted_by_severity() {
     let mut result = AnalysisResult::new();
-    result.add_issue(Issue::new("A", "low", Severity::Low, Dimension::Quality, Location::new(1,1), "x"));
-    result.add_issue(Issue::new("B", "critical", Severity::Critical, Dimension::Security, Location::new(2,1), "x"));
-    result.add_issue(Issue::new("C", "medium", Severity::Medium, Dimension::Performance, Location::new(3,1), "x"));
+    result.add_issue(Issue::new(
+        "A",
+        "low",
+        Severity::Low,
+        Dimension::Quality,
+        Location::new(1, 1),
+        "x",
+    ));
+    result.add_issue(Issue::new(
+        "B",
+        "critical",
+        Severity::Critical,
+        Dimension::Security,
+        Location::new(2, 1),
+        "x",
+    ));
+    result.add_issue(Issue::new(
+        "C",
+        "medium",
+        Severity::Medium,
+        Dimension::Performance,
+        Location::new(3, 1),
+        "x",
+    ));
     let sorted = result.sorted_by_severity();
     assert_eq!(sorted[0].rule_id, "B");
     assert_eq!(sorted[1].rule_id, "C");
@@ -160,10 +205,27 @@ fn result_sorted_by_severity() {
 
 #[test]
 fn rule_confidence_parse() {
-    assert_eq!("proven".parse::<slowql_lib::models::issue::RuleConfidence>().unwrap(), slowql_lib::models::issue::RuleConfidence::Proven);
-    assert_eq!("contextual".parse::<slowql_lib::models::issue::RuleConfidence>().unwrap(), slowql_lib::models::issue::RuleConfidence::Contextual);
-    assert_eq!("advisory".parse::<slowql_lib::models::issue::RuleConfidence>().unwrap(), slowql_lib::models::issue::RuleConfidence::Advisory);
-    assert!("invalid".parse::<slowql_lib::models::issue::RuleConfidence>().is_err());
+    assert_eq!(
+        "proven"
+            .parse::<slowql_lib::models::issue::RuleConfidence>()
+            .unwrap(),
+        slowql_lib::models::issue::RuleConfidence::Proven
+    );
+    assert_eq!(
+        "contextual"
+            .parse::<slowql_lib::models::issue::RuleConfidence>()
+            .unwrap(),
+        slowql_lib::models::issue::RuleConfidence::Contextual
+    );
+    assert_eq!(
+        "advisory"
+            .parse::<slowql_lib::models::issue::RuleConfidence>()
+            .unwrap(),
+        slowql_lib::models::issue::RuleConfidence::Advisory
+    );
+    assert!("invalid"
+        .parse::<slowql_lib::models::issue::RuleConfidence>()
+        .is_err());
 }
 
 #[test]
@@ -227,6 +289,26 @@ fn query_snippet() {
     };
     assert_eq!(q.snippet(10), "SELECT * F");
     assert_eq!(q.snippet(1000), "SELECT * FROM users WHERE id = 1");
+}
+
+#[test]
+fn query_snippet_respects_utf8_boundaries() {
+    let raw = "SELECT fidèle ORDER BY id";
+    let q = slowql_lib::models::Query {
+        raw: raw.to_string(),
+        ..Default::default()
+    };
+
+    let (multibyte_start, multibyte_char) = raw
+        .char_indices()
+        .find(|(_, ch)| !ch.is_ascii())
+        .expect("expected multibyte character");
+    let inside_multibyte = multibyte_start + 1;
+    let after_multibyte = multibyte_start + multibyte_char.len_utf8();
+
+    assert!(multibyte_char.len_utf8() > 1);
+    assert_eq!(q.snippet(inside_multibyte), &raw[..multibyte_start]);
+    assert_eq!(q.snippet(after_multibyte), &raw[..after_multibyte]);
 }
 
 #[test]

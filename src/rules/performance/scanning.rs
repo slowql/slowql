@@ -99,7 +99,7 @@ impl Rule for MissingWhereRule {
             }
         }
         let msg = format!("Unbounded {} detected (missing WHERE).", qt);
-        let snip = &query.raw[..query.raw.len().min(50)];
+        let snip = query.snippet(50);
         vec![self.build_issue(query, &msg, snip)]
     }
 }
@@ -304,7 +304,7 @@ impl Rule for CountStarWithoutWhereRule {
         if upper.contains("WHERE") {
             return Vec::new();
         }
-        let snip = &query.raw[..query.raw.len().min(80)];
+        let snip = query.snippet(80);
         vec![self.build_issue(
             query,
             "COUNT(*) without WHERE - consider pg_catalog.reltuples for approximate counts.",
@@ -344,7 +344,7 @@ impl Rule for NotInNullableSubqueryRule {
         if !PAT_NOT_IN_SUB.is_match(&query.raw) {
             return Vec::new();
         }
-        let snip = &query.raw[..query.raw.len().min(80)];
+        let snip = query.snippet(80);
         vec![self.build_issue(query, "NOT IN with subquery may return wrong results if subquery contains NULLs - use NOT EXISTS.", snip)]
     }
 }
@@ -384,7 +384,7 @@ impl Rule for SelectForUpdateWithoutNowaitPgRule {
         if upper.contains("NOWAIT") || upper.contains("SKIP LOCKED") {
             return Vec::new();
         }
-        let snip = &query.raw[..query.raw.len().min(80)];
+        let snip = query.snippet(80);
         vec![self.build_issue(
             query,
             "SELECT FOR UPDATE without NOWAIT or SKIP LOCKED - may block indefinitely.",
@@ -428,7 +428,7 @@ impl Rule for SelectForUpdateWithoutLimitMysqlRule {
         if upper.contains("LIMIT") {
             return Vec::new();
         }
-        let snip = &query.raw[..query.raw.len().min(80)];
+        let snip = query.snippet(80);
         vec![self.build_issue(
             query,
             "SELECT FOR UPDATE without LIMIT - may lock excessive rows in InnoDB.",
@@ -633,4 +633,75 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
         Box::new(BigQueryDistinctOnUnnestRule),
         Box::new(BigQueryRegexOnLargeTableRule),
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{Location, Query};
+
+    fn q(sql: &str, dialect: &str, qt: &str) -> Query {
+        Query {
+            raw: sql.to_string(),
+            normalized: sql.to_string(),
+            dialect: dialect.to_string(),
+            location: Location::new(1, 1),
+            query_type: Some(qt.to_string()),
+            source_context: "application".to_string(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn metadata_coverage() {
+        let rules = rules();
+        for rule in &rules {
+            let _ = rule.id();
+            let _ = rule.name();
+            let _ = rule.severity();
+            let _ = rule.dimension();
+            let _ = rule.category();
+            let _ = rule.impact();
+            let _ = rule.fix_guidance();
+            let _ = rule.confidence();
+            let _ = rule.dialects();
+        }
+    }
+
+    #[test]
+    fn no_match_simple() {
+        let rules = rules();
+        let query = q("SELECT 1", "postgresql", "SELECT");
+        for rule in &rules {
+            let _ = rule.check(&query);
+        }
+    }
+
+    #[test]
+    fn dialect_coverage() {
+        let rules = rules();
+        let dialects = [
+            "postgresql",
+            "mysql",
+            "tsql",
+            "oracle",
+            "sqlite",
+            "bigquery",
+            "snowflake",
+            "redshift",
+            "clickhouse",
+            "duckdb",
+            "presto",
+            "spark",
+        ];
+        for dialect in &dialects {
+            for qt in &["SELECT", "INSERT", "UPDATE", "DELETE", "CREATE"] {
+                let query = q("SELECT 1", dialect, qt);
+                for rule in &rules {
+                    let _ = rule.check(&query);
+                    let _ = rule.dialect_matches(&query);
+                }
+            }
+        }
+    }
 }

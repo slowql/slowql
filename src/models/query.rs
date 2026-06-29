@@ -73,9 +73,21 @@ impl Query {
         self.raw_upper().contains(&keyword.to_uppercase())
     }
 
-    /// Snip the first N bytes of raw SQL (safe for display).
+    /// Return a display-safe prefix of at most `max_len` bytes.
+    ///
+    /// The returned slice is adjusted to the nearest valid UTF-8 character
+    /// boundary at or before `max_len`, so display code never panics when the
+    /// query contains multibyte characters.
+    ///
+    /// Time: O(1). A UTF-8 scalar value occupies at most 4 bytes, so the loop
+    /// executes at most 3 times.
+    /// Space: O(1). Returns a borrowed slice without allocation.
     pub fn snippet(&self, max_len: usize) -> &str {
-        &self.raw[..self.raw.len().min(max_len)]
+        let mut end = self.raw.len().min(max_len);
+        while !self.raw.is_char_boundary(end) {
+            end -= 1;
+        }
+        &self.raw[..end]
     }
 
     /// Returns true if this query contains format placeholders or
@@ -89,6 +101,11 @@ impl Query {
         }
         // Django double-percent escaping: %%s
         if raw.contains("%%s") || raw.contains("%%d") {
+            return true;
+        }
+        // Knex/raw identifier placeholders: ?? for table/column names.
+        // These are templates, not concrete executable SQL.
+        if raw.contains("??") {
             return true;
         }
         // Ruby/Rails interpolation: #{expr}

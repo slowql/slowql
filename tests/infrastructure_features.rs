@@ -260,9 +260,13 @@ fn registry_filter_by_dimension() {
 
 #[test]
 fn scoring_from_config() {
-    use slowql_lib::scoring::ComplexityScorer;
     use slowql_lib::config::ComplexityConfig;
-    let config = ComplexityConfig { enabled: true, threshold_optimal: 30, threshold_complex: 60 };
+    use slowql_lib::scoring::ComplexityScorer;
+    let config = ComplexityConfig {
+        enabled: true,
+        threshold_optimal: 30,
+        threshold_complex: 60,
+    };
     let scorer = ComplexityScorer::from_config(&config);
     assert_eq!(scorer.classify(20), "optimal");
     assert_eq!(scorer.classify(50), "complex");

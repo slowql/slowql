@@ -123,3 +123,163 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
         Box::new(SessionTimeoutNotEnforcedRule),
     ]
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{Location, Query};
+
+    fn q(sql: &str, dialect: &str, qt: &str) -> Query {
+        Query {
+            raw: sql.to_string(),
+            normalized: sql.to_string(),
+            dialect: dialect.to_string(),
+            location: Location::new(1, 1),
+            query_type: Some(qt.to_string()),
+            source_context: "application".to_string(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn metadata_coverage() {
+        let rules = rules();
+        for rule in &rules {
+            let _ = rule.id();
+            let _ = rule.name();
+            let _ = rule.severity();
+            let _ = rule.dimension();
+            let _ = rule.category();
+            let _ = rule.impact();
+            let _ = rule.fix_guidance();
+            let _ = rule.confidence();
+            let _ = rule.dialects();
+        }
+    }
+
+    #[test]
+    fn no_match_simple() {
+        let rules = rules();
+        let query = q("SELECT 1", "postgresql", "SELECT");
+        for rule in &rules {
+            let _ = rule.check(&query);
+        }
+    }
+
+    #[test]
+    fn dialect_coverage() {
+        let rules = rules();
+        let dialects = [
+            "postgresql",
+            "mysql",
+            "tsql",
+            "oracle",
+            "sqlite",
+            "bigquery",
+            "snowflake",
+            "redshift",
+            "clickhouse",
+        ];
+        for dialect in &dialects {
+            for qt in &["SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP"] {
+                let query = q("SELECT 1", dialect, qt);
+                for rule in &rules {
+                    let _ = rule.check(&query);
+                    let _ = rule.dialect_matches(&query);
+                }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod extra_tests {
+    use super::*;
+    use crate::models::{Location, Query};
+
+    fn q(sql: &str, dialect: &str) -> Query {
+        Query {
+            raw: sql.to_string(),
+            normalized: sql.to_string(),
+            dialect: dialect.to_string(),
+            location: Location::new(1, 1),
+            query_type: Some("INSERT".to_string()),
+            source_context: "application".to_string(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn session_001_fires_on_plaintext_token_insert() {
+        let rules = rules();
+        let rule = rules.iter().find(|r| r.id() == "SEC-SESSION-001").unwrap();
+        let sql =
+            "INSERT INTO sessions (session_token) VALUES ('abcdefghijklmnopqrstuvwxyz1234567890')";
+        let query = q(sql, "postgresql");
+        let issues = rule.check(&query);
+        assert!(!issues.is_empty(), "should flag plaintext token insert");
+    }
+
+    #[test]
+    fn session_002_fires_on_token_lookup_without_expiry() {
+        let rules = rules();
+        let rule = rules.iter().find(|r| r.id() == "SEC-SESSION-002").unwrap();
+        let sql = "SELECT * FROM sessions WHERE session_token = :token";
+        let query = Query {
+            raw: sql.to_string(),
+            normalized: sql.to_string(),
+            dialect: "postgresql".to_string(),
+            location: Location::new(1, 1),
+            query_type: Some("SELECT".to_string()),
+            source_context: "application".to_string(),
+            ..Default::default()
+        };
+        let issues = rule.check(&query);
+        assert!(
+            !issues.is_empty(),
+            "should flag token lookup without expiry check"
+        );
+    }
+
+    #[test]
+    fn session_002_no_fire_when_expiry_present() {
+        let rules = rules();
+        let rule = rules.iter().find(|r| r.id() == "SEC-SESSION-002").unwrap();
+        let sql = "SELECT * FROM sessions WHERE session_token = :token AND expires_at > NOW()";
+        let query = Query {
+            raw: sql.to_string(),
+            normalized: sql.to_string(),
+            dialect: "postgresql".to_string(),
+            location: Location::new(1, 1),
+            query_type: Some("SELECT".to_string()),
+            source_context: "application".to_string(),
+            ..Default::default()
+        };
+        let issues = rule.check(&query);
+        assert!(
+            issues.is_empty(),
+            "should not flag when expiry check is present"
+        );
+    }
+
+    #[test]
+    fn session_002_no_fire_without_token_column_in_where() {
+        let rules = rules();
+        let rule = rules.iter().find(|r| r.id() == "SEC-SESSION-002").unwrap();
+        let sql = "SELECT * FROM sessions WHERE user_id = :user_id";
+        let query = Query {
+            raw: sql.to_string(),
+            normalized: sql.to_string(),
+            dialect: "postgresql".to_string(),
+            location: Location::new(1, 1),
+            query_type: Some("SELECT".to_string()),
+            source_context: "application".to_string(),
+            ..Default::default()
+        };
+        let issues = rule.check(&query);
+        assert!(
+            issues.is_empty(),
+            "should not flag when WHERE does not use a token column"
+        );
+    }
+}

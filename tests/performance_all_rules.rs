@@ -1176,30 +1176,59 @@ WHERE
 fn batch_002_while_with_limit() {
     let r = all();
     let rule = find(&r, "PERF-BATCH-002");
-    assert!(rule.check(&q("WHILE @count > 0 BEGIN DELETE TOP (1000) FROM t WHERE x = 1 END", "tsql", "SELECT")).is_empty());
+    assert!(rule
+        .check(&q(
+            "WHILE @count > 0 BEGIN DELETE TOP (1000) FROM t WHERE x = 1 END",
+            "tsql",
+            "SELECT"
+        ))
+        .is_empty());
 }
 
 #[test]
 fn mem_002_unbounded_temp() {
     let r = all();
     let rule = find(&r, "PERF-MEM-002");
-    assert!(!rule.check(&q("SELECT * INTO #temp FROM large_table", "tsql", "SELECT")).is_empty());
-    assert!(rule.check(&q("SELECT * INTO #temp FROM large_table WHERE id = 1", "tsql", "SELECT")).is_empty());
+    assert!(!rule
+        .check(&q("SELECT * INTO #temp FROM large_table", "tsql", "SELECT"))
+        .is_empty());
+    assert!(rule
+        .check(&q(
+            "SELECT * INTO #temp FROM large_table WHERE id = 1",
+            "tsql",
+            "SELECT"
+        ))
+        .is_empty());
 }
 
 #[test]
 fn tsql_003_convert_in_join() {
     let r = all();
     let rule = find(&r, "PERF-TSQL-003");
-    assert!(!rule.check(&q("SELECT * FROM a JOIN b ON CONVERT(VARCHAR, a.id) = b.id", "tsql", "SELECT")).is_empty());
-    assert!(rule.check(&q("SELECT * FROM a JOIN b ON a.id = b.id", "tsql", "SELECT")).is_empty());
+    assert!(!rule
+        .check(&q(
+            "SELECT * FROM a JOIN b ON CONVERT(VARCHAR, a.id) = b.id",
+            "tsql",
+            "SELECT"
+        ))
+        .is_empty());
+    assert!(rule
+        .check(&q(
+            "SELECT * FROM a JOIN b ON a.id = b.id",
+            "tsql",
+            "SELECT"
+        ))
+        .is_empty());
 }
 
 #[test]
 fn net_001_many_columns() {
     let r = all();
     let rule = find(&r, "PERF-NET-001");
-    let cols = (0..25).map(|i| format!("col{}", i)).collect::<Vec<_>>().join(", ");
+    let cols = (0..25)
+        .map(|i| format!("col{}", i))
+        .collect::<Vec<_>>()
+        .join(", ");
     let sql = format!("SELECT {} FROM t", cols);
     assert!(!rule.check(&q(&sql, "postgresql", "SELECT")).is_empty());
 }
@@ -1208,7 +1237,10 @@ fn net_001_many_columns() {
 fn lock_003_long_transaction() {
     let r = all();
     let rule = find(&r, "PERF-LOCK-003");
-    let long_sql = format!("BEGIN TRANSACTION; {} COMMIT", "UPDATE t SET x = 1; ".repeat(30));
+    let long_sql = format!(
+        "BEGIN TRANSACTION; {} COMMIT",
+        "UPDATE t SET x = 1; ".repeat(30)
+    );
     assert!(!rule.check(&q(&long_sql, "tsql", "SELECT")).is_empty());
 }
 
@@ -1216,6 +1248,97 @@ fn lock_003_long_transaction() {
 fn execution_sort_001() {
     let r = all();
     let rule = find(&r, "PERF-SORT-001");
-    assert!(!rule.check(&q("SELECT * FROM t ORDER BY description", "postgresql", "SELECT")).is_empty());
-    assert!(rule.check(&q("SELECT * FROM t ORDER BY id", "postgresql", "SELECT")).is_empty());
+    assert!(!rule
+        .check(&q(
+            "SELECT * FROM t ORDER BY description",
+            "postgresql",
+            "SELECT"
+        ))
+        .is_empty());
+    assert!(rule
+        .check(&q("SELECT * FROM t ORDER BY id", "postgresql", "SELECT"))
+        .is_empty());
+}
+
+#[test]
+fn ch_002_join_global() {
+    let r = all();
+    let rule = find(&r, "PERF-CH-002");
+    assert!(!rule
+        .check(&q(
+            "SELECT * FROM t JOIN (SELECT 1) s ON 1=1",
+            "clickhouse",
+            "SELECT"
+        ))
+        .is_empty());
+    assert!(rule
+        .check(&q(
+            "SELECT * FROM t GLOBAL JOIN (SELECT 1) s ON 1=1",
+            "clickhouse",
+            "SELECT"
+        ))
+        .is_empty());
+}
+#[test]
+fn presto_001_cross_implicit() {
+    let r = all();
+    let rule = find(&r, "PERF-PRESTO-001");
+    assert!(!rule
+        .check(&q("SELECT * FROM orders, users", "presto", "SELECT"))
+        .is_empty());
+}
+#[test]
+fn spark_002_udf() {
+    let r = all();
+    let rule = find(&r, "PERF-SPARK-002");
+    assert!(!rule
+        .check(&q("SELECT * FROM t WHERE udf(col) = 1", "spark", "SELECT"))
+        .is_empty());
+}
+#[test]
+fn sqlite_001_wal_non_wal() {
+    let r = all();
+    let rule = find(&r, "PERF-SQLITE-001");
+    assert!(!rule
+        .check(&q("PRAGMA journal_mode = DELETE", "sqlite", "SELECT"))
+        .is_empty());
+    assert!(rule
+        .check(&q("PRAGMA journal_mode = WAL", "sqlite", "SELECT"))
+        .is_empty());
+}
+#[test]
+fn duck_002_large_in() {
+    let r = all();
+    let rule = find(&r, "PERF-DUCK-002");
+    let vals = (0..15)
+        .map(|i| i.to_string())
+        .collect::<Vec<_>>()
+        .join(", ");
+    assert!(!rule
+        .check(&q(
+            &format!("SELECT * FROM t WHERE id IN ({})", vals),
+            "duckdb",
+            "SELECT"
+        ))
+        .is_empty());
+}
+#[test]
+fn rs_003_not_in() {
+    let r = all();
+    let rule = find(&r, "PERF-RS-003");
+    assert!(!rule
+        .check(&q(
+            "SELECT * FROM t WHERE id NOT IN (SELECT id FROM s)",
+            "redshift",
+            "SELECT"
+        ))
+        .is_empty());
+}
+#[test]
+fn tsql_004_waitfor() {
+    let r = all();
+    let rule = find(&r, "PERF-TSQL-004");
+    assert!(!rule
+        .check(&q("WAITFOR DELAY '00:00:05'", "tsql", "SELECT"))
+        .is_empty());
 }

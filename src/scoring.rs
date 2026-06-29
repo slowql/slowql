@@ -140,4 +140,36 @@ mod tests {
         let score = scorer.calculate(&q, &[]);
         assert_eq!(score, 100);
     }
+
+    #[test]
+    fn classify_scores() {
+        let scorer = ComplexityScorer::new();
+        assert_eq!(scorer.classify(10), "optimal");
+        assert_eq!(scorer.classify(40), "optimal");
+        assert_eq!(scorer.classify(50), "complex");
+        assert_eq!(scorer.classify(70), "complex");
+        assert_eq!(scorer.classify(80), "critical");
+    }
+
+    #[test]
+    fn from_config() {
+        let config = crate::config::ComplexityConfig::default();
+        let scorer = ComplexityScorer::from_config(&config);
+        assert_eq!(scorer.threshold_optimal, 0);
+    }
+
+    #[test]
+    fn display() {
+        let scorer = ComplexityScorer::new();
+        let s = format!("{}", scorer);
+        assert!(s.contains("optimal"));
+        assert!(s.contains("complex"));
+        assert!(s.contains("critical"));
+    }
+
+    #[test]
+    fn default_impl() {
+        let scorer = ComplexityScorer::default();
+        assert_eq!(scorer.threshold_optimal, 40);
+    }
 }

@@ -185,3 +185,109 @@ pub trait Rule: Send + Sync {
         self.build_issue(query, message, snippet).with_fix(fix)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn normalize_dialect_aliases() {
+        assert_eq!(normalize_dialect("postgres"), "postgresql");
+        assert_eq!(normalize_dialect("pg"), "postgresql");
+        assert_eq!(normalize_dialect("mssql"), "tsql");
+        assert_eq!(normalize_dialect("sqlserver"), "tsql");
+        assert_eq!(normalize_dialect("sql_server"), "tsql");
+        assert_eq!(normalize_dialect("mariadb"), "mysql");
+        assert_eq!(normalize_dialect("bq"), "bigquery");
+        assert_eq!(normalize_dialect("sf"), "snowflake");
+        assert_eq!(normalize_dialect("postgresql"), "postgresql");
+    }
+
+    #[test]
+    fn dialect_set_universal_matches_all() {
+        let ds = DialectSet::universal();
+        assert!(ds.matches("postgresql"));
+        assert!(ds.matches("mysql"));
+    }
+
+    #[test]
+    fn dialect_set_specific() {
+        let ds = DialectSet::new(&["postgresql", "mysql"]);
+        assert!(ds.matches("postgresql"));
+        assert!(ds.matches("postgres"));
+        assert!(ds.matches("mysql"));
+        assert!(!ds.matches("tsql"));
+    }
+
+    #[test]
+    fn dialect_set_unknown_no_match() {
+        let ds = DialectSet::new(&["postgresql"]);
+        assert!(!ds.matches("unknown"));
+        assert!(!ds.matches(""));
+    }
+
+    #[test]
+    fn rule_context_is_large_table() {
+        let tm = TableMetadata {
+            large_tables: vec!["big_table".to_string()],
+            partitioned_tables: std::collections::HashMap::new(),
+        };
+        let ctx = RuleContext {
+            schema: None,
+            table_metadata: &tm,
+            source_context: "application",
+        };
+        assert!(ctx.is_large_table("big_table"));
+        assert!(ctx.is_large_table("BIG_TABLE"));
+        assert!(!ctx.is_large_table("small_table"));
+    }
+
+    #[test]
+    fn rule_context_is_partitioned() {
+        let mut partitioned = std::collections::HashMap::new();
+        partitioned.insert("events".to_string(), vec!["date".to_string()]);
+        let tm = TableMetadata {
+            large_tables: vec![],
+            partitioned_tables: partitioned,
+        };
+        let ctx = RuleContext {
+            schema: None,
+            table_metadata: &tm,
+            source_context: "application",
+        };
+        assert!(ctx.is_partitioned("events"));
+        assert!(!ctx.is_partitioned("users"));
+    }
+
+    #[test]
+    fn rule_context_partition_columns() {
+        let mut partitioned = std::collections::HashMap::new();
+        partitioned.insert("events".to_string(), vec!["date".to_string()]);
+        let tm = TableMetadata {
+            large_tables: vec![],
+            partitioned_tables: partitioned,
+        };
+        let ctx = RuleContext {
+            schema: None,
+            table_metadata: &tm,
+            source_context: "application",
+        };
+        assert_eq!(ctx.partition_columns("events"), vec!["date".to_string()]);
+        assert!(ctx.partition_columns("users").is_empty());
+    }
+
+    #[test]
+    fn rule_context_with_schema() {
+        let schema =
+            crate::schema::parse_ddl("CREATE TABLE big (id INT PRIMARY KEY);", "postgresql");
+        let tm = TableMetadata::default();
+        let ctx = RuleContext {
+            schema: Some(&schema),
+            table_metadata: &tm,
+            source_context: "application",
+        };
+        assert!(!ctx.is_large_table("big")); // no estimated_rows
+        assert!(!ctx.is_partitioned("big")); // no partition_columns
+        assert!(ctx.partition_columns("big").is_empty());
+    }
+}

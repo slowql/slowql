@@ -1,34 +1,78 @@
 # Parser Engine
 
-SlowQL relies on an extensible SQL parser architecture, operating at both the AST component-level and raw semantic token levels. The backbone of SlowQL's parsing infrastructure is built upon the blazing-fast and versatile `sqlglot` library.
+SlowQL uses the `sqlparser` Rust crate for SQL parsing alongside custom extractors for application code.
 
-## The Universal Parser
-
-Unlike legacy static analyzers that attempt to define arbitrary regex patterns over multiline queries, SlowQL features the `UniversalParser`.
-
-```mermaid
-graph LR
-    A[Raw SQL] -->|Source Splitter| B(Statement Exporter)
-    B -->|Dialect Guesser| C[sqlglot Engine]
-    C -->|Parse Node| D{UniversalParser}
-    D --> E(AST `exp.Expression`)
-    D --> F(Token Sequence)
-    D --> G(Query Object)
+## SQL Parsing Pipeline
+``` text
+Raw SQL -> Statement Splitter -> Dialect Detector -> sqlparser -> Query Object
 ```
 
-The `UniversalParser` acts as a highly resilient translation layer:
-1. **Source Splitting**: Before anything is translated to an AST, raw SQL strings containing multiple semi-colon delimited scripts are reliably chunked by the `SourceSplitter`. If the chunker crashes on a malformed query, it safely falls back to standard regex semicolon extraction, guaranteeing high robustness.
-2. **Dialect Normalization**: If the user omits `--dialect` configuration, the parser leverages a heuristic `DIALECT_DETECTION_RULES` object to assign the execution space. For instance, detecting backticks (`` ` ``) assigns `mysql`, while identifying `ROWNUM` assigns `oracle`.
-3. **AST Extraction**: `sqlglot.parse_one()` natively translates the string into a node tree based on its schema bindings (`exp.Select`, `exp.Table`, `exp.Column`).
-4. **AST Binding**: SlowQL wraps the `exp.Expression` alongside extracted metadata tables into a unified `Query` dataclass that is handed to the Rules logic.
+### Statement Splitter
 
-## The Raw Tokenizer
+Splits raw SQL content into individual statements using semicolon detection with awareness of:
+- String literals (single-quoted, double-quoted, dollar-quoted)
+- Block comments (`/* ... */`)
+- Line comments (`--`)
+- PostgreSQL dollar-quoted functions (`$$ ... $$`)
 
-If rules are built via `PatternRule` (and therefore completely skip the `sqlglot` AST binding), they often still require normalized structural arrays to run safely. 
+### Dialect Detection
 
-SlowQL's native `Tokenizer` engine (`src/slowql/parser/tokenizer.py`) runs at nearly **O(1) sequential speeds**, slicing fragments of SQL by generating tokens mapped to static `TokenType` enums:
-- ` TokenType.KEYWORD` (Identifies strings appearing in a rigid 250+ predefined ANSI list).
-- `TokenType.IDENTIFIER` / `TokenType.QUOTED_IDENTIFIER` (For dynamic table strings).
-- `TokenType.LPAREN`, `TokenType.STRING`, and `TokenType.COMMENT`.
+If no dialect is configured, SlowQL detects it from SQL patterns:
+- Backtick identifiers -> MySQL
+- `@@` variables -> T-SQL
+- `ROWNUM` -> Oracle
+- `QUALIFY`, `VARIANT` -> Snowflake
+- Backtick + `STRUCT<>` -> BigQuery
+- Dollar-quoted strings -> PostgreSQL
 
-Because the tokenizer understands string boundaries via contextual escape character detection (handles dollar quoting `$$`, multi-line strings, and `/*` comment structures correctly), regex rules can accurately assess the raw text without accidentally flagging strings nested inside comments or literals.
+### Query Object
+
+Each parsed statement becomes a `Query` struct:
+
+```Rust
+pub struct Query {
+    pub raw: String,           // Original SQL text
+    pub normalized: String,    // Uppercase normalized form
+    pub dialect: String,       // Detected or configured dialect
+    pub location: Location,    // File, line, column
+    pub tables: Vec<String>,   // Referenced table names
+    pub columns: Vec<String>,  // Referenced column names
+    pub query_type: Option<String>,  // SELECT, INSERT, UPDATE, DELETE, etc.
+    pub is_ddl: bool,          // Is this a DDL statement?
+    pub is_dynamic: bool,      // Contains template placeholders?
+    pub complexity_score: u32, // 0-100 complexity score
+    pub source_context: String, // application, migration, test, etc.
+    pub facts: Option<QueryFacts>, // Structural facts (AST-level)
+}
+```
+
+### QueryFacts
+Structural facts extracted by deeper AST analysis:
+``` Rust
+pub struct QueryFacts {
+    pub has_where: bool,
+    pub has_limit: bool,
+    pub has_aggregation: bool,
+    pub has_group_by: bool,
+    pub join_count: usize,
+    pub from_tables: Vec<String>,
+    pub subquery_count: usize,
+}
+```
+Rules use facts to avoid regex false positives. For example, `PERF-SCAN-003` (unbounded SELECT) checks `facts.has_limit` instead of scanning for the word `LIMIT`.
+
+## Application Code Extraction
+
+For non-SQL files, language-specific extractors identify SQL sinks and extract string arguments:
+
+- Python: triple-quote regex, f-string detection, single/double quote regex
+- TypeScript/JavaScript: template literal regex, sink-aware pattern matching
+- Java/Kotlin/C#: sink method regex
+- Go: sink method regex with format string detection
+- Ruby: sink method regex, heredoc detection
+- MyBatis XML: full XML parser
+
+Each extracted SQL string goes through `is_likely_sql()` validation before becoming a `Query` object. This filter rejects English prose, URL strings, route patterns, and other non-SQL content.
+
+## Caching
+Parsed results are cached by file content hash. Unchanged files are not re-parsed on subsequent runs. Cache is stored in `.slowql_cache/` by default.

@@ -247,8 +247,16 @@ fn cli_compare_detects_similar_queries_across_files() {
     let a = dir.path().join("a.sql");
     let b = dir.path().join("b.sql");
 
-    std::fs::write(&a, "SELECT id, name, email, created_at FROM users_table_long_name WHERE user_id_column = 1").unwrap();
-    std::fs::write(&b, "SELECT id, name, email, created_at FROM users_table_long_name WHERE user_id_column = 42").unwrap();
+    std::fs::write(
+        &a,
+        "SELECT id, name, email, created_at FROM users_table_long_name WHERE user_id_column = 1",
+    )
+    .unwrap();
+    std::fs::write(
+        &b,
+        "SELECT id, name, email, created_at FROM users_table_long_name WHERE user_id_column = 42",
+    )
+    .unwrap();
 
     let output = run_slowql(
         dir.path(),

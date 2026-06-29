@@ -1,74 +1,50 @@
 # Severity Overrides
 
-Severity Overrides allow you to customize the severity level of any SlowQL rule on a per-project basis. This is useful when your team's standards differ from the SlowQL defaults, or when you want to elevate specific quality rules to critical status or downgrade performance warnings to info.
-
----
+Override the severity of any rule in your configuration file.
 
 ## Configuration
 
-Overrides are defined in the `analysis` section of your `slowql.yaml` (or other supported configuration files) under the `severity_overrides` key.
-
 ```yaml
 analysis:
   severity_overrides:
-    PERF-SCAN-001: info      # Downgrade "SELECT *" to Info
-    QUAL-NULL-001: critical  # Upgrade "WHERE x = NULL" to Critical
-    SEC-INJ-001: high        # Ensure a specific security rule is High
+    PERF-SCAN-001: info      # Downgrade SELECT * to informational
+    QUAL-NULL-001: critical  # Upgrade null comparison to critical
+    SEC-INJ-001: high        # Keep injection at high
 ```
 
-### Supported Severity Levels
+## Valid Severity Values
 
-The following severity levels can be used as target values:
-- `critical`
-- `high`
-- `medium`
-- `low`
-- `info`
+`critical`, `high`, `medium`, `low`, `info`
 
----
+## How It Works
 
-## How it Works
+Overrides are applied after all rules execute and before results are reported. The modified severity is used for:
 
-The SlowQL engine applies overrides at the end of the analysis phase, just before issues are reported or filtered. 
-
-1. **Standard Analysis:** All rules execute with their built-in default severities.
-2. **Override Application:** If a rule ID matches a key in your `severity_overrides` configuration, the engine replaces the issue's severity with your configured value.
-3. **Filtering & Exiting:** The modified severities are then used to determine if an issue should cause a pipeline failure (via `fail_on`) or a warning (via `warn_on`).
-
-> [!NOTE]
-> Overrides are applied to all instances of a rule. If you want to suppress a specific instance of a rule on a single line, use [Inline Suppression](suppression.md) instead.
-
----
+- Display in console output
+- `--fail-on` threshold evaluation
+- Export to JSON, SARIF, HTML
 
 ## Examples
 
-### Downgrading for Legacy Projects
-If you are working on a legacy project where `SELECT *` is prevalent and you don't want it to clutter your "Medium" or "High" reports, you can downgrade it:
-
-```yaml
+### Downgrade for Legacy Codebases
+``` YAML
 analysis:
   severity_overrides:
-    PERF-SCAN-001: info
+    PERF-SCAN-001: info   # SELECT * is common in this legacy project
+    PERF-SCAN-003: low    # Unbounded SELECT is acceptable here
 ```
 
-### Upgrading for High-Security Environments
-If your project handles sensitive data and you want to ensure that any potential null pointer or type mismatch in a critical path is treated as a blocker:
-
-```yaml
+### Upgrade for Security-Critical Projects
+``` YAML
 analysis:
   severity_overrides:
-    QUAL-NULL-001: critical
+    QUAL-NULL-001: critical  # Null comparison errors must be blocking
+    SEC-AUTH-002: high       # Grant to PUBLIC must be visible
 ```
 
----
+## Interaction with Other Feattures
 
-## Interaction with Other Features
-
-### Inline Suppression
-If a rule is suppressed via an inline comment (e.g., `-- slowql-disable-line`), the severity override is never applied because the issue is discarded before the override phase.
-
-### Global Disabling
-If a rule is listed in `disabled_rules`, it will never fire, and any corresponding entry in `severity_overrides` will be ignored.
-
-### Baseline Mode
-Severity overrides apply to new issues found while running in baseline mode. If a new issue matches an overridden rule, it will be reported with the new severity.
+- **Inline suppression**: If a rule is suppressed via comment directive, the override is never applied.
+- **Disabled rules**: If a rule is in `disabled_rules`, overrides for it are ignored.
+- **Baseline mode**: New issues are reported with the overridden severity.
+- **Confidence levels**: Overrides apply regardless of confidence level.

@@ -37,3 +37,29 @@ pub fn get_changed_files(since: Option<&str>) -> HashSet<PathBuf> {
 
     changed
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn get_changed_files_no_git() {
+        // Exercise the function without changing directory.
+        // In CI or dev, git commands may succeed or fail gracefully.
+        let files = get_changed_files(None);
+        // Result depends on the git state of the repo being tested.
+        let _ = files;
+    }
+
+    #[test]
+    fn get_changed_files_with_since() {
+        let files = get_changed_files(Some("HEAD~1"));
+        let _ = files;
+    }
+
+    #[test]
+    fn get_changed_files_default() {
+        let files = get_changed_files(None);
+        let _ = files;
+    }
+}

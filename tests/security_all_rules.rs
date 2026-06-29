@@ -38,7 +38,7 @@ fn all() -> Vec<Box<dyn Rule>> {
 // ---------------------------------------------------------------------------
 #[test]
 fn security_has_61_rules() {
-    assert_eq!(all().len(), 61);
+    assert_eq!(all().len(), 60);
 }
 
 // ---------------------------------------------------------------------------
@@ -951,8 +951,13 @@ fn pg_001_pg_sleep_dialect() {
 
 #[test]
 fn tsql_004_waitfor() {
-    let r = all();
-    let rule = find(&r, "PERF-TSQL-004");
+    // PERF-TSQL-004 lives in the performance module (Dimension::Performance).
+    // Verify it is reachable from the performance registry.
+    let r = slowql_lib::rules::performance::all_rules();
+    let rule = r
+        .iter()
+        .find(|r| r.id() == "PERF-TSQL-004")
+        .expect("PERF-TSQL-004 should exist in performance rules");
     assert!(!rule
         .check(&q("WAITFOR DELAY '00:00:05'", "tsql", "SELECT"))
         .is_empty());
@@ -1113,7 +1118,13 @@ fn session_002_with_expiry() {
     let r = all();
     let rule = find(&r, "SEC-SESSION-002");
     // Query with expiry check should NOT fire
-    assert!(rule.check(&q("SELECT user_id FROM sessions WHERE session_token = $1 AND expires_at > NOW()", "postgresql", "SELECT")).is_empty());
+    assert!(rule
+        .check(&q(
+            "SELECT user_id FROM sessions WHERE session_token = $1 AND expires_at > NOW()",
+            "postgresql",
+            "SELECT"
+        ))
+        .is_empty());
 }
 
 #[test]
@@ -1127,5 +1138,11 @@ fn dos_001_with_maxrecursion() {
 fn dos_001_non_recursive_cte_no_fire() {
     let r = all();
     let rule = find(&r, "SEC-DOS-001");
-    assert!(rule.check(&q("WITH cte AS (SELECT 1) SELECT * FROM cte", "postgresql", "SELECT")).is_empty());
+    assert!(rule
+        .check(&q(
+            "WITH cte AS (SELECT 1) SELECT * FROM cte",
+            "postgresql",
+            "SELECT"
+        ))
+        .is_empty());
 }

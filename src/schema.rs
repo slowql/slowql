@@ -260,4 +260,90 @@ mod tests {
         assert!(!schema.has_table("nonexistent"));
         assert!(schema.get_table("nonexistent").is_none());
     }
+
+    #[test]
+    fn parse_foreign_key() {
+        let ddl = "CREATE TABLE orders (id INT PRIMARY KEY, user_id INT REFERENCES users(id));";
+        let schema = parse_ddl(ddl, "postgresql");
+        let table = schema.get_table("orders").unwrap();
+        let fk_col = table.columns.iter().find(|c| c.name == "user_id").unwrap();
+        assert!(fk_col.foreign_key.is_some());
+    }
+
+    #[test]
+    fn parse_table_level_primary_key() {
+        let ddl = "CREATE TABLE t (a INT, b INT, PRIMARY KEY (a, b));";
+        let schema = parse_ddl(ddl, "postgresql");
+        let table = schema.get_table("t").unwrap();
+        assert!(table.primary_key.contains(&"a".to_string()));
+        assert!(table.primary_key.contains(&"b".to_string()));
+        let col_a = table.columns.iter().find(|c| c.name == "a").unwrap();
+        assert!(col_a.primary_key);
+        assert!(!col_a.nullable);
+    }
+
+    #[test]
+    fn parse_mysql_dialect() {
+        let ddl = "CREATE TABLE t (id INT PRIMARY KEY, name VARCHAR(100));";
+        let schema = parse_ddl(ddl, "mysql");
+        assert!(schema.has_table("t"));
+    }
+
+    #[test]
+    fn parse_tsql_dialect() {
+        let ddl = "CREATE TABLE t (id INT PRIMARY KEY);";
+        let schema = parse_ddl(ddl, "tsql");
+        assert!(schema.has_table("t"));
+    }
+
+    #[test]
+    fn parse_sqlite_dialect() {
+        let ddl = "CREATE TABLE t (id INTEGER PRIMARY KEY);";
+        let schema = parse_ddl(ddl, "sqlite");
+        assert!(schema.has_table("t"));
+    }
+
+    #[test]
+    fn parse_generic_dialect() {
+        let ddl = "CREATE TABLE t (id INT);";
+        let schema = parse_ddl(ddl, "generic");
+        assert!(schema.has_table("t"));
+    }
+
+    #[test]
+    fn parse_invalid_sql() {
+        let schema = parse_ddl("NOT VALID SQL AT ALL", "postgresql");
+        assert!(schema.tables.is_empty());
+    }
+
+    #[test]
+    fn load_schema_file_success() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("schema.sql");
+        std::fs::write(&path, "CREATE TABLE users (id INT PRIMARY KEY);").unwrap();
+        let schema = load_schema_file(&path, "postgresql").unwrap();
+        assert!(schema.has_table("users"));
+    }
+
+    #[test]
+    fn load_schema_file_not_found() {
+        let result = load_schema_file(std::path::Path::new("/nonexistent.sql"), "postgresql");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn has_index_on_no_match() {
+        let ddl = "CREATE TABLE t (id INT PRIMARY KEY);";
+        let schema = parse_ddl(ddl, "postgresql");
+        let table = schema.get_table("t").unwrap();
+        assert!(!table.has_index_on(&["nonexistent".to_string()]));
+    }
+
+    #[test]
+    fn unique_index() {
+        let ddl = "CREATE TABLE t (id INT PRIMARY KEY, email TEXT); CREATE UNIQUE INDEX idx ON t (email);";
+        let schema = parse_ddl(ddl, "postgresql");
+        let table = schema.get_table("t").unwrap();
+        assert!(table.indexes[0].unique);
+    }
 }

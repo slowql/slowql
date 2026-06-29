@@ -60,12 +60,17 @@ impl Rule for TooManyJoinsRule {
     fn impact(&self) -> &'static str {
         "High join count increases query plan complexity and memory usage."
     }
+    fn confidence(&self) -> crate::rules::base::RuleConfidence {
+        // Contextual: a high join count is suspicious in application code but
+        // is expected and necessary in schema introspection or reporting queries.
+        // Cannot be proven wrong from SQL text alone without domain knowledge.
+        crate::rules::base::RuleConfidence::Contextual
+    }
     fn check(&self, query: &Query) -> Vec<Issue> {
         let count = PAT_JOIN.find_iter(&query.raw).count();
         if count >= 5 {
             let msg = format!("Query has {} JOINs. Consider simplifying.", count);
-            let snip = &query.raw[..query.raw.len().min(80)];
-            return vec![self.build_issue(query, &msg, snip)];
+            return vec![self.build_issue(query, &msg, query.snippet(80))];
         }
         Vec::new()
     }

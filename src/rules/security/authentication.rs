@@ -95,6 +95,11 @@ impl Rule for UserCreationWithoutPasswordRule {
     fn impact(&self) -> &'static str {
         "Passwordless database accounts can be accessed by anyone who knows the username."
     }
+    fn confidence(&self) -> crate::rules::base::RuleConfidence {
+        // Contextual: CREATE USER without password is valid for Unix socket auth
+        // and localhost-only service accounts. Cannot prove insecurity from SQL alone.
+        crate::rules::base::RuleConfidence::Contextual
+    }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if let Some(m) = PAT_AUTH_003.find(&query.raw) {
             if PAT_HAS_PASSWORD.is_match(&query.raw) {
@@ -178,6 +183,11 @@ impl Rule for GrantAllRule {
     fn impact(&self) -> &'static str {
         "Users receive administrative control, increasing blast radius of compromise."
     }
+    fn confidence(&self) -> crate::rules::base::RuleConfidence {
+        // Contextual: GRANT ALL to localhost-only DBA accounts is standard practice.
+        // Cannot prove excessive privilege from the SQL pattern alone.
+        crate::rules::base::RuleConfidence::Contextual
+    }
     fn check(&self, query: &Query) -> Vec<Issue> {
         if !PAT_AUTH_005.is_match(&query.raw) {
             return Vec::new();
@@ -233,4 +243,140 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
         Box::new(PasswordPolicyBypassRule),
         Box::new(GrantAllRule),
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{Location, Query};
+
+    fn q(sql: &str, dialect: &str, qt: &str) -> Query {
+        Query {
+            raw: sql.to_string(),
+            normalized: sql.to_string(),
+            dialect: dialect.to_string(),
+            location: Location::new(1, 1),
+            query_type: Some(qt.to_string()),
+            source_context: "application".to_string(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn metadata_coverage() {
+        let rules = rules();
+        for rule in &rules {
+            let _ = rule.id();
+            let _ = rule.name();
+            let _ = rule.severity();
+            let _ = rule.dimension();
+            let _ = rule.category();
+            let _ = rule.impact();
+            let _ = rule.fix_guidance();
+            let _ = rule.confidence();
+            let _ = rule.dialects();
+        }
+    }
+
+    #[test]
+    fn no_match_simple() {
+        let rules = rules();
+        let query = q("SELECT 1", "postgresql", "SELECT");
+        for rule in &rules {
+            let _ = rule.check(&query);
+        }
+    }
+
+    #[test]
+    fn dialect_coverage() {
+        let rules = rules();
+        let dialects = [
+            "postgresql",
+            "mysql",
+            "tsql",
+            "oracle",
+            "sqlite",
+            "bigquery",
+            "snowflake",
+            "redshift",
+            "clickhouse",
+        ];
+        for dialect in &dialects {
+            for qt in &["SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP"] {
+                let query = q("SELECT 1", dialect, qt);
+                for rule in &rules {
+                    let _ = rule.check(&query);
+                    let _ = rule.dialect_matches(&query);
+                }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod extra_tests {
+    use super::*;
+    use crate::models::{Location, Query};
+
+    fn q(sql: &str, file: Option<&str>) -> Query {
+        let mut location = Location::new(1, 1);
+        if let Some(f) = file {
+            location = location.with_file(f);
+        }
+        Query {
+            raw: sql.to_string(),
+            normalized: sql.to_string(),
+            dialect: "postgresql".to_string(),
+            location,
+            query_type: Some("CREATE".to_string()),
+            source_context: "application".to_string(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn auth_003_no_fire_with_restricted_account_flags() {
+        let rules = rules();
+        let rule = rules.iter().find(|r| r.id() == "SEC-AUTH-003").unwrap();
+        let query = q("CREATE USER app_user NOINHERIT", None);
+        assert!(rule.check(&query).is_empty());
+    }
+
+    #[test]
+    fn auth_003_no_fire_with_if_not_exists() {
+        let rules = rules();
+        let rule = rules.iter().find(|r| r.id() == "SEC-AUTH-003").unwrap();
+        let query = q("CREATE USER IF NOT EXISTS app_user", None);
+        assert!(rule.check(&query).is_empty());
+    }
+
+    #[test]
+    fn auth_005_no_fire_for_alter_default_privileges() {
+        let rules = rules();
+        let rule = rules.iter().find(|r| r.id() == "SEC-AUTH-005").unwrap();
+        let query = q(
+            "ALTER DEFAULT PRIVILEGES GRANT ALL ON TABLES TO app_user",
+            None,
+        );
+        assert!(rule.check(&query).is_empty());
+    }
+
+    #[test]
+    fn auth_005_no_fire_for_scoped_grant_all_in_init_file() {
+        let rules = rules();
+        let rule = rules.iter().find(|r| r.id() == "SEC-AUTH-005").unwrap();
+        let query = q(
+            "GRANT ALL ON TABLE users TO admin_user",
+            Some("docker/init.sql"),
+        );
+        assert!(rule.check(&query).is_empty());
+    }
+
+    #[test]
+    fn auth_005_scoped_grant_all_still_fires_outside_init_file() {
+        let rules = rules();
+        let rule = rules.iter().find(|r| r.id() == "SEC-AUTH-005").unwrap();
+        let query = q("GRANT ALL ON TABLE users TO app_user", Some("src/app.sql"));
+        assert!(!rule.check(&query).is_empty());
+    }
 }
