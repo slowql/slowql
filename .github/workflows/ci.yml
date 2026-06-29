@@ -122,6 +122,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: [test, clippy, fmt]
     if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
 
