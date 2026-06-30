@@ -1,8 +1,10 @@
 <div align="center">
 
-**Next-generation SQL static analyzer. Written in Rust.**
+# SlowQL
 
-Zero false positives in proven mode. Tested against 28 open-source repositories.
+**The fastest offline SQL static analyzer. Built in Rust for zero false positives.**
+
+Catch SQL injection, performance regressions, missing indexes, unbounded queries, compliance violations, and 282+ more issues before they reach production. No database connection required.
 
 <p align="center">
   <a href="https://github.com/slowql/slowql/blob/main/LICENSE">
@@ -18,10 +20,7 @@ Zero false positives in proven mode. Tested against 28 open-source repositories.
     <img src="https://img.shields.io/github/stars/slowql/slowql?logo=github&label=Stars" />
   </a>
   <a href="https://hub.docker.com/r/makroumi/slowql">
-    <img src="https://img.shields.io/docker/pulls/makroumi/slowql?logo=docker&label=Docker%20Pulls" />
-  </a>
-  <a href="https://hub.docker.com/r/makroumi/slowql">
-    <img src="https://img.shields.io/docker/image-size/makroumi/slowql/latest?logo=docker&label=Image%20Size" />
+    <img src="https://img.shields.io/docker/pulls/makroumi/slowql?logo=docker&label=Docker" />
   </a>
 </p>
 
