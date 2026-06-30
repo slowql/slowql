@@ -1,9 +1,5 @@
 <div align="center">
 
-<img src="assets/logo.png" alt="SlowQL Logo" style="width: 600px; height: 200px; object-fit: cover; object-position: center;" />
-
-<br/>
-
 **Next-generation SQL static analyzer. Written in Rust.**
 
 Zero false positives in proven mode. Tested against 28 open-source repositories.
@@ -20,6 +16,12 @@ Zero false positives in proven mode. Tested against 28 open-source repositories.
   </a>
   <a href="https://github.com/slowql/slowql/stargazers">
     <img src="https://img.shields.io/github/stars/slowql/slowql?logo=github&label=Stars" />
+  </a>
+  <a href="https://hub.docker.com/r/makroumi/slowql">
+    <img src="https://img.shields.io/docker/pulls/makroumi/slowql?logo=docker&label=Docker%20Pulls" />
+  </a>
+  <a href="https://hub.docker.com/r/makroumi/slowql">
+    <img src="https://img.shields.io/docker/image-size/makroumi/slowql/latest?logo=docker&label=Image%20Size" />
   </a>
 </p>
 
@@ -369,7 +371,7 @@ Files -> Walker -> Context Classifier -> Parser -> Rule Engine -> Issues -> Repo
 - **Reporter**: Console, JSON, SARIF, GitHub Actions, HTML, CSV
 
 ## Verified Against
-SlowQL v2.0.0 was hardened against these open-sourrce repositories with zero false positives in proven mode:
+SlowQL v2.0.0 was hardened against these open-source repositories with zero false positives in proven mode:
 (AMD Ryzen i7 U4700 12GB RAM)
 
 | **Repository** | **Queries** | **Time** |
